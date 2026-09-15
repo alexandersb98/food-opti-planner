@@ -1,6 +1,8 @@
 # Meal Plan Optimizer — Design Notes (IN PROGRESS)
 
-**Status:** All architectural decisions made. Next up: the concrete data
+**Status:** All architectural decisions made, but a design review turned
+up open holes/questions that should be resolved during the next step —
+see [`open-questions.md`](open-questions.md). Next up: the concrete data
 model / constraint DSL, then the full architectural design doc — see
 "Next steps below."
 
@@ -125,15 +127,18 @@ for #13.
 
 ## Next steps when resuming this work
 
-1. Nail down the concrete data model / "constraint DSL": `Food`,
+1. Resolve the open holes/questions in
+   [`open-questions.md`](open-questions.md), since several of them
+   change what the data model needs to represent.
+2. Nail down the concrete data model / "constraint DSL": `Food`,
    `Constraint` (attribute, scope: day|horizon, comparator, target,
    hard|soft, weight), `PlanRequest` (days, meals/day, foods available,
    constraints), `Plan` (result), `ViolationReport` (which soft
    constraints were compromised, by how much).
-2. Choose the specific optimization library (OR-Tools vs PuLP vs Pyomo)
+3. Choose the specific optimization library (OR-Tools vs PuLP vs Pyomo)
    and confirm it installs cleanly in the target environment.
-3. Write the full architectural design doc (per
+4. Write the full architectural design doc (per
    `superpowers:brainstorming`), get it approved section by section,
    commit it, then hand off to `superpowers:writing-plans` for an
    implementation plan.
-4. Implement the core engine with `superpowers:test-driven-development`.
+5. Implement the core engine with `superpowers:test-driven-development`.

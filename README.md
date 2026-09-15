@@ -10,6 +10,8 @@ failing outright.
 optimization logic is being designed before any UI is built.
 
 See [`docs/superpowers/specs/2026-09-15-meal-optimizer-design.md`](docs/superpowers/specs/2026-09-15-meal-optimizer-design.md)
-for the design notes and decisions made so far, and
+for the design notes and decisions made so far,
 [`docs/superpowers/specs/future-features.md`](docs/superpowers/specs/future-features.md)
-for deferred features and alternatives considered.
+for deferred features and alternatives considered, and
+[`docs/superpowers/specs/open-questions.md`](docs/superpowers/specs/open-questions.md)
+for holes/open questions found in review that still need resolving.
