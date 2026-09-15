@@ -14,14 +14,9 @@ through with a pointer to it.
    design doc decision #14 (solve modes, automatic minimal relaxation,
    `relaxable` flag).
 
-2. **CP-SAT doesn't natively support continuous variables.** Decision
-   #13 says "solve with OR-Tools (CP-SAT or its MILP/CBC backend)," but
-   decision #9 requires genuine continuous quantities (e.g. rice in any
-   gram amount). CP-SAT is an integer/boolean solver — continuous foods
-   would need scaling into fine-grained integer units (e.g.
-   deci-grams), introducing quantization error, or the real MILP/CBC
-   backend (`pywraplp`) must be used instead. The spec conflates two
-   different OR-Tools APIs that don't handle this the same way.
+2. **~~CP-SAT doesn't natively support continuous variables.~~
+   RESOLVED** — see design doc decision #15 (CP-SAT with fixed-precision
+   integer scaling, kept behind a swappable backend interface).
 
 3. **No upper bound on per-food quantity per slot.** The variety
    mechanism penalizes a food being *used* more than N times, but

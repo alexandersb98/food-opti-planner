@@ -112,9 +112,10 @@ until the logic is solid.
     goal-programming slack variables for every soft constraint at
     whatever scope (day/horizon) it's defined at. Objective = weighted
     sum of all slack/violation terms + variety penalty, subject to hard
-    constraints. Solve with OR-Tools (CP-SAT or its MILP/CBC backend).
-    Deterministic, one coherent model. Two alternatives (two-phase
-    solving, metaheuristics) were considered and set aside — see
+    constraints. Solve with OR-Tools (backend and continuous-vs-integer
+    representation finalized in decision #15). Deterministic, one
+    coherent model. Two alternatives (two-phase solving, metaheuristics)
+    were considered and set aside — see
     [`future-features.md`](future-features.md) for why, and for when
     they might be worth revisiting.
 
@@ -125,12 +126,15 @@ until the logic is solid.
     - **STRICT mode.** All hard constraints are enforced exactly as
       given. If the hard-constraint set alone is infeasible, no plan is
       produced. Instead the engine returns a conflict diagnostic naming
-      the hard constraints involved, found via an elastic/phased MILP:
-      give every hard constraint a slack variable gated by a "violated?"
-      binary, and first minimize the *count* of nonzero-slack binaries.
-      The constraints flagged nonzero in that minimal solution are the
-      reported conflicting set (a minimal, not necessarily unique,
-      explanation of the infeasibility).
+      the hard constraints involved, found via an elastic/phased
+      formulation: give every hard constraint a slack variable gated by
+      a "violated?" binary, and first minimize the *count* of
+      nonzero-slack binaries. The constraints flagged nonzero in that
+      minimal solution are the reported conflicting set (a minimal, not
+      necessarily unique, explanation of the infeasibility). On the v1
+      CP-SAT backend this is implemented via CP-SAT's native
+      solve-with-assumptions / minimal-unsat-core support rather than
+      hand-rolled slack/binary pairs — see decision #15.
 
     - **RELAX mode.** Automatically finds and applies the smallest
       relaxation that restores feasibility, in three phases: (1) the
@@ -163,6 +167,40 @@ until the logic is solid.
       common accidental-infeasibility source (can't always hit an exact
       number with whole eggs/cans). A soft constraint can still target
       an exact value via a two-sided deviation penalty.
+
+15. **Solver backend: OR-Tools CP-SAT for v1, behind a swappable
+    interface.** Resolves open question #2 from
+    [`open-questions.md`](open-questions.md).
+
+    - **v1 uses CP-SAT.** CP-SAT only works over integers, so decision
+      #9's genuinely continuous foods (e.g. rice, oil) are represented
+      as integers at a fixed, documented precision rather than true
+      reals — a deliberate, bounded rounding, not an approximation
+      users need to reason about. Default precision (overridable):
+      food quantities in **centigrams** (0.01g resolution, i.e. grams ×
+      100), monetary values in **tenths of a cent**, and each
+      user-defined attribute (decision #7) carries a `precision`
+      (decimal places, default 3) used to scale its per-unit value to
+      an integer at model-build time. At these resolutions the rounding
+      is not meal-planning-relevant in practice.
+    - **Why CP-SAT over a true-continuous MILP backend (MPSolver +
+      CBC/SCIP):** this problem is binary/combinatorics-heavy (the
+      "used here" indicators, variety-counting, and decision #14's
+      relaxation phases), where CP-SAT tends to be faster and more
+      robust than CBC. CP-SAT also has native solve-with-assumptions /
+      minimal-unsat-core support, which directly implements decision
+      #14's "find the minimal conflicting set of hard constraints" step
+      — no hand-built elastic/big-M encoding needed for that part.
+    - **Kept swappable, not hardcoded.** The engine's model-building
+      code (turning `Food`/`Constraint`/`PlanRequest` into
+      variables/constraints/objective) is written against a
+      solver-agnostic internal representation; the translation to
+      CP-SAT's API is isolated behind a single backend adapter. A future
+      true-continuous backend (MPSolver/CBC/SCIP) can be added as an
+      alternative adapter — using real-valued variables directly, no
+      scaling — and exposed as a user-selectable option, without
+      rewriting the model-building layer. Not built in v1; just
+      designed so it's an additive change later.
 
 ## Explicitly out of scope for v1 (later candidates)
 
