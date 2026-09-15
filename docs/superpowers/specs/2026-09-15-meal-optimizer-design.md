@@ -118,6 +118,52 @@ until the logic is solid.
     [`future-features.md`](future-features.md) for why, and for when
     they might be worth revisiting.
 
+14. **Hard-constraint infeasibility: two solve modes, automatic minimal
+    relaxation, per-constraint `relaxable` flag.** Resolves open
+    question #1 from [`open-questions.md`](open-questions.md).
+
+    - **STRICT mode.** All hard constraints are enforced exactly as
+      given. If the hard-constraint set alone is infeasible, no plan is
+      produced. Instead the engine returns a conflict diagnostic naming
+      the hard constraints involved, found via an elastic/phased MILP:
+      give every hard constraint a slack variable gated by a "violated?"
+      binary, and first minimize the *count* of nonzero-slack binaries.
+      The constraints flagged nonzero in that minimal solution are the
+      reported conflicting set (a minimal, not necessarily unique,
+      explanation of the infeasibility).
+
+    - **RELAX mode.** Automatically finds and applies the smallest
+      relaxation that restores feasibility, in three phases: (1) the
+      same minimal-count phase as STRICT to find *which* hard
+      constraints must give (restricted to constraints with
+      `relaxable: true`), (2) minimize the *total slack magnitude* on
+      just that flagged set to find *by how much* each must loosen at
+      minimum, (3) fix those as new, looser bounds and solve the normal
+      goal-programming objective over everything else as usual. The
+      result's report lists exactly which hard constraints were
+      relaxed and by how much. If the minimal conflicting set can only
+      be resolved by loosening a constraint marked `relaxable: false`,
+      RELAX mode reports the same infeasibility diagnostic as STRICT
+      instead of touching it.
+
+    - **`relaxable` flag.** Every hard constraint has a `relaxable: bool`
+      field, default `true` (irrelevant for soft constraints). Set it
+      `false` to pin a constraint (e.g. a hard allergy exclusion) as
+      immovable even under RELAX mode.
+
+    - **Manual override.** After either mode reports a conflict, the
+      user can hand-edit the `PlanRequest` (loosen specific bounds by
+      their own chosen amount, change `relaxable` flags, etc.) and
+      re-run in STRICT mode. This isn't a separate engine mode — it's
+      just STRICT/RELAX plus a caller free to change the request between
+      calls.
+
+    - **Hard constraints are inequalities only** (`≤`/`≥`), never exact
+      equality — equality combined with discrete/integer quantities is a
+      common accidental-infeasibility source (can't always hit an exact
+      number with whole eggs/cans). A soft constraint can still target
+      an exact value via a two-sided deviation penalty.
+
 ## Explicitly out of scope for v1 (later candidates)
 
 See [`future-features.md`](future-features.md) for the full list

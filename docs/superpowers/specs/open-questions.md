@@ -2,21 +2,17 @@
 
 Found during a design review of
 [`2026-09-15-meal-optimizer-design.md`](2026-09-15-meal-optimizer-design.md)
-after all architectural decisions (#1-13) were made. None of these are
-decided yet — resolve before or during the data-model/DSL step in that
-doc's "Next steps."
+after architectural decisions #1-13 were made. Being resolved one at a
+time (see item 1 below for the first) before or during the data-model/DSL
+step in that doc's "Next steps"; each resolution becomes a new numbered
+decision in the design doc, and the corresponding item here is struck
+through with a pointer to it.
 
 ## Critical — block writing a correct engine
 
-1. **No story for infeasible hard constraints.** The spec promises the
-   app never "just fails" when constraints conflict, but that's only
-   backed by the soft-constraint (goal programming) machinery. If two
-   **hard** constraints conflict, or granularity makes a hard constraint
-   unsatisfiable (e.g. a hard cost cap no integer combination of
-   discrete-unit foods can hit), the MILP is simply infeasible with no
-   defined fallback. Needs a decision: report which hard constraints
-   can't be jointly satisfied (infeasibility/IIS-style diagnostic),
-   auto-relax and re-solve, or something else.
+1. **~~No story for infeasible hard constraints.~~ RESOLVED** — see
+   design doc decision #14 (solve modes, automatic minimal relaxation,
+   `relaxable` flag).
 
 2. **CP-SAT doesn't natively support continuous variables.** Decision
    #13 says "solve with OR-Tools (CP-SAT or its MILP/CBC backend)," but
