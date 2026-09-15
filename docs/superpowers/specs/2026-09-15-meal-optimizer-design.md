@@ -1,8 +1,8 @@
 # Meal Plan Optimizer — Design Notes (IN PROGRESS)
 
-**Status:** Brainstorming paused. One architectural decision is deliberately
-deferred (see "Open decision" below). This document exists so the design
-work already done doesn't need to be redone — resume from "Next steps."
+**Status:** All architectural decisions made. Next up: the concrete data
+model / constraint DSL, then the full architectural design doc — see
+"Next steps below."
 
 **Path:** Architectural (new project, no existing code to change).
 
@@ -102,62 +102,38 @@ until the logic is solid.
     package/API that a future CLI, API service, or UI can import. Manual
     poking-around happens through the test suite, not a REPL/CLI.
 
-## Open decision — NOT YET MADE
-
-**How the optimization is structured/solved.** Three approaches were
-sketched and discussion was paused before the user picked one:
-
-- **A — Single MILP model per plan-generation call (leaning
-  recommended, not confirmed).** One optimization problem covers
-  everything: quantity variables per food per meal-slot per day (mixed
-  continuous/integer per food's granularity), binary "is this food used
-  here" indicators (needed for unit-linking and for detecting repeats
-  for variety), and goal-programming slack variables for every soft
-  constraint at whatever scope (day/horizon) it's defined at. Objective
-  = weighted sum of all slack/violation terms + variety penalty, subject
-  to hard constraints. Solve with OR-Tools (CP-SAT or its MILP/CBC
-  backend). Deterministic, one coherent model.
-
-- **B — Two-phase.** Solve day-level nutrient/cost totals first
-  (ignoring meal structure), then distribute those totals across meal
-  slots separately. Simpler individual models, but variety and
-  cross-meal trade-offs end up split across two disconnected problems —
-  added complexity without a clear payoff now that per-meal constraints
-  are explicitly out of scope (#4).
-
-- **C — Metaheuristic (genetic algorithm / simulated annealing).** More
-  flexible for nonlinear penalty shapes, but every constraint/attribute
-  here is linear (sum of per-unit value × quantity), so an exact/MILP
-  solver is both simpler to reason about and deterministic — a
-  metaheuristic would trade away that guarantee for flexibility that
-  isn't needed.
-
-**Nothing about this should be assumed decided.** When resuming, present
-these three again (or refined versions) and get an explicit choice
-before writing the full architectural design doc.
+13. **Optimization structure: single MILP model per plan-generation
+    call.** One optimization problem covers everything: quantity
+    variables per food per meal-slot per day (mixed continuous/integer
+    per food's granularity), binary "is this food used here" indicators
+    (needed for unit-linking and for detecting repeats for variety), and
+    goal-programming slack variables for every soft constraint at
+    whatever scope (day/horizon) it's defined at. Objective = weighted
+    sum of all slack/violation terms + variety penalty, subject to hard
+    constraints. Solve with OR-Tools (CP-SAT or its MILP/CBC backend).
+    Deterministic, one coherent model. Two alternatives (two-phase
+    solving, metaheuristics) were considered and set aside — see
+    [`future-features.md`](future-features.md) for why, and for when
+    they might be worth revisiting.
 
 ## Explicitly out of scope for v1 (later candidates)
 
-- Real recipes/dishes as atomic meal-composition units (see #1).
-- Per-meal constraints (see #4).
-- External nutrition/price data import (see #8).
-- Any UI (web, desktop, mobile).
-- Persistence (database, saved plans, user accounts).
-- A CLI.
+See [`future-features.md`](future-features.md) for the full list
+(recipes/dishes, per-meal constraints, external data import, UI,
+persistence, CLI) and the alternative optimization approaches considered
+for #13.
 
 ## Next steps when resuming this work
 
-1. Re-present approaches A/B/C (or better options informed by anything
-   learned since) and get an explicit decision.
-2. Nail down the concrete data model / "constraint DSL": `Food`,
+1. Nail down the concrete data model / "constraint DSL": `Food`,
    `Constraint` (attribute, scope: day|horizon, comparator, target,
    hard|soft, weight), `PlanRequest` (days, meals/day, foods available,
    constraints), `Plan` (result), `ViolationReport` (which soft
    constraints were compromised, by how much).
-3. Choose the specific optimization library (OR-Tools vs PuLP vs Pyomo)
+2. Choose the specific optimization library (OR-Tools vs PuLP vs Pyomo)
    and confirm it installs cleanly in the target environment.
-4. Write the full architectural design doc (per
+3. Write the full architectural design doc (per
    `superpowers:brainstorming`), get it approved section by section,
    commit it, then hand off to `superpowers:writing-plans` for an
    implementation plan.
-5. Implement the core engine with `superpowers:test-driven-development`.
+4. Implement the core engine with `superpowers:test-driven-development`.
