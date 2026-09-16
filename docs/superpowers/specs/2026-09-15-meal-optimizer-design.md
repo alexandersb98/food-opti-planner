@@ -249,6 +249,27 @@ until the logic is solid.
       (decision #10) and per-slot-quantity (decision #16) constraints,
       whose "reference" is their own threshold/serving-size value.
 
+18. **Horizon-average constraints auto-generate a same-valued day-level
+    guard-rail.** Resolves open question #5 from
+    [`open-questions.md`](open-questions.md).
+
+    - Whenever a horizon-scoped average constraint is declared (e.g.
+      "average sugar ≤ 50g/day over the week"), the engine automatically
+      adds a companion **day-scoped soft constraint** with the same
+      value and comparator (e.g. "sugar ≤ 50g" applied to each
+      individual day), at a lower default weight than an explicit
+      user-written day constraint would get. This prevents the average
+      being satisfied by concentrating everything into one or two days
+      while the rest are near-zero, without inventing an arbitrary
+      multiplier — it reuses the number the user already wrote.
+    - **Overridable per constraint**, via an `add_day_guardrail: bool`
+      field (default `true`) and its own weight if the user wants to
+      tune the guard-rail's strength independently of the horizon
+      constraint's weight.
+    - Follows the same "sensible default, always overridable" shape as
+      the variety (#10) and per-slot-quantity (#16) defaults, and is
+      itself subject to the weight normalization from decision #17.
+
 ## Explicitly out of scope for v1 (later candidates)
 
 See [`future-features.md`](future-features.md) for the full list

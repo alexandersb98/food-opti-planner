@@ -28,12 +28,9 @@ through with a pointer to it.
    decision #17 (deviation normalized as percent of the violated bound,
    with an override reference for zero/awkward targets).
 
-5. **Horizon-average constraints don't bound day-level spikes.**
-   "Average ≤ 50g sugar/day over the week" is satisfiable by 350g on
-   day 1 and 0g the rest of the week. Not prevented unless the user
-   *also* adds a day-scoped bound — worth a documented modeling
-   gotcha, maybe a recommended default day-level guard-rail alongside
-   any horizon constraint.
+5. **~~Horizon-average constraints don't bound day-level spikes.~~
+   RESOLVED** — see design doc decision #18 (auto-generated same-valued
+   day-level guard-rail constraint, overridable per constraint).
 
 6. **Trivial "eat nothing" solution isn't guarded against.** If every
    constraint is soft, the optimizer can rationally serve very little
