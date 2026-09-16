@@ -225,6 +225,30 @@ until the logic is solid.
       avoids adding a new way to trigger decision #14's infeasibility
       handling if a cap is set too tight.
 
+17. **Weights are normalized: deviation is measured as percent of the
+    violated bound, not a raw absolute amount.** Resolves open question
+    #4 from [`open-questions.md`](open-questions.md).
+
+    - Every soft constraint's contribution to the objective is
+      `weight × (deviation / reference)` instead of `weight × deviation`.
+      This makes weights comparable across attributes on wildly
+      different scales (protein grams, calories, dollars, …) — a
+      "weight 5" now means the same thing regardless of the attribute's
+      natural units.
+    - **Default reference: the bound being violated.** For "protein ≥
+      120g," reference = 120 (a 12g shortfall = 10% deviation). For a
+      range like "calories 1800-2200," reference = whichever bound
+      (1800 or 2200) is violated. No extra input needed for the common
+      case — it falls out of the constraint already written.
+    - **Override for zero/awkward targets.** A constraint may specify
+      an explicit `normalization_reference` to use instead of its own
+      target/bound, for cases where the target is 0 or otherwise a bad
+      denominator (e.g. a goal expressed as "minimize toward zero").
+    - This applies uniformly to the goal-programming objective
+      (decision #6), and therefore also to the default variety
+      (decision #10) and per-slot-quantity (decision #16) constraints,
+      whose "reference" is their own threshold/serving-size value.
+
 ## Explicitly out of scope for v1 (later candidates)
 
 See [`future-features.md`](future-features.md) for the full list

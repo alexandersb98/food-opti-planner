@@ -24,14 +24,9 @@ through with a pointer to it.
 
 ## Important — will cause confusing/degenerate output
 
-4. **Weights aren't unit-normalized.** Protein (grams), calories
-   (kcal), sugar (grams), cost (dollars) all live on wildly different
-   numeric scales. A weighted sum of raw absolute deviations means
-   "weight 5" on protein and "weight 3" on calories aren't comparable in
-   practice — a 5g protein shortfall and a 500-calorie deviation are
-   very different in real terms but get combined additively. Needs
-   either normalization (e.g. deviation as % of target) or an explicit
-   warning that weights must be tuned per-attribute-scale.
+4. **~~Weights aren't unit-normalized.~~ RESOLVED** — see design doc
+   decision #17 (deviation normalized as percent of the violated bound,
+   with an override reference for zero/awkward targets).
 
 5. **Horizon-average constraints don't bound day-level spikes.**
    "Average ≤ 50g sugar/day over the week" is satisfiable by 350g on
