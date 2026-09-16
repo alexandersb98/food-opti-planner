@@ -18,13 +18,9 @@ through with a pointer to it.
    RESOLVED** — see design doc decision #15 (CP-SAT with fixed-precision
    integer scaling, kept behind a swappable backend interface).
 
-3. **No upper bound on per-food quantity per slot.** The variety
-   mechanism penalizes a food being *used* more than N times, but
-   nothing stops the solver from assigning one enormous quantity of a
-   single cheap/nutrient-dense food to a single meal-slot (e.g. 3kg of
-   chicken breast in one sitting) to cheaply satisfy nutrient targets —
-   that's one "use," zero variety penalty. Needs a sane per-slot
-   quantity bound (hard or soft).
+3. **~~No upper bound on per-food quantity per slot.~~ RESOLVED** — see
+   design doc decision #16 (soft cap via the same weighted-constraint
+   mechanism as variety, required per-food `max_serving_size`).
 
 ## Important — will cause confusing/degenerate output
 

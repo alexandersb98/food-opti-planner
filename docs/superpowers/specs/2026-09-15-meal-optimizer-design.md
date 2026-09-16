@@ -202,6 +202,29 @@ until the logic is solid.
       rewriting the model-building layer. Not built in v1; just
       designed so it's an additive change later.
 
+16. **Per-slot quantity cap: soft, via the same weighted-constraint
+    mechanism as variety, with a required per-food declared serving
+    size.** Resolves open question #3 from
+    [`open-questions.md`](open-questions.md).
+
+    - Every food declares its own `max_serving_size` (a quantity, in the
+      same units as its granularity — decision #9), required alongside
+      granularity, since a sensible max varies hugely by food (a
+      tablespoon of oil vs. a bowl of rice — no single global number
+      fits both).
+    - Not a new hard-limit concept: it's a default soft constraint using
+      the same goal-programming mechanism as everything else (decision
+      #6) — the same pattern decision #10 already uses for variety.
+      "Quantity of a food in one slot beyond its `max_serving_size`"
+      is treated exactly like any other constraint's shortfall/excess:
+      it costs `weight × excess` toward the total penalty the optimizer
+      minimizes, with a sensible default weight, user-overridable or
+      disableable per food like any other constraint.
+    - Staying soft (rather than hard) avoids introducing a second
+      hard-limit concept alongside the hard/soft constraint system, and
+      avoids adding a new way to trigger decision #14's infeasibility
+      handling if a cap is set too tight.
+
 ## Explicitly out of scope for v1 (later candidates)
 
 See [`future-features.md`](future-features.md) for the full list
