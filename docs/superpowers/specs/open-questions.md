@@ -32,12 +32,10 @@ through with a pointer to it.
    RESOLVED** — see design doc decision #18 (auto-generated same-valued
    day-level guard-rail constraint, overridable per constraint).
 
-6. **Trivial "eat nothing" solution isn't guarded against.** If every
-   constraint is soft, the optimizer can rationally serve very little
-   or nothing on some days if the weighted penalty for doing so is
-   cheaper than eating enough — nothing forces a floor. Should there be
-   a default hard minimum (e.g. calories > 0, or some minimum food
-   volume) so it can't produce empty/near-empty days?
+6. **~~Trivial "eat nothing" solution isn't guarded against.~~
+   RESOLVED** — see design doc decisions #19 (per-day slot config:
+   generated/external/absent) and #20 (configurable, per-day
+   `min_meals_per_day` floor on served `generated` slots).
 
 7. **Range constraints don't fit the sketched DSL shape.** "1800-2200
    kcal" needs either two constraints or a richer shape (min, max, and

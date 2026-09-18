@@ -35,7 +35,9 @@ until the logic is solid.
 
 3. **Meals per day: configurable.** The number of meal slots per day
    (e.g. 3, or 4 with a snack) is also a configurable input per run, not
-   hardcoded to 3.
+   hardcoded to 3. Refined by decision #19 into a per-day (not just
+   per-run) configuration, with slots that can be generated, external,
+   or absent.
 
 4. **No per-meal constraints in v1.** Constraints apply at the **day**
    level (must hold for each individual day) or the **horizon** level
@@ -269,6 +271,60 @@ until the logic is solid.
     - Follows the same "sensible default, always overridable" shape as
       the variety (#10) and per-slot-quantity (#16) defaults, and is
       itself subject to the weight normalization from decision #17.
+
+19. **Per-day slot configuration, with three slot kinds: `generated`,
+    `external`, `absent`.** Refines decision #3 (which fixed "meals per
+    day" as one number for the whole run) into a per-day configuration:
+    each day in the horizon declares its own list of meal-slots, and
+    each slot has a `kind`:
+
+    - **`generated`** — today's only behavior: the optimizer selects
+      foods/quantities for this slot, subject to the per-slot serving
+      cap (#16) and counted for variety (#10).
+    - **`external`** — the slot exists on that day but is *not*
+      optimized: no food selection happens for it. The caller instead
+      supplies a fixed attribute-value vector for it directly (plain
+      attribute-name → value pairs, same free-form attributes as
+      decision #7, e.g. `{calories: 700, cost: 25, protein: 40}` for a
+      restaurant meal). These fixed values are added as constants into
+      that day's attribute totals wherever day-scoped constraints (#5)
+      or their derived guard-rails (#18) sum things up. An `external`
+      slot contributes no decision variables and doesn't participate in
+      variety tracking or the per-slot serving cap, since no specific
+      food was chosen for it.
+    - **`absent`** — the slot doesn't exist for that day at all (e.g. no
+      breakfast on a given day) — contributes nothing to that day's
+      totals, and isn't counted toward decision #20's "meals served"
+      floor for that day.
+
+    This lets a horizon mix days freely — e.g. Monday has
+    breakfast/lunch/dinner all `generated`; Tuesday has breakfast
+    `absent` but the same daily-calorie constraint still holds across
+    the remaining `generated` slots; Wednesday has dinner marked
+    `external` with an assumed restaurant-meal contribution, while
+    breakfast/lunch stay `generated`.
+
+20. **"Eat nothing" guard: configurable, per-day minimum number of
+    served `generated` slots.** Resolves open question #6 from
+    [`open-questions.md`](open-questions.md), building on decision #19.
+
+    - Each day specifies `min_meals_per_day`: the minimum number of
+      that day's `generated` slots which must end up with positive
+      total food quantity (summed across foods in that slot). Defaults
+      to *all* of that day's `generated` slots (the strictest,
+      traditional setting), overridable down to any lower count, or to
+      `0` to disable the floor entirely for that day.
+    - A slot counts as "served" using the same per-slot usage
+      indicators the MILP already has from decision #13, aggregated
+      per slot: "at least `min_meals_per_day` of this day's `generated`
+      slots have quantity > 0."
+    - `external` and `absent` slots don't participate in this count in
+      either direction — they neither need to be "served" nor count
+      toward satisfying the minimum.
+    - Enforced as a **hard** constraint, `relaxable: true` by default
+      like other hard constraints (decision #14), so RELAX mode can
+      still loosen it in a genuinely constrained scenario rather than
+      just reporting infeasible.
 
 ## Explicitly out of scope for v1 (later candidates)
 
