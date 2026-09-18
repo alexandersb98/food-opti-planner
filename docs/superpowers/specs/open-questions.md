@@ -37,11 +37,10 @@ through with a pointer to it.
    generated/external/absent) and #20 (configurable, per-day
    `min_meals_per_day` floor on served `generated` slots).
 
-7. **Range constraints don't fit the sketched DSL shape.** "1800-2200
-   kcal" needs either two constraints or a richer shape (min, max, and
-   how deviation is computed on each side, possibly with different
-   weights above vs below) — the `(attribute, comparator, target)` sketch
-   in "Next steps" only has a single comparator/target.
+7. **~~Range constraints don't fit the sketched DSL shape.~~ RESOLVED**
+   — see design doc decision #21 (`Constraint` gets explicit `min`/`max`
+   fields, per-side deviation normalized per decision #17, optional
+   `weight_below`/`weight_above` override).
 
 8. **Discrete-unit "same food" counting for variety is ambiguous.**
    Does a food used in both breakfast and dinner on the same day count

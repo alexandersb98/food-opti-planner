@@ -326,6 +326,32 @@ until the logic is solid.
       still loosen it in a genuinely constrained scenario rather than
       just reporting infeasible.
 
+21. **Range constraints get a richer `Constraint` shape with explicit
+    `min`/`max`, replacing the single `(attribute, comparator, target)`
+    sketch.** Resolves open question #7 from
+    [`open-questions.md`](open-questions.md).
+
+    - A `Constraint` carries optional `min` and `max` bounds on an
+      attribute (either may be omitted for a one-sided constraint, both
+      present for a range like "1800–2200 kcal").
+    - Deviation is computed independently against whichever bound is
+      violated, using decision #17's normalization (percent of the
+      violated bound) — a value below `min` is only measured against
+      `min`, a value above `max` only against `max`; a value inside the
+      range contributes zero deviation.
+    - `weight` defaults to a single value applied symmetrically to both
+      sides. An optional `weight_below`/`weight_above` override lets a
+      caller penalize the two directions differently (e.g. going over a
+      calorie/cost budget hurts more than going under).
+    - A range constraint is still one `Constraint` object: one
+      `relaxable` flag (decision #14) and one day-guardrail setting
+      (decision #18) apply to both sides together, rather than risking
+      two independently-edited constraints drifting out of sync. A
+      caller who genuinely wants independent relaxability/guardrails per
+      side can still express the range as two separate one-sided
+      constraints on the same attribute — that shape remains valid, it's
+      just not the default for an ordinary two-sided range.
+
 ## Explicitly out of scope for v1 (later candidates)
 
 See [`future-features.md`](future-features.md) for the full list
