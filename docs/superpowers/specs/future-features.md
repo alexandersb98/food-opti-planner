@@ -4,11 +4,14 @@ Candidates deliberately deferred past v1. None of these require the v1
 engine to be redesigned around them, but each would need its own design
 pass before implementation.
 
+**Note:** recipes/dishes as the meal-composition unit were originally
+listed here as a deferred feature (v1 was scoped to raw-food buckets
+only, design doc decision #1) but were promoted into v1 by decision #22
+after design review — see decisions #1 and #22 in
+[`2026-09-15-meal-optimizer-design.md`](2026-09-15-meal-optimizer-design.md).
+
 ## Deferred product features
 
-- **Recipes/dishes as meal-composition units.** v1 works in raw-food
-  buckets only (see design doc decision #1). A later mode would let the
-  optimizer pick from a recipe library instead of/alongside raw foods.
 - **Per-meal constraints.** v1 constraints apply at day or horizon scope
   only (decision #4). Constraining an individual meal slot (e.g. "dinner
   ≥ 30g protein") is a possible later extension.

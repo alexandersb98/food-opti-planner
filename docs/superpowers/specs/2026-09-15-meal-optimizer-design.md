@@ -22,13 +22,17 @@ until the logic is solid.
 
 ## Decisions made so far
 
-1. **Meal composition (v1): buckets, not recipes.** The optimizer picks
-   raw-food quantities and assigns them into meal-time slots (breakfast /
-   lunch / dinner / etc.) within a day. There is no notion of a named
-   "dish" or recipe in v1. A future recipe-based mode (picking from a
-   recipe library instead of raw foods) is a known future extension —
-   keep the meal-composition step swappable so it doesn't require a
-   rewrite of the core engine.
+1. **Meal composition: recipes, not raw-food buckets.** Originally
+   scoped for v1 as raw-food buckets (the optimizer freely combining
+   individual foods per slot, no recipe concept, with a recipe-based
+   mode deferred to later — see `future-features.md`'s history).
+   **Reversed by decision #22**: freely-combined raw foods produced
+   plans that don't read as real meals, so recipes are pulled into v1
+   as the actual composition unit. The optimizer now selects one recipe
+   (a fixed, named composition of foods) per `generated` slot, at a
+   scalable serving size — see decision #22 for the full model. Raw
+   foods still exist, just as recipe ingredients rather than
+   directly-selectable slot contents.
 
 2. **Multi-day horizon.** The number of days in a plan is a configurable
    input to each plan-generation run (not fixed).
@@ -87,7 +91,8 @@ until the logic is solid.
 
    This means the solver must handle a genuine **mixed-integer** linear
    program (continuous variables for some foods, integer variables for
-   others) — not a pure LP.
+   others) — not a pure LP. Decision #22 reuses this same
+   continuous/discrete choice for a recipe's serving-size multiplier.
 
 10. **Variety is encouraged, via the same generic mechanism.** Rather
     than a special-cased "variety" feature, repetition is discouraged
@@ -120,6 +125,12 @@ until the logic is solid.
     were considered and set aside — see
     [`future-features.md`](future-features.md) for why, and for when
     they might be worth revisiting.
+
+    Decision #22 updates the per-slot decision variables described
+    above: instead of a quantity variable and "used" indicator per
+    *food* per slot, each `generated` slot now gets a "recipe R used
+    here" binary per recipe and a serving-multiplier variable — the
+    single-MILP structure and solve approach are unchanged.
 
 14. **Hard-constraint infeasibility: two solve modes, automatic minimal
     relaxation, per-constraint `relaxable` flag.** Resolves open
@@ -226,6 +237,11 @@ until the logic is solid.
       hard-limit concept alongside the hard/soft constraint system, and
       avoids adding a new way to trigger decision #14's infeasibility
       handling if a cap is set too tight.
+    - **Retargeted by decision #22**: since `generated` slots now hold
+      one recipe rather than freely-chosen raw foods, this cap applies
+      to a recipe's serving-size multiplier (`max_serving_multiplier`)
+      instead of a raw food's quantity. Same mechanism, same rationale,
+      just relabeled from food to recipe.
 
 17. **Weights are normalized: deviation is measured as percent of the
     violated bound, not a raw absolute amount.** Resolves open question
@@ -278,9 +294,10 @@ until the logic is solid.
     each day in the horizon declares its own list of meal-slots, and
     each slot has a `kind`:
 
-    - **`generated`** — today's only behavior: the optimizer selects
-      foods/quantities for this slot, subject to the per-slot serving
-      cap (#16) and counted for variety (#10).
+    - **`generated`** — today's only behavior: the optimizer selects a
+      recipe and serving-size multiplier for this slot (decision #22),
+      subject to the per-slot serving cap (#16, retargeted by #22) and
+      counted for variety (#10, generalized by #23).
     - **`external`** — the slot exists on that day but is *not*
       optimized: no food selection happens for it. The caller instead
       supplies a fixed attribute-value vector for it directly (plain
@@ -309,15 +326,15 @@ until the logic is solid.
     [`open-questions.md`](open-questions.md), building on decision #19.
 
     - Each day specifies `min_meals_per_day`: the minimum number of
-      that day's `generated` slots which must end up with positive
-      total food quantity (summed across foods in that slot). Defaults
-      to *all* of that day's `generated` slots (the strictest,
-      traditional setting), overridable down to any lower count, or to
-      `0` to disable the floor entirely for that day.
-    - A slot counts as "served" using the same per-slot usage
-      indicators the MILP already has from decision #13, aggregated
+      that day's `generated` slots which must end up with a recipe
+      selected (decision #22). Defaults to *all* of that day's
+      `generated` slots (the strictest, traditional setting),
+      overridable down to any lower count, or to `0` to disable the
+      floor entirely for that day.
+    - A slot counts as "served" using the same per-slot recipe-used
+      indicators the MILP already has from decision #22, aggregated
       per slot: "at least `min_meals_per_day` of this day's `generated`
-      slots have quantity > 0."
+      slots have a recipe-used indicator = 1."
     - `external` and `absent` slots don't participate in this count in
       either direction — they neither need to be "served" nor count
       toward satisfying the minimum.
@@ -351,6 +368,84 @@ until the logic is solid.
       side can still express the range as two separate one-sided
       constraints on the same attribute — that shape remains valid, it's
       just not the default for an ordinary two-sided range.
+
+22. **Recipes are the meal-composition unit for `generated` slots: one
+    recipe per slot, with a scalable serving-size multiplier.** Reverses
+    decision #1's original "buckets, not recipes" scope — recipes are
+    pulled into v1 because freely-combined raw foods produced meal plans
+    that don't read as real meals.
+
+    - **Recipe definition.** A `Recipe` is a named catalog entry: a
+      fixed list of `(food, quantity)` pairs at defined proportions
+      (its "1×" / base serving). A recipe's attribute totals (calories,
+      cost, protein, etc. — decision #7's free-form attributes) are
+      *derived*, not separately entered: summed from its ingredients'
+      per-unit attribute values × their fixed quantities. Editing a
+      food's attribute value automatically updates every recipe that
+      uses it.
+    - **One recipe per `generated` slot.** Each `generated` slot
+      (decision #19) selects at most one recipe from the catalog — a
+      binary "recipe R used in this slot" indicator, the same shape as
+      decision #13's old per-food "used here" indicator, just
+      recipe-indexed. Raw foods are no longer directly selectable
+      within a `generated` slot; they only appear as recipe
+      ingredients.
+    - **Scalable serving-size multiplier.** When a recipe is selected,
+      the optimizer also picks a serving multiplier (base recipe =
+      1.0×) that scales every ingredient's quantity — and therefore the
+      recipe's whole attribute vector — proportionally, preserving the
+      recipe's ingredient ratios. This is what lets the optimizer
+      fine-tune totals without inventing odd food combinations. The
+      multiplier is a continuous quantity, integer-scaled per decision
+      #15 like any other continuous decision variable.
+    - **Granularity per recipe.** Whether a recipe's multiplier is
+      continuous or must land on discrete steps (e.g. only half-serving
+      increments) is declared per recipe, mirroring decision #9's
+      per-food continuous/discrete granularity — some recipes make
+      sense scaled smoothly, others don't.
+    - **Serving-size cap retargeted from decision #16.** The soft
+      per-slot quantity cap now applies to a recipe's serving
+      multiplier instead of a raw food's quantity: every recipe
+      declares a `max_serving_multiplier`, penalized softly like any
+      other constraint if exceeded — same mechanism, same rationale, as
+      decision #16.
+    - **Ingredient-level totals stay fully derivable.** Because a
+      recipe's composition is fixed and known, "how much chicken was
+      served this horizon" is still a computable linear expression (sum,
+      across every slot/recipe containing chicken, of that slot's
+      recipe-used indicator × multiplier × chicken's fixed quantity in
+      that recipe) — moving to recipes as the selection unit doesn't
+      lose ingredient-level visibility, it's just derived rather than
+      directly selected. Decision #23 builds ingredient-level variety on
+      this.
+
+23. **Variety (resolves open question #8) operates over groups, at
+    three levels, counted per occurrence.** Generalizes decision #10 now
+    that recipes (decision #22) are the selection unit.
+
+    - **Recipe-level.** "Don't use the same recipe more than N times
+      across the horizon" — the direct case, using the recipe-used
+      indicator from #22.
+    - **Ingredient-level.** "Don't overuse chicken across all recipes" —
+      a derived group: every recipe containing that ingredient
+      contributes to one shared usage count, using the linear
+      derivation from decision #22's last point.
+    - **Tag/category-level.** "Alternate meat and vegetarian meals" —
+      recipes carry optional user-defined tags (e.g. `meat`,
+      `vegetarian`, `vegan`); a group is every recipe sharing a tag,
+      again a shared usage count.
+    - All three are the same generic weighted-cap mechanism (decisions
+      #10/#6/#17) applied to different groupings of the same underlying
+      recipe-used indicators — no separate variety concept per level. A
+      single recipe with no tags is just a group of one, so recipe-level
+      variety is a special case, not a different mechanism.
+    - **Counting rule.** A group's usage count increments once per
+      **occurrence** — once per `(day, slot)` where a group-member
+      recipe was selected — so the same recipe (or two different
+      recipes in the same tag group) appearing in both breakfast and
+      dinner on one day counts as two uses, not one. This directly
+      reflects monotony: eating the same thing twice in a day is more
+      repetitive than once.
 
 ## Explicitly out of scope for v1 (later candidates)
 

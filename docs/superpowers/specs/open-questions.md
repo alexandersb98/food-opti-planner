@@ -42,10 +42,12 @@ through with a pointer to it.
    fields, per-side deviation normalized per decision #17, optional
    `weight_below`/`weight_above` override).
 
-8. **Discrete-unit "same food" counting for variety is ambiguous.**
-   Does a food used in both breakfast and dinner on the same day count
-   as one use or two toward the "used more than N times" cap? Not
-   specified.
+8. **~~Discrete-unit "same food" counting for variety is ambiguous.~~
+   RESOLVED** — see design doc decisions #22 (recipes, not raw foods,
+   are now the `generated`-slot composition unit) and #23 (variety
+   generalized to recipe/ingredient/tag-level groups, counted once per
+   occurrence — i.e. per day+slot, not deduplicated across slots in the
+   same day).
 
 ## Worth flagging, lower severity
 
