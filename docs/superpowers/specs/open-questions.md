@@ -51,11 +51,9 @@ through with a pointer to it.
 
 ## Worth flagging, lower severity
 
-9. **No scalability target.** No stated bounds on catalog size ×
-   horizon × meals/day, and no solve-time budget or
-   timeout/suboptimal-acceptance policy. Binary "used here" indicators
-   per food×slot×day make the model grow fast; large catalogs over a
-   month-long horizon could be slow to solve to proven optimality.
+9. **~~No scalability target.~~ RESOLVED** — see design doc decision #24
+   (reference scale: 200 recipes × 14-day horizon × 3 slots/day; default
+   30s solve-time budget; `solve_status` reporting on the result).
 
 10. **Solver determinism for tests.** Decision #12 makes the test suite
     the only interface — but MILP solvers can return different (equally

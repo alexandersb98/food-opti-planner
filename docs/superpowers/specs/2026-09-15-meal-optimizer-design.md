@@ -447,6 +447,30 @@ until the logic is solid.
       reflects monotony: eating the same thing twice in a day is more
       repetitive than once.
 
+24. **Reference scale, solve-time budget, and `solve_status` reporting.**
+    Resolves open question #9 from [`open-questions.md`](open-questions.md).
+
+    - **Reference scale.** The engine is designed and tested to
+      comfortably solve to proven optimality within the default time
+      budget at: up to **200 recipes** in the catalog, a **14-day**
+      horizon, and **3 slots/day** (up to 8,400 recipe×slot×day "used
+      here" binaries, decision #22, plus one serving-multiplier
+      variable each). This isn't a hard cap enforced by the code —
+      larger inputs are still accepted — it's the benchmark the test
+      suite and default timeout are chosen against. Handling larger
+      inputs well is a welcome bonus, not a requirement, for v1.
+    - **Solve-time budget.** `PlanRequest` gets an optional
+      `solve_time_limit` (default **30 seconds**, user-overridable),
+      passed to CP-SAT as a wall-clock cutoff.
+    - **`solve_status` on the result.** Every `Plan` result reports which
+      of these applied: `OPTIMAL` (solved and proven best within the
+      budget), `FEASIBLE` (time limit hit, but a usable plan was found —
+      not proven best), `INFEASIBLE` (proven no hard-constraint-satisfying
+      plan exists — see decision #14), or a distinct timeout-with-nothing
+      case when the limit is hit before any feasible plan is found at
+      all. Callers can tell a proven-best plan from a "good enough for
+      now" one.
+
 ## Explicitly out of scope for v1 (later candidates)
 
 See [`future-features.md`](future-features.md) for the full list
