@@ -55,8 +55,13 @@ through with a pointer to it.
    (reference scale: 200 recipes × 14-day horizon × 3 slots/day; default
    30s solve-time budget; `solve_status` reporting on the result).
 
-10. **Solver determinism for tests.** Decision #12 makes the test suite
-    the only interface — but MILP solvers can return different (equally
-    optimal) solutions across runs/versions when there are ties. Tests
-    asserting exact plan output will be brittle unless there's a
-    documented tie-breaking rule or fixed seed/determinism setting.
+10. **~~Solver determinism for tests.~~ RESOLVED** — see design doc
+    decision #25 (fixed seed + single-threaded CP-SAT; small
+    tie-free scenarios assert exact output, others assert on
+    properties/objective value/`solve_status` instead).
+
+## Status
+
+All 10 items above are resolved (decisions #14-#25 in the design doc).
+Next: the concrete data model/constraint DSL step in that doc's "Next
+steps."

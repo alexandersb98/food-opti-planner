@@ -1,10 +1,10 @@
 # Meal Plan Optimizer — Design Notes (IN PROGRESS)
 
-**Status:** All architectural decisions made, but a design review turned
-up open holes/questions that should be resolved during the next step —
-see [`open-questions.md`](open-questions.md). Next up: the concrete data
-model / constraint DSL, then the full architectural design doc — see
-"Next steps below."
+**Status:** All architectural decisions made, including all 10
+holes/questions turned up by design review — see
+[`open-questions.md`](open-questions.md), now fully resolved. Next up:
+the concrete data model / constraint DSL, then the full architectural
+design doc — see "Next steps" below.
 
 **Path:** Architectural (new project, no existing code to change).
 
@@ -470,6 +470,33 @@ until the logic is solid.
       case when the limit is hit before any feasible plan is found at
       all. Callers can tell a proven-best plan from a "good enough for
       now" one.
+
+25. **Solver determinism: fixed seed and single-threaded CP-SAT, plus a
+    mix of exact-output and property-based tests.** Resolves open
+    question #10 from [`open-questions.md`](open-questions.md).
+
+    - **Pin CP-SAT's determinism knobs.** A fixed random seed and
+      `num_search_workers=1` (single-threaded search) make a given model
+      solve to the same result every run on a given OR-Tools version —
+      this is close to free and removes most run-to-run nondeterminism.
+      It does not, by itself, give a *documented* tie-breaking rule for
+      which of several equally-optimal plans is returned — just a
+      reproducible one.
+    - **No invented tie-breaking rule.** Defining one (e.g. "prefer
+      lower total quantity," "prefer alphabetically-first recipe") would
+      add real modeling complexity for little payoff, since it's rarely
+      something a user-facing decision actually depends on. Not pursued.
+    - **Two test styles, used where each fits:**
+      - **Small, deliberately-designed scenarios** (few recipes, short
+        horizon, an objective with a clear unique optimum — chosen so no
+        plausible tie exists) assert the **exact plan output** directly.
+      - **Larger or tie-plausible scenarios** assert on **properties**
+        instead: all hard constraints hold, the objective/penalty value
+        matches the expected optimum, `solve_status` (decision #24) is
+        as expected, specific attributes/recipes fall within expected
+        bounds — without pinning down the exact plan contents.
+    - Both styles coexist in the test suite (decision #12); which one
+      applies is a per-test-scenario design choice, not a global rule.
 
 ## Explicitly out of scope for v1 (later candidates)
 
