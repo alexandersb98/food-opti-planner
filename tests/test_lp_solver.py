@@ -70,6 +70,16 @@ class SolveTests(unittest.TestCase):
         self.assertTrue(close(solution.values["x"], 2.0))
         self.assertTrue(close(solution.values["y"], 6.0))
 
+    def test_production_example_known_optimum(self):
+        with open(os.path.join(EXAMPLES, "production.lp")) as f:
+            problem = parse_text(f.read())
+        solution = solve(problem)
+        self.assertEqual(solution.status, "optimal")
+        self.assertTrue(close(solution.objective_value, 13.0))
+        self.assertTrue(close(solution.values["a"], 2.0))
+        self.assertTrue(close(solution.values["b"], 0.0))
+        self.assertTrue(close(solution.values["c"], 1.0))
+
     def test_diet_example_meets_constraints_at_known_cost(self):
         with open(os.path.join(EXAMPLES, "diet.lp")) as f:
             problem = parse_text(f.read())
