@@ -602,6 +602,8 @@ for #13.
    hard|soft, weight), `PlanRequest` (days, meals/day, foods available,
    constraints), `Plan` (result), `ViolationReport` (which soft
    constraints were compromised, by how much).
+   Also model decision #26's pivot types: `consumed` slot kind,
+   `CookedBatch`, `StoredPortion`, `keep_planned`.
 3. Choose the specific optimization library (OR-Tools vs PuLP vs Pyomo)
    and confirm it installs cleanly in the target environment.
 4. Write the full architectural design doc (per
