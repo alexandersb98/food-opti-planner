@@ -2,7 +2,9 @@
 
 **Status:** All architectural decisions made, including all 10
 holes/questions turned up by design review — see
-[`open-questions.md`](open-questions.md), now fully resolved. Next up:
+[`open-questions.md`](open-questions.md). Decisions #26 (plan pivoting)
+and #27 (pantry inventory with expiry) raised further open questions
+there. Next up:
 the concrete data model / constraint DSL, then the full architectural
 design doc — see "Next steps" below.
 
@@ -585,6 +587,89 @@ until the logic is solid.
       partial portions — are tracked as open questions #11-#13 in
       [`open-questions.md`](open-questions.md).
 
+27. **Ingredient inventory ("pantry") with expiry: the plan consumes
+    stock before it spoils.** Driven by the requirement: *the app should
+    help the user manage the ingredients they have at home, and meal-plan
+    generation should select recipes that use those ingredients — more
+    precisely, it should make sure ingredients are used before they
+    expire.*
+
+    Like pivoting (#26), this is **not a new solver mode**: it is more
+    `PlanRequest` input to the same single-MILP engine (#13) plus a small
+    in-memory management API. The raw-ingredient store is called the
+    **pantry**, to keep it distinct from #26's `inventory` of already
+    *cooked* `StoredPortion`s.
+
+    - **Data model.** A `PantryLot` is `(food, quantity, expires_on?,
+      acquired_on?)`. Quantity is in the food's own unit (#9). A food
+      can have several lots with different expiry dates (e.g. two milk
+      cartons). `expires_on` is the last day the lot is safe to eat
+      (inclusive); omitted means non-perishable (dry goods, tins). The
+      request also gets a `start_date` (calendar date of day 0), required
+      whenever any lot has `expires_on`, since horizon days are otherwise
+      only indices.
+    - **Demand, usage, purchase.** For each food `f` and day `d`, recipe
+      choices (#22) already determine demand `D[f,d]` as a linear
+      expression (Σ over slots of recipe-used × multiplier × the
+      recipe's fixed quantity of `f`). New continuous variables
+      `use[lot,d] ≥ 0` say how much of a lot is eaten on day `d`:
+      - `Σ_d use[lot,d] ≤ lot.quantity` (can't use more than owned),
+      - `use[lot,d] = 0` for any `d` after `lot.expires_on` — **hard**,
+        food safety, same posture as `use_by_day` in #26,
+      - `Σ_lot use[lot,d] ≤ D[f,d]` per food and day, and
+        **`buy[f,d] = D[f,d] − Σ_lot use[lot,d]`** is the quantity that
+        must be bought fresh. Running out is never infeasible: the
+        shortfall is simply purchased. Usage is tracked per day, not per
+        slot; v1 assumes ingredients are used on the day they're eaten
+        (no cook-ahead, consistent with the "not covered" note in #26).
+    - **Use-before-expiry: a default soft constraint.** Same mechanism
+      as variety (#10/#23), the serving cap (#16) and stored portions
+      (#26). For each lot that expires within the horizon plus a
+      `waste_lookahead_days` window (default 3), the unused remainder
+      costs `weight × (unused / lot.quantity)` (#17 normalization), with
+      a default weight high but not hard, overridable per lot or per food.
+      Lots that expire later than that window, and lots with no expiry,
+      carry no waste penalty. Soft by default because a lot is sometimes
+      unusable in any recipe (so hard would often be infeasible); a
+      caller may set it hard (relaxable per #14) per lot, e.g. for
+      anything it considers must-use. Lots already expired as of
+      `start_date` are excluded from the solve and listed in the report.
+    - **Pantry stock should look cheap: purchase-only cost accounting.**
+      Food already at home is a sunk cost. Attributes flagged
+      `accrues_on: purchase` (default for `cost`; resolves the cost half
+      of open question #11 for raw ingredients) are totalled from
+      `buy[f,d]` at the food's per-unit price, not from recipe-derived
+      totals. Nutrient-style attributes stay recipe-derived and are
+      unaffected. So a recipe built from stock costs ~0 against a budget
+      constraint — this is the *pull* toward pantry recipes, and the
+      waste penalty is the *push* toward the soonest-expiring ones.
+      Both are needed: without the waste term a non-binding budget would
+      leave the optimizer indifferent to spoilage.
+    - **Interplay with #26.** Pantry and pivots compose: when
+      `Plan.pivot_request` records a `CookedBatch`, the batch's
+      ingredient quantities are deducted from the pantry lots
+      (earliest-expiring lot first) before the next solve. Stored
+      portions (#26) use the same expiry-hard / waste-soft rules, just at
+      the cooked-meal level.
+    - **Outputs.** `Plan` gains a `pantry_report`: per lot, quantity used
+      and quantity left unused with its expiry (i.e. predicted waste),
+      lots excluded as already expired, and the aggregate `buy` list per
+      food, which is a shopping list for free.
+    - **Management API (in-memory, no persistence).** The v1 library
+      (#12) offers a plain `Pantry` object: `add(lot)`,
+      `remove(lot_id)`, `adjust(lot_id, delta)`, `expiring_within(days,
+      as_of)`, `expired(as_of)`, and `apply_cooked(batch)`. It is a
+      value type the caller owns and passes into `PlanRequest`.
+      *Persisting* it, and any UI/CLI around it, remain deferred with
+      the rest of persistence and UI (see `future-features.md`).
+    - **Solve cost.** Adds `lots × days` continuous (integer-scaled per
+      #15) usage variables, only for foods that appear in some recipe.
+      Reference scale (#24) extends to **≤150 lots**; the rest of the
+      model is unchanged.
+    - Open details — shelf life after opening, package sizes, staples,
+      and best-before vs. use-by — are open questions #15-#18 in
+      [`open-questions.md`](open-questions.md).
+
 ## Explicitly out of scope for v1 (later candidates)
 
 See [`future-features.md`](future-features.md) for the full list
@@ -603,7 +688,9 @@ for #13.
    constraints), `Plan` (result), `ViolationReport` (which soft
    constraints were compromised, by how much).
    Also model decision #26's pivot types: `consumed` slot kind,
-   `CookedBatch`, `StoredPortion`, `keep_planned`.
+   `CookedBatch`, `StoredPortion`, `keep_planned`, and decision #27's
+   `PantryLot`, `Pantry`, `start_date`, `pantry_report`, and the
+   `accrues_on` attribute flag.
 3. Choose the specific optimization library (OR-Tools vs PuLP vs Pyomo)
    and confirm it installs cleanly in the target environment.
 4. Write the full architectural design doc (per

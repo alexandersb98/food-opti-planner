@@ -85,8 +85,40 @@ through with a pointer to it.
     Proposed: the caller passes `as_of` = (day, slot) and everything
     before it is history.
 
+## Raised by the pantry/expiry requirement (decision #27)
+
+15. **Best-before vs. use-by.** Decision #27 has one hard `expires_on`.
+    In reality "best before" is advisory (dry goods, tins fine for weeks
+    past it) while "use by" is a safety limit (meat, fish). Leaning: a
+    per-lot `expiry_kind: use_by | best_before`; `best_before` makes the
+    after-date ban soft (a penalty) instead of hard.
+
+16. **Shelf life after opening / freezing.** A lot's `expires_on` may
+    change when opened or frozen. Same family as #12 (recipe shelf
+    life). Does the app track an `opened_on` + per-food
+    `shelf_life_after_opening_days`, or is the caller expected to
+    update `expires_on` itself?
+
+17. **Package sizes when buying.** `buy[f,d]` is continuous/discrete per
+    the food's granularity (#9), but real purchases come in packs (a
+    500 g bag, a 6-pack). Do shopping lists round up to packs, and does
+    the leftover from a new pack become a new pantry lot the plan could
+    use later in the horizon? v1 leaning: report raw `buy` quantities
+    only; pack-rounding deferred (see `future-features.md`).
+
+18. **Staples and unlimited items.** Water, salt, oil, spices: tracking
+    stock is noise. Leaning: a per-food `staple: true` that exempts it
+    from pantry accounting (always assumed on hand, cost ignored or
+    flat), so it neither appears in `buy` nor needs a lot.
+
+19. **Time-varying demand within a day vs. cook-ahead.** Decision #27
+    assumes ingredients are consumed on the day the meal is eaten. A
+    recipe cooked the evening before for tomorrow's lunch uses stock a
+    day earlier, which matters for a lot expiring in between. Deferred
+    together with planned batch cooking.
+
 ## Status
 
-Items 1-10 are resolved (decisions #14-#25 in the design doc). Items 11-14 are open, from the plan-pivot story (decision #26).
+Items 1-10 are resolved (decisions #14-#25 in the design doc). Items 11-14 are open, from the plan-pivot story (decision #26). Items 15-19 are open, from the pantry/expiry requirement (decision #27).
 Next: the concrete data model/constraint DSL step in that doc's "Next
 steps."

@@ -30,6 +30,18 @@ after design review — see decisions #1 and #22 in
   (cost and effort charged once) and spread its portions across several
   slots or days, with shelf-life limits.
 
+- **Pantry persistence and management UI.** Decision #27 defines an
+  in-memory `Pantry` with add/remove/adjust/expiring-soon operations, but
+  saving it between sessions, plus the screens/CLI for day-to-day
+  stock-keeping, ride on the persistence and UI items above. Natural
+  extras: barcode/receipt entry, "expiring soon" notifications, and
+  suggesting a recipe for what is about to go off even when no plan is
+  being generated.
+- **Shopping list with pack sizes and store prices.** Decision #27 yields
+  a raw per-food `buy` quantity for free; rounding to purchasable pack
+  sizes and carrying the pack leftovers forward as pantry lots (open
+  question #17) is a later refinement.
+
 ## Alternative optimization approaches considered (not chosen for v1)
 
 v1 uses a single MILP model per plan-generation call (decision #13:
