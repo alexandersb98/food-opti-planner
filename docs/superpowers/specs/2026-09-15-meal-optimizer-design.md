@@ -498,6 +498,93 @@ until the logic is solid.
     - Both styles coexist in the test suite (decision #12); which one
       applies is a per-test-scenario design choice, not a global rule.
 
+26. **Plan pivoting: re-plan mid-horizon around what's already been
+    cooked and eaten.** Driven by the user story: *"As a user, I want to
+    pivot a meal plan after having cooked one or more of the meals in
+    it, so I'm not locked into an already generated plan."* Example: a
+    two-week plan exists; one meal was cooked yielding three portions,
+    one eaten and two stored in food boxes; the user's schedule then
+    changes and they need to re-generate or re-schedule — with the
+    stored boxes counted as part of the new plan.
+
+    Pivoting is **not a new solver mode**. It's a new kind of
+    `PlanRequest` input to the same single-MILP engine (decision #13):
+    a re-plan is a fresh solve over the remaining horizon, seeded with
+    two extra pieces of state — *history* and *inventory*.
+
+    - **History: a new slot kind, `consumed`** (extends decision #19's
+      `generated` / `external` / `absent`). A `consumed` slot is a past
+      slot that was actually eaten. Like `external` it is fixed and
+      contributes no decision variables; its attribute vector is added
+      as a constant to day and horizon totals. Unlike `external` it also
+      records which recipe (and multiplier) was eaten, so it **counts
+      toward variety groups** (decision #23) and toward ingredient-level
+      totals. Day-scoped constraints are not evaluated for fully-past
+      days (they can't be changed); **horizon-scoped constraints still
+      span the whole original horizon** and include consumed slots, so
+      "average sugar ≤ 50g/day over the two weeks" stays honest across
+      a pivot rather than silently resetting.
+    - **Inventory: stored portions as selectable, fixed-attribute
+      items.** A `StoredPortion` group is `(recipe, attribute vector per
+      portion, count_available, optional use_by_day)`. The attribute
+      vector is captured when the batch was cooked (per-portion
+      quantity at the cooked multiplier), not re-derived from the
+      current recipe/food data, so editing a food later doesn't
+      retroactively change a meal that already exists. Cooking a batch
+      is recorded as a `CookedBatch` (recipe, multiplier, portions
+      yielded, portions eaten, portions stored); the stored remainder
+      becomes inventory.
+    - **How the optimizer uses inventory.** Each `generated` slot may be
+      filled by either a catalog recipe (decision #22) *or* a stored
+      portion. Stored portions add a binary "portion group G used in
+      this slot" indicator per slot (no serving-multiplier variable —
+      the amount is fixed at one portion), with a per-group cap
+      `Σ used ≤ count_available` and, if `use_by_day` is set, the
+      indicator is forced to 0 for slots after that day (hard — food
+      safety). Stored portions count toward variety groups under their
+      source recipe, exactly like a freshly-planned occurrence.
+    - **Use stored food first: a default soft constraint.** Same
+      mechanism as variety (#10/#23) and the serving cap (#16): every
+      stored portion left unused at the end of the horizon costs
+      `weight × (unused portions / count_available)` (decision #17
+      normalization), default weight high but not hard, overridable per
+      group (e.g. a portion near its `use_by_day` can carry a higher
+      weight). Soft by default so a pivot is never infeasible just
+      because the user's new schedule can't fit all leftovers; a caller
+      can set it to hard (relaxable per #14) to demand "must eat the
+      boxes".
+    - **Two pivot intents, both expressible as requests:**
+      1. *Re-generate* — new slot configuration (decision #19), new or
+         changed constraints, solve over the remaining horizon with
+         history + inventory. The prior plan's uncooked meals are simply
+         discarded.
+      2. *Re-schedule* — keep the previously planned but uncooked
+         recipes and just move them. Expressed as an optional
+         `keep_planned` list on the request: recipes (with multipliers)
+         the new plan should still contain, each a soft "include
+         exactly once" requirement with its own weight (hard on request).
+         Placement is left to the optimizer. Same mechanism as the
+         stored-portion preference; no separate scheduler.
+    - **Ownership of the "what happened" record.** v1 is library-only
+      (decision #12) with no persistence, so the engine never mutates a
+      plan. The caller passes `history` and `inventory` into a new
+      `PlanRequest`; a thin helper, `Plan.pivot_request(as_of_day,
+      cooked_batches, eaten)`, builds the follow-up request from a prior
+      `Plan` plus what actually happened. Persisting that record is
+      deferred with the rest of persistence.
+    - **Solve cost.** A pivot shrinks the free variable set (fewer
+      remaining `generated` slots) and adds only a handful of stored-
+      portion binaries per slot, so it stays well inside decision #24's
+      reference scale.
+    - **Not covered here:** *planning* batch cooking in the first place
+      (the optimizer choosing to cook once and eat across several
+      slots). v1 plans one recipe per slot; the pivot story only needs
+      to *ingest* leftovers that already exist. Deliberately-planned
+      leftovers are listed in `future-features.md`. Open details —
+      cost accounting for already-paid portions, shelf-life defaults,
+      partial portions — are tracked as open questions #11-#13 in
+      [`open-questions.md`](open-questions.md).
+
 ## Explicitly out of scope for v1 (later candidates)
 
 See [`future-features.md`](future-features.md) for the full list
