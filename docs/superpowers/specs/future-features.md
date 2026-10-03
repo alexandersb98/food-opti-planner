@@ -24,6 +24,12 @@ after design review — see decisions #1 and #22 in
   for v1.
 - **CLI.** v1 is a library only, driven by tests (decision #12).
 
+- **Planned batch cooking / leftovers.** Decision #26 lets a pivot
+  *ingest* leftovers that already exist, but v1 never plans them. A
+  later extension would let the optimizer choose to cook a batch once
+  (cost and effort charged once) and spread its portions across several
+  slots or days, with shelf-life limits.
+
 ## Alternative optimization approaches considered (not chosen for v1)
 
 v1 uses a single MILP model per plan-generation call (decision #13:

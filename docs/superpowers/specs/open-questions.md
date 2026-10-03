@@ -60,8 +60,33 @@ through with a pointer to it.
     tie-free scenarios assert exact output, others assert on
     properties/objective value/`solve_status` instead).
 
+## Raised by the plan-pivot user story (decision #26)
+
+11. **Cost accounting for already-paid food.** A stored portion's cost
+    was spent when the batch was cooked/bought, not when it's eaten.
+    Counting it again against a horizon budget double-charges; counting
+    it as 0 hides real spend. Leaning: attributes get an
+    `accrues_on: cooked | eaten` flag (cost → `cooked`, nutrients →
+    `eaten`), so cost lands in history on the cooking day and stored
+    portions contribute 0 cost when eaten. Needs a decision before the
+    data model is final.
+
+12. **Shelf life.** Should a recipe carry a default `shelf_life_days`
+    that auto-derives a stored portion's `use_by_day`, or is it always
+    caller-supplied per batch? Also: does freezing change it?
+
+13. **Partial portions and uneven portions.** Decision #26 treats a
+    stored portion as exactly one fixed-size unit. If a user eats half a
+    box, or batches yield uneven portions, do we model fractional
+    inventory or require the caller to re-record it?
+
+14. **Re-plan horizon boundary.** When pivoting mid-day (e.g. lunch
+    eaten, dinner not), which slots are `consumed` vs re-plannable?
+    Proposed: the caller passes `as_of` = (day, slot) and everything
+    before it is history.
+
 ## Status
 
-All 10 items above are resolved (decisions #14-#25 in the design doc).
+Items 1-10 are resolved (decisions #14-#25 in the design doc). Items 11-14 are open, from the plan-pivot story (decision #26).
 Next: the concrete data model/constraint DSL step in that doc's "Next
 steps."
