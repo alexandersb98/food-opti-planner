@@ -74,10 +74,9 @@ through with a pointer to it.
     doc decision #30 (whole portions only; caller re-records via a
     new group, `StoredPortion.split` helper).
 
-14. **Re-plan horizon boundary.** When pivoting mid-day (e.g. lunch
-    eaten, dinner not), which slots are `consumed` vs re-plannable?
-    Proposed: the caller passes `as_of` = (day, slot) and everything
-    before it is history.
+14. **~~Re-plan horizon boundary.~~ RESOLVED** — see design doc
+    decision #31 (`as_of = (day, slot)`; earlier slots are history,
+    later `generated` slots are re-planned).
 
 ## Raised by the pantry/expiry requirement (decision #27)
 
@@ -109,9 +108,8 @@ through with a pointer to it.
 
 ## Status
 
-Items 1-13 and 15-16 are resolved (decisions #14-#30 in the design
-doc). Open: #14 (re-plan horizon boundary, from the plan-pivot story)
-and #17-#19 (package sizes, staples, cook-ahead, from the pantry/expiry
-requirement).
+Items 1-16 are resolved (decisions #14-#31 in the design doc). Open:
+#17-#19 (package sizes, staples, cook-ahead), from the pantry/expiry
+requirement.
 Next: the concrete data model/constraint DSL step in that doc's "Next
 steps."

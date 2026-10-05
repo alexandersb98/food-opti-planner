@@ -744,6 +744,32 @@ until the logic is solid.
       remainder group from an existing one to keep that re-recording
       cheap for callers.
 
+31. **Pivot boundary: `as_of = (day, slot)`.** Resolves open question
+    #14.
+
+    - `Plan.pivot_request(as_of, cooked_batches, eaten)` (#26) takes
+      `as_of` as a `(day, slot)` pair instead of a bare day. Every slot
+      strictly before it is **history**: it keeps whatever the caller
+      recorded (`consumed`, `external`, or `absent`, per #19/#26). Every
+      `generated` slot at or after it is re-planned.
+    - **Partly-past days.** On the `as_of` day, day-scoped constraints
+      (#5) still apply, evaluated over the whole day: past slots'
+      attribute vectors enter as constants and the remaining
+      `generated` slots are solved to meet the day's targets. Days
+      wholly before `as_of` are not evaluated (#26); horizon-scoped
+      constraints include all history as before.
+    - **`min_meals_per_day` (#20)** on the `as_of` day counts only the
+      still-`generated` slots; slots already `consumed` count as served
+      toward the floor, so a pivot after lunch is not forced to
+      re-serve lunch.
+    - **Un-recorded past slots.** If a slot before `as_of` was planned
+      but the caller reports nothing eaten, `pivot_request` marks it
+      `absent` (nothing was eaten) rather than silently treating it as
+      consumed; `eaten` is the only way to mark `consumed`.
+    - Pantry (#27) and stored portions (#26) are valid from `as_of`
+      onward only; usage variables for slots/days before it are not
+      created.
+
 ## Explicitly out of scope for v1 (later candidates)
 
 See [`future-features.md`](future-features.md) for the full list
