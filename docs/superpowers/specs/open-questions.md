@@ -66,9 +66,9 @@ through with a pointer to it.
     doc decision #28 (`accrues_on: purchase | cooked | eaten` per
     attribute).
 
-12. **Shelf life.** Should a recipe carry a default `shelf_life_days`
-    that auto-derives a stored portion's `use_by_day`, or is it always
-    caller-supplied per batch? Also: does freezing change it?
+12. **~~Shelf life.~~ RESOLVED** — see design doc decision #29
+    (optional `shelf_life_days` on recipes, caller override wins,
+    freezing is a caller override).
 
 13. **Partial portions and uneven portions.** Decision #26 treats a
     stored portion as exactly one fixed-size unit. If a user eats half a
@@ -86,11 +86,9 @@ through with a pointer to it.
     #27 (per-lot `expiry_kind: use_by | best_before`; `use_by` hard,
     `best_before` soft penalty after the date).
 
-16. **Shelf life after opening / freezing.** A lot's `expires_on` may
-    change when opened or frozen. Same family as #12 (recipe shelf
-    life). Does the app track an `opened_on` + per-food
-    `shelf_life_after_opening_days`, or is the caller expected to
-    update `expires_on` itself?
+16. **~~Shelf life after opening / freezing.~~ RESOLVED** — see design
+    doc decision #29 (`shelf_life_after_opening_days` on foods,
+    `opened_on` on lots; freezing is a caller override).
 
 17. **Package sizes when buying.** `buy[f,d]` is continuous/discrete per
     the food's granularity (#9), but real purchases come in packs (a
@@ -112,6 +110,6 @@ through with a pointer to it.
 
 ## Status
 
-Items 1-10 are resolved (decisions #14-#25 in the design doc). Item 11 is resolved; items 12-14 are open, from the plan-pivot story (decision #26). Item 15 is resolved; items 16-19 are open, from the pantry/expiry requirement (decision #27).
+Items 1-10 are resolved (decisions #14-#25 in the design doc). Item 11 is resolved; items 12-14 are open, from the plan-pivot story (decision #26). Item 15 is resolved; items 17-19 are open, from the pantry/expiry requirement (decision #27).
 Next: the concrete data model/constraint DSL step in that doc's "Next
 steps."

@@ -674,7 +674,7 @@ until the logic is solid.
       Reference scale (#24) extends to **≤150 lots**; the rest of the
       model is unchanged.
     - Open details — shelf life after opening, package sizes, staples, and
-      cook-ahead — are open questions #16-#19 in
+      cook-ahead — are open questions #17-#19 in
       [`open-questions.md`](open-questions.md).
 
 28. **Attributes declare when they accrue: `accrues_on: purchase |
@@ -702,6 +702,29 @@ until the logic is solid.
     - Cooked-from-scratch plan slots in v1 (one recipe per slot, #22)
       accrue `cooked` and `eaten` attributes in the same slot, so the
       flag changes nothing for them; it matters for pantry and pivots.
+
+29. **Shelf life: optional defaults, always overridable by the caller.**
+    Resolves open questions #12 and #16.
+
+    - **Recipes** may declare `shelf_life_days`. When a `CookedBatch`
+      (#26) is recorded without an explicit `use_by_day`, the stored
+      portion's `use_by_day` is derived as cooking date + the recipe's
+      `shelf_life_days`. No default means no derived date (the portion
+      never expires unless the caller says so).
+    - **Foods** may declare `shelf_life_after_opening_days`. When a
+      pantry lot (#27) is marked opened (`opened_on`) without an
+      explicit new `expires_on`, its effective expiry becomes
+      `min(expires_on, opened_on + shelf_life_after_opening_days)`.
+      `Pantry` gains `open(lot_id, on)` for this.
+    - **Caller always wins.** An explicit `use_by_day` / `expires_on`
+      supplied on a batch or lot overrides any derived value, in both
+      directions.
+    - **Freezing is not a separate state.** Freezing is modeled as the
+      caller overriding the date (or splitting a lot and giving the
+      frozen part a later `expires_on`). No per-food frozen shelf life
+      is stored, which keeps the data the user maintains small.
+    - Derived dates feed the existing rules unchanged: `use_by` hard
+      ban and waste penalty (#27), stored-portion rules (#26).
 
 ## Explicitly out of scope for v1 (later candidates)
 
