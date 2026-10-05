@@ -87,11 +87,9 @@ through with a pointer to it.
 
 ## Raised by the pantry/expiry requirement (decision #27)
 
-15. **Best-before vs. use-by.** Decision #27 has one hard `expires_on`.
-    In reality "best before" is advisory (dry goods, tins fine for weeks
-    past it) while "use by" is a safety limit (meat, fish). Leaning: a
-    per-lot `expiry_kind: use_by | best_before`; `best_before` makes the
-    after-date ban soft (a penalty) instead of hard.
+15. **~~Best-before vs. use-by.~~ RESOLVED** — see design doc decision
+    #27 (per-lot `expiry_kind: use_by | best_before`; `use_by` hard,
+    `best_before` soft penalty after the date).
 
 16. **Shelf life after opening / freezing.** A lot's `expires_on` may
     change when opened or frozen. Same family as #12 (recipe shelf
@@ -119,6 +117,6 @@ through with a pointer to it.
 
 ## Status
 
-Items 1-10 are resolved (decisions #14-#25 in the design doc). Items 11-14 are open, from the plan-pivot story (decision #26). Items 15-19 are open, from the pantry/expiry requirement (decision #27).
+Items 1-10 are resolved (decisions #14-#25 in the design doc). Items 11-14 are open, from the plan-pivot story (decision #26). Item 15 is resolved; items 16-19 are open, from the pantry/expiry requirement (decision #27).
 Next: the concrete data model/constraint DSL step in that doc's "Next
 steps."

@@ -604,7 +604,13 @@ until the logic is solid.
       acquired_on?)`. Quantity is in the food's own unit (#9). A food
       can have several lots with different expiry dates (e.g. two milk
       cartons). `expires_on` is the last day the lot is safe to eat
-      (inclusive); omitted means non-perishable (dry goods, tins). The
+      (inclusive); omitted means non-perishable (dry goods, tins).
+      Each lot also has `expiry_kind: use_by | best_before` (default
+      `use_by`). `use_by` is the hard ban described below; `best_before`
+      is advisory: usage after the date is allowed but costs a soft
+      penalty (same #17 normalization, per unit used after expiry,
+      default weight lower than the waste weight). Resolves open
+      question #15. The
       request also gets a `start_date` (calendar date of day 0), required
       whenever any lot has `expires_on`, since horizon days are otherwise
       only indices.
@@ -614,8 +620,9 @@ until the logic is solid.
       recipe's fixed quantity of `f`). New continuous variables
       `use[lot,d] ≥ 0` say how much of a lot is eaten on day `d`:
       - `Σ_d use[lot,d] ≤ lot.quantity` (can't use more than owned),
-      - `use[lot,d] = 0` for any `d` after `lot.expires_on` — **hard**,
-        food safety, same posture as `use_by_day` in #26,
+      - `use[lot,d] = 0` for any `d` after `lot.expires_on` — **hard** for
+        `use_by` lots (food safety, same posture as `use_by_day` in
+        #26); for `best_before` lots, the soft penalty above instead,
       - `Σ_lot use[lot,d] ≤ D[f,d]` per food and day, and
         **`buy[f,d] = D[f,d] − Σ_lot use[lot,d]`** is the quantity that
         must be bought fresh. Running out is never infeasible: the
@@ -655,7 +662,7 @@ until the logic is solid.
       and quantity left unused with its expiry (i.e. predicted waste),
       lots excluded as already expired, and the aggregate `buy` list per
       food, which is a shopping list for free.
-    - **Management API (in-memory, no persistence).** The v1 library
+    - **Management API (in-memory, no persistence) — confirmed.** The v1 library
       (#12) offers a plain `Pantry` object: `add(lot)`,
       `remove(lot_id)`, `adjust(lot_id, delta)`, `expiring_within(days,
       as_of)`, `expired(as_of)`, and `apply_cooked(batch)`. It is a
@@ -666,8 +673,8 @@ until the logic is solid.
       #15) usage variables, only for foods that appear in some recipe.
       Reference scale (#24) extends to **≤150 lots**; the rest of the
       model is unchanged.
-    - Open details — shelf life after opening, package sizes, staples,
-      and best-before vs. use-by — are open questions #15-#18 in
+    - Open details — shelf life after opening, package sizes, staples, and
+      cook-ahead — are open questions #16-#19 in
       [`open-questions.md`](open-questions.md).
 
 ## Explicitly out of scope for v1 (later candidates)
