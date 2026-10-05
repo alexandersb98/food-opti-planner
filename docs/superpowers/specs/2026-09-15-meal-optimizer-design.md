@@ -677,6 +677,32 @@ until the logic is solid.
       cook-ahead — are open questions #16-#19 in
       [`open-questions.md`](open-questions.md).
 
+28. **Attributes declare when they accrue: `accrues_on: purchase |
+    cooked | eaten`.** Resolves open question #11 and generalizes the
+    purchase-only cost rule in decision #27.
+
+    - Every attribute (#7) carries `accrues_on`. Defaults: `cost` →
+      `purchase`; all nutrient-style attributes → `eaten`. `cooked` is
+      available for anything charged when a batch is made rather than
+      when it is bought or eaten (e.g. effort/time, energy use).
+    - **`purchase`**: totalled from `buy[f,d]` (#27), so pantry stock is
+      free at eat-time because it was paid for at purchase.
+    - **`cooked`**: lands on the day a batch is cooked, at that batch's
+      full amount. In a pivot, a `CookedBatch` (#26) books its `cooked`
+      attributes into history on its cooking day.
+    - **`eaten`**: lands on the day a portion is eaten (the behaviour of
+      every attribute before this decision).
+    - **Stored portions (#26).** A stored portion contributes only its
+      `eaten`-accruing attributes when used; its `purchase`/`cooked`
+      attributes were already booked in history, so eating it never
+      double-charges a horizon budget and never hides real spend.
+    - **Consumed slots (#26)** likewise add only `eaten` attributes, and
+      horizon-scoped constraints still span the whole original horizon
+      including the cooked-day charges.
+    - Cooked-from-scratch plan slots in v1 (one recipe per slot, #22)
+      accrue `cooked` and `eaten` attributes in the same slot, so the
+      flag changes nothing for them; it matters for pantry and pivots.
+
 ## Explicitly out of scope for v1 (later candidates)
 
 See [`future-features.md`](future-features.md) for the full list
