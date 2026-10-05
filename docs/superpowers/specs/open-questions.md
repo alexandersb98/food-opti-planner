@@ -70,10 +70,9 @@ through with a pointer to it.
     (optional `shelf_life_days` on recipes, caller override wins,
     freezing is a caller override).
 
-13. **Partial portions and uneven portions.** Decision #26 treats a
-    stored portion as exactly one fixed-size unit. If a user eats half a
-    box, or batches yield uneven portions, do we model fractional
-    inventory or require the caller to re-record it?
+13. **~~Partial portions and uneven portions.~~ RESOLVED** — see design
+    doc decision #30 (whole portions only; caller re-records via a
+    new group, `StoredPortion.split` helper).
 
 14. **Re-plan horizon boundary.** When pivoting mid-day (e.g. lunch
     eaten, dinner not), which slots are `consumed` vs re-plannable?
@@ -110,6 +109,9 @@ through with a pointer to it.
 
 ## Status
 
-Items 1-10 are resolved (decisions #14-#25 in the design doc). Item 11 is resolved; items 12-14 are open, from the plan-pivot story (decision #26). Item 15 is resolved; items 17-19 are open, from the pantry/expiry requirement (decision #27).
+Items 1-13 and 15-16 are resolved (decisions #14-#30 in the design
+doc). Open: #14 (re-plan horizon boundary, from the plan-pivot story)
+and #17-#19 (package sizes, staples, cook-ahead, from the pantry/expiry
+requirement).
 Next: the concrete data model/constraint DSL step in that doc's "Next
 steps."

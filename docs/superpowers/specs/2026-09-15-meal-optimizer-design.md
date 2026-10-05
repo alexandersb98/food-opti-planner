@@ -726,6 +726,24 @@ until the logic is solid.
     - Derived dates feed the existing rules unchanged: `use_by` hard
       ban and waste penalty (#27), stored-portion rules (#26).
 
+30. **Stored portions are whole, indivisible units.** Resolves open
+    question #13.
+
+    - A stored portion group's `count_available` is a non-negative
+      integer, and a slot uses exactly one whole portion (as already
+      stated in #26). The optimizer never plans fractions of a portion.
+    - **Half-eaten or uneven portions are the caller's to re-record.**
+      Eating half a box means the caller removes that portion from its
+      group and adds a new group with the remaining amount: a
+      `StoredPortion` with its own attribute vector (e.g. "half box",
+      attributes scaled accordingly). Uneven batch yields are recorded
+      the same way, as separate groups per portion size.
+    - Both fall out of the existing model with no new variables or
+      fields, so the pivot solve cost (#26) is unchanged. A small
+      helper, `StoredPortion.split(fraction)`, builds the scaled
+      remainder group from an existing one to keep that re-recording
+      cheap for callers.
+
 ## Explicitly out of scope for v1 (later candidates)
 
 See [`future-features.md`](future-features.md) for the full list
