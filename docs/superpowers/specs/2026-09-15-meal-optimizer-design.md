@@ -770,6 +770,67 @@ until the logic is solid.
       onward only; usage variables for slots/days before it are not
       created.
 
+32. **Domain model: `Ingredient` and `Product` are distinct concepts;
+    each ingredient has its own unit.** Refines decisions #7-#9, #15,
+    #22, #27 and #29; sets up open questions #17 and #20-#21.
+
+    - **Terminology.** *Ingredient* is the canonical name for what
+      earlier decisions call a "food": the thing recipes (#22), pantry
+      lots (#27) and constraints refer to. Earlier text keeps saying
+      "food"; read it as "ingredient". (A mechanical rename in this doc
+      is pending confirmation.)
+    - **Ingredient** carries: a name; one **unit** (below); the
+      free-form per-unit attributes (#7); granularity and
+      `max_serving_size` (#9/#16); the `staple` flag (#18, if adopted);
+      and `shelf_life_after_opening_days` (#29).
+    - **Unit is per ingredient, fixed, and single.** Each ingredient
+      declares exactly one unit, chosen to suit it: milk in litres,
+      meat in grams, eggs in pieces. Every quantity involving that
+      ingredient (recipe lines, pantry lots, `buy`/`use`, attribute
+      per-unit values, `max_serving_size`) is in that unit. A unit has a
+      dimension (mass, volume, count) used only for display and input
+      validation. **No cross-unit conversion in v1**: a recipe written
+      as "2 dl flour" for a mass-unit ingredient is entered by the
+      caller already converted (see open question #21).
+    - **Precision follows the unit (revises #15).** #15's "centigrams,
+      grams x 100" becomes a per-unit default scale chosen by dimension
+      (e.g. 0.01 g for mass-in-grams, 1 ml for volume-in-litres stored
+      at millilitre resolution, 1 piece for count), overridable per
+      ingredient, so a litre-unit ingredient is not forced to gram-style
+      scaling. Attribute `precision` (#7) is unchanged.
+    - **Product** is a fixed purchasable amount of one ingredient:
+      `(ingredient, amount, price, optional name/brand, optional
+      sealed_shelf_life_days)`. `amount` is in the ingredient's unit
+      (a 1 L carton of milk for a litre-unit ingredient, a 6-pack of
+      eggs for a piece-unit ingredient). `price` is per pack.
+    - **Many products per ingredient.** The same ingredient can be sold
+      as any number of products of different amounts (and brands,
+      prices): milk as 0.5 L, 1 L and 1.5 L cartons; mince as 400 g and
+      800 g trays. Products reference ingredients, never the reverse, so
+      adding a pack size never changes an ingredient or any recipe.
+    - **Recipes and constraints stay in ingredient space.** Planning
+      chooses *how much of an ingredient* is eaten; products only matter
+      when buying. Nutrient attributes stay on the ingredient (product-
+      specific overrides, e.g. brand nutrition, are not in v1).
+    - **Price moves to the product (amends #8).** An ingredient no
+      longer owns a price. Where a per-unit price is needed (the
+      purchase-accruing `cost` attribute in #27/#28), it is derived from
+      products: the default is the cheapest price-per-unit among the
+      ingredient's products, until open question #17 decides whether the
+      solver sees packs. An ingredient with no products is treated as
+      free-floating (no purchase cost; listed in the report as
+      "unpriced") rather than being an error.
+    - **Pantry lots may reference a product.** `PantryLot` (#27) gains
+      an optional `product`; quantity stays in ingredient units, so the
+      solver is unaffected. A product with `sealed_shelf_life_days`
+      lets `expires_on` be derived from `acquired_on` (#29's caller-wins
+      rule still applies).
+    - **v1 solver behaviour is unchanged.** The model in #27 still
+      reasons in continuous/discrete ingredient quantities. Products are
+      domain data that open question #17's options A-C plug into: A
+      ignores them, B rounds the report up to products, C makes them
+      integer purchase variables.
+
 ## Explicitly out of scope for v1 (later candidates)
 
 See [`future-features.md`](future-features.md) for the full list
@@ -789,8 +850,9 @@ for #13.
    constraints were compromised, by how much).
    Also model decision #26's pivot types: `consumed` slot kind,
    `CookedBatch`, `StoredPortion`, `keep_planned`, and decision #27's
-   `PantryLot`, `Pantry`, `start_date`, `pantry_report`, and the
-   `accrues_on` attribute flag.
+   `PantryLot`, `Pantry`, `start_date`, `pantry_report`, the
+   `accrues_on` attribute flag, and decision #32's `Ingredient` (with
+   per-ingredient unit) and `Product`.
 3. Choose the specific optimization library (OR-Tools vs PuLP vs Pyomo)
    and confirm it installs cleanly in the target environment.
 4. Write the full architectural design doc (per

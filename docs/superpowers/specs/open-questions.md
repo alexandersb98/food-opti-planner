@@ -88,7 +88,8 @@ through with a pointer to it.
     doc decision #29 (`shelf_life_after_opening_days` on foods,
     `opened_on` on lots; freezing is a caller override).
 
-17. **Package sizes when buying. DEFERRED** (discussed, not decided;
+17. **Package sizes when buying. DEFERRED** (discussed, not decided; see also decision #32, which
+    adds the `Product` concept these options build on;
     revisit before the shopping-list feature). `buy[f,d]` (#27) is
     continuous/discrete per the food's granularity (#9), but real
     purchases come in packs (a 500 g bag, a 6-pack). Options discussed:
@@ -129,11 +130,28 @@ through with a pointer to it.
     day earlier, which matters for a lot expiring in between. Deferred
     together with planned batch cooking.
 
+20. **Which product to buy when an ingredient has several.** With
+    multiple products per ingredient (decision #32), the shopping list
+    needs a selection rule: cheapest per unit, fewest packs, least
+    leftover, or a user-preferred product per ingredient. Interacts with
+    #17: under option A/B it is a post-processing rule; under option C
+    the solver chooses. Leaning: user-preferred product if set,
+    otherwise cheapest per unit.
+
+21. **Unit conversion and recipe input units.** Decision #32 gives each
+    ingredient one unit and no conversions. Real recipes mix units
+    (dl, tbsp, "1 onion"), which needs per-ingredient densities or
+    per-piece weights. Leaning: v1 requires recipe lines in the
+    ingredient's own unit (caller converts); an optional
+    per-ingredient conversion table is a later input-convenience
+    feature, not a solver concern.
+
 ## Status
 
 Items 1-16 are resolved (decisions #14-#31 in the design doc).
 #17 (package sizes) is deferred, with options and a lean recorded
-above. Still open: #18-#19 (staples, cook-ahead), from the
-pantry/expiry requirement.
+above. Still open: #18-#19 (staples, cook-ahead) from the
+pantry/expiry requirement, and #20-#21 (product selection, unit
+conversion) from decision #32.
 Next: the concrete data model/constraint DSL step in that doc's "Next
 steps."
