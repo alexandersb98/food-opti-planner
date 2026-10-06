@@ -88,12 +88,35 @@ through with a pointer to it.
     doc decision #29 (`shelf_life_after_opening_days` on foods,
     `opened_on` on lots; freezing is a caller override).
 
-17. **Package sizes when buying.** `buy[f,d]` is continuous/discrete per
-    the food's granularity (#9), but real purchases come in packs (a
-    500 g bag, a 6-pack). Do shopping lists round up to packs, and does
-    the leftover from a new pack become a new pantry lot the plan could
-    use later in the horizon? v1 leaning: report raw `buy` quantities
-    only; pack-rounding deferred (see `future-features.md`).
+17. **Package sizes when buying. DEFERRED** (discussed, not decided;
+    revisit before the shopping-list feature). `buy[f,d]` (#27) is
+    continuous/discrete per the food's granularity (#9), but real
+    purchases come in packs (a 500 g bag, a 6-pack). Options discussed:
+    - **A. Raw quantities only.** Report exact `buy` amounts. No model
+      change, no new inputs. Cons: list isn't what you'd actually buy;
+      cost is understated (750 g costed as 750 g, but two 500 g bags
+      are paid for).
+    - **B. Round up in the report.** Optional per-food `pack_size`;
+      after solving, round each food's horizon total up to whole packs.
+      Realistic list, model unchanged. Cons: optimizer is blind to
+      packs (won't plan to finish a partly used pack); budget
+      constraints use unrounded cost; rounding is per food over the
+      whole horizon, not per shopping trip.
+    - **C. Packs in the model.** Integer pack counts in the MILP; the
+      unused remainder becomes a pantry lot. Only option with honest
+      cost and leftover-aware planning. Cons: extra integer variables,
+      shelf-life rules for derived lots (#29), less predictable solve
+      time against the #24 reference scale, and entanglement with
+      timing questions (#19, one-trip vs. multiple shopping trips).
+    - **Current lean:** A for v1, with an optional `pack_size` field on
+      foods reserved; B later as pure post-processing; C as its own
+      feature.
+    - **Questions that would settle it:** does the user shop once for
+      the whole plan or top up during the week? Is budget accuracy
+      important, or is the plan mainly about nutrition and avoiding
+      waste?
+    - **Why deferred:** no v1 work depends on it; options A-C all
+      leave the model in decision #27 unchanged.
 
 18. **Staples and unlimited items.** Water, salt, oil, spices: tracking
     stock is noise. Leaning: a per-food `staple: true` that exempts it
@@ -108,8 +131,9 @@ through with a pointer to it.
 
 ## Status
 
-Items 1-16 are resolved (decisions #14-#31 in the design doc). Open:
-#17-#19 (package sizes, staples, cook-ahead), from the pantry/expiry
-requirement.
+Items 1-16 are resolved (decisions #14-#31 in the design doc).
+#17 (package sizes) is deferred, with options and a lean recorded
+above. Still open: #18-#19 (staples, cook-ahead), from the
+pantry/expiry requirement.
 Next: the concrete data model/constraint DSL step in that doc's "Next
 steps."
