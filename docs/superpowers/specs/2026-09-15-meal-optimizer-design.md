@@ -786,12 +786,11 @@ until the logic is solid.
     - **Unit is per ingredient, fixed, and single.** Each ingredient
       declares exactly one unit, chosen to suit it: milk in litres,
       meat in grams, eggs in pieces. Every quantity involving that
-      ingredient (recipe lines, pantry lots, `buy`/`use`, attribute
+      ingredient (ingredient amounts, pantry lots, `buy`/`use`, attribute
       per-unit values, `max_serving_size`) is in that unit. A unit has a
       dimension (mass, volume, count) used only for display and input
-      validation. **No cross-unit conversion in v1**: a recipe written
-      as "2 dl flour" for a mass-unit ingredient is entered by the
-      caller already converted (see open question #21).
+      validation. The solver and `Pantry` never convert; input
+      conversion is an optional load-time step (decision #36).
     - **Precision follows the unit (revises #15).** #15's "centigrams,
       grams x 100" becomes a per-unit default scale chosen by dimension
       (e.g. 0.01 g for mass-in-grams, 1 ml for volume-in-litres stored
@@ -885,6 +884,32 @@ until the logic is solid.
       quantities.
     - Deferred, not rejected: choosing products inside the MILP is
       recorded in [`future-features.md`](future-features.md).
+
+36. **Optional per-ingredient conversion table; recipes are lists of
+    `IngredientAmount`s.** Resolves open question #21.
+
+    - Terminology: a recipe's ingredient list is a list of
+      `IngredientAmount`s, each an ingredient plus a quantity (e.g.
+      "3 dl flour"). `Ingredient` stays the catalog entry (#32).
+    - An `Ingredient` may carry an optional table of named conversions
+      into its own unit: `1 dl = 60 g` for flour, `1 piece = 150 g` for
+      an onion counted by weight, `1 tbsp = 15 g` for butter. Conversions
+      are per ingredient because they depend on density or piece size;
+      none are shared across ingredients.
+    - An `IngredientAmount` may name a unit. If it is the ingredient's
+      own unit it is used as is; if the table has a conversion for it,
+      the amount is converted when the recipe is loaded. Otherwise
+      loading fails with an error naming the ingredient and unit. An
+      amount with no unit means the ingredient's own unit.
+    - Conversion happens once, at load time, before any model is built.
+      The solver, `Pantry`, `buy`/`use` and reports only ever see the
+      ingredient's own unit, so decisions #27 and #32 are unchanged.
+    - Converted quantities are rounded to the ingredient's precision
+      scale (#32); the rounding is deterministic.
+    - Within a dimension (ml/dl/L, g/kg) built-in factors are not
+      assumed in v1: if a table is wanted, the caller supplies the
+      factors. Whether to ship standard factors is left to the
+      data-model step.
 
 ## Explicitly out of scope for v1 (later candidates)
 

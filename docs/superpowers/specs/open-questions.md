@@ -132,18 +132,15 @@ through with a pointer to it.
     picks products under the user's constraints; in-model selection
     deferred).
 
-21. **Unit conversion and recipe input units.** Decision #32 gives each
-    ingredient one unit and no conversions. Real recipes mix units
-    (dl, tbsp, "1 onion"), which needs per-ingredient densities or
-    per-piece weights. Leaning: v1 requires recipe lines in the
-    ingredient's own unit (caller converts); an optional
-    per-ingredient conversion table is a later input-convenience
-    feature, not a solver concern.
+21. **~~Unit conversion and recipe input units.~~ RESOLVED** — see
+    design doc decision #36 (optional per-ingredient conversion table,
+    applied at recipe load time; recipes are lists of
+    `IngredientAmount`s).
 
 ## Status
 
-Items 1-16 and 18-20 are resolved (decisions #14-#35 in the design
+Items 1-16 and 18-21 are resolved (decisions #14-#36 in the design
 doc). #17 (package sizes) is deferred, with options and a lean
-recorded above. Still open: #21 (unit conversion) from decision #32.
+recorded above. No other questions are open.
 Next: the concrete data model/constraint DSL step in that doc's "Next
 steps."
