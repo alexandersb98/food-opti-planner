@@ -16,7 +16,7 @@ after design review — see decisions #1 and #22 in
   only (decision #4). Constraining an individual meal slot (e.g. "dinner
   ≥ 30g protein") is a possible later extension.
 - **External nutrition/price data import.** v1 uses a user-maintained
-  local food database only (decision #8). An importer from a public
+  local ingredient database only (decision #8). An importer from a public
   dataset (USDA FoodData Central, Open Food Facts, etc.) is a clean
   later addition.
 - **UI.** Web, desktop, or mobile front end. None planned for v1.
@@ -38,7 +38,7 @@ after design review — see decisions #1 and #22 in
   suggesting a recipe for what is about to go off even when no plan is
   being generated.
 - **Shopping list with pack sizes and store prices.** Decision #27 yields
-  a raw per-food `buy` quantity for free; rounding to purchasable pack
+  a raw per-ingredient `buy` quantity for free; rounding to purchasable pack
   sizes and carrying the pack leftovers forward as pantry lots (open
   question #17) is a later refinement.
 
@@ -47,7 +47,7 @@ after design review — see decisions #1 and #22 in
 v1 uses a single MILP model per plan-generation call (decision #13:
 option A). Two alternatives were sketched during design and set aside —
 kept here in case v1's approach hits a wall (e.g. solve times become
-impractical at large horizons/food catalogs) and is worth revisiting:
+impractical at large horizons/ingredient catalogs) and is worth revisiting:
 
 - **Two-phase.** Solve day-level nutrient/cost totals first (ignoring
   meal structure), then distribute those totals across meal slots

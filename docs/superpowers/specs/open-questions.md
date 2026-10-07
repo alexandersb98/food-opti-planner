@@ -18,9 +18,9 @@ through with a pointer to it.
    RESOLVED** — see design doc decision #15 (CP-SAT with fixed-precision
    integer scaling, kept behind a swappable backend interface).
 
-3. **~~No upper bound on per-food quantity per slot.~~ RESOLVED** — see
+3. **~~No upper bound on per-ingredient quantity per slot.~~ RESOLVED** — see
    design doc decision #16 (soft cap via the same weighted-constraint
-   mechanism as variety, required per-food `max_serving_size`).
+   mechanism as variety, required per-ingredient `max_serving_size`).
 
 ## Important — will cause confusing/degenerate output
 
@@ -43,7 +43,7 @@ through with a pointer to it.
    `weight_below`/`weight_above` override).
 
 8. **~~Discrete-unit "same food" counting for variety is ambiguous.~~
-   RESOLVED** — see design doc decisions #22 (recipes, not raw foods,
+   RESOLVED** — see design doc decisions #22 (recipes, not raw ingredients,
    are now the `generated`-slot composition unit) and #23 (variety
    generalized to recipe/ingredient/tag-level groups, counted once per
    occurrence — i.e. per day+slot, not deduplicated across slots in the
@@ -85,23 +85,23 @@ through with a pointer to it.
     `best_before` soft penalty after the date).
 
 16. **~~Shelf life after opening / freezing.~~ RESOLVED** — see design
-    doc decision #29 (`shelf_life_after_opening_days` on foods,
+    doc decision #29 (`shelf_life_after_opening_days` on ingredients,
     `opened_on` on lots; freezing is a caller override).
 
 17. **Package sizes when buying. DEFERRED** (discussed, not decided; see also decision #32, which
     adds the `Product` concept these options build on;
     revisit before the shopping-list feature). `buy[f,d]` (#27) is
-    continuous/discrete per the food's granularity (#9), but real
+    continuous/discrete per the ingredient's granularity (#9), but real
     purchases come in packs (a 500 g bag, a 6-pack). Options discussed:
     - **A. Raw quantities only.** Report exact `buy` amounts. No model
       change, no new inputs. Cons: list isn't what you'd actually buy;
       cost is understated (750 g costed as 750 g, but two 500 g bags
       are paid for).
-    - **B. Round up in the report.** Optional per-food `pack_size`;
-      after solving, round each food's horizon total up to whole packs.
+    - **B. Round up in the report.** Optional per-ingredient `pack_size`;
+      after solving, round each ingredient's horizon total up to whole packs.
       Realistic list, model unchanged. Cons: optimizer is blind to
       packs (won't plan to finish a partly used pack); budget
-      constraints use unrounded cost; rounding is per food over the
+      constraints use unrounded cost; rounding is per ingredient over the
       whole horizon, not per shopping trip.
     - **C. Packs in the model.** Integer pack counts in the MILP; the
       unused remainder becomes a pantry lot. Only option with honest
@@ -110,7 +110,7 @@ through with a pointer to it.
       time against the #24 reference scale, and entanglement with
       timing questions (#19, one-trip vs. multiple shopping trips).
     - **Current lean:** A for v1, with an optional `pack_size` field on
-      foods reserved; B later as pure post-processing; C as its own
+      ingredients reserved; B later as pure post-processing; C as its own
       feature.
     - **Questions that would settle it:** does the user shop once for
       the whole plan or top up during the week? Is budget accuracy
@@ -120,7 +120,7 @@ through with a pointer to it.
       leave the model in decision #27 unchanged.
 
 18. **Staples and unlimited items.** Water, salt, oil, spices: tracking
-    stock is noise. Leaning: a per-food `staple: true` that exempts it
+    stock is noise. Leaning: a per-ingredient `staple: true` that exempts it
     from pantry accounting (always assumed on hand, cost ignored or
     flat), so it neither appears in `buy` nor needs a lot.
 

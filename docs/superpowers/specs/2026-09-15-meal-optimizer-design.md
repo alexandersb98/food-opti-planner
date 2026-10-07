@@ -26,14 +26,14 @@ until the logic is solid.
 
 1. **Meal composition: recipes, not raw-food buckets.** Originally
    scoped for v1 as raw-food buckets (the optimizer freely combining
-   individual foods per slot, no recipe concept, with a recipe-based
+   individual ingredients per slot, no recipe concept, with a recipe-based
    mode deferred to later — see `future-features.md`'s history).
-   **Reversed by decision #22**: freely-combined raw foods produced
+   **Reversed by decision #22**: freely-combined raw ingredients produced
    plans that don't read as real meals, so recipes are pulled into v1
    as the actual composition unit. The optimizer now selects one recipe
-   (a fixed, named composition of foods) per `generated` slot, at a
+   (a fixed, named composition of ingredients) per `generated` slot, at a
    scalable serving size — see decision #22 for the full model. Raw
-   foods still exist, just as recipe ingredients rather than
+   ingredients still exist, just as recipe components rather than
    directly-selectable slot contents.
 
 2. **Multi-day horizon.** The number of days in a plan is a configurable
@@ -71,35 +71,35 @@ until the logic is solid.
    subject to: cost ≤ $15 always
    ```
 
-7. **Food attributes are fully user-definable.** There is no fixed
-   nutrient list baked into the app. A food carries an arbitrary set of
+7. **Ingredient attributes are fully user-definable.** There is no fixed
+   nutrient list baked into the app. An ingredient carries an arbitrary set of
    named attributes (protein, calories, sugar, cost, glycemic index,
    caffeine — whatever the user wants to track), each with a per-unit
    value. Constraints are written against attribute names, so adding a
    new trackable attribute never requires a data-model or engine change.
 
-8. **Food data source: user-maintained local database only (v1).** No
+8. **Ingredient data source: user-maintained local database only (v1).** No
    external nutrition API / public dataset integration yet. The user
-   enters their own foods (name, per-unit attribute values, per-unit
+   enters their own ingredients (name, per-unit attribute values, per-unit
    price). An importer from a public dataset (USDA FoodData Central,
    Open Food Facts, etc.) is a clean later addition and must not require
    changing the optimizer itself.
 
-9. **Quantity granularity is per-food, not global.** Each food declares
+9. **Quantity granularity is per-ingredient, not global.** Each ingredient declares
    its own granularity:
    - **continuous** — any gram amount (e.g. rice, oil), or
    - **discrete** — must be an integer multiple of a defined unit size
      (e.g. "1 egg = 50g", "1 can = 400g").
 
    This means the solver must handle a genuine **mixed-integer** linear
-   program (continuous variables for some foods, integer variables for
+   program (continuous variables for some ingredients, integer variables for
    others) — not a pure LP. Decision #22 reuses this same
    continuous/discrete choice for a recipe's serving-size multiplier.
 
 10. **Variety is encouraged, via the same generic mechanism.** Rather
     than a special-cased "variety" feature, repetition is discouraged
     using the same weighted-constraint machinery as everything else —
-    e.g. a default soft rule like "using the same food more than N times
+    e.g. a default soft rule like "using the same ingredient more than N times
     across the horizon costs W per excess use," with sensible defaults
     that the user can override or disable like any other constraint.
 
@@ -115,8 +115,8 @@ until the logic is solid.
 
 13. **Optimization structure: single MILP model per plan-generation
     call.** One optimization problem covers everything: quantity
-    variables per food per meal-slot per day (mixed continuous/integer
-    per food's granularity), binary "is this food used here" indicators
+    variables per ingredient per meal-slot per day (mixed continuous/integer
+    per ingredient's granularity), binary "is this ingredient used here" indicators
     (needed for unit-linking and for detecting repeats for variety), and
     goal-programming slack variables for every soft constraint at
     whatever scope (day/horizon) it's defined at. Objective = weighted
@@ -130,7 +130,7 @@ until the logic is solid.
 
     Decision #22 updates the per-slot decision variables described
     above: instead of a quantity variable and "used" indicator per
-    *food* per slot, each `generated` slot now gets a "recipe R used
+    *ingredient* per slot, each `generated` slot now gets a "recipe R used
     here" binary per recipe and a serving-multiplier variable — the
     single-MILP structure and solve approach are unchanged.
 
@@ -188,11 +188,11 @@ until the logic is solid.
     [`open-questions.md`](open-questions.md).
 
     - **v1 uses CP-SAT.** CP-SAT only works over integers, so decision
-      #9's genuinely continuous foods (e.g. rice, oil) are represented
+      #9's genuinely continuous ingredients (e.g. rice, oil) are represented
       as integers at a fixed, documented precision rather than true
       reals — a deliberate, bounded rounding, not an approximation
       users need to reason about. Default precision (overridable):
-      food quantities in **centigrams** (0.01g resolution, i.e. grams ×
+      ingredient quantities in **centigrams** (0.01g resolution, i.e. grams ×
       100), monetary values in **tenths of a cent**, and each
       user-defined attribute (decision #7) carries a `precision`
       (decimal places, default 3) used to scale its per-unit value to
@@ -207,7 +207,7 @@ until the logic is solid.
       #14's "find the minimal conflicting set of hard constraints" step
       — no hand-built elastic/big-M encoding needed for that part.
     - **Kept swappable, not hardcoded.** The engine's model-building
-      code (turning `Food`/`Constraint`/`PlanRequest` into
+      code (turning `Ingredient`/`Constraint`/`PlanRequest` into
       variables/constraints/objective) is written against a
       solver-agnostic internal representation; the translation to
       CP-SAT's API is isolated behind a single backend adapter. A future
@@ -218,32 +218,32 @@ until the logic is solid.
       designed so it's an additive change later.
 
 16. **Per-slot quantity cap: soft, via the same weighted-constraint
-    mechanism as variety, with a required per-food declared serving
+    mechanism as variety, with a required per-ingredient declared serving
     size.** Resolves open question #3 from
     [`open-questions.md`](open-questions.md).
 
-    - Every food declares its own `max_serving_size` (a quantity, in the
+    - Every ingredient declares its own `max_serving_size` (a quantity, in the
       same units as its granularity — decision #9), required alongside
-      granularity, since a sensible max varies hugely by food (a
+      granularity, since a sensible max varies hugely by ingredient (a
       tablespoon of oil vs. a bowl of rice — no single global number
       fits both).
     - Not a new hard-limit concept: it's a default soft constraint using
       the same goal-programming mechanism as everything else (decision
       #6) — the same pattern decision #10 already uses for variety.
-      "Quantity of a food in one slot beyond its `max_serving_size`"
+      "Quantity of an ingredient in one slot beyond its `max_serving_size`"
       is treated exactly like any other constraint's shortfall/excess:
       it costs `weight × excess` toward the total penalty the optimizer
       minimizes, with a sensible default weight, user-overridable or
-      disableable per food like any other constraint.
+      disableable per ingredient like any other constraint.
     - Staying soft (rather than hard) avoids introducing a second
       hard-limit concept alongside the hard/soft constraint system, and
       avoids adding a new way to trigger decision #14's infeasibility
       handling if a cap is set too tight.
     - **Retargeted by decision #22**: since `generated` slots now hold
-      one recipe rather than freely-chosen raw foods, this cap applies
+      one recipe rather than freely-chosen raw ingredients, this cap applies
       to a recipe's serving-size multiplier (`max_serving_multiplier`)
-      instead of a raw food's quantity. Same mechanism, same rationale,
-      just relabeled from food to recipe.
+      instead of a raw ingredient's quantity. Same mechanism, same rationale,
+      just relabeled from ingredient to recipe.
 
 17. **Weights are normalized: deviation is measured as percent of the
     violated bound, not a raw absolute amount.** Resolves open question
@@ -374,22 +374,22 @@ until the logic is solid.
 22. **Recipes are the meal-composition unit for `generated` slots: one
     recipe per slot, with a scalable serving-size multiplier.** Reverses
     decision #1's original "buckets, not recipes" scope — recipes are
-    pulled into v1 because freely-combined raw foods produced meal plans
+    pulled into v1 because freely-combined raw ingredients produced meal plans
     that don't read as real meals.
 
     - **Recipe definition.** A `Recipe` is a named catalog entry: a
-      fixed list of `(food, quantity)` pairs at defined proportions
+      fixed list of `(ingredient, quantity)` pairs at defined proportions
       (its "1×" / base serving). A recipe's attribute totals (calories,
       cost, protein, etc. — decision #7's free-form attributes) are
       *derived*, not separately entered: summed from its ingredients'
       per-unit attribute values × their fixed quantities. Editing a
-      food's attribute value automatically updates every recipe that
+      ingredient's attribute value automatically updates every recipe that
       uses it.
     - **One recipe per `generated` slot.** Each `generated` slot
       (decision #19) selects at most one recipe from the catalog — a
       binary "recipe R used in this slot" indicator, the same shape as
-      decision #13's old per-food "used here" indicator, just
-      recipe-indexed. Raw foods are no longer directly selectable
+      decision #13's old per-ingredient "used here" indicator, just
+      recipe-indexed. Raw ingredients are no longer directly selectable
       within a `generated` slot; they only appear as recipe
       ingredients.
     - **Scalable serving-size multiplier.** When a recipe is selected,
@@ -403,11 +403,11 @@ until the logic is solid.
     - **Granularity per recipe.** Whether a recipe's multiplier is
       continuous or must land on discrete steps (e.g. only half-serving
       increments) is declared per recipe, mirroring decision #9's
-      per-food continuous/discrete granularity — some recipes make
+      per-ingredient continuous/discrete granularity — some recipes make
       sense scaled smoothly, others don't.
     - **Serving-size cap retargeted from decision #16.** The soft
       per-slot quantity cap now applies to a recipe's serving
-      multiplier instead of a raw food's quantity: every recipe
+      multiplier instead of a raw ingredient's quantity: every recipe
       declares a `max_serving_multiplier`, penalized softly like any
       other constraint if exceeded — same mechanism, same rationale, as
       decision #16.
@@ -531,7 +531,7 @@ until the logic is solid.
       portion, count_available, optional use_by_day)`. The attribute
       vector is captured when the batch was cooked (per-portion
       quantity at the cooked multiplier), not re-derived from the
-      current recipe/food data, so editing a food later doesn't
+      current recipe/ingredient data, so editing an ingredient later doesn't
       retroactively change a meal that already exists. Cooking a batch
       is recorded as a `CookedBatch` (recipe, multiplier, portions
       yielded, portions eaten, portions stored); the stored remainder
@@ -600,8 +600,8 @@ until the logic is solid.
     **pantry**, to keep it distinct from #26's `inventory` of already
     *cooked* `StoredPortion`s.
 
-    - **Data model.** A `PantryLot` is `(food, quantity, expires_on?,
-      acquired_on?)`. Quantity is in the food's own unit (#9). A food
+    - **Data model.** A `PantryLot` is `(ingredient, quantity, expires_on?,
+      acquired_on?)`. Quantity is in the ingredient's own unit (#9). An ingredient
       can have several lots with different expiry dates (e.g. two milk
       cartons). `expires_on` is the last day the lot is safe to eat
       (inclusive); omitted means non-perishable (dry goods, tins).
@@ -614,7 +614,7 @@ until the logic is solid.
       request also gets a `start_date` (calendar date of day 0), required
       whenever any lot has `expires_on`, since horizon days are otherwise
       only indices.
-    - **Demand, usage, purchase.** For each food `f` and day `d`, recipe
+    - **Demand, usage, purchase.** For each ingredient `f` and day `d`, recipe
       choices (#22) already determine demand `D[f,d]` as a linear
       expression (Σ over slots of recipe-used × multiplier × the
       recipe's fixed quantity of `f`). New continuous variables
@@ -623,7 +623,7 @@ until the logic is solid.
       - `use[lot,d] = 0` for any `d` after `lot.expires_on` — **hard** for
         `use_by` lots (food safety, same posture as `use_by_day` in
         #26); for `best_before` lots, the soft penalty above instead,
-      - `Σ_lot use[lot,d] ≤ D[f,d]` per food and day, and
+      - `Σ_lot use[lot,d] ≤ D[f,d]` per ingredient and day, and
         **`buy[f,d] = D[f,d] − Σ_lot use[lot,d]`** is the quantity that
         must be bought fresh. Running out is never infeasible: the
         shortfall is simply purchased. Usage is tracked per day, not per
@@ -634,7 +634,7 @@ until the logic is solid.
       (#26). For each lot that expires within the horizon plus a
       `waste_lookahead_days` window (default 3), the unused remainder
       costs `weight × (unused / lot.quantity)` (#17 normalization), with
-      a default weight high but not hard, overridable per lot or per food.
+      a default weight high but not hard, overridable per lot or per ingredient.
       Lots that expire later than that window, and lots with no expiry,
       carry no waste penalty. Soft by default because a lot is sometimes
       unusable in any recipe (so hard would often be infeasible); a
@@ -645,7 +645,7 @@ until the logic is solid.
       Food already at home is a sunk cost. Attributes flagged
       `accrues_on: purchase` (default for `cost`; resolves the cost half
       of open question #11 for raw ingredients) are totalled from
-      `buy[f,d]` at the food's per-unit price, not from recipe-derived
+      `buy[f,d]` at the ingredient's per-unit price, not from recipe-derived
       totals. Nutrient-style attributes stay recipe-derived and are
       unaffected. So a recipe built from stock costs ~0 against a budget
       constraint — this is the *pull* toward pantry recipes, and the
@@ -661,7 +661,7 @@ until the logic is solid.
     - **Outputs.** `Plan` gains a `pantry_report`: per lot, quantity used
       and quantity left unused with its expiry (i.e. predicted waste),
       lots excluded as already expired, and the aggregate `buy` list per
-      food, which is a shopping list for free.
+      ingredient, which is a shopping list for free.
     - **Management API (in-memory, no persistence) — confirmed.** The v1 library
       (#12) offers a plain `Pantry` object: `add(lot)`,
       `remove(lot_id)`, `adjust(lot_id, delta)`, `expiring_within(days,
@@ -670,7 +670,7 @@ until the logic is solid.
       *Persisting* it, and any UI/CLI around it, remain deferred with
       the rest of persistence and UI (see `future-features.md`).
     - **Solve cost.** Adds `lots × days` continuous (integer-scaled per
-      #15) usage variables, only for foods that appear in some recipe.
+      #15) usage variables, only for ingredients that appear in some recipe.
       Reference scale (#24) extends to **≤150 lots**; the rest of the
       model is unchanged.
     - Open details — shelf life after opening, package sizes, staples, and
@@ -711,7 +711,7 @@ until the logic is solid.
       portion's `use_by_day` is derived as cooking date + the recipe's
       `shelf_life_days`. No default means no derived date (the portion
       never expires unless the caller says so).
-    - **Foods** may declare `shelf_life_after_opening_days`. When a
+    - **Ingredients** may declare `shelf_life_after_opening_days`. When a
       pantry lot (#27) is marked opened (`opened_on`) without an
       explicit new `expires_on`, its effective expiry becomes
       `min(expires_on, opened_on + shelf_life_after_opening_days)`.
@@ -721,7 +721,7 @@ until the logic is solid.
       directions.
     - **Freezing is not a separate state.** Freezing is modeled as the
       caller overriding the date (or splitting a lot and giving the
-      frozen part a later `expires_on`). No per-food frozen shelf life
+      frozen part a later `expires_on`). No per-ingredient frozen shelf life
       is stored, which keeps the data the user maintains small.
     - Derived dates feed the existing rules unchanged: `use_by` hard
       ban and waste penalty (#27), stored-portion rules (#26).
@@ -774,11 +774,12 @@ until the logic is solid.
     each ingredient has its own unit.** Refines decisions #7-#9, #15,
     #22, #27 and #29; sets up open questions #17 and #20-#21.
 
-    - **Terminology.** *Ingredient* is the canonical name for what
-      earlier decisions call a "food": the thing recipes (#22), pantry
-      lots (#27) and constraints refer to. Earlier text keeps saying
-      "food"; read it as "ingredient". (A mechanical rename in this doc
-      is pending confirmation.)
+    - **Terminology.** *Ingredient* is the canonical name for the thing
+      recipes (#22), pantry lots (#27) and constraints refer to. It
+      replaces the earlier term `Food`, which was renamed throughout
+      these docs. "Food" now appears only in its ordinary sense (food
+      safety, stored food, "raw-food buckets" as the historical name of
+      the pre-#22 approach) and in dataset names.
     - **Ingredient** carries: a name; one **unit** (below); the
       free-form per-unit attributes (#7); granularity and
       `max_serving_size` (#9/#16); the `staple` flag (#18, if adopted);
@@ -843,9 +844,9 @@ for #13.
 1. Resolve the open holes/questions in
    [`open-questions.md`](open-questions.md), since several of them
    change what the data model needs to represent.
-2. Nail down the concrete data model / "constraint DSL": `Food`,
+2. Nail down the concrete data model / "constraint DSL": `Ingredient`,
    `Constraint` (attribute, scope: day|horizon, comparator, target,
-   hard|soft, weight), `PlanRequest` (days, meals/day, foods available,
+   hard|soft, weight), `PlanRequest` (days, meals/day, ingredients available,
    constraints), `Plan` (result), `ViolationReport` (which soft
    constraints were compromised, by how much).
    Also model decision #26's pivot types: `consumed` slot kind,
