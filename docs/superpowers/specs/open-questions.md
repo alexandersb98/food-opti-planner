@@ -119,10 +119,9 @@ through with a pointer to it.
     - **Why deferred:** no v1 work depends on it; options A-C all
       leave the model in decision #27 unchanged.
 
-18. **Staples and unlimited items.** Water, salt, oil, spices: tracking
-    stock is noise. Leaning: a per-ingredient `staple: true` that exempts it
-    from pantry accounting (always assumed on hand, cost ignored or
-    flat), so it neither appears in `buy` nor needs a lot.
+18. **~~Staples and unlimited items.~~ RESOLVED** — see design doc
+    decision #33 (no staple concept in v1; recorded as a possible
+    feature in `future-features.md`).
 
 19. **Time-varying demand within a day vs. cook-ahead.** Decision #27
     assumes ingredients are consumed on the day the meal is eaten. A
@@ -148,10 +147,10 @@ through with a pointer to it.
 
 ## Status
 
-Items 1-16 are resolved (decisions #14-#31 in the design doc).
-#17 (package sizes) is deferred, with options and a lean recorded
-above. Still open: #18-#19 (staples, cook-ahead) from the
-pantry/expiry requirement, and #20-#21 (product selection, unit
-conversion) from decision #32.
+Items 1-16 and 18 are resolved (decisions #14-#33 in the design
+doc). #17 (package sizes) is deferred, with options and a lean
+recorded above. Still open: #19 (cook-ahead) from the pantry/expiry
+requirement, and #20-#21 (product selection, unit conversion) from
+decision #32.
 Next: the concrete data model/constraint DSL step in that doc's "Next
 steps."

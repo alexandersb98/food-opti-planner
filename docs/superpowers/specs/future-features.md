@@ -42,6 +42,16 @@ after design review — see decisions #1 and #22 in
   sizes and carrying the pack leftovers forward as pantry lots (open
   question #17) is a later refinement.
 
+- **Staple ingredients.** Decision #33 treats every ingredient alike in
+  v1. A later per-ingredient `staple: true` flag would mean "assumed
+  always on hand" for things like salt, oil, spices and water: no pantry
+  lots, never in the `buy` list, no waste penalty. Nutrients would still
+  count either way (oil has calories). Options discussed for cost:
+  charge it at eat-time from its per-unit price (keeps budgets honest
+  for staples that are not negligible, like olive oil), or ignore it
+  (simplest, fine for water, salt and spices). Leaning towards the
+  former if built.
+
 ## Alternative optimization approaches considered (not chosen for v1)
 
 v1 uses a single MILP model per plan-generation call (decision #13:

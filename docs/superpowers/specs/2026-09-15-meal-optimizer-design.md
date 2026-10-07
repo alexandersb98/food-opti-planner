@@ -782,8 +782,7 @@ until the logic is solid.
       the pre-#22 approach) and in dataset names.
     - **Ingredient** carries: a name; one **unit** (below); the
       free-form per-unit attributes (#7); granularity and
-      `max_serving_size` (#9/#16); the `staple` flag (#18, if adopted);
-      and `shelf_life_after_opening_days` (#29).
+      `max_serving_size` (#9/#16); and `shelf_life_after_opening_days` (#29).
     - **Unit is per ingredient, fixed, and single.** Each ingredient
       declares exactly one unit, chosen to suit it: milk in litres,
       meat in grams, eggs in pieces. Every quantity involving that
@@ -831,6 +830,22 @@ until the logic is solid.
       domain data that open question #17's options A-C plug into: A
       ignores them, B rounds the report up to products, C makes them
       integer purchase variables.
+
+33. **No staple concept in v1.** Resolves open question #18.
+
+    - Every ingredient is treated alike: it can have pantry lots (#27),
+      appears in `buy` when stock runs short, and is subject to the
+      waste penalty. There is no `staple` flag and no "always on hand"
+      exemption.
+    - Users who find salt, oil or spices noisy in the shopping list have
+      two workarounds that need no new model: keep a large non-expiring
+      pantry lot for them, or leave them out of recipes and the
+      attribute totals they don't matter for.
+    - Deferred, not rejected: a per-ingredient `staple` flag is recorded
+      in [`future-features.md`](future-features.md) with the design
+      options discussed, since it can be added later without changing
+      the engine's core model (it only changes which ingredients pantry
+      accounting applies to).
 
 ## Explicitly out of scope for v1 (later candidates)
 
