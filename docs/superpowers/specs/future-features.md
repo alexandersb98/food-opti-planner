@@ -16,7 +16,7 @@ after design review — see decisions #1 and #22 in
   only (decision #4). Constraining an individual meal slot (e.g. "dinner
   ≥ 30g protein") is a possible later extension.
 - **External nutrition/price data import.** v1 uses a user-maintained
-  local food database only (decision #8). An importer from a public
+  local ingredient database only (decision #8). An importer from a public
   dataset (USDA FoodData Central, Open Food Facts, etc.) is a clean
   later addition.
 - **UI.** Web, desktop, or mobile front end. None planned for v1.
@@ -30,12 +30,46 @@ after design review — see decisions #1 and #22 in
   (cost and effort charged once) and spread its portions across several
   slots or days, with shelf-life limits.
 
+- **Pantry persistence and management UI.** Decision #27 defines an
+  in-memory `Pantry` with add/remove/adjust/expiring-soon operations, but
+  saving it between sessions, plus the screens/CLI for day-to-day
+  stock-keeping, ride on the persistence and UI items above. Natural
+  extras: barcode/receipt entry, "expiring soon" notifications, and
+  suggesting a recipe for what is about to go off even when no plan is
+  being generated.
+- **Shopping list with pack sizes and store prices.** Decision #27 yields
+  a raw per-ingredient `buy` quantity for free; rounding to purchasable pack
+  sizes and carrying the pack leftovers forward as pantry lots (open
+  question #17) is a later refinement.
+- **Product selection inside the optimizer.** Decision #35 picks
+  products after the meal plan is solved. A later version would add
+  integer pack-count variables per product to the MILP so recipes and
+  products are chosen together: honest cost, leftover-aware planning and
+  budget constraints on real prices (open question #17, option C). Costs
+  to design for: more integer variables, shelf-life rules for leftover
+  lots, and solve time against the #24 reference scale.
+- **Cook-ahead (separate cook day).** Decision #34 draws pantry stock on
+  the eat day. A later feature, best built with planned batch cooking,
+  would give a dish a cook day distinct from its eat day (per-recipe
+  offset or per-slot prep day were the options discussed) so pantry
+  draw-down and expiry checks use the cook day.
+
+- **Staple ingredients.** Decision #33 treats every ingredient alike in
+  v1. A later per-ingredient `staple: true` flag would mean "assumed
+  always on hand" for things like salt, oil, spices and water: no pantry
+  lots, never in the `buy` list, no waste penalty. Nutrients would still
+  count either way (oil has calories). Options discussed for cost:
+  charge it at eat-time from its per-unit price (keeps budgets honest
+  for staples that are not negligible, like olive oil), or ignore it
+  (simplest, fine for water, salt and spices). Leaning towards the
+  former if built.
+
 ## Alternative optimization approaches considered (not chosen for v1)
 
 v1 uses a single MILP model per plan-generation call (decision #13:
 option A). Two alternatives were sketched during design and set aside —
 kept here in case v1's approach hits a wall (e.g. solve times become
-impractical at large horizons/food catalogs) and is worth revisiting:
+impractical at large horizons/ingredient catalogs) and is worth revisiting:
 
 - **Two-phase.** Solve day-level nutrient/cost totals first (ignoring
   meal structure), then distribute those totals across meal slots

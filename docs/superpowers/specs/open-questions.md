@@ -18,9 +18,9 @@ through with a pointer to it.
    RESOLVED** — see design doc decision #15 (CP-SAT with fixed-precision
    integer scaling, kept behind a swappable backend interface).
 
-3. **~~No upper bound on per-food quantity per slot.~~ RESOLVED** — see
+3. **~~No upper bound on per-ingredient quantity per slot.~~ RESOLVED** — see
    design doc decision #16 (soft cap via the same weighted-constraint
-   mechanism as variety, required per-food `max_serving_size`).
+   mechanism as variety, required per-ingredient `max_serving_size`).
 
 ## Important — will cause confusing/degenerate output
 
@@ -43,7 +43,7 @@ through with a pointer to it.
    `weight_below`/`weight_above` override).
 
 8. **~~Discrete-unit "same food" counting for variety is ambiguous.~~
-   RESOLVED** — see design doc decisions #22 (recipes, not raw foods,
+   RESOLVED** — see design doc decisions #22 (recipes, not raw ingredients,
    are now the `generated`-slot composition unit) and #23 (variety
    generalized to recipe/ingredient/tag-level groups, counted once per
    occurrence — i.e. per day+slot, not deduplicated across slots in the
@@ -62,31 +62,85 @@ through with a pointer to it.
 
 ## Raised by the plan-pivot user story (decision #26)
 
-11. **Cost accounting for already-paid food.** A stored portion's cost
-    was spent when the batch was cooked/bought, not when it's eaten.
-    Counting it again against a horizon budget double-charges; counting
-    it as 0 hides real spend. Leaning: attributes get an
-    `accrues_on: cooked | eaten` flag (cost → `cooked`, nutrients →
-    `eaten`), so cost lands in history on the cooking day and stored
-    portions contribute 0 cost when eaten. Needs a decision before the
-    data model is final.
+11. **~~Cost accounting for already-paid food.~~ RESOLVED** — see design
+    doc decision #28 (`accrues_on: purchase | cooked | eaten` per
+    attribute).
 
-12. **Shelf life.** Should a recipe carry a default `shelf_life_days`
-    that auto-derives a stored portion's `use_by_day`, or is it always
-    caller-supplied per batch? Also: does freezing change it?
+12. **~~Shelf life.~~ RESOLVED** — see design doc decision #29
+    (optional `shelf_life_days` on recipes, caller override wins,
+    freezing is a caller override).
 
-13. **Partial portions and uneven portions.** Decision #26 treats a
-    stored portion as exactly one fixed-size unit. If a user eats half a
-    box, or batches yield uneven portions, do we model fractional
-    inventory or require the caller to re-record it?
+13. **~~Partial portions and uneven portions.~~ RESOLVED** — see design
+    doc decision #30 (whole portions only; caller re-records via a
+    new group, `StoredPortion.split` helper).
 
-14. **Re-plan horizon boundary.** When pivoting mid-day (e.g. lunch
-    eaten, dinner not), which slots are `consumed` vs re-plannable?
-    Proposed: the caller passes `as_of` = (day, slot) and everything
-    before it is history.
+14. **~~Re-plan horizon boundary.~~ RESOLVED** — see design doc
+    decision #31 (`as_of = (day, slot)`; earlier slots are history,
+    later `generated` slots are re-planned).
+
+## Raised by the pantry/expiry requirement (decision #27)
+
+15. **~~Best-before vs. use-by.~~ RESOLVED** — see design doc decision
+    #27 (per-lot `expiry_kind: use_by | best_before`; `use_by` hard,
+    `best_before` soft penalty after the date).
+
+16. **~~Shelf life after opening / freezing.~~ RESOLVED** — see design
+    doc decision #29 (`shelf_life_after_opening_days` on ingredients,
+    `opened_on` on lots; freezing is a caller override).
+
+17. **Package sizes when buying. DEFERRED** (discussed, not decided; see also decision #32, which
+    adds the `Product` concept these options build on;
+    revisit before the shopping-list feature). `buy[f,d]` (#27) is
+    continuous/discrete per the ingredient's granularity (#9), but real
+    purchases come in packs (a 500 g bag, a 6-pack). Options discussed:
+    - **A. Raw quantities only.** Report exact `buy` amounts. No model
+      change, no new inputs. Cons: list isn't what you'd actually buy;
+      cost is understated (750 g costed as 750 g, but two 500 g bags
+      are paid for).
+    - **B. Round up in the report.** Optional per-ingredient `pack_size`;
+      after solving, round each ingredient's horizon total up to whole packs.
+      Realistic list, model unchanged. Cons: optimizer is blind to
+      packs (won't plan to finish a partly used pack); budget
+      constraints use unrounded cost; rounding is per ingredient over the
+      whole horizon, not per shopping trip.
+    - **C. Packs in the model.** Integer pack counts in the MILP; the
+      unused remainder becomes a pantry lot. Only option with honest
+      cost and leftover-aware planning. Cons: extra integer variables,
+      shelf-life rules for derived lots (#29), less predictable solve
+      time against the #24 reference scale, and entanglement with
+      timing questions (#19, one-trip vs. multiple shopping trips).
+    - **Current lean:** A for v1, with an optional `pack_size` field on
+      ingredients reserved; B later as pure post-processing; C as its own
+      feature.
+    - **Questions that would settle it:** does the user shop once for
+      the whole plan or top up during the week? Is budget accuracy
+      important, or is the plan mainly about nutrition and avoiding
+      waste?
+    - **Why deferred:** no v1 work depends on it; options A-C all
+      leave the model in decision #27 unchanged.
+
+18. **~~Staples and unlimited items.~~ RESOLVED** — see design doc
+    decision #33 (no staple concept in v1; recorded as a possible
+    feature in `future-features.md`).
+
+19. **~~Time-varying demand within a day vs. cook-ahead.~~ RESOLVED** —
+    see design doc decision #34 (eat-day semantics in v1; cook-ahead
+    deferred with planned batch cooking).
+
+20. **~~Which product to buy when an ingredient has several.~~
+    RESOLVED** — see design doc decision #35 (post-solve selector that
+    picks products under the user's constraints; in-model selection
+    deferred).
+
+21. **~~Unit conversion and recipe input units.~~ RESOLVED** — see
+    design doc decision #36 (optional per-ingredient conversion table,
+    applied at recipe load time; recipes are lists of
+    `IngredientAmount`s).
 
 ## Status
 
-Items 1-10 are resolved (decisions #14-#25 in the design doc). Items 11-14 are open, from the plan-pivot story (decision #26).
+Items 1-16 and 18-21 are resolved (decisions #14-#36 in the design
+doc). #17 (package sizes) is deferred, with options and a lean
+recorded above. No other questions are open.
 Next: the concrete data model/constraint DSL step in that doc's "Next
 steps."

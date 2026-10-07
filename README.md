@@ -1,6 +1,6 @@
 # Meal Plan Optimizer
 
-An optimization-based meal planning tool: give it a set of foods and a
+An optimization-based meal planning tool: give it a set of ingredients and a
 set of constraints (nutrient targets, budget, etc.), and it lays out a
 multi-day eating plan that satisfies them as well as possible. When
 constraints conflict, it finds a good-enough compromise instead of
