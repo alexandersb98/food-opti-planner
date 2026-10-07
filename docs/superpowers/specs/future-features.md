@@ -41,6 +41,13 @@ after design review — see decisions #1 and #22 in
   a raw per-ingredient `buy` quantity for free; rounding to purchasable pack
   sizes and carrying the pack leftovers forward as pantry lots (open
   question #17) is a later refinement.
+- **Product selection inside the optimizer.** Decision #35 picks
+  products after the meal plan is solved. A later version would add
+  integer pack-count variables per product to the MILP so recipes and
+  products are chosen together: honest cost, leftover-aware planning and
+  budget constraints on real prices (open question #17, option C). Costs
+  to design for: more integer variables, shelf-life rules for leftover
+  lots, and solve time against the #24 reference scale.
 - **Cook-ahead (separate cook day).** Decision #34 draws pantry stock on
   the eat day. A later feature, best built with planned batch cooking,
   would give a dish a cook day distinct from its eat day (per-recipe

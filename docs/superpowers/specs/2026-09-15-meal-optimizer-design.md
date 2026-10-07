@@ -862,6 +862,30 @@ until the logic is solid.
       cook day distinct from the eat day, which belongs with that
       feature. Recorded in [`future-features.md`](future-features.md).
 
+35. **Product selection is a post-solve step in v1.** Resolves open
+    question #20.
+
+    - The meal-plan MILP is unchanged (#27, #32): it prices each
+      ingredient at a single derived per-unit price (cheapest product per
+      unit) and yields a per-ingredient `buy` quantity.
+    - After solving, a separate selector turns each ingredient's `buy`
+      quantity into a product mix. It chooses the most suitable products
+      for the user's constraints, not by a fixed rule. It minimizes cost
+      and leftover waste, and honours caller-supplied constraints:
+      preferred or excluded products, a budget cap and a maximum pack
+      count. Leftover amounts are reported and can be added back to the
+      `Pantry` as lots (carrying over `sealed_shelf_life_days`).
+    - The selector sits behind an interface so an in-model version can
+      replace it later without changing callers.
+    - Known limitation: the meal plan is blind to packs, so it will not
+      plan around finishing a partly used pack, and budget constraints
+      see the unrounded derived price. Pack rounding and the exact
+      selection objective are specified with the shopping-list feature
+      (#17, options A/B); until then v1 may simply report raw `buy`
+      quantities.
+    - Deferred, not rejected: choosing products inside the MILP is
+      recorded in [`future-features.md`](future-features.md).
+
 ## Explicitly out of scope for v1 (later candidates)
 
 See [`future-features.md`](future-features.md) for the full list

@@ -127,13 +127,10 @@ through with a pointer to it.
     see design doc decision #34 (eat-day semantics in v1; cook-ahead
     deferred with planned batch cooking).
 
-20. **Which product to buy when an ingredient has several.** With
-    multiple products per ingredient (decision #32), the shopping list
-    needs a selection rule: cheapest per unit, fewest packs, least
-    leftover, or a user-preferred product per ingredient. Interacts with
-    #17: under option A/B it is a post-processing rule; under option C
-    the solver chooses. Leaning: user-preferred product if set,
-    otherwise cheapest per unit.
+20. **~~Which product to buy when an ingredient has several.~~
+    RESOLVED** — see design doc decision #35 (post-solve selector that
+    picks products under the user's constraints; in-model selection
+    deferred).
 
 21. **Unit conversion and recipe input units.** Decision #32 gives each
     ingredient one unit and no conversions. Real recipes mix units
@@ -145,9 +142,8 @@ through with a pointer to it.
 
 ## Status
 
-Items 1-16 and 18-19 are resolved (decisions #14-#34 in the design
+Items 1-16 and 18-20 are resolved (decisions #14-#35 in the design
 doc). #17 (package sizes) is deferred, with options and a lean
-recorded above. Still open: #20-#21 (product selection, unit conversion) from
-decision #32.
+recorded above. Still open: #21 (unit conversion) from decision #32.
 Next: the concrete data model/constraint DSL step in that doc's "Next
 steps."
