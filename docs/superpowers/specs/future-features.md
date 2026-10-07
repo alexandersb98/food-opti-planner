@@ -41,6 +41,11 @@ after design review — see decisions #1 and #22 in
   a raw per-ingredient `buy` quantity for free; rounding to purchasable pack
   sizes and carrying the pack leftovers forward as pantry lots (open
   question #17) is a later refinement.
+- **Cook-ahead (separate cook day).** Decision #34 draws pantry stock on
+  the eat day. A later feature, best built with planned batch cooking,
+  would give a dish a cook day distinct from its eat day (per-recipe
+  offset or per-slot prep day were the options discussed) so pantry
+  draw-down and expiry checks use the cook day.
 
 - **Staple ingredients.** Decision #33 treats every ingredient alike in
   v1. A later per-ingredient `staple: true` flag would mean "assumed

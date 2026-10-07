@@ -123,11 +123,9 @@ through with a pointer to it.
     decision #33 (no staple concept in v1; recorded as a possible
     feature in `future-features.md`).
 
-19. **Time-varying demand within a day vs. cook-ahead.** Decision #27
-    assumes ingredients are consumed on the day the meal is eaten. A
-    recipe cooked the evening before for tomorrow's lunch uses stock a
-    day earlier, which matters for a lot expiring in between. Deferred
-    together with planned batch cooking.
+19. **~~Time-varying demand within a day vs. cook-ahead.~~ RESOLVED** —
+    see design doc decision #34 (eat-day semantics in v1; cook-ahead
+    deferred with planned batch cooking).
 
 20. **Which product to buy when an ingredient has several.** With
     multiple products per ingredient (decision #32), the shopping list
@@ -147,10 +145,9 @@ through with a pointer to it.
 
 ## Status
 
-Items 1-16 and 18 are resolved (decisions #14-#33 in the design
+Items 1-16 and 18-19 are resolved (decisions #14-#34 in the design
 doc). #17 (package sizes) is deferred, with options and a lean
-recorded above. Still open: #19 (cook-ahead) from the pantry/expiry
-requirement, and #20-#21 (product selection, unit conversion) from
+recorded above. Still open: #20-#21 (product selection, unit conversion) from
 decision #32.
 Next: the concrete data model/constraint DSL step in that doc's "Next
 steps."

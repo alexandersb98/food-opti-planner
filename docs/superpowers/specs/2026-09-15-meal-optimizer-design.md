@@ -847,6 +847,21 @@ until the logic is solid.
       the engine's core model (it only changes which ingredients pantry
       accounting applies to).
 
+34. **Cook-ahead is not modeled in v1.** Resolves open question #19.
+
+    - Pantry demand is drawn on the day the dish is eaten (#27). The
+      model has no notion of a separate cook day.
+    - Known limitation: if a dish would really be cooked the evening
+      before, its ingredients leave the pantry a day earlier than the
+      model assumes. Cooking earlier only uses stock sooner, so the error
+      is conservative for expiry, except that a lot acquired on the eat
+      day could not actually have been used the evening before.
+    - Callers can approximate cook-ahead today by recording the dish as
+      already cooked (a stored portion, #26) when it is made.
+    - Deferred together with planned batch cooking: the real fix is a
+      cook day distinct from the eat day, which belongs with that
+      feature. Recorded in [`future-features.md`](future-features.md).
+
 ## Explicitly out of scope for v1 (later candidates)
 
 See [`future-features.md`](future-features.md) for the full list
