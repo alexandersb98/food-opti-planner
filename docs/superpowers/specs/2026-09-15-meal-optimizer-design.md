@@ -911,6 +911,50 @@ until the logic is solid.
       factors. Whether to ship standard factors is left to the
       data-model step.
 
+37. **Tags on ingredients, derived onto recipes; `TagDef` declares the
+    derive rule.** Extends decision #23 (variety over tag groups), where
+    recipe tags were hand-written.
+
+    - Labels such as `vegan`, `organic` or `contains-nuts` are tags, not
+      numeric attributes (#7), because a yes/no property has no meaningful
+      sum.
+    - Every tag is declared by a `TagDef(name, derive)`, where `derive` is
+      `all` (a recipe has the tag only if every ingredient does, e.g.
+      `vegan`) or `any` (a recipe has the tag if any ingredient does, e.g.
+      `contains-nuts`).
+    - `Ingredient` has `tags`. A recipe's tags are derived from its
+      ingredients (so editing an ingredient updates every recipe, as with
+      attribute totals in #22), plus an optional hand-written
+      `extra_tags`. There is no way to remove a derived tag.
+    - `exclude_tags` and `require_tags` on the request filter the recipe
+      catalog before solving. Tag-count constraints (e.g. "at least 3
+      organic dinners a week") are built with variety (#23), not in the
+      first slice.
+    - Specified in
+      [`2026-10-13-meal-planner-core-design.md`](2026-10-13-meal-planner-core-design.md).
+
+38. **Recipe serving multiplier bounds.** Fills a gap in #22 (scalable
+    serving size): the optimizer needs finite bounds.
+
+    - Defaults, overridable per recipe: `min_multiplier=0.5` (when a recipe
+      is used, it is at least half a serving), `max_multiplier=2.0` as the
+      soft cap of #16/#22, and a hard ceiling of 3x the soft cap.
+    - Multipliers are held in thousandths when scaled to integers (#15).
+      Discrete recipes use whole steps; their minimum must be a multiple of
+      the step.
+
+39. **Horizon constraints declare `aggregate: total | average_per_day`.**
+    Makes explicit what #5 and #18 left implicit.
+
+    - `total`: the bound applies to the sum over the whole horizon.
+    - `average_per_day`: the bound is a per-day figure; the engine
+      multiplies it by the number of days (absent days count) to get the
+      horizon total. The day guard-rail of #18 applies only to this form,
+      because it needs a per-day number to reuse.
+    - Both forms are mathematically equivalent for a fixed horizon; the
+      field exists so the user writes the natural number and the guard-rail
+      has a per-day value to copy.
+
 ## Explicitly out of scope for v1 (later candidates)
 
 See [`future-features.md`](future-features.md) for the full list
