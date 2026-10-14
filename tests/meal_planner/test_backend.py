@@ -46,3 +46,22 @@ def test_feasibility_only_skips_objective():
     out = solve(m, time_limit=5, optimize=False)
     assert out.status in ("OPTIMAL", "FEASIBLE")
     assert out.objective is None
+
+
+def test_term_less_constraints_are_decided_in_python():
+    m = Model()
+    x = m.new_var("x", 0, 5)
+    ok, bad = m.add_guard("ok", None), m.add_guard("bad", None)
+    m.add(LinExpr({}, 3), lb=1, enforced_by=ok)   # 3 >= 1 holds
+    m.add(LinExpr({}, 0), lb=1, enforced_by=bad)  # 0 >= 1 fails
+    out = solve(m, 5.0)
+    assert out.status == "INFEASIBLE" and out.core == (1,)
+    out = solve(m, 5.0, assumed=[0])
+    assert out.status == "OPTIMAL"
+
+
+def test_unenforced_violated_term_less_constraint_is_infeasible():
+    m = Model()
+    m.new_var("x", 0, 5)
+    m.add(LinExpr({}, 0), ub=-1)
+    assert solve(m, 5.0).status == "INFEASIBLE"

@@ -42,6 +42,8 @@ def minimize_core(built: BuiltModel, core, time_limit: float) -> tuple[int, ...]
     """Drop each member in turn; keep it only if the rest become feasible.
 
     A re-solve that times out counts as feasible, so the member is kept.
+    Worst case is ``len(core) + 1`` solves (the initial one plus one per
+    member), each allowed the full ``time_limit`` (plan interpretation 10).
     """
     members = list(core)
     for guard in list(members):

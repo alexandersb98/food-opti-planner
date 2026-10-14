@@ -161,3 +161,11 @@ def test_tag_exclusion_removes_the_best_recipe():
     assert (p.slot(0, 0).recipe, p.slot(0, 0).multiplier) == ("salad", 2)
     (v,) = p.violations
     assert (v.side, v.amount) == ("below", 200)
+
+
+def test_hard_day_bound_on_a_day_with_no_generated_slots_is_a_conflict():
+    days = [Day([Slot()]), Day([Slot("absent")])]
+    p = solve([porridge], days, [Constraint("energy", "kcal", min=100, hard=True)])
+    assert p.solve_status is SolveStatus.INFEASIBLE
+    assert p.conflicts.members == (ConflictMember("energy", 1),)
+

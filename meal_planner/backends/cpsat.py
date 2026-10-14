@@ -49,6 +49,16 @@ def solve(model: Model, time_limit: float, assumed=None,
         return sum((cp_vars[i] * c for i, c in e.terms.items()), e.constant)
 
     for c in model.constraints:
+        if not c.expr.terms:
+            # No variables: the bounds are decided here, not passed to CP-SAT as a bool.
+            value = c.expr.constant
+            holds = (c.lb is None or value >= c.lb) and (c.ub is None or value <= c.ub)
+            if not holds:
+                if c.enforced_by is not None:
+                    cp.add(cp_vars[c.enforced_by.index] == 0)
+                else:
+                    cp.add_bool_or([])
+            continue
         target = expr(c.expr)
         made = []
         if c.lb is not None:
