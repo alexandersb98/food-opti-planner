@@ -128,3 +128,27 @@ def test_side_and_guardrail_weights():
     assert explicit.guardrail_side_weight("below") == Decimal("0.25")
     assert explicit.has_guardrail()
     assert not Constraint("c", "kcal", scope="horizon", aggregate="total", min=1).has_guardrail()
+
+
+@pytest.mark.parametrize("bad", [float("inf"), float("nan"), "abc", True])
+@pytest.mark.parametrize(
+    "field_name",
+    ["min", "max", "weight", "weight_below", "weight_above", "guardrail_weight",
+     "normalization_reference"],
+)
+def test_constraint_rejects_non_finite_numbers(field_name, bad):
+    kwargs = {"max": 4, field_name: bad}
+    with pytest.raises(PlanRequestError, match="must be a finite number"):
+        Constraint("c", "kcal", **kwargs)
+
+
+@pytest.mark.parametrize("bad", [float("inf"), float("nan"), "abc"])
+def test_solve_time_limit_must_be_finite(bad):
+    with pytest.raises(PlanRequestError, match="solve_time_limit must be a finite number"):
+        make(solve_time_limit=bad)
+
+
+@pytest.mark.parametrize("name", ["exclude_tags", "require_tags"])
+def test_bare_string_tag_filter_is_rejected(name):
+    with pytest.raises(PlanRequestError, match=f"{name} must be a collection of tag names"):
+        make(**{name: "vegan"})

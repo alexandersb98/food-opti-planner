@@ -5,10 +5,10 @@ Recipe attribute totals and tags are derived from ingredients (decisions
 """
 
 from dataclasses import dataclass, field
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Mapping
 
-from .scaling import to_decimal
+from .scaling import MULTIPLIER_PRECISION, to_decimal
 
 ACCRUES_ON = ("eaten", "purchase")
 DERIVE_RULES = ("all", "any")
@@ -29,6 +29,31 @@ def raise_if(problems) -> None:
         raise PlanRequestError(problems)
 
 
+def number_problem(label: str, value) -> str | None:
+    """A problem string unless ``value`` is a finite real number, else None.
+
+    Accepts int, float, Decimal and numeric str; rejects bool, NaN, infinities
+    and anything ``to_decimal`` cannot read.
+    """
+    message = f"{label} must be a finite number, got {value!r}"
+    if isinstance(value, bool) or not isinstance(value, (int, float, str, Decimal)):
+        return message
+    try:
+        if not to_decimal(value).is_finite():
+            return message
+    except InvalidOperation:
+        return message
+    return None
+
+
+def _thousandths_problem(label: str, value) -> str | None:
+    """Multipliers are held in thousandths; finer values would be silently rounded."""
+    scaled = to_decimal(value).scaleb(MULTIPLIER_PRECISION)
+    if scaled != scaled.to_integral_value():
+        return f"{label} {value} is not a whole number of thousandths"
+    return None
+
+
 @dataclass(frozen=True)
 class AttributeDef:
     """A user-defined tracked quantity (decision #7)."""
@@ -45,7 +70,12 @@ class AttributeDef:
         problems = []
         if not self.name:
             problems.append("attribute name must not be empty")
-        if not MIN_PRECISION <= self.precision <= MAX_PRECISION:
+        if isinstance(self.precision, bool) or not isinstance(self.precision, int):
+            problems.append(
+                f"attribute {self.name!r}: precision must be an integer, "
+                f"got {self.precision!r}"
+            )
+        elif not MIN_PRECISION <= self.precision <= MAX_PRECISION:
             problems.append(
                 f"attribute {self.name!r}: precision {self.precision} outside "
                 f"{MIN_PRECISION}..{MAX_PRECISION}"
@@ -87,6 +117,10 @@ class Ingredient:
         problems = []
         if not self.name:
             problems.append("ingredient name must not be empty")
+        for attr, value in self.attributes.items():
+            problem = number_problem(f"ingredient {self.name!r}: attribute {attr!r}", value)
+            if problem:
+                problems.append(problem)
         raise_if(problems)
 
 
@@ -98,6 +132,9 @@ class IngredientAmount:
     quantity: float
 
     def __post_init__(self):
+        problem = number_problem(f"amount of {self.ingredient.name!r}", self.quantity)
+        if problem:
+            raise PlanRequestError([problem])
         if to_decimal(self.quantity) <= 0:
             raise PlanRequestError(
                 [f"amount of {self.ingredient.name!r} must be positive"]
@@ -125,33 +162,49 @@ class Recipe:
     def __post_init__(self):
         object.__setattr__(self, "items", tuple(self.items))
         object.__setattr__(self, "extra_tags", frozenset(self.extra_tags))
-        if self.hard_max_multiplier is None:
+        problems = []
+        label = f"recipe {self.name!r}"
+        bad = set()
+        for field_name in ("min_multiplier", "max_multiplier", "hard_max_multiplier",
+                           "multiplier_step", "serving_cap_weight"):
+            value = getattr(self, field_name)
+            if value is None and field_name in ("hard_max_multiplier", "multiplier_step"):
+                continue
+            problem = number_problem(f"{label}: {field_name}", value)
+            if problem is None and field_name != "serving_cap_weight":
+                problem = _thousandths_problem(f"{label}: {field_name}", value)
+            if problem:
+                bad.add(field_name)
+                problems.append(problem)
+        if self.hard_max_multiplier is None and "max_multiplier" not in bad:
             object.__setattr__(
                 self, "hard_max_multiplier", 3 * to_decimal(self.max_multiplier)
             )
-        problems = []
         if not self.name:
             problems.append("recipe name must not be empty")
         if not self.items:
             problems.append(f"recipe {self.name!r} has no ingredients")
-        low = to_decimal(self.min_multiplier)
-        soft = to_decimal(self.max_multiplier)
-        hard = to_decimal(self.hard_max_multiplier)
-        if not 0 < low <= soft <= hard:
-            problems.append(
-                f"recipe {self.name!r}: multipliers must satisfy "
-                f"0 < min ({low}) <= max ({soft}) <= hard max ({hard})"
-            )
-        if self.multiplier_step is not None:
-            step = to_decimal(self.multiplier_step)
-            if step <= 0:
-                problems.append(f"recipe {self.name!r}: multiplier_step must be positive")
-            elif low % step != 0:
+        if not bad & {"min_multiplier", "max_multiplier", "hard_max_multiplier"}:
+            low = to_decimal(self.min_multiplier)
+            soft = to_decimal(self.max_multiplier)
+            hard = to_decimal(self.hard_max_multiplier)
+            if not 0 < low <= soft <= hard:
                 problems.append(
-                    f"recipe {self.name!r}: min multiplier {low} is not a "
-                    f"multiple of step {step}"
+                    f"recipe {self.name!r}: multipliers must satisfy "
+                    f"0 < min ({low}) <= max ({soft}) <= hard max ({hard})"
                 )
-        if to_decimal(self.serving_cap_weight) < 0:
+            if self.multiplier_step is not None and "multiplier_step" not in bad:
+                step = to_decimal(self.multiplier_step)
+                if step <= 0:
+                    problems.append(
+                        f"recipe {self.name!r}: multiplier_step must be positive"
+                    )
+                elif low % step != 0:
+                    problems.append(
+                        f"recipe {self.name!r}: min multiplier {low} is not a "
+                        f"multiple of step {step}"
+                    )
+        if "serving_cap_weight" not in bad and to_decimal(self.serving_cap_weight) < 0:
             problems.append(f"recipe {self.name!r}: serving_cap_weight is negative")
         raise_if(problems)
 

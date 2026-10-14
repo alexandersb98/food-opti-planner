@@ -2,7 +2,9 @@
 
 from dataclasses import dataclass
 
-from .domain import AttributeDef, PlanRequestError, Recipe, TagDef, raise_if
+from .domain import (
+    AttributeDef, PlanRequestError, Recipe, TagDef, number_problem, raise_if,
+)
 from .scaling import to_decimal
 
 SLOT_KINDS = ("generated", "absent")
@@ -87,23 +89,36 @@ class Constraint:
             p.append(f"{label}: horizon scope needs aggregate in {AGGREGATES}")
         if self.min is None and self.max is None:
             p.append(f"{label}: needs min, max or both")
+        bad = set()
+        for field_name in ("min", "max", "weight", "weight_below", "weight_above",
+                           "guardrail_weight", "normalization_reference"):
+            value = getattr(self, field_name)
+            if value is None:
+                continue
+            problem = number_problem(f"{label}: {field_name}", value)
+            if problem:
+                bad.add(field_name)
+                p.append(problem)
         if (
             self.min is not None
             and self.max is not None
+            and not bad & {"min", "max"}
             and to_decimal(self.min) > to_decimal(self.max)
         ):
             p.append(f"{label}: min {self.min} greater than max {self.max}")
         for field_name in ("weight", "weight_below", "weight_above", "guardrail_weight"):
             value = getattr(self, field_name)
-            if value is not None and to_decimal(value) < 0:
+            if value is not None and field_name not in bad and to_decimal(value) < 0:
                 p.append(f"{label}: {field_name} is negative")
-        if self.normalization_reference is not None and (
-            to_decimal(self.normalization_reference) <= 0
+        if (
+            self.normalization_reference is not None
+            and "normalization_reference" not in bad
+            and to_decimal(self.normalization_reference) <= 0
         ):
             p.append(f"{label}: normalization_reference must be positive")
         if self.needs_reference() and self.normalization_reference is None:
-            for bound in (self.min, self.max):
-                if bound is not None and to_decimal(bound) == 0:
+            for name, bound in (("min", self.min), ("max", self.max)):
+                if bound is not None and name not in bad and to_decimal(bound) == 0:
                     p.append(
                         f"{label}: a zero bound needs normalization_reference (#17)"
                     )
@@ -141,9 +156,17 @@ class PlanRequest:
     def __post_init__(self):
         for name in ("attributes", "tags", "recipes", "days", "constraints"):
             object.__setattr__(self, name, tuple(getattr(self, name)))
+        filter_problems = []
         for name in ("exclude_tags", "require_tags"):
-            object.__setattr__(self, name, frozenset(getattr(self, name)))
-        raise_if(self._problems())
+            value = getattr(self, name)
+            if isinstance(value, str):
+                filter_problems.append(
+                    f"{name} must be a collection of tag names, not a single string "
+                    f"{value!r}"
+                )
+                value = ()
+            object.__setattr__(self, name, frozenset(value))
+        raise_if(filter_problems + self._problems())
 
     def _problems(self) -> list[str]:
         p = []
@@ -174,7 +197,10 @@ class PlanRequest:
             p.append(f"unknown tag {tag!r} in exclude_tags/require_tags")
         if not self.days:
             p.append("the plan needs at least one day")
-        if self.solve_time_limit <= 0:
+        limit_problem = number_problem("solve_time_limit", self.solve_time_limit)
+        if limit_problem:
+            p.append(limit_problem)
+        elif to_decimal(self.solve_time_limit) <= 0:
             p.append("solve_time_limit must be positive")
         if not p and not self.eligible_recipes():
             p.append("no recipes left after exclude_tags and require_tags")
