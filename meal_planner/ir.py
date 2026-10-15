@@ -23,23 +23,24 @@ class LinExpr:
     constant: int = 0
 
     def add(self, var: Var, coef: int) -> "LinExpr":
-        if coef:
-            total = self.terms.get(var.index, 0) + coef
-            if total:
-                self.terms[var.index] = total
-            else:
-                self.terms.pop(var.index, None)
+        self._accumulate(var.index, coef)
         return self
 
     def add_expr(self, other: "LinExpr", factor: int = 1) -> "LinExpr":
         for index, coef in other.terms.items():
-            total = self.terms.get(index, 0) + coef * factor
-            if total:
-                self.terms[index] = total
-            else:
-                self.terms.pop(index, None)
+            self._accumulate(index, coef * factor)
         self.constant += other.constant * factor
         return self
+
+    def _accumulate(self, index: int, coef: int) -> None:
+        """Add ``coef`` to the term for ``index``, dropping it if it cancels."""
+        if not coef:
+            return
+        total = self.terms.get(index, 0) + coef
+        if total:
+            self.terms[index] = total
+        else:
+            self.terms.pop(index, None)
 
     def copy(self) -> "LinExpr":
         return LinExpr(dict(self.terms), self.constant)

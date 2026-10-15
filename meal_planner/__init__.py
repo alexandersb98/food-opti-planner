@@ -1,9 +1,11 @@
 """Meal planner core (slice A): data model, model builder, CP-SAT solve."""
 
 from .builder import ModelTooLargeError
-from .domain import AttributeDef, Ingredient, IngredientAmount, PlanRequestError, Recipe, TagDef
+from .constraint import Constraint
+from .domain import AttributeDef, Ingredient, IngredientAmount, TagDef
 from .planner import plan
-from .request import Constraint, Day, PlanRequest, Slot
+from .recipe import Recipe
+from .request import PlanRequest
 from .result import (
     ConflictMember,
     ConflictReport,
@@ -13,6 +15,8 @@ from .result import (
     Violation,
     ViolationReport,
 )
+from .schedule import Day, Slot
+from .validation import PlanRequestError
 
 __all__ = [
     "AttributeDef", "ConflictMember", "ConflictReport", "Constraint", "Day",
