@@ -42,14 +42,21 @@ declares `ortools` and `pytest`.
 
 | Module | Purpose | Depends on |
 |---|---|---|
-| `domain.py` | `AttributeDef`, `TagDef`, `Ingredient`, `IngredientAmount`, `Recipe`; derives recipe attribute totals and tags | nothing |
-| `request.py` | `Slot`, `Day`, `Constraint`, `PlanRequest`; validation | `domain` |
+| `validation.py` | `PlanRequestError` and shared field checks (finite numbers, thousandths, duplicate names) | `scaling` |
+| `domain.py` | `AttributeDef`, `TagDef` (and its derive rule), `Ingredient`, `IngredientAmount` | `validation` |
+| `recipe.py` | `Recipe`; derives recipe attribute totals and tags | `domain` |
+| `schedule.py` | `Slot`, `Day` | `validation` |
+| `constraint.py` | `Constraint` and its validation | `validation` |
+| `bounds.py` | How a constraint unfolds over the days into hard and soft bounds (factor, normalization reference, guard-rail); shared by builder and violation report | `constraint` |
+| `request.py` | `PlanRequest`; checks that span its parts | `domain`, `recipe`, `schedule`, `constraint` |
 | `scaling.py` | Real number to integer at a fixed precision and back (#15) | nothing |
 | `ir.py` | Solver-neutral model: `Var`, `LinExpr`, `LinConstraint`, `Objective`, guard switches. No solver imports | nothing |
-| `builder.py` | `PlanRequest` to `ir.Model` | `request`, `scaling`, `ir` |
+| `builder/` | `PlanRequest` to `ir.Model`: `built.py` (output types), `choices.py` (variables and totals), `limits.py` (hard bounds, soft slacks, serving caps), `__init__.py` (`build`, headroom check) | `request`, `bounds`, `scaling`, `ir` |
 | `backends/cpsat.py` | The only module importing OR-Tools; translates, solves (fixed seed, one worker, time limit), returns raw values and the infeasibility core | `ir` |
-| `result.py` | `Plan`, `SlotAssignment`, `ViolationReport`, `ConflictReport`, `SolveStatus` | `domain` |
-| `planner.py` | `plan(request) -> Plan`, the one public entry point | all |
+| `result.py` | `Plan`, `SlotAssignment`, `ViolationReport`, `ConflictReport`, `SolveStatus` | nothing |
+| `decoding.py` | Solver values to a `Plan` | `builder`, `result`, `violations` |
+| `violations.py` | Missed soft bounds and serving caps in a decoded plan | `bounds`, `result` |
+| `planner.py` | `plan(request) -> Plan`, the one public entry point; conflict-core minimization | all |
 
 The solver-neutral `ir` layer keeps the backend swappable (decision #15).
 

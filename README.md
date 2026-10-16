@@ -6,8 +6,14 @@ multi-day eating plan that satisfies them as well as possible. When
 constraints conflict, it finds a good-enough compromise instead of
 failing outright.
 
-**Status:** Early design phase. No implementation yet — the core
-optimization logic is being designed before any UI is built.
+**Status:** First slice implemented as the `meal_planner` library:
+recipes, tags, day and horizon constraints (hard and soft), serving
+multipliers, and STRICT solving with violation and conflict reports.
+No CLI or UI yet.
+
+Run the tests with `python3 -m pip install 'ortools>=9.12,<10' 'pytest>=8'`
+and then `python3 -m pytest`. The reference-scale benchmark is opt-in:
+`python3 -m pytest -m benchmark -s`.
 
 See [`docs/superpowers/specs/2026-09-15-meal-optimizer-design.md`](docs/superpowers/specs/2026-09-15-meal-optimizer-design.md)
 for the design notes and decisions made so far,
