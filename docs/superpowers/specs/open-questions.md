@@ -179,11 +179,47 @@ implementation.
     precision now rejects a whole-number float such as `3.0`; confirm
     that strictness is wanted.
 
+27. **Calories are a function of protein, fat and carbohydrates. OPEN
+    (user note).** Energy is not an independent attribute: roughly
+    4 kcal/g protein, 9 kcal/g fat and 4 kcal/g carbohydrate (plus
+    7 kcal/g alcohol and about 2 kcal/g fibre). Today `kcal` is an
+    ordinary attribute (decision #7, user-defined attributes) entered per
+    ingredient, so it can disagree with the macros.
+    - **Options:** keep kcal entered by hand (label values are often
+      measured, not computed); add derived attributes defined as a
+      linear formula over others, computed at recipe load time like
+      recipe totals (decision #22, recipes as the meal unit); or check
+      entered kcal against the macros and warn on large gaps.
+    - **Note:** a derived attribute stays linear, so it costs the
+      solver nothing extra.
+
+28. **Drop `min_meals_per_day`; allow days with no meals. OPEN (user
+    note).** The user finds the per-day meal floor (decision #20,
+    configurable `min_meals_per_day`) arbitrary. A plan must be able to
+    have one or more days with no scheduled meals: on those days the
+    person still eats, but food they do not choose or buy (restaurant,
+    hotel, travelling).
+    - **Tension:** decision #20 exists to stop the optimizer from
+      meeting maximums by serving nothing (open question #6, the "eat
+      nothing" solution). Without a floor, something else must guard
+      against that, e.g. per-day minimums such as kcal or protein
+      doing the work, or the user marking non-planned days explicitly
+      as `absent`/`external` (decision #19, per-day slot kinds) so
+      planned days can still require their meals.
+    - **Related:** open question #22 (day-scope minimums on days with no
+      generated slot). Settling #28 likely settles #22: a day with no
+      planned meals should be exempt from, or get adjusted, day-scope
+      constraints.
+    - **Current behaviour (slice A):** `min_meals_per_day` defaults to
+      every generated slot; setting it to 0 or making every slot
+      `absent` already gives an empty day, but day-scope minimums then
+      fail on it (see #22).
+
 ## Status
 
 Items 1-16 and 18-21 are resolved (decisions #14-#36 in the design
 doc). #17 (package sizes) is deferred, with options and a lean
-recorded above. #22-#26, raised while implementing slice A, are open
-and recorded above.
+recorded above. #22-#26, raised while implementing slice A, and #27-#28, user
+notes, are open and recorded above.
 Next: the concrete data model/constraint DSL step in that doc's "Next
 steps."
