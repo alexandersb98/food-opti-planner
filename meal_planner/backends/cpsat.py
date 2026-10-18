@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 from ortools.sat.python import cp_model
 
-from ..ir import LinExpr, Model
+from ..ir import LinConstraint, LinExpr, Model
 
 SEED = 20251013
 
@@ -44,44 +44,13 @@ def solve(model: Model, time_limit: float, assumed=None,
     """
     cp = cp_model.CpModel()
     cp_vars = [cp.new_int_var(v.lb, v.ub, v.name) for v in model.variables]
-
-    def expr(e: LinExpr):
-        return sum((cp_vars[i] * c for i, c in e.terms.items()), e.constant)
-
     for c in model.constraints:
-        if not c.expr.terms:
-            # No variables: the bounds are decided here, not passed to CP-SAT as a bool.
-            value = c.expr.constant
-            holds = (c.lb is None or value >= c.lb) and (c.ub is None or value <= c.ub)
-            if not holds:
-                if c.enforced_by is not None:
-                    cp.add(cp_vars[c.enforced_by.index] == 0)
-                else:
-                    cp.add_bool_or([])
-            continue
-        target = expr(c.expr)
-        made = []
-        if c.lb is not None:
-            made.append(cp.add(target >= c.lb))
-        if c.ub is not None:
-            made.append(cp.add(target <= c.ub))
-        if c.enforced_by is not None:
-            for ct in made:
-                ct.only_enforce_if(cp_vars[c.enforced_by.index])
+        _add_constraint(cp, cp_vars, c)
     if optimize and model.objective.terms:
-        cp.minimize(expr(model.objective))
+        cp.minimize(_expr(cp_vars, model.objective))
+    literal_to_guard = _assume_guards(cp, cp_vars, model, assumed)
 
-    guard_indices = range(len(model.guards)) if assumed is None else assumed
-    literal_to_guard = {}
-    for g in guard_indices:
-        literal = cp_vars[model.guards[g].switch.index]
-        literal_to_guard[literal.index] = g
-    cp.add_assumptions([cp_vars[model.guards[g].switch.index] for g in guard_indices])
-
-    solver = cp_model.CpSolver()
-    solver.parameters.num_workers = 1
-    solver.parameters.random_seed = SEED
-    solver.parameters.max_time_in_seconds = time_limit
+    solver = _solver(time_limit)
     code = solver.solve(cp)
     if code == cp_model.MODEL_INVALID:
         raise RuntimeError(f"CP-SAT rejected the model: {cp.validate()}")
@@ -102,3 +71,45 @@ def solve(model: Model, time_limit: float, assumed=None,
         )
         return SolveOutcome(status, core=tuple(core))
     return SolveOutcome(status)
+
+
+def _expr(cp_vars, e: LinExpr):
+    return sum((cp_vars[i] * c for i, c in e.terms.items()), e.constant)
+
+
+def _add_constraint(cp, cp_vars, c: LinConstraint) -> None:
+    if not c.expr.terms:
+        # No variables: the bounds are decided here, not passed to CP-SAT as a bool.
+        value = c.expr.constant
+        holds = (c.lb is None or value >= c.lb) and (c.ub is None or value <= c.ub)
+        if not holds:
+            if c.enforced_by is not None:
+                cp.add(cp_vars[c.enforced_by.index] == 0)
+            else:
+                cp.add_bool_or([])
+        return
+    target = _expr(cp_vars, c.expr)
+    made = []
+    if c.lb is not None:
+        made.append(cp.add(target >= c.lb))
+    if c.ub is not None:
+        made.append(cp.add(target <= c.ub))
+    if c.enforced_by is not None:
+        for ct in made:
+            ct.only_enforce_if(cp_vars[c.enforced_by.index])
+
+
+def _assume_guards(cp, cp_vars, model: Model, assumed) -> dict[int, int]:
+    """Force the assumed guard switches on; map each literal back to its guard."""
+    guard_indices = range(len(model.guards)) if assumed is None else assumed
+    literals = [cp_vars[model.guards[g].switch.index] for g in guard_indices]
+    cp.add_assumptions(literals)
+    return {literal.index: g for literal, g in zip(literals, guard_indices)}
+
+
+def _solver(time_limit: float) -> cp_model.CpSolver:
+    solver = cp_model.CpSolver()
+    solver.parameters.num_workers = 1
+    solver.parameters.random_seed = SEED
+    solver.parameters.max_time_in_seconds = time_limit
+    return solver
