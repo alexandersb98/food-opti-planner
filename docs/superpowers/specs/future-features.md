@@ -84,6 +84,30 @@ after design review — see decisions #1 and #22 in
   linear, so it adds no solver cost: the builder just emits the
   constraint for the selected days.
 
+- **Configurable penalty shape for soft constraints, e.g. squared
+  error (user request).** Today a missed soft bound costs
+  `weight * miss / reference`: linear in the miss, and expressed as a
+  fraction of the bound (decision #17, penalties as percent of the
+  violated bound). The user wants to try a least-squares style instead,
+  where the cost grows with the square of the miss, so one large miss
+  costs more than several small ones adding up to the same total.
+  - **Units:** squaring raw misses (10 g protein vs. 100 in cost) would
+    not be comparable. Squaring the already normalized miss avoids this:
+    `weight * (miss / reference)^2`, so a 10 % miss costs 0.01 whatever
+    the unit.
+  - **Configuration:** a penalty shape per constraint (or a request
+    default), e.g. `linear` (today) or `squared`, possibly more later
+    (dead zone, capped).
+  - **Solver cost:** the model is linear today. A squared penalty is
+    convex, so a piecewise-linear approximation (a few slack segments
+    with rising slopes) keeps it linear and exact enough. CP-SAT can
+    also model products of integers directly, but that tends to solve
+    more slowly. Measure against decision #24's reference scale (200
+    recipes, 14 days, 3 meals) before choosing.
+  - **Open point:** squared penalties are harder to read in the
+    violation report; report the miss and its percent as now, plus the
+    penalty it cost.
+
 ## Alternative optimization approaches considered (not chosen for v1)
 
 v1 uses a single MILP model per plan-generation call (decision #13:
