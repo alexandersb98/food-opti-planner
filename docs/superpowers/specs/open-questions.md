@@ -137,10 +137,53 @@ through with a pointer to it.
     applied at recipe load time; recipes are lists of
     `IngredientAmount`s).
 
+## Raised by implementing the meal planner core (slice A)
+
+Found while building and reviewing `meal_planner/` against
+[`2026-10-13-meal-planner-core-design.md`](2026-10-13-meal-planner-core-design.md).
+None blocks slice A; each was given a provisional answer during
+implementation.
+
+22. **Days with no generated slot and day-scope minimums. OPEN.** A day
+    whose slots are all `absent` (eating out) still gets every day-scope
+    constraint. A day minimum (e.g. kcal >= 1800) then makes STRICT mode
+    infeasible if hard, or adds a constant, unavoidable penalty if soft.
+    The spec does not say whether day constraints should skip such days.
+    - **Current behaviour:** constraints apply to every day; the
+      conflict report names the absent day correctly.
+    - **Options:** skip day constraints on days with no generated slot;
+      skip only minimums; or leave it to the caller (who can omit the
+      day or loosen the bound). Slice B's `external` slots (decision
+      #19, per-day slot kinds) may settle it, since an eaten-out meal
+      could contribute declared totals.
+
+23. **Bounds more precise than the attribute's precision. OPEN.** The
+    model rounds bounds to the attribute's precision (decision #15,
+    integer scaling), but the violation report compares against the
+    exact bound. With kcal precision 0 and `min=1000.00004`, the
+    objective is 0 yet the report lists a 0.00004 kcal violation.
+    - **Options:** round the reported bound the same way as the model,
+      or reject bounds with more digits than the scale allows.
+
+24. **Test gap: `normalization_reference`. OPEN.** No test exercises it,
+    including the plan's interpretation that for `average_per_day` the
+    reference is per day and multiplied by the number of days. Add one
+    exact scenario.
+
+25. **Unused helper `scaling.fits_int64`. OPEN.** The builder checks
+    headroom against `HEADROOM = 2**62` instead. Remove it or use it.
+
+26. **Extreme or odd numeric input. OPEN, low priority.** A finite but
+    huge-exponent value such as `"1e999999999"` may still raise a raw
+    `decimal` error instead of `PlanRequestError`. `AttributeDef`
+    precision now rejects a whole-number float such as `3.0`; confirm
+    that strictness is wanted.
+
 ## Status
 
 Items 1-16 and 18-21 are resolved (decisions #14-#36 in the design
 doc). #17 (package sizes) is deferred, with options and a lean
-recorded above. No other questions are open.
+recorded above. #22-#26, raised while implementing slice A, are open
+and recorded above.
 Next: the concrete data model/constraint DSL step in that doc's "Next
 steps."
