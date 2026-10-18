@@ -64,6 +64,26 @@ after design review — see decisions #1 and #22 in
   (simplest, fine for water, salt and spices). Leaning towards the
   former if built.
 
+- **Constraints on selected days and dates (user request).** Today a
+  day-scope constraint applies to every day of the plan (decision #39
+  sets only day vs. horizon scope). The user wants a constraint to apply
+  to chosen days only, for example:
+  - one weekday ("only Mondays");
+  - a set of weekdays ("Monday to Friday", "Saturday and Sunday");
+  - specific calendar dates ("on 2 October").
+
+  This needs the plan to know real dates, not just day indices: the
+  request gets a `start_date` (calendar date of day 0), which decision
+  #27 (pantry with lots and expiry dates) already introduces for expiry
+  dates; each day's date and weekday follow from it. A constraint would
+  then take an optional day selector (weekdays and/or dates; none means
+  every day). Open points: whether horizon-scope constraints can also be
+  restricted (e.g. "average over weekdays only", where
+  `average_per_day` would divide by the number of selected days), and
+  how a selector naming a date outside the plan is reported. It stays
+  linear, so it adds no solver cost: the builder just emits the
+  constraint for the selected days.
+
 ## Alternative optimization approaches considered (not chosen for v1)
 
 v1 uses a single MILP model per plan-generation call (decision #13:
