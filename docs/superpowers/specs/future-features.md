@@ -23,6 +23,16 @@ after design review — see decisions #1 and #22 in
 - **Persistence.** Database, saved plans, user accounts. None planned
   for v1.
 - **CLI.** v1 is a library only, driven by tests (decision #12).
+- **GUI: recipe management screens (user request).** The first GUI
+  design covers setting up a plan only and assumes the recipe catalog
+  exists. A later screen (or set of screens) adds, edits and removes
+  recipes, and with them ingredients, attributes and tags. Storing them
+  between sessions rides on the persistence item above.
+- **GUI: Swedish and English text (user request).** All GUI text kept
+  as translatable resources with Swedish and English to choose from.
+  The first GUI ships English only, so the Swedish wording of the
+  domain terms (goals, must and prefer, serving multiplier, and so on)
+  can be settled later.
 
 - **Planned batch cooking / leftovers.** Decision #26 lets a pivot
   *ingest* leftovers that already exist, but v1 never plans them. A
