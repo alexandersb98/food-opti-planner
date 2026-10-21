@@ -23,6 +23,36 @@ after design review — see decisions #1 and #22 in
 - **Persistence.** Database, saved plans, user accounts. None planned
   for v1.
 - **CLI.** v1 is a library only, driven by tests (decision #12).
+- **GUI: recipe management screens (user request).** The first GUI
+  design covers setting up a plan only and assumes the recipe catalog
+  exists. A later screen (or set of screens) adds, edits and removes
+  recipes, and with them ingredients, attributes and tags. Storing them
+  between sessions rides on the persistence item above.
+- **GUI: Swedish and English text (user request).** All GUI text kept
+  as translatable resources with Swedish and English to choose from.
+  The first GUI ships English only, so the Swedish wording of the
+  domain terms (goals, must and prefer, serving multiplier, and so on)
+  can be settled later.
+- **GUI: recipes that serve several portions.** The library has no
+  "serves N" field, so the GUI enters a recipe for one portion. A
+  "serves [4]" field that divides the amounts would make typing in
+  cookbook recipes easier.
+- **Clashing Must goals: suggest a bound that works (user request).**
+  When STRICT mode finds no plan, the GUI shows the clashing hard
+  constraints with their bounds editable, but the library only says
+  *which* constraints clash (decision #14, minimal conflict report), not
+  how far a bound must move. Finding a bound that works is trial and
+  error today. A later version should suggest the smallest change that
+  makes the plan possible, e.g. "Cost at most 340 kr would work". This
+  is close to RELAX mode (also decision #14), which already plans to
+  solve with the clashing constraints softened and report the misses.
+- **Clashing Must goals: say which side of a range clashes (user
+  request).** A range constraint (both `min` and `max`) has one guard
+  switch per constraint and day (`builder/limits.py`), covering both
+  sides, so the conflict report cannot tell whether the minimum or the
+  maximum is the problem. The GUI therefore shows both bounds for such
+  a goal. A later version should report the side, e.g. by giving each
+  side its own switch.
 
 - **Planned batch cooking / leftovers.** Decision #26 lets a pivot
   *ingest* leftovers that already exist, but v1 never plans them. A
