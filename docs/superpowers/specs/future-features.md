@@ -33,6 +33,10 @@ after design review — see decisions #1 and #22 in
   The first GUI ships English only, so the Swedish wording of the
   domain terms (goals, must and prefer, serving multiplier, and so on)
   can be settled later.
+- **GUI: recipes that serve several portions.** The library has no
+  "serves N" field, so the GUI enters a recipe for one portion. A
+  "serves [4]" field that divides the amounts would make typing in
+  cookbook recipes easier.
 - **Clashing Must goals: suggest a bound that works (user request).**
   When STRICT mode finds no plan, the GUI shows the clashing hard
   constraints with their bounds editable, but the library only says
