@@ -33,6 +33,22 @@ after design review — see decisions #1 and #22 in
   The first GUI ships English only, so the Swedish wording of the
   domain terms (goals, must and prefer, serving multiplier, and so on)
   can be settled later.
+- **Clashing Must goals: suggest a bound that works (user request).**
+  When STRICT mode finds no plan, the GUI shows the clashing hard
+  constraints with their bounds editable, but the library only says
+  *which* constraints clash (decision #14, minimal conflict report), not
+  how far a bound must move. Finding a bound that works is trial and
+  error today. A later version should suggest the smallest change that
+  makes the plan possible, e.g. "Cost at most 340 kr would work". This
+  is close to RELAX mode (also decision #14), which already plans to
+  solve with the clashing constraints softened and report the misses.
+- **Clashing Must goals: say which side of a range clashes (user
+  request).** A range constraint (both `min` and `max`) has one guard
+  switch per constraint and day (`builder/limits.py`), covering both
+  sides, so the conflict report cannot tell whether the minimum or the
+  maximum is the problem. The GUI therefore shows both bounds for such
+  a goal. A later version should report the side, e.g. by giving each
+  side its own switch.
 
 - **Planned batch cooking / leftovers.** Decision #26 lets a pivot
   *ingest* leftovers that already exist, but v1 never plans them. A
