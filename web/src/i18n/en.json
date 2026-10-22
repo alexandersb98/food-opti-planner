@@ -1,0 +1,14 @@
+{
+  "app": {
+    "title": "Meal planner",
+    "menu": "Menu"
+  },
+  "pages": {
+    "plan": "Plan",
+    "recipes": "Recipes",
+    "ingredients": "Ingredients",
+    "attributes": "Attributes",
+    "tags": "Tags"
+  },
+  "placeholder": "Coming in a later version."
+}
