@@ -2,13 +2,29 @@
 Postgres database, which CI sets for its second run."""
 
 import os
+from dataclasses import replace
 
 import pytest
+from argon2 import PasswordHasher
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 
 from server.app import create_app
 from server.settings import Settings
+
+PASSWORD = "correct horse battery staple"
+PASSWORD_HASH = PasswordHasher().hash(PASSWORD)
+
+
+def settings_with(**changes) -> Settings:
+    """Settings with the test password and a session key."""
+    settings = Settings(password_hash=PASSWORD_HASH, session_key="test session key")
+    return replace(settings, **changes)
+
+
+@pytest.fixture
+def make_settings():
+    return settings_with
 
 
 @pytest.fixture
@@ -35,7 +51,16 @@ def web_dist(tmp_path):
 
 
 @pytest.fixture
-def client(database_url, web_dist):
-    app = create_app(Settings(database_url=database_url, web_dist=web_dist))
-    with TestClient(app) as client:
+def anonymous_client(database_url, web_dist):
+    """A client without a session. HTTPS, because the session cookie is Secure."""
+    app = create_app(settings_with(database_url=database_url, web_dist=web_dist))
+    with TestClient(app, base_url="https://testserver") as client:
         yield client
+
+
+@pytest.fixture
+def client(anonymous_client):
+    """A logged-in client; most API tests use this one."""
+    response = anonymous_client.post("/api/login", json={"password": PASSWORD})
+    assert response.status_code == 204
+    return anonymous_client

@@ -1,8 +1,15 @@
-"""API routes, all under /api."""
+"""API routes, all under /api. Only health and login are open; every other
+route goes in `protected`, which needs a session."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
-from . import health
+from ..auth import require_session
+from . import health, login
+
+protected = APIRouter(dependencies=[Depends(require_session)])
+protected.include_router(login.session_router)
 
 router = APIRouter(prefix="/api")
 router.include_router(health.router)
+router.include_router(login.login_router)
+router.include_router(protected)

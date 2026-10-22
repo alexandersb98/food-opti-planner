@@ -7,12 +7,20 @@ import json
 import sys
 from pathlib import Path
 
+from argon2 import PasswordHasher
+
 from .app import create_app
 from .settings import Settings
 
 
 def openapi_json() -> str:
-    app = create_app(Settings(migrate_on_startup=False, web_dist=Path("/nonexistent")))
+    settings = Settings(
+        migrate_on_startup=False,
+        web_dist=Path("/nonexistent"),
+        password_hash=PasswordHasher().hash("unused"),
+        session_key="unused",
+    )
+    app = create_app(settings)
     return json.dumps(app.openapi(), indent=2, sort_keys=True) + "\n"
 
 

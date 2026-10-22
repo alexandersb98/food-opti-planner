@@ -3,16 +3,20 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+from argon2 import extract_parameters
+from argon2.exceptions import InvalidHashError
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 
 from . import api
+from .auth import Auth
 from .db import make_engine, migrate
 from .settings import Settings
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
+    _check_login_settings(settings)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -23,10 +27,23 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(title="Meal planner", lifespan=lifespan)
     app.state.engine = make_engine(settings.database_url)
+    app.state.auth = Auth(settings.password_hash, settings.session_key)
     app.include_router(api.router)
     if settings.web_dist.is_dir():
         _serve_frontend(app, settings.web_dist)
     return app
+
+
+def _check_login_settings(settings: Settings) -> None:
+    """Refuse to start without a usable password hash and session key."""
+    try:
+        extract_parameters(settings.password_hash)
+    except InvalidHashError:
+        raise ValueError(
+            "PASSWORD_HASH must be an Argon2 hash; make one with: python -m server.hash_password"
+        ) from None
+    if not settings.session_key:
+        raise ValueError("SESSION_KEY must be set")
 
 
 def _serve_frontend(app: FastAPI, web_dist: Path) -> None:
