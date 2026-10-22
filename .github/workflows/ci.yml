@@ -4,6 +4,7 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:  # "Run workflow" on main deploys without a new commit
 
 jobs:
   python:
@@ -68,12 +69,12 @@ jobs:
       - run: bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.12/scripts/download-actionlint.bash) 1.7.12
       - run: ./actionlint -color
 
-  # Pushes to main only, and only once the owner has done the one-time
-  # setup in docs/deploy.md (which sets the GCP_* repository variables).
+  # main only (push or "Run workflow"), and only once the owner has done
+  # the one-time setup in docs/deploy.md, which sets the GCP_* variables.
   deploy:
     name: Deploy to Cloud Run
     needs: [python, web, workflow-lint]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.GCP_PROJECT_ID != ''
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.GCP_PROJECT_ID != ''
     runs-on: ubuntu-latest
     concurrency:
       group: deploy
