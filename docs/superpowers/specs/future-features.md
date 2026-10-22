@@ -33,6 +33,12 @@ after design review — see decisions #1 and #22 in
   The first GUI ships English only, so the Swedish wording of the
   domain terms (goals, must and prefer, serving multiplier, and so on)
   can be settled later.
+- **GUI: export and import as a JSON file (user request).** Neon's free
+  plan can only restore to a point in the last 6 hours
+  ([`2026-10-22-gui-tech-stack-design.md`](2026-10-22-gui-tech-stack-design.md)).
+  One endpoint each to download all data as a JSON file and load it
+  back would give the owner a copy on their own machine. Left out of
+  the first version.
 - **GUI: recipes that serve several portions.** The library has no
   "serves N" field, so the GUI enters a recipe for one portion. A
   "serves [4]" field that divides the amounts would make typing in
