@@ -15,7 +15,9 @@ class Base(DeclarativeBase):
 
 
 def make_engine(database_url: str) -> Engine:
-    return create_engine(database_url)
+    # Neon ends the connections of a database it suspends after 5 idle
+    # minutes, so check a pooled connection before using it.
+    return create_engine(database_url, pool_pre_ping=True)
 
 
 def alembic_config(database_url: str) -> Config:

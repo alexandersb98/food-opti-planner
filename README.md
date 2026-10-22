@@ -10,7 +10,7 @@ failing outright.
 recipes, tags, day and horizon constraints (hard and soft), serving
 multipliers, and STRICT solving with violation and conflict reports.
 The GUI is being built: so far a server (`server/`) and a web app
-(`web/`) with a login and empty pages.
+(`web/`) with a login and empty pages, and a deploy to Cloud Run.
 
 Run the Python tests with `python3 -m pip install -e '.[server,dev]'` and
 then `python3 -m pytest`. Server tests use SQLite; set
@@ -30,6 +30,10 @@ cd web && npm install && npm run dev                          # app on :5173, fo
 The session cookie is `Secure`. Chrome and Firefox accept it on
 `http://localhost`; other hosts need HTTPS. Changing `SESSION_KEY` logs
 out every session.
+
+Deploying: every push to `main` that passes CI is deployed to Google
+Cloud Run once the owner has done the one-time setup in
+[`docs/deploy.md`](docs/deploy.md); until then the deploy job is skipped.
 
 Frontend checks: `npm run lint`, `npm run typecheck`, `npm test` in
 `web/`. After changing the API, run `npm run gen:api` in `web/` to
