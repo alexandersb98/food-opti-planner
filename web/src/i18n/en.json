@@ -1,7 +1,8 @@
 {
   "app": {
     "title": "Meal planner",
-    "menu": "Menu"
+    "menu": "Menu",
+    "logout": "Log out"
   },
   "pages": {
     "plan": "Plan",
@@ -10,5 +11,12 @@
     "attributes": "Attributes",
     "tags": "Tags"
   },
-  "placeholder": "Coming in a later version."
+  "placeholder": "Coming in a later version.",
+  "login": {
+    "title": "Log in",
+    "password": "Password",
+    "submit": "Log in",
+    "wrong": "Wrong password.",
+    "failed": "Could not log in. Try again."
+  }
 }
