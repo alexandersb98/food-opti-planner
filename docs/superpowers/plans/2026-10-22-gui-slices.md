@@ -1,6 +1,7 @@
 # GUI, first version — Vertical Slices
 
-**Status:** Proposed; awaiting the user's review.
+**Status:** Agreed with the user. The results screen must be designed
+before slice 7 (see "Before slice 7" below).
 
 **Specs:** [`2026-10-21-gui-wireframes-design.md`](../specs/2026-10-21-gui-wireframes-design.md)
 (the "GUI spec", screen ids A1, C2, ...) and
@@ -43,13 +44,14 @@ This document does not contain those plans.
 | 4 | Tags | C6 | Manage tags |
 | 5 | Ingredients | C3, C4 | Manage ingredients with values and tags |
 | 6 | Recipes | C1, C2 | Manage recipes; derived tags and per-portion totals |
-| 7 | Schedule and Make plan | A1 (part), A2, minimal results | **First real plan**, without goals or filters |
+| 7 | Schedule and Make plan | A1 (part), A2, results | **First real plan**, without goals or filters |
 | 8 | Goals: main form | A1 goals card, A3, A3c | Plans that follow Must and Prefer goals |
 | 9 | Goals: advanced | A3b | Custom names, below/above importance, day guard-rail |
 | 10 | Recipe filters | A1 recipes card, A4 | Only / Never tags, live recipe count |
 | 11 | Must goals clash | A5 | Infeasible plans explained and fixable |
 
 Order of dependencies: 0 → 1 → 3 → 4 → 5 → 6 → 7 → 8 → {9, 10, 11}.
+Slice 7 also needs the results screen design (see "Before slice 7").
 Slice 2 can merge at any time after 1. Slices 9, 10 and 11 depend only on
 8 and can go in any order.
 
@@ -193,7 +195,8 @@ come later, so the plan is chosen only by the recipes' own limits.
   sub-screen, the plan/skip grid and the "At least" column.
 - Translation: the whole `PlanRequest` from stored data (schedule grid →
   `Day`/`Slot`, "all" → `min_meals_per_day=None`, `solve_time_limit`).
-- **Minimal results view** (see "Gap" below).
+- The results screen, as designed before this slice (see "Before
+  slice 7" below).
 - Playwright suite starts: log in, add an attribute, ingredient and
   recipe, make a plan, see the result.
 
@@ -260,17 +263,18 @@ delete cascades filters. Component test for the Any/Only/Never rows.
 ids; Playwright: add a clashing Must goal, see the card, Make Prefer,
 Try again succeeds.
 
-## Gap: the results screen
+## Before slice 7: design the results screen
 
 The GUI spec leaves the results screen undesigned, but from slice 7 on
-**Make plan** has to show something, and the stack spec's end-to-end
-test "makes a plan". Proposal: slice 7 shows a plain, unstyled list
-(one row per day and meal: recipe name and portion size), with missed
-Prefer goals as a plain list from slice 8. It is explicitly temporary and
-gets replaced when the results screen is designed. Results are not
-stored (stack spec).
+**Make plan** has to show the plan, and the stack spec's end-to-end
+test makes one. The user chose to design the results screen first
+rather than ship a temporary list. That design (a spec with wireframes,
+like the GUI spec) must be agreed before slice 7's plan is written. It
+should also say how missed Prefer goals are shown (needed from slice 8)
+and may decide how a clashing day minimum is shown (slice 11). Slices
+0-6 do not depend on it, so the design can be done alongside them.
 
 ## Not in any slice
 
-As in the specs: the designed results screen, several users or plans,
+As in the specs: several users or plans,
 JSON export/import, Swedish text, visual style beyond Quasar's defaults.
