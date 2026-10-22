@@ -9,11 +9,25 @@ failing outright.
 **Status:** First slice implemented as the `meal_planner` library:
 recipes, tags, day and horizon constraints (hard and soft), serving
 multipliers, and STRICT solving with violation and conflict reports.
-No CLI or UI yet.
+The GUI is being built: so far a server (`server/`) and a web app
+(`web/`) with empty pages.
 
-Run the tests with `python3 -m pip install 'ortools>=9.12,<10' 'pytest>=8'`
-and then `python3 -m pytest`. The reference-scale benchmark is opt-in:
-`python3 -m pytest -m benchmark -s`.
+Run the Python tests with `python3 -m pip install -e '.[server,dev]'` and
+then `python3 -m pytest`. Server tests use SQLite; set
+`TEST_DATABASE_URL=postgresql+psycopg://...` to run them on Postgres. The
+reference-scale benchmark is opt-in: `python3 -m pytest -m benchmark -s`.
+
+Run the GUI locally:
+
+```
+python3 -m uvicorn --factory server.app:create_app --reload   # API on :8000, SQLite in ./planner.db
+cd web && npm install && npm run dev                          # app on :5173, forwards /api
+```
+
+Frontend checks: `npm run lint`, `npm run typecheck`, `npm test` in
+`web/`. After changing the API, run `npm run gen:api` in `web/` to
+update `web/openapi.json` and `web/src/api/schema.ts`; tests fail
+until they are up to date.
 
 See [`docs/superpowers/specs/2026-09-15-meal-optimizer-design.md`](docs/superpowers/specs/2026-09-15-meal-optimizer-design.md)
 for the design notes and decisions made so far,

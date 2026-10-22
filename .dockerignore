@@ -1,0 +1,9 @@
+.git
+**/node_modules
+**/__pycache__
+web/dist
+tests
+docs
+examples
+lp_solver
+*.db

@@ -21,3 +21,10 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+# Local SQLite database (server default)
+planner.db
+
+# Frontend
+node_modules/
+web/dist/
