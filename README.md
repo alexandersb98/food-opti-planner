@@ -10,19 +10,26 @@ failing outright.
 recipes, tags, day and horizon constraints (hard and soft), serving
 multipliers, and STRICT solving with violation and conflict reports.
 The GUI is being built: so far a server (`server/`) and a web app
-(`web/`) with empty pages.
+(`web/`) with a login and empty pages.
 
 Run the Python tests with `python3 -m pip install -e '.[server,dev]'` and
 then `python3 -m pytest`. Server tests use SQLite; set
 `TEST_DATABASE_URL=postgresql+psycopg://...` to run them on Postgres. The
 reference-scale benchmark is opt-in: `python3 -m pytest -m benchmark -s`.
 
-Run the GUI locally:
+Run the GUI locally. The server needs the login password's hash and a
+key that signs the session cookie; it refuses to start without them:
 
 ```
+export PASSWORD_HASH="$(python3 -m server.hash_password)"     # asks for the password twice
+export SESSION_KEY="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
 python3 -m uvicorn --factory server.app:create_app --reload   # API on :8000, SQLite in ./planner.db
 cd web && npm install && npm run dev                          # app on :5173, forwards /api
 ```
+
+The session cookie is `Secure`. Chrome and Firefox accept it on
+`http://localhost`; other hosts need HTTPS. Changing `SESSION_KEY` logs
+out every session.
 
 Frontend checks: `npm run lint`, `npm run typecheck`, `npm test` in
 `web/`. After changing the API, run `npm run gen:api` in `web/` to

@@ -1,19 +1,42 @@
 import { createRouter, createWebHistory, type RouterHistory } from 'vue-router'
-import PlaceholderPage from './pages/PlaceholderPage.vue'
+import { api, setUnauthorizedHandler } from './api/client'
+import MainLayout from './layouts/MainLayout.vue'
+import LoginPage from './pages/LoginPage.vue'
+import { pages } from './pages'
 
-// The five pages of the menu (C0), in menu order. Each slice swaps its
-// page's placeholder for the real screen.
-export const pages = [
-  { path: '/', name: 'plan', icon: 'event_note', component: PlaceholderPage },
-  { path: '/recipes', name: 'recipes', icon: 'menu_book', component: PlaceholderPage },
-  { path: '/ingredients', name: 'ingredients', icon: 'egg', component: PlaceholderPage },
-  { path: '/attributes', name: 'attributes', icon: 'tune', component: PlaceholderPage },
-  { path: '/tags', name: 'tags', icon: 'sell', component: PlaceholderPage },
-] as const
+/** The login page, coming back to `redirect` afterwards. */
+export function loginRoute(redirect: string) {
+  return { name: 'login', query: redirect === '/' ? {} : { redirect } }
+}
 
 export function makeRouter(history: RouterHistory = createWebHistory()) {
-  return createRouter({
+  const router = createRouter({
     history,
-    routes: pages.map(({ path, name, component }) => ({ path, name, component })),
+    routes: [
+      { path: '/login', name: 'login', component: LoginPage },
+      {
+        path: '/',
+        component: MainLayout,
+        children: pages.map(({ path, name, component }) => ({ path, name, component })),
+      },
+    ],
   })
+
+  // Every page needs a session; the server says whether there is one.
+  router.beforeEach(async (to) => {
+    if (to.name === 'login') return true
+    try {
+      const { response } = await api.GET('/api/session')
+      return response.status === 401 ? loginRoute(to.fullPath) : true
+    } catch {
+      return true // server unreachable: show the page; its own calls will fail visibly
+    }
+  })
+
+  setUnauthorizedHandler(() => {
+    const current = router.currentRoute.value
+    if (current.name !== 'login') void router.push(loginRoute(current.fullPath))
+  })
+
+  return router
 }

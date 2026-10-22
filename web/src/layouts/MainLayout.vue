@@ -1,8 +1,17 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { pages } from '../router'
+import { useRouter } from 'vue-router'
+import { api } from '../api/client'
+import { pages } from '../pages'
 
+const router = useRouter()
 const drawerOpen = ref(false)
+
+async function logOut() {
+  drawerOpen.value = false
+  await api.POST('/api/logout')
+  await router.push({ name: 'login' })
+}
 </script>
 
 <template>
@@ -41,6 +50,17 @@ const drawerOpen = ref(false)
           </q-item-section>
           <q-item-section>{{ $t(`pages.${page.name}`) }}</q-item-section>
         </q-item>
+        <q-separator />
+        <q-item
+          v-ripple
+          clickable
+          @click="logOut"
+        >
+          <q-item-section avatar>
+            <q-icon name="logout" />
+          </q-item-section>
+          <q-item-section>{{ $t('app.logout') }}</q-item-section>
+        </q-item>
       </q-list>
     </q-drawer>
 
@@ -49,12 +69,3 @@ const drawerOpen = ref(false)
     </q-page-container>
   </q-layout>
 </template>
-
-<style scoped>
-/* Designed at phone width; larger screens get the same layout, centred
-   (GUI spec decision 1). */
-.app-column {
-  max-width: 600px;
-  margin: 0 auto;
-}
-</style>
