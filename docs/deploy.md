@@ -13,6 +13,33 @@ The names below (`meal-planner`, `meal-planner-deploy`, `github`, ...)
 are the ones the workflow in `.github/workflows/ci.yml` expects. Keep
 them.
 
+## The short way (works from a phone)
+
+`scripts/setup-gcp.sh` does steps 1 and 4–7 below in one go and asks
+only for a project id, the Neon connection string and the login
+password. Running it again skips whatever already exists.
+
+1. **Neon** (step 3): create the database and copy its connection
+   string. The script changes its start to `postgresql+psycopg://`.
+2. **Billing**: in the [console](https://console.cloud.google.com/billing),
+   make sure you have a billing account (a payment card). If you have
+   exactly one, the script links it to the new project.
+3. **Cloud Shell**: open <https://shell.cloud.google.com/?show=terminal>
+   (on a phone, turn on "Desktop site" in the browser menu) and paste:
+
+   ```
+   curl -fsSLO https://raw.githubusercontent.com/alexandersb98/food-opti-planner/main/scripts/setup-gcp.sh && bash setup-gcp.sh
+   ```
+
+   Answer its questions. Pasted values and the password are not shown.
+   At the end it prints two values.
+4. **Budget alert** (step 2), in the console.
+5. **GitHub variables** (step 8): add the two printed values.
+6. **First deploy** (step 9): **Run workflow**.
+
+The sections below are what the script does, for reference or for doing
+it by hand.
+
 ## What it costs
 
 Nothing, as long as use stays within the free tiers:

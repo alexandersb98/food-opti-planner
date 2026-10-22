@@ -96,6 +96,15 @@ files and how it was checked; the code is in the commits.
     so Cloud Shell needs no clone of the repository. The budget alert is
     made in the console, where the currency of the billing account is
     shown.
+13. **A setup script for a phone.** The owner has only a phone, where
+    pasting a dozen long commands is error-prone, so
+    `scripts/setup-gcp.sh` does the Cloud Shell steps in one paste. It
+    asks for the project id, the Neon connection string (and fixes its
+    prefix) and the password, whose hash it makes in a throwaway Python
+    environment, so no computer is needed. It links the billing account
+    when there is exactly one. Running it again skips what exists. The
+    repository is public, so Cloud Shell downloads it without signing in
+    to GitHub. The step-by-step commands stay in the guide as reference.
 
 ## Tasks
 
@@ -141,7 +150,7 @@ other job is green.
 
 ### Task 3: Owner's setup guide and docs
 
-**Files:** `docs/deploy.md`, `README.md`, this plan.
+**Files:** `docs/deploy.md`, `scripts/setup-gcp.sh`, `README.md`, this plan.
 
 `docs/deploy.md`, in order: what it costs and what needs a payment
 card; the Google project and APIs; the $1 budget alert; the Neon
@@ -152,6 +161,12 @@ repository; the two GitHub repository variables; the first deploy and
 how to find the URL; later changes (new password, new key, new
 database URL) and how to stop deploys.
 
-**Check:** every resource name in the guide matches the workflow; each
+**Check:** `shellcheck` passes on the script. Against a fake `gcloud`
+that records calls: a first run creates every resource, stores the
+database URL trimmed and with the `postgresql+psycopg://` prefix and an
+Argon2 hash that verifies against the password, both without a trailing
+newline; a second run with no input creates nothing; a mistyped
+password or a URL that is not Postgres stops it before the secret is
+made. Every resource name in the guide matches the workflow; each
 `gcloud` command's flags checked against the installed `gcloud`'s help
 (SDK 570). Nothing was run against a real project.
