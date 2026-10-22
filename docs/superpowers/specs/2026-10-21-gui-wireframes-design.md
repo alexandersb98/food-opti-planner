@@ -210,7 +210,8 @@ library objects and leaves them out of the `PlanRequest`:
 - The results screen (plan, totals, violation report).
 - Storage, saving between sessions, and the database (the persistence
   item in `future-features.md`).
-- Framework, server and how the GUI calls the library.
+- Framework, server and how the GUI calls the library (decided in
+  [`2026-10-22-gui-tech-stack-design.md`](2026-10-22-gui-tech-stack-design.md)).
 - Visual style: the wireframes are deliberately grey.
 
 ## Defaults chosen without a user decision
