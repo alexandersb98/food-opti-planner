@@ -21,7 +21,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         if settings.migrate_on_startup:
-            migrate(settings.database_url)
+            migrate(settings.migration_database_url or settings.database_url)
         yield
         app.state.engine.dispose()
 

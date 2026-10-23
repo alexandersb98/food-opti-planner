@@ -108,10 +108,9 @@ In the console: **Billing** → **Budgets & alerts** → **Create budget**.
 3. On the project dashboard, press **Connect**. Turn **Connection
    pooling** off and copy the connection string. It looks like
    `postgresql://neondb_owner:...@ep-....eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require`.
-4. Change the beginning from `postgresql://` to
-   `postgresql+psycopg://`. The app needs this prefix to use the
-   database driver it has installed. Keep the rest, including
-   `?sslmode=require...`.
+4. The app changes the beginning from `postgresql://` to
+   `postgresql+psycopg://` itself, so either form works. Keep the
+   rest, including `?sslmode=require...`.
 
 The app creates its tables itself when it starts. Neon's free plan can
 restore the database to any point in the last 6 hours, which is the

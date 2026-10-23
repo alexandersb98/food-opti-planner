@@ -27,6 +27,11 @@ python3 -m uvicorn --factory server.app:create_app --reload   # API on :8000, SQ
 cd web && npm install && npm run dev                          # app on :5173, forwards /api
 ```
 
+To use the Neon database instead of SQLite, run `neon deploy` once (it
+writes `DATABASE_URL` and `DATABASE_URL_UNPOOLED` to `.env.local`) and
+add `--env-file .env.local` to the `uvicorn` command. The app uses the
+pooled URL for queries and the unpooled one for migrations.
+
 The session cookie is `Secure`. Chrome and Firefox accept it on
 `http://localhost`; other hosts need HTTPS. Changing `SESSION_KEY` logs
 out every session.

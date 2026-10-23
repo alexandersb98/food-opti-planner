@@ -28,3 +28,4 @@ planner.db
 # Frontend
 node_modules/
 web/dist/
+.neon
