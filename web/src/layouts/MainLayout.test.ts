@@ -43,3 +43,24 @@ test('Log out ends the session and shows the login page', async () => {
   expect(router.currentRoute.value.name).toBe('login')
   wrapper.unmount()
 })
+
+test('the menu shows how many attributes there are, fresh each time it opens', async () => {
+  const server = { 'GET /api/session': 204, 'GET /api/counts': { body: { attributes: 8 } } }
+  fakeServer(server)
+  const { wrapper } = await mountApp('/')
+  const menu = wrapper.get('button[aria-label="Menu"]')
+  const count = () => {
+    const item = wrapper.findAll('.q-drawer .q-item').find((i) => i.text().includes('Attributes'))
+    return item!.find('.menu-count').text()
+  }
+  await menu.trigger('click')
+  await flushPromises()
+  expect(count()).toBe('8')
+
+  server['GET /api/counts'] = { body: { attributes: 9 } }
+  await menu.trigger('click')
+  await menu.trigger('click')
+  await flushPromises()
+  expect(count()).toBe('9')
+  wrapper.unmount()
+})

@@ -1,11 +1,23 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../api/client'
 import { pages } from '../pages'
 
 const router = useRouter()
 const drawerOpen = ref(false)
+const counts = ref<Partial<Record<string, number>>>({}) // by page name
+
+// Fetched each time the menu opens, so it shows what the pages changed.
+watch(drawerOpen, async (open) => {
+  if (!open) return
+  try {
+    const { data } = await api.GET('/api/counts')
+    if (data) counts.value = data
+  } catch {
+    // no counts; the menu works without them
+  }
+})
 
 async function logOut() {
   drawerOpen.value = false
@@ -49,6 +61,13 @@ async function logOut() {
             <q-icon :name="page.icon" />
           </q-item-section>
           <q-item-section>{{ $t(`pages.${page.name}`) }}</q-item-section>
+          <q-item-section
+            v-if="counts[page.name] !== undefined"
+            side
+            class="menu-count"
+          >
+            {{ counts[page.name] }}
+          </q-item-section>
         </q-item>
         <q-separator />
         <q-item
