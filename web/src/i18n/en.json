@@ -43,5 +43,36 @@
     "deleteTitle": "Delete {name}?",
     "deleteRemoves": "This also removes its values from {ingredients} and {goals}.",
     "deleteNothing": "Nothing else uses it."
+  },
+  "tags": {
+    "intro": "Yes/no labels on ingredients, which recipes get from their ingredients.",
+    "empty": "No tags yet.",
+    "loadFailed": "Could not load the tags.",
+    "retry": "Try again",
+    "rule": {
+      "all": "When all ingredients have it",
+      "any": "When any ingredient has it"
+    },
+    "byHand": "added by hand",
+    "name": "Name",
+    "deriveLabel": "A recipe gets this tag when",
+    "derive": {
+      "all": "all ingredients have it",
+      "any": "any ingredient has it"
+    },
+    "nameRequired": "Enter a name.",
+    "nameInUse": "A tag with this name already exists.",
+    "saveFailed": "Could not save. Try again.",
+    "deleteFailed": "Could not delete. Try again.",
+    "done": "Done",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "new": "+ New tag",
+    "deleteTitle": "Delete {name}?",
+    "deleteRemoves": "This also removes it from {ingredients}, {recipes} and {filters}.",
+    "deleteNothing": "Nothing else uses it.",
+    "ingredientCount": "no ingredients | 1 ingredient | {n} ingredients",
+    "recipeCount": "no recipes | 1 recipe | {n} recipes",
+    "filterCount": "no plan filters | 1 plan filter | {n} plan filters"
   }
 }

@@ -139,7 +139,7 @@ def test_an_unknown_attribute_answers_404(client, method):
 
 
 def test_counts_for_the_menu(client):
-    assert client.get("/api/counts").json() == {"attributes": 0}
+    assert client.get("/api/counts").json()["attributes"] == 0
     create(client)
     create(client, name="Fat")
-    assert client.get("/api/counts").json() == {"attributes": 2}
+    assert client.get("/api/counts").json()["attributes"] == 2

@@ -10,8 +10,8 @@ failing outright.
 recipes, tags, day and horizon constraints (hard and soft), serving
 multipliers, and STRICT solving with violation and conflict reports.
 The GUI is being built: so far a server (`server/`) and a web app
-(`web/`) with a login, the Attributes page (the other pages are still
-empty), and a deploy to Cloud Run.
+(`web/`) with a login, the Attributes and Tags pages (the other pages
+are still empty), and a deploy to Cloud Run.
 
 Run the Python tests with `python3 -m pip install -e '.[server,dev]'` and
 then `python3 -m pytest`. Server tests use SQLite; set

@@ -12,8 +12,12 @@ router = APIRouter()
 
 class Counts(BaseModel):
     attributes: int
+    tags: int
 
 
 @router.get("/counts")
 def counts(db: DbSession) -> Counts:
-    return Counts(attributes=db.scalar(select(func.count()).select_from(models.Attribute)))
+    def count(model: type[models.Base]) -> int:
+        return db.scalar(select(func.count()).select_from(model))
+
+    return Counts(attributes=count(models.Attribute), tags=count(models.Tag))
