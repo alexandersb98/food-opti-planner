@@ -63,6 +63,12 @@ test('search narrows the list by name, ignoring case', async () => {
   await field(wrapper, 'Search').setValue('xyz')
   expect(rows(wrapper)).toEqual([])
   expect(wrapper.text()).toContain('No ingredients match.')
+  await click(wrapper.get('[aria-label="Clear"]'))
+  expect(rows(wrapper)).toEqual([
+    expect.stringMatching(/^egg/),
+    expect.stringMatching(/^Milk/),
+    expect.stringMatching(/^Oats/),
+  ])
   wrapper.unmount()
 })
 

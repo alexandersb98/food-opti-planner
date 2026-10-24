@@ -15,4 +15,6 @@ test('searchByName keeps names containing the text, ignoring case, sorted by nam
   expect(searchByName(rows, '').map((row) => row.name)).toEqual(['egg', 'Goat cheese', 'Milk', 'Oats'])
   expect(searchByName(rows, ' OAT ').map((row) => row.name)).toEqual(['Goat cheese', 'Oats'])
   expect(rows[0]!.name).toBe('Oats') // the given list is not reordered
+  // A `clearable` box gives null, not '', when it is cleared.
+  expect(searchByName(rows, null).map((row) => row.name)).toEqual(['egg', 'Goat cheese', 'Milk', 'Oats'])
 })

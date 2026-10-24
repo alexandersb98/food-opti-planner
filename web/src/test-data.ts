@@ -1,4 +1,4 @@
-import type { Attribute, Ingredient, Tag } from './api/types'
+import type { Attribute, Ingredient, Recipe, Tag } from './api/types'
 
 // Rows as the server answers them, for tests: give what the test is about,
 // the rest gets a plain default. Typed, so a change to the API shows up
@@ -16,4 +16,19 @@ export function tag(fields: Given<Tag, 'id' | 'name'>): Tag {
 
 export function ingredient(fields: Given<Ingredient, 'id' | 'name'>): Ingredient {
   return { unit: 'g', basis: '100', values: [], tag_ids: [], recipe_count: 0, ...fields }
+}
+
+export function recipe(fields: Given<Recipe, 'id' | 'name'>): Recipe {
+  return {
+    items: [],
+    extra_tag_ids: [],
+    min_multiplier: '0.5',
+    max_multiplier: '2',
+    step: null,
+    hard_max_multiplier: null,
+    serving_cap_weight: '1',
+    derived_tag_ids: [],
+    totals: [],
+    ...fields,
+  }
 }

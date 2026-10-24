@@ -5,6 +5,8 @@ from typing import Annotated
 
 from pydantic import Field, PlainSerializer, StringConstraints, WithJsonSchema
 
+from meal_planner.scaling import MULTIPLIER_PRECISION
+
 from .. import models
 
 # Trimmed, 1 to 100 characters. Names are compared exactly, as in the library.
@@ -13,7 +15,7 @@ Name = Annotated[
 ]
 
 
-def _plain(number: Decimal) -> str:
+def plain(number: Decimal) -> str:
     """As typed, without the zeros the database pads it with: "100", "0.5"."""
     return format(number.normalize() + 0, "f")  # + 0 turns -0 into 0
 
@@ -25,6 +27,14 @@ def _plain(number: Decimal) -> str:
 Number = Annotated[
     Decimal,
     Field(max_digits=models.VALUE_DIGITS, decimal_places=models.VALUE_DECIMALS),
-    PlainSerializer(_plain, return_type=str),
+    PlainSerializer(plain, return_type=str),
     WithJsonSchema({"anyOf": [{"type": "number"}, {"type": "string"}]}, mode="validation"),
+]
+
+# A serving multiplier: above 0, in whole thousandths as the library holds
+# them, with the same 9 digits before the point as any other Number.
+Multiplier = Annotated[
+    Number,
+    Field(gt=0, max_digits=models.VALUE_DIGITS - models.VALUE_DECIMALS + MULTIPLIER_PRECISION,
+          decimal_places=MULTIPLIER_PRECISION),
 ]

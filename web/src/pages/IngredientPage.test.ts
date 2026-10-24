@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from 'vitest'
-import { button, click, dialog, fakeServer, field, mountApp, type FakeServer } from '../test-app'
-import { attribute, ingredient, tag } from '../test-data'
+import { button, click, dialog, fakeServer, field, mountApp, texts, type FakeServer } from '../test-app'
+import { attribute, ingredient, recipe, tag } from '../test-data'
 
 const energy = attribute({ id: 1, name: 'Energy', unit: 'kcal', ingredient_count: 1 })
 const protein = attribute({ id: 2, name: 'Protein', unit: 'g', decimals: 1, ingredient_count: 1 })
@@ -211,6 +211,29 @@ test('an ingredient recipes use cannot be deleted', async () => {
   expect(button(wrapper, 'Delete').attributes('disabled')).toBeDefined()
   expect(wrapper.text()).toContain('Used in 2 recipes')
   expect(wrapper.text()).toContain("Recipes use it, so it can't be deleted.")
+  wrapper.unmount()
+})
+
+test('Show lists the recipes that use the ingredient, which open their editor', async () => {
+  const uses = (id: number, name: string, ingredientId: number) =>
+    recipe({ id, name, items: [{ ingredient_id: ingredientId, amount: '1' }] })
+  const { wrapper, router } = await mountPage('/ingredients/7', {
+    'GET /api/ingredients/7': { body: { ...oats, recipe_count: 2 } },
+    'GET /api/recipes': { body: [uses(1, 'Porridge', 7), uses(2, 'Omelette', 8), uses(3, 'Muesli', 7)] },
+    'GET /api/recipes/3': { body: uses(3, 'Muesli', 7) },
+  })
+  await click(button(wrapper, 'Show'))
+  expect(texts(wrapper, '.used-in .q-item__section--main')).toEqual(['Muesli', 'Porridge'])
+  expect(wrapper.text()).not.toContain('Show')
+  await click(wrapper.findAll('.used-in .q-item')[0]!)
+  expect(router.currentRoute.value.fullPath).toBe('/recipes/3')
+  wrapper.unmount()
+})
+
+test('an ingredient no recipe uses has nothing to show', async () => {
+  const { wrapper } = await mountPage('/ingredients/7')
+  expect(wrapper.text()).toContain('Used in no recipes')
+  expect(wrapper.text()).not.toContain('Show')
   wrapper.unmount()
 })
 

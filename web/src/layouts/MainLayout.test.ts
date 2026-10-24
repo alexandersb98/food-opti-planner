@@ -45,7 +45,7 @@ test('Log out ends the session and shows the login page', async () => {
 })
 
 test('the menu shows the catalog counts, fresh each time it opens', async () => {
-  const server = { 'GET /api/session': 204, 'GET /api/counts': { body: { ingredients: 20, attributes: 8, tags: 3 } } }
+  const server = { 'GET /api/session': 204, 'GET /api/counts': { body: { recipes: 5, ingredients: 20, attributes: 8, tags: 3 } } }
   fakeServer(server)
   const { wrapper } = await mountApp('/')
   const menu = wrapper.get('button[aria-label="Menu"]')
@@ -55,12 +55,12 @@ test('the menu shows the catalog counts, fresh each time it opens', async () => 
   }
   await menu.trigger('click')
   await flushPromises()
-  expect([count('Ingredients'), count('Attributes'), count('Tags')]).toEqual(['20', '8', '3'])
+  expect([count('Recipes'), count('Ingredients'), count('Attributes'), count('Tags')]).toEqual(['5', '20', '8', '3'])
 
-  server['GET /api/counts'] = { body: { ingredients: 21, attributes: 9, tags: 4 } }
+  server['GET /api/counts'] = { body: { recipes: 6, ingredients: 21, attributes: 9, tags: 4 } }
   await menu.trigger('click')
   await menu.trigger('click')
   await flushPromises()
-  expect([count('Ingredients'), count('Attributes'), count('Tags')]).toEqual(['21', '9', '4'])
+  expect([count('Recipes'), count('Ingredients'), count('Attributes'), count('Tags')]).toEqual(['6', '21', '9', '4'])
   wrapper.unmount()
 })

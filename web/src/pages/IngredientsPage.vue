@@ -17,7 +17,7 @@ const { data, loading, failed, load } = useLoad(
   { ingredients: [] as Ingredient[], attributes: [] as Attribute[] },
 )
 
-const search = ref('')
+const search = ref<string | null>('')
 const shown = computed(() => searchByName(data.value.ingredients, search.value))
 const attributes = computed(() => byId(data.value.attributes))
 

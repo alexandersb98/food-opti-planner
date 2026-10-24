@@ -3,6 +3,7 @@ import { api, setUnauthorizedHandler } from './api/client'
 import MainLayout from './layouts/MainLayout.vue'
 import IngredientPage from './pages/IngredientPage.vue'
 import LoginPage from './pages/LoginPage.vue'
+import RecipePage from './pages/RecipePage.vue'
 import { pages } from './pages'
 
 /** The login page, coming back to `redirect` afterwards. */
@@ -21,6 +22,8 @@ export function makeRouter(history: RouterHistory = createWebHistory()) {
         children: [
           ...pages.map(({ path, name, component }) => ({ path, name, component })),
           // Editors, opened from their page's list.
+          { path: '/recipes/new', name: 'new-recipe', component: RecipePage },
+          { path: '/recipes/:id(\\d+)', name: 'recipe', component: RecipePage },
           { path: '/ingredients/new', name: 'new-ingredient', component: IngredientPage },
           { path: '/ingredients/:id(\\d+)', name: 'ingredient', component: IngredientPage },
         ],

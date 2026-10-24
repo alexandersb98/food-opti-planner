@@ -1,6 +1,7 @@
 """Deleting an attribute or a tag is allowed after a warning, and removes
 it from whatever uses it. Each list response counts those uses for the
-warning. Later slices add recipes, goals and plan filters here."""
+warning. Later slices add goals and plan filters here. Deleting an
+ingredient a recipe uses is refused instead (test_recipes.py)."""
 
 
 def by_name(client, path, field):
@@ -41,3 +42,26 @@ def test_deleting_a_tag_removes_it_from_ingredients(client, catalog):
     assert client.delete(f"/api/tags/{vegan}").status_code == 204
     assert client.get(f"/api/ingredients/{oats}").json()["tag_ids"] == [quick]
 
+
+
+def test_a_tag_counts_the_recipes_it_was_added_to(client, catalog):
+    vegan, quick = catalog.tag(), catalog.tag("quick")
+    oats = catalog.ingredient(tag_ids=[vegan])
+    catalog.recipe(items={oats: "60"}, extra_tag_ids=[quick])
+    catalog.recipe("Muesli", items={oats: "80"}, extra_tag_ids=[quick, vegan])
+    assert by_name(client, "/api/tags", "recipe_count") == {"vegan": 1, "quick": 2}
+
+
+def test_deleting_a_tag_removes_it_from_recipes(client, catalog):
+    vegan, quick = catalog.tag(), catalog.tag("quick")
+    porridge = catalog.recipe(extra_tag_ids=[vegan, quick])
+    assert client.delete(f"/api/tags/{vegan}").status_code == 204
+    assert client.get(f"/api/recipes/{porridge}").json()["extra_tag_ids"] == [quick]
+
+
+def test_deleting_an_attribute_removes_it_from_recipe_totals(client, catalog):
+    energy, protein = catalog.attribute(), catalog.attribute("Protein")
+    porridge = catalog.recipe(items={catalog.ingredient(values={energy: "389", protein: "17"}): "100"})
+    assert client.delete(f"/api/attributes/{energy}").status_code == 204
+    totals = client.get(f"/api/recipes/{porridge}").json()["totals"]
+    assert totals == [{"attribute_id": protein, "value": "17"}]
