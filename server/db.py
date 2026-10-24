@@ -7,7 +7,7 @@ from typing import Annotated
 from alembic import command
 from alembic.config import Config
 from fastapi import Depends, Request
-from sqlalchemy import Engine, MetaData, create_engine
+from sqlalchemy import Engine, MetaData, create_engine, event
 from sqlalchemy.orm import DeclarativeBase, Session
 
 MIGRATIONS_DIR = Path(__file__).resolve().parent / "migrations"
@@ -20,7 +20,17 @@ class Base(DeclarativeBase):
 def make_engine(database_url: str) -> Engine:
     # Neon ends the connections of a database it suspends after 5 idle
     # minutes, so check a pooled connection before using it.
-    return create_engine(database_url, pool_pre_ping=True)
+    engine = create_engine(database_url, pool_pre_ping=True)
+    if engine.dialect.name == "sqlite":
+        # SQLite ignores foreign keys unless each connection turns them on,
+        # and the delete rules (cascade, or block an ingredient in use) are
+        # foreign keys. Migrations use their own engine, without this.
+        event.listen(engine, "connect", _sqlite_foreign_keys_on)
+    return engine
+
+
+def _sqlite_foreign_keys_on(connection, _record) -> None:
+    connection.execute("PRAGMA foreign_keys = ON")
 
 
 def _session(request: Request) -> Iterator[Session]:

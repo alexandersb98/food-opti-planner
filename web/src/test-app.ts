@@ -1,6 +1,6 @@
-import { flushPromises, mount } from '@vue/test-utils'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { Quasar } from 'quasar'
-import { vi } from 'vitest'
+import { expect, vi } from 'vitest'
 import { createMemoryHistory } from 'vue-router'
 import App from './App.vue'
 import { makeI18n } from './i18n'
@@ -40,4 +40,42 @@ export async function mountApp(path: string) {
   })
   await flushPromises()
   return { wrapper, router }
+}
+
+/** Click and wait for what the click starts, such as server calls. */
+export async function click(target: { trigger: (event: string) => Promise<void> }) {
+  await target.trigger('click')
+  await flushPromises()
+}
+
+/** The button or list item labelled `label`. */
+export function button(wrapper: VueWrapper, label: string) {
+  const found = wrapper.findAll('button, .q-item').find((b) => b.text() === label)
+  expect(found, `button ${label}`).toBeDefined()
+  return found!
+}
+
+/** The input labelled `label`. */
+export function field(wrapper: VueWrapper, label: string) {
+  return wrapper.get<HTMLInputElement>(`input[aria-label="${label}"]`)
+}
+
+/** The text of each element matching `selector`, such as a list's rows. */
+export function texts(wrapper: VueWrapper, selector: string) {
+  return wrapper.findAll(selector).map((element) => element.text())
+}
+
+/** The open dialog's text, and a click on its button labelled `label`.
+ * Dialogs are teleported to the document body, outside the wrapper. */
+export function dialog() {
+  const element = document.querySelector('.q-dialog')!
+  return {
+    text: element.textContent ?? '',
+    async click(label: string) {
+      const found = [...element.querySelectorAll('button')].find((b) => b.textContent?.trim() === label)
+      expect(found, `dialog button ${label}`).toBeDefined()
+      found!.click()
+      await flushPromises()
+    },
+  }
 }

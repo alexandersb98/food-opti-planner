@@ -19,60 +19,53 @@
     "wrong": "Wrong password.",
     "failed": "Could not log in. Try again."
   },
-  "attributes": {
-    "intro": "What you track for every ingredient, and can set goals on.",
-    "empty": "No attributes yet.",
-    "loadFailed": "Could not load the attributes.",
-    "retry": "Try again",
-    "decimalCount": "0 decimals | 1 decimal | {n} decimals",
-    "goalCount": "no goals | 1 goal | {n} goals",
-    "ingredientCount": "no ingredients | 1 ingredient | {n} ingredients",
+  "common": {
     "name": "Name",
-    "unit": "Unit",
-    "decimals": "Decimals",
-    "decimalsHint": "Decimals: how precisely the planner counts it",
     "nameRequired": "Enter a name.",
-    "nameInUse": "An attribute with this name already exists.",
-    "decimalsRange": "A whole number from {min} to {max}.",
+    "retry": "Try again",
     "saveFailed": "Could not save. Try again.",
     "deleteFailed": "Could not delete. Try again.",
     "done": "Done",
     "delete": "Delete",
     "cancel": "Cancel",
-    "new": "+ New attribute",
     "deleteTitle": "Delete {name}?",
-    "deleteRemoves": "This also removes its values from {ingredients} and {goals}.",
     "deleteNothing": "Nothing else uses it."
+  },
+  "count": {
+    "ingredients": "no ingredients | 1 ingredient | {n} ingredients",
+    "goals": "no goals | 1 goal | {n} goals",
+    "recipes": "no recipes | 1 recipe | {n} recipes",
+    "planFilters": "no plan filters | 1 plan filter | {n} plan filters"
+  },
+  "attributes": {
+    "intro": "What you track for every ingredient, and can set goals on.",
+    "empty": "No attributes yet.",
+    "loadFailed": "Could not load the attributes.",
+    "decimalCount": "0 decimals | 1 decimal | {n} decimals",
+    "unit": "Unit",
+    "decimals": "Decimals",
+    "decimalsHint": "Decimals: how precisely the planner counts it",
+    "nameInUse": "An attribute with this name already exists.",
+    "decimalsRange": "A whole number from {min} to {max}.",
+    "new": "+ New attribute",
+    "deleteRemoves": "This also removes its values from {ingredients} and {goals}."
   },
   "tags": {
     "intro": "Yes/no labels on ingredients, which recipes get from their ingredients.",
     "empty": "No tags yet.",
     "loadFailed": "Could not load the tags.",
-    "retry": "Try again",
     "rule": {
       "all": "When all ingredients have it",
       "any": "When any ingredient has it"
     },
     "byHand": "added by hand",
-    "name": "Name",
     "deriveLabel": "A recipe gets this tag when",
     "derive": {
       "all": "all ingredients have it",
       "any": "any ingredient has it"
     },
-    "nameRequired": "Enter a name.",
     "nameInUse": "A tag with this name already exists.",
-    "saveFailed": "Could not save. Try again.",
-    "deleteFailed": "Could not delete. Try again.",
-    "done": "Done",
-    "delete": "Delete",
-    "cancel": "Cancel",
     "new": "+ New tag",
-    "deleteTitle": "Delete {name}?",
-    "deleteRemoves": "This also removes it from {ingredients}, {recipes} and {filters}.",
-    "deleteNothing": "Nothing else uses it.",
-    "ingredientCount": "no ingredients | 1 ingredient | {n} ingredients",
-    "recipeCount": "no recipes | 1 recipe | {n} recipes",
-    "filterCount": "no plan filters | 1 plan filter | {n} plan filters"
+    "deleteRemoves": "This also removes it from {ingredients}, {recipes} and {filters}."
   }
 }

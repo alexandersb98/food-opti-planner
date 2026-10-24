@@ -1,6 +1,5 @@
-import { flushPromises } from '@vue/test-utils'
 import { afterEach, expect, test, vi } from 'vitest'
-import { fakeServer, mountApp, type FakeServer } from '../test-app'
+import { button, click, dialog, fakeServer, field, mountApp, texts, type FakeServer } from '../test-app'
 
 const vegan = { id: 1, name: 'vegan', derive: 'all', ingredient_count: 9, recipe_count: 2, filter_count: 1 }
 const quick = { id: 2, name: 'quick', derive: 'any', ingredient_count: 0, recipe_count: 0, filter_count: 0 }
@@ -23,17 +22,11 @@ async function mountPage(server: FakeServer = {}) {
 type Wrapper = Awaited<ReturnType<typeof mountPage>>['wrapper']
 
 function rows(wrapper: Wrapper) {
-  return wrapper.findAll('.tag-row').map((row) => row.text())
-}
-
-function button(wrapper: Wrapper, label: string) {
-  const found = wrapper.findAll('button, .q-item').find((b) => b.text() === label)
-  expect(found, `button ${label}`).toBeDefined()
-  return found!
+  return texts(wrapper, '.tag-row')
 }
 
 function nameField(wrapper: Wrapper) {
-  return wrapper.get<HTMLInputElement>('input[aria-label="Name"]')
+  return field(wrapper, 'Name')
 }
 
 /** The rule's radio buttons, as their label and whether they are chosen. */
@@ -43,11 +36,6 @@ function rule(wrapper: Wrapper) {
 
 async function chooseRule(wrapper: Wrapper, label: string) {
   await click(wrapper.findAll('[role="radio"]').find((radio) => radio.text() === label)!)
-}
-
-async function click(target: { trigger: (event: string) => Promise<void> }) {
-  await target.trigger('click')
-  await flushPromises()
 }
 
 test('each tag shows its rule, and tags no ingredient has are added by hand', async () => {
@@ -169,14 +157,11 @@ test('delete warns what else it removes the tag from, then deletes', async () =>
   const { wrapper, calls } = await mountPage({ 'DELETE /api/tags/1': 204 })
   await click(wrapper.findAll('.tag-row')[0]!.get('.q-item'))
   await click(button(wrapper, 'Delete'))
-  const dialog = document.querySelector('.q-dialog')!
-  expect(dialog.textContent).toContain('Delete vegan?')
-  expect(dialog.textContent).toContain('This also removes it from 9 ingredients, 2 recipes and 1 plan filter.')
+  expect(dialog().text).toContain('Delete vegan?')
+  expect(dialog().text).toContain('This also removes it from 9 ingredients, 2 recipes and 1 plan filter.')
   expect(calls).not.toContain('DELETE /api/tags/1')
 
-  const confirm = [...dialog.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Delete')!
-  confirm.click()
-  await flushPromises()
+  await dialog().click('Delete')
   expect(calls).toContain('DELETE /api/tags/1')
   expect(rows(wrapper)).toHaveLength(1)
   wrapper.unmount()
@@ -186,7 +171,7 @@ test('an unused tag says nothing else uses it', async () => {
   const { wrapper } = await mountPage()
   await click(wrapper.findAll('.tag-row')[1]!.get('.q-item'))
   await click(button(wrapper, 'Delete'))
-  expect(document.querySelector('.q-dialog')!.textContent).toContain('Nothing else uses it.')
+  expect(dialog().text).toContain('Nothing else uses it.')
   wrapper.unmount()
 })
 
