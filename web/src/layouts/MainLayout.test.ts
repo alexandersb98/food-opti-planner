@@ -44,23 +44,23 @@ test('Log out ends the session and shows the login page', async () => {
   wrapper.unmount()
 })
 
-test('the menu shows how many attributes there are, fresh each time it opens', async () => {
-  const server = { 'GET /api/session': 204, 'GET /api/counts': { body: { attributes: 8 } } }
+test('the menu shows how many attributes and tags there are, fresh each time it opens', async () => {
+  const server = { 'GET /api/session': 204, 'GET /api/counts': { body: { attributes: 8, tags: 3 } } }
   fakeServer(server)
   const { wrapper } = await mountApp('/')
   const menu = wrapper.get('button[aria-label="Menu"]')
-  const count = () => {
-    const item = wrapper.findAll('.q-drawer .q-item').find((i) => i.text().includes('Attributes'))
+  const count = (page: string) => {
+    const item = wrapper.findAll('.q-drawer .q-item').find((i) => i.text().includes(page))
     return item!.find('.menu-count').text()
   }
   await menu.trigger('click')
   await flushPromises()
-  expect(count()).toBe('8')
+  expect([count('Attributes'), count('Tags')]).toEqual(['8', '3'])
 
-  server['GET /api/counts'] = { body: { attributes: 9 } }
+  server['GET /api/counts'] = { body: { attributes: 9, tags: 4 } }
   await menu.trigger('click')
   await menu.trigger('click')
   await flushPromises()
-  expect(count()).toBe('9')
+  expect([count('Attributes'), count('Tags')]).toEqual(['9', '4'])
   wrapper.unmount()
 })
