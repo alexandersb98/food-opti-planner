@@ -1,6 +1,5 @@
-import { flushPromises } from '@vue/test-utils'
 import { afterEach, expect, test, vi } from 'vitest'
-import { fakeServer, mountApp, type FakeServer } from '../test-app'
+import { button, click, dialog, fakeServer, field, mountApp, texts, type FakeServer } from '../test-app'
 
 const energy = { id: 1, name: 'Energy', unit: 'kcal', decimals: 0, ingredient_count: 0, goal_count: 0 }
 const protein = { id: 2, name: 'Protein', unit: 'g', decimals: 1, ingredient_count: 12, goal_count: 1 }
@@ -23,22 +22,7 @@ async function mountPage(server: FakeServer = {}) {
 type Wrapper = Awaited<ReturnType<typeof mountPage>>['wrapper']
 
 function rows(wrapper: Wrapper) {
-  return wrapper.findAll('.attribute-row').map((row) => row.text())
-}
-
-function button(wrapper: Wrapper, label: string) {
-  const found = wrapper.findAll('button, .q-item').find((b) => b.text() === label)
-  expect(found, `button ${label}`).toBeDefined()
-  return found!
-}
-
-function field(wrapper: Wrapper, label: string) {
-  return wrapper.get<HTMLInputElement>(`input[aria-label="${label}"]`)
-}
-
-async function click(target: { trigger: (event: string) => Promise<void> }) {
-  await target.trigger('click')
-  await flushPromises()
+  return texts(wrapper, '.attribute-row')
 }
 
 test('each attribute shows its unit, decimals and goals', async () => {
@@ -157,14 +141,11 @@ test('delete warns what else it removes, then deletes', async () => {
   const { wrapper, calls } = await mountPage({ 'DELETE /api/attributes/2': 204 })
   await click(wrapper.findAll('.attribute-row')[1]!.get('.q-item'))
   await click(button(wrapper, 'Delete'))
-  const dialog = document.querySelector('.q-dialog')!
-  expect(dialog.textContent).toContain('Delete Protein?')
-  expect(dialog.textContent).toContain('This also removes its values from 12 ingredients and 1 goal.')
+  expect(dialog().text).toContain('Delete Protein?')
+  expect(dialog().text).toContain('This also removes its values from 12 ingredients and 1 goal.')
   expect(calls).not.toContain('DELETE /api/attributes/2')
 
-  const confirm = [...dialog.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Delete')!
-  confirm.click()
-  await flushPromises()
+  await dialog().click('Delete')
   expect(calls).toContain('DELETE /api/attributes/2')
   expect(rows(wrapper)).toHaveLength(1)
   wrapper.unmount()
@@ -174,7 +155,7 @@ test('an unused attribute says nothing else uses it', async () => {
   const { wrapper } = await mountPage()
   await click(wrapper.findAll('.attribute-row')[0]!.get('.q-item'))
   await click(button(wrapper, 'Delete'))
-  expect(document.querySelector('.q-dialog')!.textContent).toContain('Nothing else uses it.')
+  expect(dialog().text).toContain('Nothing else uses it.')
   wrapper.unmount()
 })
 
