@@ -74,6 +74,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ingredients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Ingredients */
+        get: operations["list_ingredients_api_ingredients_get"];
+        put?: never;
+        /** Create Ingredient */
+        post: operations["create_ingredient_api_ingredients_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ingredients/{ingredient_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Ingredient */
+        get: operations["get_ingredient_api_ingredients__ingredient_id__get"];
+        /** Update Ingredient */
+        put: operations["update_ingredient_api_ingredients__ingredient_id__put"];
+        post?: never;
+        /** Delete Ingredient */
+        delete: operations["delete_ingredient_api_ingredients__ingredient_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/login": {
         parameters: {
             query?: never;
@@ -196,13 +233,15 @@ export interface components {
         Counts: {
             /** Attributes */
             attributes: number;
+            /** Ingredients */
+            ingredients: number;
             /** Tags */
             tags: number;
         };
         /** FieldError */
         FieldError: {
             /** Loc */
-            loc: string[];
+            loc: (string | number)[];
             /** Msg */
             msg: string;
             /** Type */
@@ -222,6 +261,50 @@ export interface components {
         Health: {
             /** Database */
             database: boolean;
+        };
+        /** Ingredient */
+        Ingredient: {
+            /** Basis */
+            basis: string;
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Recipe Count */
+            recipe_count: number;
+            /** Tag Ids */
+            tag_ids: number[];
+            /** Unit */
+            unit: string;
+            /** Values */
+            values: components["schemas"]["IngredientValue-Output"][];
+        };
+        /** IngredientFields */
+        IngredientFields: {
+            /** Basis */
+            basis: number | string;
+            /** Name */
+            name: string;
+            /** Tag Ids */
+            tag_ids: number[];
+            /** Unit */
+            unit: string;
+            /** Values */
+            values: components["schemas"]["IngredientValue-Input"][];
+        };
+        /** IngredientValue */
+        "IngredientValue-Input": {
+            /** Attribute Id */
+            attribute_id: number;
+            /** Value */
+            value: number | string;
+        };
+        /** IngredientValue */
+        "IngredientValue-Output": {
+            /** Attribute Id */
+            attribute_id: number;
+            /** Value */
+            value: string;
         };
         /** Login */
         Login: {
@@ -463,6 +546,193 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Health"];
+                };
+            };
+        };
+    };
+    list_ingredients_api_ingredients_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ingredient"][];
+                };
+            };
+        };
+    };
+    create_ingredient_api_ingredients_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IngredientFields"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ingredient"];
+                };
+            };
+            /** @description The name is already in use */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_ingredient_api_ingredients__ingredient_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ingredient_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ingredient"];
+                };
+            };
+            /** @description No such ingredient */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_ingredient_api_ingredients__ingredient_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ingredient_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IngredientFields"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ingredient"];
+                };
+            };
+            /** @description No such ingredient */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The name is already in use */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_ingredient_api_ingredients__ingredient_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ingredient_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such ingredient */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

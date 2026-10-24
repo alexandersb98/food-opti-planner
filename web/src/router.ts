@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory, type RouterHistory } from 'vue-router'
 import { api, setUnauthorizedHandler } from './api/client'
 import MainLayout from './layouts/MainLayout.vue'
+import IngredientPage from './pages/IngredientPage.vue'
 import LoginPage from './pages/LoginPage.vue'
 import { pages } from './pages'
 
@@ -17,7 +18,12 @@ export function makeRouter(history: RouterHistory = createWebHistory()) {
       {
         path: '/',
         component: MainLayout,
-        children: pages.map(({ path, name, component }) => ({ path, name, component })),
+        children: [
+          ...pages.map(({ path, name, component }) => ({ path, name, component })),
+          // Editors, opened from their page's list.
+          { path: '/ingredients/new', name: 'new-ingredient', component: IngredientPage },
+          { path: '/ingredients/:id(\\d+)', name: 'ingredient', component: IngredientPage },
+        ],
       },
     ],
   })

@@ -4,7 +4,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, status
 from pydantic import BaseModel, Field, StringConstraints
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from meal_planner.domain import MAX_PRECISION, MIN_PRECISION
 
@@ -31,15 +31,22 @@ class Attribute(AttributeFields):
     goal_count: int
 
 
-def _response(attribute: models.Attribute) -> Attribute:
-    # Ingredient values arrive in slice 5 and goals in slice 8; until then
-    # deleting an attribute removes nothing else.
+def _ingredient_counts(db: DbSession) -> dict[int, int]:
+    """How many ingredients have a value for each attribute, by attribute id."""
+    value = models.IngredientValue
+    query = select(value.attribute_id, func.count()).group_by(value.attribute_id)
+    return dict(db.execute(query).all())
+
+
+def _response(attribute: models.Attribute, db: DbSession, counts: dict[int, int] | None = None) -> Attribute:
+    counts = _ingredient_counts(db) if counts is None else counts
+    # Goals arrive in slice 8; until then deleting an attribute removes none.
     return Attribute(
         id=attribute.id,
         name=attribute.name,
         unit=attribute.unit,
         decimals=attribute.decimals,
-        ingredient_count=0,
+        ingredient_count=counts.get(attribute.id, 0),
         goal_count=0,
     )
 
@@ -47,7 +54,8 @@ def _response(attribute: models.Attribute) -> Attribute:
 @router.get("")
 def list_attributes(db: DbSession) -> list[Attribute]:
     attributes = db.scalars(select(models.Attribute).order_by(models.Attribute.id))
-    return [_response(attribute) for attribute in attributes]
+    counts = _ingredient_counts(db)
+    return [_response(attribute, db, counts) for attribute in attributes]
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, responses=NAME_IN_USE)
@@ -55,7 +63,7 @@ def create_attribute(body: AttributeFields, db: DbSession) -> Attribute:
     attribute = models.Attribute(**body.model_dump())
     db.add(attribute)
     commit_named(db, attribute, "An attribute")
-    return _response(attribute)
+    return _response(attribute, db)
 
 
 @router.put("/{attribute_id}", responses={**NOT_FOUND, **NAME_IN_USE})
@@ -64,7 +72,7 @@ def update_attribute(attribute_id: int, body: AttributeFields, db: DbSession) ->
     for field, value in body.model_dump().items():
         setattr(attribute, field, value)
     commit_named(db, attribute, "An attribute")
-    return _response(attribute)
+    return _response(attribute, db)
 
 
 @router.delete("/{attribute_id}", status_code=status.HTTP_204_NO_CONTENT, responses=NOT_FOUND)

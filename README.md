@@ -10,8 +10,8 @@ failing outright.
 recipes, tags, day and horizon constraints (hard and soft), serving
 multipliers, and STRICT solving with violation and conflict reports.
 The GUI is being built: so far a server (`server/`) and a web app
-(`web/`) with a login, the Attributes and Tags pages (the other pages
-are still empty), and a deploy to Cloud Run.
+(`web/`) with a login, the Ingredients, Attributes and Tags pages (the
+other pages are still empty), and a deploy to Cloud Run.
 
 Run the Python tests with `python3 -m pip install -e '.[server,dev]'` and
 then `python3 -m pytest`. Server tests use SQLite; set
@@ -40,6 +40,14 @@ Frontend checks: `npm run lint`, `npm run typecheck`, `npm test` in
 `web/`. After changing the API, run `npm run gen:api` in `web/` to
 update `web/openapi.json` and `web/src/api/schema.ts`; tests fail
 until they are up to date.
+
+End-to-end tests (Playwright, in `web/e2e/`) drive the built app in a
+phone-sized browser. They expect a running app with an empty database
+and its password in `E2E_PASSWORD`:
+`E2E_PASSWORD=... E2E_BASE_URL=http://localhost:8000 npm run e2e` in
+`web/` (after `npx vite build`, so uvicorn serves the app; the first
+run needs `npx playwright install chromium`). CI runs them against the
+built container and Postgres.
 
 See [`docs/superpowers/specs/2026-09-15-meal-optimizer-design.md`](docs/superpowers/specs/2026-09-15-meal-optimizer-design.md)
 for the design notes and decisions made so far,

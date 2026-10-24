@@ -197,8 +197,8 @@ come later, so the plan is chosen only by the recipes' own limits.
   `Day`/`Slot`, "all" → `min_meals_per_day=None`, `solve_time_limit`).
 - The results screen, as designed before this slice (see "Before
   slice 7" below).
-- Playwright suite starts: log in, add an attribute, ingredient and
-  recipe, make a plan, see the result.
+- Playwright: the flow from slice 5 (log in, add an attribute, a tag
+  and an ingredient) adds a recipe, makes a plan and sees the result.
 
 **Tests:** translation tests for the schedule rules; API test that
 solve returns a plan; Playwright as above.
