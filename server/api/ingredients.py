@@ -1,36 +1,20 @@
 """/api/ingredients: list, read, create, update and delete ingredients (C3, C4)."""
 
-from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, status
-from pydantic import BaseModel, Field, PlainSerializer, StringConstraints, WithJsonSchema
+from pydantic import BaseModel, Field, StringConstraints
 from sqlalchemy import select
 
 from .. import models
 from ..db import DbSession
-from .catalog import Name, commit_named, get_or_404
-from .errors import NAME_IN_USE, FieldError, invalid_fields
+from .catalog import References, commit_named, get_or_404, in_list
+from .errors import NAME_IN_USE
+from .fields import Name, Number
 
 router = APIRouter(prefix="/ingredients", tags=["ingredients"])
 
 NOT_FOUND = {404: {"description": "No such ingredient"}}
-
-
-def _plain(number: Decimal) -> str:
-    """As typed, without the zeros the database pads it with: "100", "0.5"."""
-    return format(number.normalize() + 0, "f")  # + 0 turns -0 into 0
-
-
-# A number as typed on the form. Sent as a JSON number or string; answered
-# as a string, so it reads back exactly as it was entered. The request's
-# schema is spelled out, as Pydantic versions describe decimals differently.
-Number = Annotated[
-    Decimal,
-    Field(max_digits=models.VALUE_DIGITS, decimal_places=models.VALUE_DECIMALS),
-    PlainSerializer(_plain, return_type=str),
-    WithJsonSchema({"anyOf": [{"type": "number"}, {"type": "string"}]}, mode="validation"),
-]
 
 
 class IngredientValue(BaseModel):
@@ -73,24 +57,11 @@ def _response(ingredient: models.Ingredient) -> Ingredient:
 def _fill(ingredient: models.Ingredient, body: IngredientFields, db: DbSession) -> None:
     """Set the ingredient's fields from `body`, answering 422 for attributes
     given twice and for attribute or tag ids that name nothing."""
+    refs = References(db)
     attribute_ids = [v.attribute_id for v in body.values]
-    found_attributes = select(models.Attribute.id).where(models.Attribute.id.in_(attribute_ids))
-    known_attributes = set(db.scalars(found_attributes))
-    found_tags = db.scalars(select(models.Tag).where(models.Tag.id.in_(body.tag_ids)))
-    tags = {tag.id: tag for tag in found_tags}
-
-    errors = []
-    for i, attribute_id in enumerate(attribute_ids):
-        loc = ["body", "values", i, "attribute_id"]
-        if attribute_id not in known_attributes:
-            errors.append(FieldError(loc=loc, type="unknown_attribute", msg="No such attribute"))
-        elif attribute_id in attribute_ids[:i]:
-            errors.append(FieldError(loc=loc, type="duplicate", msg="This attribute has a value already"))
-    for i, tag_id in enumerate(body.tag_ids):
-        if tag_id not in tags:
-            errors.append(FieldError(loc=["body", "tag_ids", i], type="unknown_tag", msg="No such tag"))
-    if errors:
-        raise invalid_fields(errors)
+    refs.rows(models.Attribute, in_list("values", attribute_ids, "attribute_id"), "attribute", unique=True)
+    tags = refs.rows(models.Tag, in_list("tag_ids", body.tag_ids), "tag")
+    refs.check()
 
     # Loading the old values and tags must not save the new name early, or a
     # name in use would fail here instead of in commit_named.

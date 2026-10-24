@@ -64,3 +64,33 @@ def client(anonymous_client):
     response = anonymous_client.post("/api/login", json={"password": PASSWORD})
     assert response.status_code == 204
     return anonymous_client
+
+
+class Catalog:
+    """Adds catalog rows through the API, for tests that need some to refer
+    to. Each method answers the new row's id."""
+
+    def __init__(self, client):
+        self.client = client
+
+    def _create(self, path: str, fields: dict) -> int:
+        response = self.client.post(path, json=fields)
+        assert response.status_code == 201, response.text
+        return response.json()["id"]
+
+    def attribute(self, name="Energy", unit="kcal", decimals=0) -> int:
+        return self._create("/api/attributes", {"name": name, "unit": unit, "decimals": decimals})
+
+    def tag(self, name="vegan", derive="all") -> int:
+        return self._create("/api/tags", {"name": name, "derive": derive})
+
+    def ingredient(self, name="Oats", unit="g", basis="100", values=None, tag_ids=()) -> int:
+        """`values` maps attribute ids to values as typed: {energy: "389"}."""
+        values = [{"attribute_id": a, "value": v} for a, v in (values or {}).items()]
+        fields = {"name": name, "unit": unit, "basis": basis, "values": values, "tag_ids": list(tag_ids)}
+        return self._create("/api/ingredients", fields)
+
+
+@pytest.fixture
+def catalog(client):
+    return Catalog(client)

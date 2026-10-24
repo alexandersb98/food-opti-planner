@@ -10,10 +10,12 @@ from .db import Base
 NAME_LENGTH = 100
 UNIT_LENGTH = 20
 DERIVE_LENGTH = 3  # "all" or "any"
-# Ingredient values and value bases, stored exactly as typed. 15 digits stay
-# exact even in SQLite, which holds them as floating point.
+# Numbers typed on forms (ingredient values, value bases, ...), stored
+# exactly as typed. 15 digits stay exact even in SQLite, which holds them as
+# floating point.
 VALUE_DIGITS = 15
 VALUE_DECIMALS = 6
+EXACT_NUMBER = Numeric(VALUE_DIGITS, VALUE_DECIMALS)
 
 
 class Attribute(Base):
@@ -54,7 +56,7 @@ class Ingredient(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(NAME_LENGTH), unique=True)
     unit: Mapped[str] = mapped_column(String(UNIT_LENGTH))
-    basis: Mapped[Decimal] = mapped_column(Numeric(VALUE_DIGITS, VALUE_DECIMALS))
+    basis: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
     # Only the values typed in; an attribute without one counts as 0.
     values: Mapped[list["IngredientValue"]] = relationship(
         cascade="all, delete-orphan",
@@ -75,7 +77,7 @@ class IngredientValue(Base):
     attribute_id: Mapped[int] = mapped_column(
         ForeignKey("attributes.id", ondelete="CASCADE"), primary_key=True
     )
-    value: Mapped[Decimal] = mapped_column(Numeric(VALUE_DIGITS, VALUE_DECIMALS))
+    value: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
     attribute: Mapped[Attribute] = relationship()
 
 
