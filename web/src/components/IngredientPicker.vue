@@ -11,7 +11,7 @@ const props = defineProps<{ ingredients: readonly Ingredient[]; exclude: Readonl
 const emit = defineEmits<{ pick: [ingredient: Ingredient] }>()
 
 const { t } = useI18n()
-const search = ref('')
+const search = ref<string | null>('')
 watch(open, () => (search.value = ''))
 
 const shown = computed(() =>

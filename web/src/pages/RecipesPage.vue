@@ -19,7 +19,7 @@ const { data, loading, failed, load } = useLoad(
   { recipes: [] as Recipe[], attributes: [] as Attribute[], tags: [] as Tag[] },
 )
 
-const search = ref('')
+const search = ref<string | null>('')
 const chosenTags = ref(new Set<number>())
 const attributes = computed(() => byId(data.value.attributes))
 

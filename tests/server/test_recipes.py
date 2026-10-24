@@ -79,6 +79,15 @@ def test_totals_are_rounded_half_away_from_zero_to_the_attributes_decimals(clien
     assert [t["value"] for t in created["totals"]] == ["1", "-0.01", "-0.1"]
 
 
+def test_a_total_on_a_rounding_tie_rounds_up_as_the_editor_does(client, catalog):
+    # 16.5 of a value of 1 per basis 3 is exactly 5.5, so half away from zero
+    # gives 6. Dividing by the basis first, as the library's per-unit values
+    # do, leaves 5.4999... and would give 5.
+    energy = catalog.attribute()
+    third = catalog.ingredient("Third", basis="3", values={energy: "1"})
+    assert create(client, (third, "16.5"))["totals"][0]["value"] == "6"
+
+
 def test_an_attribute_without_values_totals_0(client, catalog, oats):
     catalog.attribute(decimals=2)
     assert create(client, (oats, "60"))["totals"][0]["value"] == "0"

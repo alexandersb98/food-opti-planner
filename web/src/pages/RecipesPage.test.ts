@@ -75,6 +75,19 @@ test('search narrows the list by name, ignoring case', async () => {
   wrapper.unmount()
 })
 
+test('clearing the search box brings the whole list back', async () => {
+  const { wrapper } = await mountPage()
+  await field(wrapper, 'Search').setValue('PORR')
+  expect(rows(wrapper)).toEqual([expect.stringMatching(/^Porridge/)])
+  await click(wrapper.get('[aria-label="Clear"]'))
+  expect(rows(wrapper)).toEqual([
+    expect.stringMatching(/^omelette/),
+    expect.stringMatching(/^Porridge/),
+    expect.stringMatching(/^Salad/),
+  ])
+  wrapper.unmount()
+})
+
 test('tag chips show the tags recipes have, and keep the recipes with every chosen one', async () => {
   const { wrapper } = await mountPage()
   expect(texts(wrapper, '.tag-filter')).toEqual(['vegan', 'quick'])

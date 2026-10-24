@@ -1,7 +1,8 @@
 """/api/recipes: list, read, create, update and delete recipes (C1, C2), and
 the tags a recipe would get from its ingredients, for the editor."""
 
-from decimal import ROUND_HALF_UP, Decimal, localcontext
+from decimal import Decimal
+from fractions import Fraction
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, status
@@ -83,7 +84,6 @@ class _Responses:
         return [tag.id for tag in self.tags if translate.tag(tag).holds_for(dish)]
 
     def response(self, row: models.Recipe) -> Recipe:
-        recipe = translate.recipe(row)
         return Recipe(
             id=row.id,
             name=row.name,
@@ -96,17 +96,40 @@ class _Responses:
             serving_cap_weight=row.serving_cap_weight,
             derived_tag_ids=self.derived_tag_ids([item.ingredient for item in row.items]),
             totals=[
-                Total(attribute_id=a.id, value=_rounded(recipe.attribute_total(a.name), a.decimals))
+                Total(attribute_id=a.id, value=_rounded(_total(row, a), a.decimals))
                 for a in self.attributes
             ],
         )
 
 
-def _rounded(total: Decimal, decimals: int) -> str:
-    # Half away from zero, as the library rounds; enough digits for the
-    # largest amount times the largest value.
-    with localcontext(prec=60):
-        return plain(total.quantize(Decimal(1).scaleb(-decimals), rounding=ROUND_HALF_UP))
+def _total(row: models.Recipe, attribute: models.Attribute) -> Fraction:
+    """`attribute`'s total for one portion: each amount times that
+    ingredient's value per its basis, summed. A missing value counts as 0.
+
+    Summed as whole-number fractions, so it is exact. The library's per-unit
+    values divide by the basis in Decimal, which cannot hold a third, and a
+    total landing on a rounding tie would then round the wrong way: 16.5 of a
+    value of 1 per basis 3 is exactly 5.5, but 5.4999... once divided. The
+    editor sums the same way (`web/src/totals.ts`), so both always agree.
+    """
+    return sum(
+        (
+            Fraction(item.amount) * Fraction(value.value) / Fraction(item.ingredient.basis)
+            for item in row.items
+            for value in item.ingredient.values
+            if value.attribute_id == attribute.id
+        ),
+        Fraction(0),
+    )
+
+
+def _rounded(total: Fraction, decimals: int) -> str:
+    # Half away from zero, as the library rounds.
+    magnitude = abs(total)
+    units = (2 * magnitude.numerator * 10**decimals + magnitude.denominator) // (
+        2 * magnitude.denominator
+    )
+    return plain(Decimal(-units if total < 0 else units).scaleb(-decimals))
 
 
 def _portion_errors(body: RecipeFields) -> list[FieldError]:

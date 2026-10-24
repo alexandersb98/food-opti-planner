@@ -168,6 +168,25 @@ test('the picker leaves out the ingredients already in the recipe', async () => 
   wrapper.unmount()
 })
 
+test('clearing the picker search box brings every ingredient back', async () => {
+  const { wrapper } = await mountPage('/recipes/new')
+  await click(button(wrapper, '+ Add ingredient'))
+  const pickerRows = () => [...document.querySelectorAll('.q-dialog .picker-row')].map((r) => r.textContent)
+  const input = document.querySelector<HTMLInputElement>('.q-dialog input')!
+  input.value = 'Oat'
+  input.dispatchEvent(new Event('input'))
+  await flushPromises()
+  expect(pickerRows()).toEqual([expect.stringContaining('Oats')])
+  document.querySelector<HTMLElement>('.q-dialog [aria-label="Clear"]')!.click()
+  await flushPromises()
+  expect(pickerRows()).toEqual([
+    expect.stringContaining('Almonds'),
+    expect.stringContaining('Milk'),
+    expect.stringContaining('Oats'),
+  ])
+  wrapper.unmount()
+})
+
 test('tags are added from the ones the recipe lacks, and removed', async () => {
   const { wrapper } = await mountPage('/recipes/7', {
     'GET /api/recipes/7': { body: { ...porridge, derived_tag_ids: [1] } },
