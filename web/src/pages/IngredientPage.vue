@@ -4,11 +4,12 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '../api/client'
 import { fieldErrors } from '../api/errors'
-import type { Attribute, Ingredient, IngredientFields as Fields, Tag } from '../api/types'
+import type { Attribute, Ingredient, IngredientFields as Fields, Recipe, Tag } from '../api/types'
 import ConfirmDelete from '../components/ConfirmDelete.vue'
 import EditorHeader from '../components/EditorHeader.vue'
 import LoadState from '../components/LoadState.vue'
 import { loadAll, useLoad } from '../composables/useLoad'
+import { searchByName } from '../lists'
 import { typedNumber } from '../numbers'
 
 const { t } = useI18n()
@@ -79,6 +80,24 @@ function toggleTag(tag: Tag) {
 }
 
 const inUse = computed(() => (data.value.ingredient?.recipe_count ?? 0) > 0)
+
+// "Used in 2 recipes · Show": the recipes, loaded when asked for.
+const usedIn = ref<Recipe[] | null>(null)
+const usedInFailed = ref(false)
+
+async function showRecipes() {
+  usedInFailed.value = false
+  try {
+    const { data: recipes } = await api.GET('/api/recipes')
+    if (!recipes) throw new Error('no recipes')
+    usedIn.value = searchByName(
+      recipes.filter((recipe) => recipe.items.some((item) => item.ingredient_id === id)),
+      '',
+    )
+  } catch {
+    usedInFailed.value = true
+  }
+}
 
 /** The fields to send, or null after marking what is wrong. */
 function checked(): Fields | null {
@@ -306,11 +325,42 @@ async function confirmDelete() {
           </div>
         </div>
 
-        <div
-          v-if="data.ingredient"
-          class="text-grey-8"
-        >
-          {{ $t('ingredients.usedIn', { recipes: $t('count.recipes', data.ingredient.recipe_count) }) }}
+        <div v-if="data.ingredient">
+          <div class="row items-center q-gutter-x-sm text-grey-8">
+            <span>{{ $t('ingredients.usedIn', { recipes: $t('count.recipes', data.ingredient.recipe_count) }) }}</span>
+            <q-btn
+              v-if="inUse && usedIn === null"
+              flat
+              dense
+              no-caps
+              color="primary"
+              :label="$t('ingredients.show')"
+              @click="showRecipes"
+            />
+          </div>
+          <div
+            v-if="usedInFailed"
+            class="text-negative"
+          >
+            {{ $t('ingredients.usedInLoadFailed') }}
+          </div>
+          <q-list
+            v-if="usedIn"
+            dense
+            class="used-in"
+          >
+            <q-item
+              v-for="recipe in usedIn"
+              :key="recipe.id"
+              clickable
+              :to="`/recipes/${recipe.id}`"
+            >
+              <q-item-section>{{ recipe.name }}</q-item-section>
+              <q-item-section side>
+                <q-icon name="chevron_right" />
+              </q-item-section>
+            </q-item>
+          </q-list>
         </div>
 
         <div

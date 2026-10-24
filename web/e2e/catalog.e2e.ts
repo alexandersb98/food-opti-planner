@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
 // One flow through the app, growing with each slice that changes it:
-// log in, then build a small catalog.
+// log in, then build a small catalog and a recipe from it.
 
 const password = process.env.E2E_PASSWORD
 if (!password) throw new Error('Set E2E_PASSWORD to the login password')
@@ -12,7 +12,7 @@ async function openPage(page: Page, name: string) {
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(name)
 }
 
-test('log in and build a catalog of an attribute, a tag and an ingredient', async ({ page }) => {
+test('log in, build a catalog of an attribute, a tag and an ingredient, and a recipe', async ({ page }) => {
   await page.goto('/')
   await expect(page).toHaveURL(/\/login/)
   await page.getByLabel('Password').fill(password)
@@ -48,6 +48,30 @@ test('log in and build a catalog of an attribute, a tag and an ingredient', asyn
   await page.locator('.ingredient-row').click()
   await expect(page.getByLabel('Energy')).toHaveValue('389')
   await expect(page.getByRole('button', { name: 'vegan' })).toHaveAttribute('aria-pressed', 'true')
+  await page.getByRole('link', { name: 'Back' }).click()
+
+  // A recipe of the ingredient: totals per portion as typed, and the tag
+  // from the ingredient.
+  await openPage(page, 'Recipes')
+  await expect(page.getByText('No recipes yet.')).toBeVisible()
+  await page.getByRole('link', { name: 'New recipe' }).click()
+  await page.getByLabel('Name').fill('Porridge')
+  await page.getByRole('button', { name: '+ Add ingredient' }).click()
+  await page.getByRole('dialog').getByText('Oats').click()
+  await page.getByLabel('Amount of Oats').fill('60')
+  await expect(page.locator('.portion-total')).toHaveText(['Energy 233 kcal'])
+  await expect(page.locator('.derived-tags')).toHaveText('vegan')
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.locator('.recipe-row')).toHaveText([/Porridge\s*Per portion: Energy 233 kcal\s*vegan/])
+
+  // The ingredient is now in use: it shows the recipe and can't be deleted.
+  await openPage(page, 'Ingredients')
+  await page.locator('.ingredient-row').click()
+  await expect(page.getByText('Used in 1 recipe')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Delete' })).toBeDisabled()
+  await page.getByRole('button', { name: 'Show' }).click()
+  await page.getByRole('link', { name: 'Porridge' }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Edit recipe')
   await page.getByRole('link', { name: 'Back' }).click()
 
   // The tag is no longer "added by hand", and deleting the attribute warns
