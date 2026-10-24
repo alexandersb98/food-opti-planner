@@ -2,16 +2,16 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, status
 from pydantic import BaseModel, Field, StringConstraints
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 
 from meal_planner.domain import MAX_PRECISION, MIN_PRECISION
 
 from .. import models
 from ..db import DbSession
-from .errors import NAME_IN_USE, name_in_use
+from .catalog import Name, commit_named, get_or_404
+from .errors import NAME_IN_USE
 
 router = APIRouter(prefix="/attributes", tags=["attributes"])
 
@@ -19,9 +19,7 @@ NOT_FOUND = {404: {"description": "No such attribute"}}
 
 
 class AttributeFields(BaseModel):
-    name: Annotated[
-        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=models.NAME_LENGTH)
-    ]
+    name: Name
     unit: Annotated[str, StringConstraints(strip_whitespace=True, max_length=models.UNIT_LENGTH)]
     decimals: Annotated[int, Field(ge=MIN_PRECISION, le=MAX_PRECISION)]
 
@@ -46,22 +44,6 @@ def _response(attribute: models.Attribute) -> Attribute:
     )
 
 
-def _get(db: DbSession, attribute_id: int) -> models.Attribute:
-    attribute = db.get(models.Attribute, attribute_id)
-    if attribute is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such attribute")
-    return attribute
-
-
-def _save(db: DbSession, attribute: models.Attribute) -> Attribute:
-    try:
-        db.commit()
-    except IntegrityError:  # the only constraint a valid body can break is the unique name
-        db.rollback()
-        raise name_in_use("An attribute") from None
-    return _response(attribute)
-
-
 @router.get("")
 def list_attributes(db: DbSession) -> list[Attribute]:
     attributes = db.scalars(select(models.Attribute).order_by(models.Attribute.id))
@@ -72,18 +54,20 @@ def list_attributes(db: DbSession) -> list[Attribute]:
 def create_attribute(body: AttributeFields, db: DbSession) -> Attribute:
     attribute = models.Attribute(**body.model_dump())
     db.add(attribute)
-    return _save(db, attribute)
+    commit_named(db, attribute, "An attribute")
+    return _response(attribute)
 
 
 @router.put("/{attribute_id}", responses={**NOT_FOUND, **NAME_IN_USE})
 def update_attribute(attribute_id: int, body: AttributeFields, db: DbSession) -> Attribute:
-    attribute = _get(db, attribute_id)
+    attribute = get_or_404(db, models.Attribute, attribute_id, "attribute")
     for field, value in body.model_dump().items():
         setattr(attribute, field, value)
-    return _save(db, attribute)
+    commit_named(db, attribute, "An attribute")
+    return _response(attribute)
 
 
 @router.delete("/{attribute_id}", status_code=status.HTTP_204_NO_CONTENT, responses=NOT_FOUND)
 def delete_attribute(attribute_id: int, db: DbSession) -> None:
-    db.delete(_get(db, attribute_id))
+    db.delete(get_or_404(db, models.Attribute, attribute_id, "attribute"))
     db.commit()

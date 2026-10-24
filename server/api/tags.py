@@ -1,15 +1,15 @@
 """/api/tags: list, create, update and delete tags (C6)."""
 
-from typing import Annotated, Literal
+from typing import Literal
 
-from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, StringConstraints
+from fastapi import APIRouter, status
+from pydantic import BaseModel
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 
 from .. import models
 from ..db import DbSession
-from .errors import NAME_IN_USE, name_in_use
+from .catalog import Name, commit_named, get_or_404
+from .errors import NAME_IN_USE
 
 router = APIRouter(prefix="/tags", tags=["tags"])
 
@@ -21,9 +21,7 @@ DeriveRule = Literal["all", "any"]
 
 
 class TagFields(BaseModel):
-    name: Annotated[
-        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=models.NAME_LENGTH)
-    ]
+    name: Name
     derive: DeriveRule
 
 
@@ -49,22 +47,6 @@ def _response(tag: models.Tag) -> Tag:
     )
 
 
-def _get(db: DbSession, tag_id: int) -> models.Tag:
-    tag = db.get(models.Tag, tag_id)
-    if tag is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such tag")
-    return tag
-
-
-def _save(db: DbSession, tag: models.Tag) -> Tag:
-    try:
-        db.commit()
-    except IntegrityError:  # the only constraint a valid body can break is the unique name
-        db.rollback()
-        raise name_in_use("A tag") from None
-    return _response(tag)
-
-
 @router.get("")
 def list_tags(db: DbSession) -> list[Tag]:
     tags = db.scalars(select(models.Tag).order_by(models.Tag.id))
@@ -75,18 +57,20 @@ def list_tags(db: DbSession) -> list[Tag]:
 def create_tag(body: TagFields, db: DbSession) -> Tag:
     tag = models.Tag(**body.model_dump())
     db.add(tag)
-    return _save(db, tag)
+    commit_named(db, tag, "A tag")
+    return _response(tag)
 
 
 @router.put("/{tag_id}", responses={**NOT_FOUND, **NAME_IN_USE})
 def update_tag(tag_id: int, body: TagFields, db: DbSession) -> Tag:
-    tag = _get(db, tag_id)
+    tag = get_or_404(db, models.Tag, tag_id, "tag")
     for field, value in body.model_dump().items():
         setattr(tag, field, value)
-    return _save(db, tag)
+    commit_named(db, tag, "A tag")
+    return _response(tag)
 
 
 @router.delete("/{tag_id}", status_code=status.HTTP_204_NO_CONTENT, responses=NOT_FOUND)
 def delete_tag(tag_id: int, db: DbSession) -> None:
-    db.delete(_get(db, tag_id))
+    db.delete(get_or_404(db, models.Tag, tag_id, "tag"))
     db.commit()
