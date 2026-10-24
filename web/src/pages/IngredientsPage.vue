@@ -2,41 +2,30 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api } from '../api/client'
-import type { components } from '../api/schema'
+import type { Attribute, Ingredient } from '../api/types'
+import AddButton from '../components/AddButton.vue'
 import LoadState from '../components/LoadState.vue'
-import { useLoad } from '../composables/useLoad'
-
-type Ingredient = components['schemas']['Ingredient']
-type Attribute = components['schemas']['Attribute']
+import { loadAll, useLoad } from '../composables/useLoad'
+import { valueText } from '../format'
+import { byId, searchByName } from '../lists'
 
 const { t } = useI18n()
 
 // The attributes give each value its name and unit.
 const { data, loading, failed, load } = useLoad(
-  async () => {
-    const [ingredients, attributes] = await Promise.all([api.GET('/api/ingredients'), api.GET('/api/attributes')])
-    if (!ingredients.data || !attributes.data) return {}
-    return { data: { ingredients: ingredients.data, attributes: attributes.data } }
-  },
+  () => loadAll({ ingredients: api.GET('/api/ingredients'), attributes: api.GET('/api/attributes') }),
   { ingredients: [] as Ingredient[], attributes: [] as Attribute[] },
 )
 
 const search = ref('')
-
-/** By name, narrowed to those whose name contains the search text. */
-const shown = computed(() => {
-  const text = search.value.trim().toLocaleLowerCase()
-  return data.value.ingredients
-    .filter((ingredient) => ingredient.name.toLocaleLowerCase().includes(text))
-    .sort((a, b) => a.name.localeCompare(b.name))
-})
+const shown = computed(() => searchByName(data.value.ingredients, search.value))
+const attributes = computed(() => byId(data.value.attributes))
 
 /** "per 100 g · Energy 389 kcal · Protein 16.9 g": the values typed in. */
 function values(ingredient: Ingredient) {
-  const byId = new Map(data.value.attributes.map((attribute) => [attribute.id, attribute]))
   const typed = ingredient.values.flatMap(({ attribute_id, value }) => {
-    const attribute = byId.get(attribute_id)
-    return attribute ? [`${attribute.name} ${value} ${attribute.unit}`.trim()] : []
+    const attribute = attributes.value.get(attribute_id)
+    return attribute ? [valueText(attribute, value)] : []
   })
   return [t('ingredients.perBasis', { basis: ingredient.basis, unit: ingredient.unit }), ...typed].join(' · ')
 }
@@ -104,26 +93,10 @@ function values(ingredient: Ingredient) {
         </q-item>
       </q-list>
     </LoadState>
-    <div class="fab-space" />
-
-    <q-page-sticky
-      position="bottom-right"
-      :offset="[18, 18]"
-    >
-      <q-btn
-        fab
-        icon="add"
-        color="primary"
-        to="/ingredients/new"
-        :aria-label="$t('ingredients.new')"
-      />
-    </q-page-sticky>
+    <AddButton
+      to="/ingredients/new"
+      :label="$t('ingredients.new')"
+    />
   </q-page>
 </template>
 
-<style scoped>
-/* Room below the list, so the round + button covers no row. */
-.fab-space {
-  height: 72px;
-}
-</style>

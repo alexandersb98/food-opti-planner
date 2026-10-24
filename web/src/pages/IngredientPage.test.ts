@@ -1,23 +1,21 @@
 import { afterEach, expect, test, vi } from 'vitest'
 import { button, click, dialog, fakeServer, field, mountApp, type FakeServer } from '../test-app'
+import { attribute, ingredient, tag } from '../test-data'
 
-const energy = { id: 1, name: 'Energy', unit: 'kcal', decimals: 0, ingredient_count: 1, goal_count: 0 }
-const protein = { id: 2, name: 'Protein', unit: 'g', decimals: 1, ingredient_count: 1, goal_count: 0 }
-const fat = { id: 3, name: 'Fat', unit: 'g', decimals: 1, ingredient_count: 0, goal_count: 0 }
-const vegan = { id: 1, name: 'vegan', derive: 'all', ingredient_count: 1, recipe_count: 0, filter_count: 0 }
-const nuts = { id: 2, name: 'contains-nuts', derive: 'any', ingredient_count: 0, recipe_count: 0, filter_count: 0 }
-const oats = {
+const energy = attribute({ id: 1, name: 'Energy', unit: 'kcal', ingredient_count: 1 })
+const protein = attribute({ id: 2, name: 'Protein', unit: 'g', decimals: 1, ingredient_count: 1 })
+const fat = attribute({ id: 3, name: 'Fat', unit: 'g', decimals: 1 })
+const vegan = tag({ id: 1, name: 'vegan', ingredient_count: 1 })
+const nuts = tag({ id: 2, name: 'contains-nuts', derive: 'any' })
+const oats = ingredient({
   id: 7,
   name: 'Oats',
-  unit: 'g',
-  basis: '100',
   values: [
     { attribute_id: 1, value: '389' },
     { attribute_id: 2, value: '16.9' },
   ],
   tag_ids: [1],
-  recipe_count: 0,
-}
+})
 
 afterEach(() => {
   vi.unstubAllGlobals()
