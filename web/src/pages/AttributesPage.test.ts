@@ -1,8 +1,9 @@
 import { afterEach, expect, test, vi } from 'vitest'
 import { button, click, dialog, fakeServer, field, mountApp, texts, type FakeServer } from '../test-app'
+import { attribute } from '../test-data'
 
-const energy = { id: 1, name: 'Energy', unit: 'kcal', decimals: 0, ingredient_count: 0, goal_count: 0 }
-const protein = { id: 2, name: 'Protein', unit: 'g', decimals: 1, ingredient_count: 12, goal_count: 1 }
+const energy = attribute({ id: 1, name: 'Energy', unit: 'kcal' })
+const protein = attribute({ id: 2, name: 'Protein', unit: 'g', decimals: 1, ingredient_count: 12, goal_count: 1 })
 
 afterEach(() => {
   vi.unstubAllGlobals()

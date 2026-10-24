@@ -1,21 +1,18 @@
-"""What the catalog routes (attributes, tags, ingredients, recipes) share:
-the name field, finding a row by id, and saving a row with a unique name."""
+"""What the routes share: finding rows by id, checking the ids a request
+refers to, counting what uses a row, and saving a row with a unique name."""
 
-from typing import Annotated
+from collections.abc import Sequence
 
 from fastapi import HTTPException, status
-from pydantic import StringConstraints
-from sqlalchemy import inspect, select
+from sqlalchemy import ColumnElement, func, inspect, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .. import models
-from .errors import name_in_use
+from .errors import FieldError, invalid_fields, name_in_use
 
-# Trimmed, 1 to 100 characters. Names are compared exactly, as in the library.
-Name = Annotated[
-    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=models.NAME_LENGTH)
-]
+# Where in the request body a field is, after "body": ["tag_ids", 0].
+Loc = list[str | int]
 
 
 def get_or_404[M: models.Base](db: Session, model: type[M], row_id: int, what: str) -> M:
@@ -24,6 +21,52 @@ def get_or_404[M: models.Base](db: Session, model: type[M], row_id: int, what: s
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"No such {what}")
     return row
+
+
+def in_list(field: str, ids: Sequence[int], key: str | None = None) -> list[tuple[Loc, int]]:
+    """Each id of a list in the body with its field: `in_list("tag_ids", [4, 7])`
+    gives ([tag_ids, 0], 4) and ([tag_ids, 1], 7). With `key`, the ids are
+    that field of each object in the list: [values, 0, attribute_id]."""
+    return [([field, i] if key is None else [field, i, key], row_id) for i, row_id in enumerate(ids)]
+
+
+class References:
+    """The ids a request refers to, checked together so that one 422 names
+    every bad field: `rows` for each kind of id, then `check()`."""
+
+    def __init__(self, db: Session):
+        self.db = db
+        self.errors: list[FieldError] = []
+
+    def rows[M: models.Base](
+        self, model: type[M], refs: Sequence[tuple[Loc, int]], what: str, *, unique: bool = False
+    ) -> dict[int, M]:
+        """The rows the (field, id) pairs name, by id. An id naming nothing is
+        an "unknown_{what}" error; with `unique`, so is an id given twice."""
+        ids = [row_id for _, row_id in refs]
+        found = {row.id: row for row in self.db.scalars(select(model).where(model.id.in_(ids)))}
+        seen = set()
+        for loc, row_id in refs:
+            if row_id not in found:
+                self._error(loc, f"unknown_{what}", f"No such {what}")
+            elif unique and row_id in seen:
+                self._error(loc, "duplicate", f"This {what} is given twice")
+            seen.add(row_id)
+        return found
+
+    def check(self) -> None:
+        """Answer 422 if any reference named nothing."""
+        if self.errors:
+            raise invalid_fields(self.errors)
+
+    def _error(self, loc: Loc, error_type: str, msg: str) -> None:
+        self.errors.append(FieldError(loc=["body", *loc], type=error_type, msg=msg))
+
+
+def count_by(db: Session, column: ColumnElement[int]) -> dict[int, int]:
+    """How many rows have each value of `column`, by value: given a foreign
+    key, how many rows use each row it points to. For the delete warnings."""
+    return dict(db.execute(select(column, func.count()).group_by(column)).all())
 
 
 def commit_named(db: Session, row: models.Base, what: str) -> None:

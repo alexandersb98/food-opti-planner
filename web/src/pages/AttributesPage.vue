@@ -3,13 +3,10 @@ import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api } from '../api/client'
 import { fieldErrors } from '../api/errors'
-import type { components } from '../api/schema'
+import type { Attribute, AttributeFields as Fields } from '../api/types'
 import ConfirmDelete from '../components/ConfirmDelete.vue'
 import LoadState from '../components/LoadState.vue'
 import { useLoad } from '../composables/useLoad'
-
-type Attribute = components['schemas']['Attribute']
-type Fields = components['schemas']['AttributeFields']
 
 const { t } = useI18n()
 

@@ -4,16 +4,12 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '../api/client'
 import { fieldErrors } from '../api/errors'
-import type { components } from '../api/schema'
+import type { Attribute, Ingredient, IngredientFields as Fields, Tag } from '../api/types'
 import ConfirmDelete from '../components/ConfirmDelete.vue'
+import EditorHeader from '../components/EditorHeader.vue'
 import LoadState from '../components/LoadState.vue'
-import { useLoad } from '../composables/useLoad'
+import { loadAll, useLoad } from '../composables/useLoad'
 import { typedNumber } from '../numbers'
-
-type Ingredient = components['schemas']['Ingredient']
-type Attribute = components['schemas']['Attribute']
-type Tag = components['schemas']['Tag']
-type Fields = components['schemas']['IngredientFields']
 
 const { t } = useI18n()
 const route = useRoute()
@@ -49,16 +45,16 @@ const deleteOpen = ref(false)
 
 const { data, loading, failed, load } = useLoad(
   async () => {
-    const [attributes, tags, ingredient] = await Promise.all([
-      api.GET('/api/attributes'),
-      api.GET('/api/tags'),
-      id === null
-        ? { data: null }
-        : api.GET('/api/ingredients/{ingredient_id}', { params: { path: { ingredient_id: id } } }),
-    ])
-    if (!attributes.data || !tags.data || ingredient.data === undefined) return {}
-    if (ingredient.data) fillDraft(ingredient.data)
-    return { data: { attributes: attributes.data, tags: tags.data, ingredient: ingredient.data } }
+    const loaded = await loadAll({
+      attributes: api.GET('/api/attributes'),
+      tags: api.GET('/api/tags'),
+      ingredient:
+        id === null
+          ? Promise.resolve({ data: null })
+          : api.GET('/api/ingredients/{ingredient_id}', { params: { path: { ingredient_id: id } } }),
+    })
+    if (loaded.data?.ingredient) fillDraft(loaded.data.ingredient)
+    return loaded
   },
   { attributes: [] as Attribute[], tags: [] as Tag[], ingredient: null as Ingredient | null },
 )
@@ -175,19 +171,10 @@ async function confirmDelete() {
 
 <template>
   <q-page padding>
-    <div class="row items-center no-wrap q-mb-md">
-      <q-btn
-        flat
-        round
-        dense
-        icon="arrow_back"
-        to="/ingredients"
-        :aria-label="$t('common.back')"
-      />
-      <h1 class="text-h5 q-my-none q-ml-sm">
-        {{ id === null ? $t('ingredients.new') : $t('ingredients.edit') }}
-      </h1>
-    </div>
+    <EditorHeader
+      back="/ingredients"
+      :title="id === null ? $t('ingredients.new') : $t('ingredients.edit')"
+    />
 
     <LoadState
       :loading="loading"
