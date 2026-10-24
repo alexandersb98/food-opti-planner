@@ -4,7 +4,7 @@ from typing import Literal
 
 from fastapi import APIRouter, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from .. import models
 from ..db import DbSession
@@ -34,14 +34,21 @@ class Tag(TagFields):
     filter_count: int
 
 
-def _response(tag: models.Tag) -> Tag:
-    # Ingredients arrive in slice 5, recipes in slice 6 and plan filters in
-    # slice 10; until then deleting a tag removes nothing else.
+def _ingredient_counts(db: DbSession) -> dict[int, int]:
+    """How many ingredients have each tag, by tag id."""
+    tag_id = models.ingredient_tags.c.tag_id
+    return dict(db.execute(select(tag_id, func.count()).group_by(tag_id)).all())
+
+
+def _response(tag: models.Tag, db: DbSession, counts: dict[int, int] | None = None) -> Tag:
+    counts = _ingredient_counts(db) if counts is None else counts
+    # Recipes arrive in slice 6 and plan filters in slice 10; until then
+    # deleting a tag removes it from neither.
     return Tag(
         id=tag.id,
         name=tag.name,
         derive=tag.derive,
-        ingredient_count=0,
+        ingredient_count=counts.get(tag.id, 0),
         recipe_count=0,
         filter_count=0,
     )
@@ -50,7 +57,8 @@ def _response(tag: models.Tag) -> Tag:
 @router.get("")
 def list_tags(db: DbSession) -> list[Tag]:
     tags = db.scalars(select(models.Tag).order_by(models.Tag.id))
-    return [_response(tag) for tag in tags]
+    counts = _ingredient_counts(db)
+    return [_response(tag, db, counts) for tag in tags]
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, responses=NAME_IN_USE)
@@ -58,7 +66,7 @@ def create_tag(body: TagFields, db: DbSession) -> Tag:
     tag = models.Tag(**body.model_dump())
     db.add(tag)
     commit_named(db, tag, "A tag")
-    return _response(tag)
+    return _response(tag, db)
 
 
 @router.put("/{tag_id}", responses={**NOT_FOUND, **NAME_IN_USE})
@@ -67,7 +75,7 @@ def update_tag(tag_id: int, body: TagFields, db: DbSession) -> Tag:
     for field, value in body.model_dump().items():
         setattr(tag, field, value)
     commit_named(db, tag, "A tag")
-    return _response(tag)
+    return _response(tag, db)
 
 
 @router.delete("/{tag_id}", status_code=status.HTTP_204_NO_CONTENT, responses=NOT_FOUND)

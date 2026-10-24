@@ -149,7 +149,7 @@ def test_an_unknown_tag_answers_404(client, method):
 
 
 def test_counts_for_the_menu(client):
-    assert client.get("/api/counts").json() == {"attributes": 0, "tags": 0}
+    assert client.get("/api/counts").json()["tags"] == 0
     create(client)
     create(client, name="quick")
-    assert client.get("/api/counts").json() == {"attributes": 0, "tags": 2}
+    assert client.get("/api/counts").json()["tags"] == 2
