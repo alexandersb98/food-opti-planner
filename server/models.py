@@ -7,6 +7,7 @@ from .db import Base
 
 NAME_LENGTH = 100
 UNIT_LENGTH = 20
+DERIVE_LENGTH = 3  # "all" or "any"
 
 
 class Attribute(Base):
@@ -20,4 +21,14 @@ class Attribute(Base):
     decimals: Mapped[int]
 
 
-__all__ = ["Attribute", "Base"]
+class Tag(Base):
+    """A yes/no label (C6). `derive` is the library's rule for recipes, "all" or "any"."""
+
+    __tablename__ = "tags"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(NAME_LENGTH), unique=True)
+    derive: Mapped[str] = mapped_column(String(DERIVE_LENGTH))
+
+
+__all__ = ["Attribute", "Base", "Tag"]
