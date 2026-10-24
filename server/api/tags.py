@@ -28,8 +28,9 @@ class TagFields(BaseModel):
 
 class Tag(TagFields):
     id: int
-    # What deleting the tag removes it from, for the warning. No ingredient
-    # having it means it was added to recipes by hand.
+    # What deleting the tag removes it from, for the warning: the ingredients
+    # that have it and the recipes it was added to by hand. No ingredient
+    # having it means it was only ever added by hand.
     ingredient_count: int
     recipe_count: int
     filter_count: int
@@ -37,9 +38,11 @@ class Tag(TagFields):
 
 def _counts(db: DbSession) -> dict[str, dict[int, int]]:
     """What deleting each tag removes it from, by response field and tag id."""
-    # Recipes arrive in slice 6 and plan filters in slice 10; until then
-    # deleting a tag removes it from neither.
-    return {"ingredient_count": count_by(db, models.ingredient_tags.c.tag_id)}
+    # Plan filters arrive in slice 10; until then deleting a tag removes none.
+    return {
+        "ingredient_count": count_by(db, models.ingredient_tags.c.tag_id),
+        "recipe_count": count_by(db, models.recipe_extra_tags.c.tag_id),
+    }
 
 
 def _response(tag: models.Tag, counts: dict[str, dict[int, int]]) -> Tag:
@@ -47,7 +50,6 @@ def _response(tag: models.Tag, counts: dict[str, dict[int, int]]) -> Tag:
         id=tag.id,
         name=tag.name,
         derive=tag.derive,
-        recipe_count=0,
         filter_count=0,
         **{field: by_id.get(tag.id, 0) for field, by_id in counts.items()},
     )

@@ -66,6 +66,17 @@ def client(anonymous_client):
     return anonymous_client
 
 
+# A recipe's fields besides its name, items and added tags: the portion
+# size the editor starts with.
+RECIPE = {
+    "min_multiplier": "0.5",
+    "max_multiplier": "2",
+    "step": None,
+    "hard_max_multiplier": None,
+    "serving_cap_weight": "1",
+}
+
+
 class Catalog:
     """Adds catalog rows through the API, for tests that need some to refer
     to. Each method answers the new row's id."""
@@ -89,6 +100,11 @@ class Catalog:
         values = [{"attribute_id": a, "value": v} for a, v in (values or {}).items()]
         fields = {"name": name, "unit": unit, "basis": basis, "values": values, "tag_ids": list(tag_ids)}
         return self._create("/api/ingredients", fields)
+
+    def recipe(self, name="Porridge", items=None, extra_tag_ids=()) -> int:
+        """`items` maps ingredient ids to amounts per portion: {oats: "60"}."""
+        items = [{"ingredient_id": i, "amount": a} for i, a in (items or {self.ingredient(): "60"}).items()]
+        return self._create("/api/recipes", {**RECIPE, "name": name, "items": items, "extra_tag_ids": list(extra_tag_ids)})
 
 
 @pytest.fixture

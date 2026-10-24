@@ -2,19 +2,21 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field, StringConstraints
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from .. import models
 from ..db import DbSession
-from .catalog import References, commit_named, get_or_404, in_list
+from .catalog import References, commit_named, count_by, get_or_404, in_list
 from .errors import NAME_IN_USE
 from .fields import Name, Number
 
 router = APIRouter(prefix="/ingredients", tags=["ingredients"])
 
 NOT_FOUND = {404: {"description": "No such ingredient"}}
+IN_USE = {409: {"description": "Recipes use the ingredient, so it can't be deleted"}}
 
 
 class IngredientValue(BaseModel):
@@ -41,8 +43,11 @@ class Ingredient(IngredientFields):
     recipe_count: int
 
 
-def _response(ingredient: models.Ingredient) -> Ingredient:
-    # Recipes arrive in slice 6; until then no recipe uses an ingredient.
+def _recipe_counts(db: DbSession) -> dict[int, int]:
+    return count_by(db, models.RecipeItem.ingredient_id)
+
+
+def _response(ingredient: models.Ingredient, recipe_counts: dict[int, int]) -> Ingredient:
     return Ingredient(
         id=ingredient.id,
         name=ingredient.name,
@@ -50,7 +55,7 @@ def _response(ingredient: models.Ingredient) -> Ingredient:
         basis=ingredient.basis,
         values=[IngredientValue(attribute_id=v.attribute_id, value=v.value) for v in ingredient.values],
         tag_ids=[tag.id for tag in ingredient.tags],
-        recipe_count=0,
+        recipe_count=recipe_counts.get(ingredient.id, 0),
     )
 
 
@@ -88,12 +93,13 @@ def _value(stored: models.IngredientValue | None, fields: IngredientValue) -> mo
 @router.get("")
 def list_ingredients(db: DbSession) -> list[Ingredient]:
     ingredients = db.scalars(select(models.Ingredient).order_by(models.Ingredient.id))
-    return [_response(ingredient) for ingredient in ingredients]
+    recipe_counts = _recipe_counts(db)
+    return [_response(ingredient, recipe_counts) for ingredient in ingredients]
 
 
 @router.get("/{ingredient_id}", responses=NOT_FOUND)
 def get_ingredient(ingredient_id: int, db: DbSession) -> Ingredient:
-    return _response(get_or_404(db, models.Ingredient, ingredient_id, "ingredient"))
+    return _response(get_or_404(db, models.Ingredient, ingredient_id, "ingredient"), _recipe_counts(db))
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, responses=NAME_IN_USE)
@@ -102,7 +108,7 @@ def create_ingredient(body: IngredientFields, db: DbSession) -> Ingredient:
     _fill(ingredient, body, db)
     db.add(ingredient)
     commit_named(db, ingredient, "An ingredient")
-    return _response(ingredient)
+    return _response(ingredient, _recipe_counts(db))
 
 
 @router.put("/{ingredient_id}", responses={**NOT_FOUND, **NAME_IN_USE})
@@ -110,10 +116,15 @@ def update_ingredient(ingredient_id: int, body: IngredientFields, db: DbSession)
     ingredient = get_or_404(db, models.Ingredient, ingredient_id, "ingredient")
     _fill(ingredient, body, db)
     commit_named(db, ingredient, "An ingredient")
-    return _response(ingredient)
+    return _response(ingredient, _recipe_counts(db))
 
 
-@router.delete("/{ingredient_id}", status_code=status.HTTP_204_NO_CONTENT, responses=NOT_FOUND)
+@router.delete("/{ingredient_id}", status_code=status.HTTP_204_NO_CONTENT, responses={**NOT_FOUND, **IN_USE})
 def delete_ingredient(ingredient_id: int, db: DbSession) -> None:
     db.delete(get_or_404(db, models.Ingredient, ingredient_id, "ingredient"))
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # The recipes' foreign key keeps an ingredient they use.
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Recipes use this ingredient") from None

@@ -82,12 +82,17 @@
             "title": "Ingredients",
             "type": "integer"
           },
+          "recipes": {
+            "title": "Recipes",
+            "type": "integer"
+          },
           "tags": {
             "title": "Tags",
             "type": "integer"
           }
         },
         "required": [
+          "recipes",
           "ingredients",
           "attributes",
           "tags"
@@ -316,6 +321,23 @@
         "title": "IngredientValue",
         "type": "object"
       },
+      "Ingredients": {
+        "properties": {
+          "ingredient_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "minItems": 1,
+            "title": "Ingredient Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ingredient_ids"
+        ],
+        "title": "Ingredients",
+        "type": "object"
+      },
       "Login": {
         "properties": {
           "password": {
@@ -327,6 +349,239 @@
           "password"
         ],
         "title": "Login",
+        "type": "object"
+      },
+      "Recipe": {
+        "properties": {
+          "derived_tag_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Derived Tag Ids",
+            "type": "array"
+          },
+          "extra_tag_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Extra Tag Ids",
+            "type": "array"
+          },
+          "hard_max_multiplier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hard Max Multiplier"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RecipeItem-Output"
+            },
+            "minItems": 1,
+            "title": "Items",
+            "type": "array"
+          },
+          "max_multiplier": {
+            "title": "Max Multiplier",
+            "type": "string"
+          },
+          "min_multiplier": {
+            "title": "Min Multiplier",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "serving_cap_weight": {
+            "title": "Serving Cap Weight",
+            "type": "string"
+          },
+          "step": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step"
+          },
+          "totals": {
+            "items": {
+              "$ref": "#/components/schemas/Total"
+            },
+            "title": "Totals",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "items",
+          "extra_tag_ids",
+          "min_multiplier",
+          "max_multiplier",
+          "step",
+          "hard_max_multiplier",
+          "serving_cap_weight",
+          "id",
+          "derived_tag_ids",
+          "totals"
+        ],
+        "title": "Recipe",
+        "type": "object"
+      },
+      "RecipeFields": {
+        "properties": {
+          "extra_tag_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Extra Tag Ids",
+            "type": "array"
+          },
+          "hard_max_multiplier": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hard Max Multiplier"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RecipeItem-Input"
+            },
+            "minItems": 1,
+            "title": "Items",
+            "type": "array"
+          },
+          "max_multiplier": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Max Multiplier"
+          },
+          "min_multiplier": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Min Multiplier"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "serving_cap_weight": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Serving Cap Weight"
+          },
+          "step": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step"
+          }
+        },
+        "required": [
+          "name",
+          "items",
+          "extra_tag_ids",
+          "min_multiplier",
+          "max_multiplier",
+          "step",
+          "hard_max_multiplier",
+          "serving_cap_weight"
+        ],
+        "title": "RecipeFields",
+        "type": "object"
+      },
+      "RecipeItem-Input": {
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Amount"
+          },
+          "ingredient_id": {
+            "title": "Ingredient Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ingredient_id",
+          "amount"
+        ],
+        "title": "RecipeItem",
+        "type": "object"
+      },
+      "RecipeItem-Output": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "string"
+          },
+          "ingredient_id": {
+            "title": "Ingredient Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ingredient_id",
+          "amount"
+        ],
+        "title": "RecipeItem",
         "type": "object"
       },
       "Tag": {
@@ -395,6 +650,24 @@
           "derive"
         ],
         "title": "TagFields",
+        "type": "object"
+      },
+      "Total": {
+        "properties": {
+          "attribute_id": {
+            "title": "Attribute Id",
+            "type": "integer"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "attribute_id",
+          "value"
+        ],
+        "title": "Total",
         "type": "object"
       },
       "ValidationError": {
@@ -751,6 +1024,9 @@
           "404": {
             "description": "No such ingredient"
           },
+          "409": {
+            "description": "Recipes use the ingredient, so it can't be deleted"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -917,6 +1193,270 @@
           }
         },
         "summary": "Logout"
+      }
+    },
+    "/api/recipes": {
+      "get": {
+        "operationId": "list_recipes_api_recipes_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Recipe"
+                  },
+                  "title": "Response List Recipes Api Recipes Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Recipes",
+        "tags": [
+          "recipes"
+        ]
+      },
+      "post": {
+        "operationId": "create_recipe_api_recipes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecipeFields"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recipe"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "The name is already in use"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Recipe",
+        "tags": [
+          "recipes"
+        ]
+      }
+    },
+    "/api/recipes/derived-tags": {
+      "post": {
+        "description": "The ids of the tags a recipe of these ingredients gets from them, so\nthe editor can show them before the recipe is saved.",
+        "operationId": "derived_tags_api_recipes_derived_tags_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Ingredients"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "integer"
+                  },
+                  "title": "Response Derived Tags Api Recipes Derived Tags Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Derived Tags",
+        "tags": [
+          "recipes"
+        ]
+      }
+    },
+    "/api/recipes/{recipe_id}": {
+      "delete": {
+        "operationId": "delete_recipe_api_recipes__recipe_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "recipe_id",
+            "required": true,
+            "schema": {
+              "title": "Recipe Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such recipe"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Recipe",
+        "tags": [
+          "recipes"
+        ]
+      },
+      "get": {
+        "operationId": "get_recipe_api_recipes__recipe_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "recipe_id",
+            "required": true,
+            "schema": {
+              "title": "Recipe Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recipe"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such recipe"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Recipe",
+        "tags": [
+          "recipes"
+        ]
+      },
+      "put": {
+        "operationId": "update_recipe_api_recipes__recipe_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "recipe_id",
+            "required": true,
+            "schema": {
+              "title": "Recipe Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecipeFields"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recipe"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such recipe"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "The name is already in use"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Recipe",
+        "tags": [
+          "recipes"
+        ]
       }
     },
     "/api/session": {

@@ -145,6 +145,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/recipes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Recipes */
+        get: operations["list_recipes_api_recipes_get"];
+        put?: never;
+        /** Create Recipe */
+        post: operations["create_recipe_api_recipes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/recipes/derived-tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Derived Tags
+         * @description The ids of the tags a recipe of these ingredients gets from them, so
+         *     the editor can show them before the recipe is saved.
+         */
+        post: operations["derived_tags_api_recipes_derived_tags_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/recipes/{recipe_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Recipe */
+        get: operations["get_recipe_api_recipes__recipe_id__get"];
+        /** Update Recipe */
+        put: operations["update_recipe_api_recipes__recipe_id__put"];
+        post?: never;
+        /** Delete Recipe */
+        delete: operations["delete_recipe_api_recipes__recipe_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/session": {
         parameters: {
             query?: never;
@@ -235,6 +293,8 @@ export interface components {
             attributes: number;
             /** Ingredients */
             ingredients: number;
+            /** Recipes */
+            recipes: number;
             /** Tags */
             tags: number;
         };
@@ -306,10 +366,73 @@ export interface components {
             /** Value */
             value: string;
         };
+        /** Ingredients */
+        Ingredients: {
+            /** Ingredient Ids */
+            ingredient_ids: number[];
+        };
         /** Login */
         Login: {
             /** Password */
             password: string;
+        };
+        /** Recipe */
+        Recipe: {
+            /** Derived Tag Ids */
+            derived_tag_ids: number[];
+            /** Extra Tag Ids */
+            extra_tag_ids: number[];
+            /** Hard Max Multiplier */
+            hard_max_multiplier: string | null;
+            /** Id */
+            id: number;
+            /** Items */
+            items: components["schemas"]["RecipeItem-Output"][];
+            /** Max Multiplier */
+            max_multiplier: string;
+            /** Min Multiplier */
+            min_multiplier: string;
+            /** Name */
+            name: string;
+            /** Serving Cap Weight */
+            serving_cap_weight: string;
+            /** Step */
+            step: string | null;
+            /** Totals */
+            totals: components["schemas"]["Total"][];
+        };
+        /** RecipeFields */
+        RecipeFields: {
+            /** Extra Tag Ids */
+            extra_tag_ids: number[];
+            /** Hard Max Multiplier */
+            hard_max_multiplier: number | string | null;
+            /** Items */
+            items: components["schemas"]["RecipeItem-Input"][];
+            /** Max Multiplier */
+            max_multiplier: number | string;
+            /** Min Multiplier */
+            min_multiplier: number | string;
+            /** Name */
+            name: string;
+            /** Serving Cap Weight */
+            serving_cap_weight: number | string;
+            /** Step */
+            step: number | string | null;
+        };
+        /** RecipeItem */
+        "RecipeItem-Input": {
+            /** Amount */
+            amount: number | string;
+            /** Ingredient Id */
+            ingredient_id: number;
+        };
+        /** RecipeItem */
+        "RecipeItem-Output": {
+            /** Amount */
+            amount: string;
+            /** Ingredient Id */
+            ingredient_id: number;
         };
         /** Tag */
         Tag: {
@@ -338,6 +461,13 @@ export interface components {
             derive: "all" | "any";
             /** Name */
             name: string;
+        };
+        /** Total */
+        Total: {
+            /** Attribute Id */
+            attribute_id: number;
+            /** Value */
+            value: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -726,6 +856,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Recipes use the ingredient, so it can't be deleted */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -790,6 +927,226 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    list_recipes_api_recipes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Recipe"][];
+                };
+            };
+        };
+    };
+    create_recipe_api_recipes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecipeFields"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Recipe"];
+                };
+            };
+            /** @description The name is already in use */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    derived_tags_api_recipes_derived_tags_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Ingredients"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": number[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_recipe_api_recipes__recipe_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recipe_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Recipe"];
+                };
+            };
+            /** @description No such recipe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_recipe_api_recipes__recipe_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recipe_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecipeFields"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Recipe"];
+                };
+            };
+            /** @description No such recipe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The name is already in use */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_recipe_api_recipes__recipe_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recipe_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such recipe */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

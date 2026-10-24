@@ -239,4 +239,4 @@ def test_counts_for_the_menu(client):
     assert client.get("/api/counts").json()["ingredients"] == 0
     create(client)
     create(client, name="Milk")
-    assert client.get("/api/counts").json() == {"ingredients": 2, "attributes": 0, "tags": 0}
+    assert client.get("/api/counts").json() == {"recipes": 0, "ingredients": 2, "attributes": 0, "tags": 0}
