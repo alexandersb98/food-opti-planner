@@ -18,5 +18,30 @@
     "submit": "Log in",
     "wrong": "Wrong password.",
     "failed": "Could not log in. Try again."
+  },
+  "attributes": {
+    "intro": "What you track for every ingredient, and can set goals on.",
+    "empty": "No attributes yet.",
+    "loadFailed": "Could not load the attributes.",
+    "retry": "Try again",
+    "decimalCount": "0 decimals | 1 decimal | {n} decimals",
+    "goalCount": "no goals | 1 goal | {n} goals",
+    "ingredientCount": "no ingredients | 1 ingredient | {n} ingredients",
+    "name": "Name",
+    "unit": "Unit",
+    "decimals": "Decimals",
+    "decimalsHint": "Decimals: how precisely the planner counts it",
+    "nameRequired": "Enter a name.",
+    "nameInUse": "An attribute with this name already exists.",
+    "decimalsRange": "A whole number from {min} to {max}.",
+    "saveFailed": "Could not save. Try again.",
+    "deleteFailed": "Could not delete. Try again.",
+    "done": "Done",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "new": "+ New attribute",
+    "deleteTitle": "Delete {name}?",
+    "deleteRemoves": "This also removes its values from {ingredients} and {goals}.",
+    "deleteNothing": "Nothing else uses it."
   }
 }

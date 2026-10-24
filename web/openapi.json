@@ -1,6 +1,132 @@
 {
   "components": {
     "schemas": {
+      "Attribute": {
+        "properties": {
+          "decimals": {
+            "maximum": 6.0,
+            "minimum": 0.0,
+            "title": "Decimals",
+            "type": "integer"
+          },
+          "goal_count": {
+            "title": "Goal Count",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "ingredient_count": {
+            "title": "Ingredient Count",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "unit": {
+            "maxLength": 20,
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "unit",
+          "decimals",
+          "id",
+          "ingredient_count",
+          "goal_count"
+        ],
+        "title": "Attribute",
+        "type": "object"
+      },
+      "AttributeFields": {
+        "properties": {
+          "decimals": {
+            "maximum": 6.0,
+            "minimum": 0.0,
+            "title": "Decimals",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "unit": {
+            "maxLength": 20,
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "unit",
+          "decimals"
+        ],
+        "title": "AttributeFields",
+        "type": "object"
+      },
+      "Counts": {
+        "properties": {
+          "attributes": {
+            "title": "Attributes",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "attributes"
+        ],
+        "title": "Counts",
+        "type": "object"
+      },
+      "FieldError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Loc",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Msg",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "type",
+          "msg"
+        ],
+        "title": "FieldError",
+        "type": "object"
+      },
+      "FieldErrors": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "FieldErrors",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -88,6 +214,199 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/attributes": {
+      "get": {
+        "operationId": "list_attributes_api_attributes_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Attribute"
+                  },
+                  "title": "Response List Attributes Api Attributes Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Attributes",
+        "tags": [
+          "attributes"
+        ]
+      },
+      "post": {
+        "operationId": "create_attribute_api_attributes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttributeFields"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Attribute"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "The name is already in use"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Attribute",
+        "tags": [
+          "attributes"
+        ]
+      }
+    },
+    "/api/attributes/{attribute_id}": {
+      "delete": {
+        "operationId": "delete_attribute_api_attributes__attribute_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attribute_id",
+            "required": true,
+            "schema": {
+              "title": "Attribute Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such attribute"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Attribute",
+        "tags": [
+          "attributes"
+        ]
+      },
+      "put": {
+        "operationId": "update_attribute_api_attributes__attribute_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attribute_id",
+            "required": true,
+            "schema": {
+              "title": "Attribute Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttributeFields"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Attribute"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such attribute"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "The name is already in use"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Attribute",
+        "tags": [
+          "attributes"
+        ]
+      }
+    },
+    "/api/counts": {
+      "get": {
+        "operationId": "counts_api_counts_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Counts"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Counts"
+      }
+    },
     "/api/health": {
       "get": {
         "operationId": "health_api_health_get",
