@@ -28,3 +28,7 @@ planner.db
 # Frontend
 node_modules/
 web/dist/
+
+# Playwright end-to-end runs
+web/playwright-report/
+web/test-results/

@@ -1,0 +1,66 @@
+import { expect, test, type Page } from '@playwright/test'
+
+// One flow through the app, growing with each slice that changes it:
+// log in, then build a small catalog.
+
+const password = process.env.E2E_PASSWORD
+if (!password) throw new Error('Set E2E_PASSWORD to the login password')
+
+async function openPage(page: Page, name: string) {
+  await page.getByRole('button', { name: 'Menu' }).click()
+  await page.locator('.q-drawer').getByText(name, { exact: true }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(name)
+}
+
+test('log in and build a catalog of an attribute, a tag and an ingredient', async ({ page }) => {
+  await page.goto('/')
+  await expect(page).toHaveURL(/\/login/)
+  await page.getByLabel('Password').fill(password)
+  await page.getByRole('button', { name: 'Log in' }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Plan')
+
+  await openPage(page, 'Attributes')
+  await page.getByText('+ New attribute').click()
+  await page.getByLabel('Name').fill('Energy')
+  await page.getByLabel('Unit').fill('kcal')
+  await page.getByLabel('Decimals').fill('0')
+  await page.getByRole('button', { name: 'Done' }).click()
+  await expect(page.locator('.attribute-row')).toHaveText([/Energy\s*\(kcal\)/])
+
+  await openPage(page, 'Tags')
+  await page.getByText('+ New tag').click()
+  await page.getByLabel('Name').fill('vegan')
+  await page.getByRole('button', { name: 'Done' }).click()
+  await expect(page.locator('.tag-row')).toHaveText([/vegan.*added by hand/])
+
+  await openPage(page, 'Ingredients')
+  await expect(page.getByText('No ingredients yet.')).toBeVisible()
+  await page.getByRole('link', { name: 'New ingredient' }).click()
+  await page.getByLabel('Name').fill('Oats')
+  await expect(page.getByLabel('Value basis')).toHaveValue('100')
+  await page.getByLabel('Energy').fill('389')
+  await page.getByRole('button', { name: 'vegan' }).click()
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.locator('.ingredient-row')).toHaveText([/Oats\s*per 100 g · Energy 389 kcal/])
+
+  // Saved, not just shown: it reads back after a reload.
+  await page.reload()
+  await page.locator('.ingredient-row').click()
+  await expect(page.getByLabel('Energy')).toHaveValue('389')
+  await expect(page.getByRole('button', { name: 'vegan' })).toHaveAttribute('aria-pressed', 'true')
+  await page.getByRole('link', { name: 'Back' }).click()
+
+  // The tag is no longer "added by hand", and deleting the attribute warns
+  // about the ingredient value.
+  await openPage(page, 'Tags')
+  await expect(page.locator('.tag-row')).not.toHaveText([/added by hand/])
+  await openPage(page, 'Attributes')
+  await page.locator('.attribute-row').click()
+  await page.getByRole('button', { name: 'Delete' }).click()
+  await expect(page.getByRole('dialog')).toContainText('This also removes its values from 1 ingredient')
+  await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click()
+
+  // Designed at phone width: nothing scrolls sideways.
+  const scrolls = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)
+  expect(scrolls).toBe(false)
+})
