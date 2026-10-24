@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, status
-from pydantic import BaseModel, Field, PlainSerializer, StringConstraints
+from pydantic import BaseModel, Field, PlainSerializer, StringConstraints, WithJsonSchema
 from sqlalchemy import select
 
 from .. import models
@@ -23,11 +23,13 @@ def _plain(number: Decimal) -> str:
 
 
 # A number as typed on the form. Sent as a JSON number or string; answered
-# as a string, so it reads back exactly as it was entered.
+# as a string, so it reads back exactly as it was entered. The request's
+# schema is spelled out, as Pydantic versions describe decimals differently.
 Number = Annotated[
     Decimal,
     Field(max_digits=models.VALUE_DIGITS, decimal_places=models.VALUE_DECIMALS),
     PlainSerializer(_plain, return_type=str),
+    WithJsonSchema({"anyOf": [{"type": "number"}, {"type": "string"}]}, mode="validation"),
 ]
 
 
