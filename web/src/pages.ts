@@ -1,4 +1,5 @@
 import AttributesPage from './pages/AttributesPage.vue'
+import IngredientsPage from './pages/IngredientsPage.vue'
 import PlaceholderPage from './pages/PlaceholderPage.vue'
 import TagsPage from './pages/TagsPage.vue'
 
@@ -7,7 +8,7 @@ import TagsPage from './pages/TagsPage.vue'
 export const pages = [
   { path: '/', name: 'plan', icon: 'event_note', component: PlaceholderPage },
   { path: '/recipes', name: 'recipes', icon: 'menu_book', component: PlaceholderPage },
-  { path: '/ingredients', name: 'ingredients', icon: 'egg', component: PlaceholderPage },
+  { path: '/ingredients', name: 'ingredients', icon: 'egg', component: IngredientsPage },
   { path: '/attributes', name: 'attributes', icon: 'tune', component: AttributesPage },
   { path: '/tags', name: 'tags', icon: 'sell', component: TagsPage },
 ] as const

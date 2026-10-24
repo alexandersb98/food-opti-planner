@@ -29,7 +29,9 @@
     "delete": "Delete",
     "cancel": "Cancel",
     "deleteTitle": "Delete {name}?",
-    "deleteNothing": "Nothing else uses it."
+    "deleteNothing": "Nothing else uses it.",
+    "save": "Save",
+    "back": "Back"
   },
   "count": {
     "ingredients": "no ingredients | 1 ingredient | {n} ingredients",
@@ -67,5 +69,30 @@
     "nameInUse": "A tag with this name already exists.",
     "new": "+ New tag",
     "deleteRemoves": "This also removes it from {ingredients}, {recipes} and {filters}."
+  },
+  "ingredients": {
+    "intro": "What recipes are made of, with their values and tags.",
+    "empty": "No ingredients yet.",
+    "noMatch": "No ingredients match.",
+    "loadFailed": "Could not load the ingredients.",
+    "search": "Search",
+    "new": "New ingredient",
+    "edit": "Edit ingredient",
+    "perBasis": "per {basis} {unit}",
+    "usedIn": "Used in {recipes}",
+    "loadOneFailed": "Could not load the ingredient.",
+    "measuredIn": "Measured in",
+    "valuesPer": "Values per",
+    "basis": "Value basis",
+    "valuesHint": "Leave a value empty if it is 0.",
+    "noAttributes": "No attributes yet; add them on the Attributes page.",
+    "tags": "Tags",
+    "noTags": "No tags yet; add them on the Tags page.",
+    "nameInUse": "An ingredient with this name already exists.",
+    "unitRequired": "Enter a unit.",
+    "basisInvalid": "Enter a number above 0.",
+    "numberInvalid": "Enter a number, or leave it empty.",
+    "numberTooLong": "Use at most 9 digits before the point and 6 after.",
+    "inUse": "Recipes use it, so it can't be deleted."
   }
 }
