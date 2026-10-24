@@ -4,14 +4,15 @@ from typing import Annotated
 
 from fastapi import APIRouter, status
 from pydantic import BaseModel, Field, StringConstraints
-from sqlalchemy import func, select
+from sqlalchemy import select
 
 from meal_planner.domain import MAX_PRECISION, MIN_PRECISION
 
 from .. import models
 from ..db import DbSession
-from .catalog import Name, commit_named, get_or_404
+from .catalog import commit_named, count_by, get_or_404
 from .errors import NAME_IN_USE
+from .fields import Name
 
 router = APIRouter(prefix="/attributes", tags=["attributes"])
 
@@ -31,31 +32,28 @@ class Attribute(AttributeFields):
     goal_count: int
 
 
-def _ingredient_counts(db: DbSession) -> dict[int, int]:
-    """How many ingredients have a value for each attribute, by attribute id."""
-    value = models.IngredientValue
-    query = select(value.attribute_id, func.count()).group_by(value.attribute_id)
-    return dict(db.execute(query).all())
-
-
-def _response(attribute: models.Attribute, db: DbSession, counts: dict[int, int] | None = None) -> Attribute:
-    counts = _ingredient_counts(db) if counts is None else counts
+def _counts(db: DbSession) -> dict[str, dict[int, int]]:
+    """What deleting each attribute removes, by response field and attribute id."""
     # Goals arrive in slice 8; until then deleting an attribute removes none.
+    return {"ingredient_count": count_by(db, models.IngredientValue.attribute_id)}
+
+
+def _response(attribute: models.Attribute, counts: dict[str, dict[int, int]]) -> Attribute:
     return Attribute(
         id=attribute.id,
         name=attribute.name,
         unit=attribute.unit,
         decimals=attribute.decimals,
-        ingredient_count=counts.get(attribute.id, 0),
         goal_count=0,
+        **{field: by_id.get(attribute.id, 0) for field, by_id in counts.items()},
     )
 
 
 @router.get("")
 def list_attributes(db: DbSession) -> list[Attribute]:
     attributes = db.scalars(select(models.Attribute).order_by(models.Attribute.id))
-    counts = _ingredient_counts(db)
-    return [_response(attribute, db, counts) for attribute in attributes]
+    counts = _counts(db)
+    return [_response(attribute, counts) for attribute in attributes]
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, responses=NAME_IN_USE)
@@ -63,7 +61,7 @@ def create_attribute(body: AttributeFields, db: DbSession) -> Attribute:
     attribute = models.Attribute(**body.model_dump())
     db.add(attribute)
     commit_named(db, attribute, "An attribute")
-    return _response(attribute, db)
+    return _response(attribute, _counts(db))
 
 
 @router.put("/{attribute_id}", responses={**NOT_FOUND, **NAME_IN_USE})
@@ -72,7 +70,7 @@ def update_attribute(attribute_id: int, body: AttributeFields, db: DbSession) ->
     for field, value in body.model_dump().items():
         setattr(attribute, field, value)
     commit_named(db, attribute, "An attribute")
-    return _response(attribute, db)
+    return _response(attribute, _counts(db))
 
 
 @router.delete("/{attribute_id}", status_code=status.HTTP_204_NO_CONTENT, responses=NOT_FOUND)

@@ -1,18 +1,6 @@
 import pytest
 
 
-def attribute(client, name="Energy", unit="kcal"):
-    response = client.post("/api/attributes", json={"name": name, "unit": unit, "decimals": 0})
-    assert response.status_code == 201, response.text
-    return response.json()["id"]
-
-
-def tag(client, name="vegan"):
-    response = client.post("/api/tags", json={"name": name, "derive": "all"})
-    assert response.status_code == 201, response.text
-    return response.json()["id"]
-
-
 OATS = {"name": "Oats", "unit": "g", "basis": "100", "values": [], "tag_ids": []}
 
 
@@ -28,9 +16,9 @@ def test_the_list_starts_empty(client):
     assert response.json() == []
 
 
-def test_a_created_ingredient_is_listed_with_its_values_tags_and_recipe_count(client):
-    energy, protein = attribute(client), attribute(client, "Protein", "g")
-    vegan = tag(client)
+def test_a_created_ingredient_is_listed_with_its_values_tags_and_recipe_count(client, catalog):
+    energy, protein = catalog.attribute(), catalog.attribute("Protein", "g")
+    vegan = catalog.tag()
     created = create(
         client,
         values=[{"attribute_id": energy, "value": "389"}, {"attribute_id": protein, "value": "16.9"}],
@@ -63,8 +51,8 @@ def test_a_created_ingredient_is_listed_with_its_values_tags_and_recipe_count(cl
         ("-0", "0"),
     ],
 )
-def test_values_read_back_exactly_as_typed(client, typed, answered):
-    energy = attribute(client)
+def test_values_read_back_exactly_as_typed(client, catalog, typed, answered):
+    energy = catalog.attribute()
     created = create(client, values=[{"attribute_id": energy, "value": typed}])
     stored = client.get(f"/api/ingredients/{created['id']}").json()
     assert stored["values"][0]["value"] == answered
@@ -76,15 +64,15 @@ def test_the_basis_reads_back_exactly_as_typed(client, typed):
     assert client.get(f"/api/ingredients/{created['id']}").json()["basis"] == typed
 
 
-def test_numbers_may_be_sent_as_json_numbers(client):
-    energy = attribute(client)
+def test_numbers_may_be_sent_as_json_numbers(client, catalog):
+    energy = catalog.attribute()
     created = create(client, basis=100, values=[{"attribute_id": energy, "value": 0.1}])
     assert (created["basis"], created["values"][0]["value"]) == ("100", "0.1")
 
 
-def test_values_and_tags_are_answered_in_attribute_and_tag_order(client):
-    a, b = attribute(client), attribute(client, "Protein")
-    x, y = tag(client), tag(client, "quick")
+def test_values_and_tags_are_answered_in_attribute_and_tag_order(client, catalog):
+    a, b = catalog.attribute(), catalog.attribute("Protein")
+    x, y = catalog.tag(), catalog.tag("quick")
     created = create(
         client,
         values=[{"attribute_id": b, "value": "2"}, {"attribute_id": a, "value": "1"}],
@@ -126,15 +114,15 @@ def test_the_name_and_unit_are_trimmed(client):
         {"values": [{"attribute_id": 1, "value": None}]},
     ],
 )
-def test_invalid_fields_answer_422(client, fields):
-    attribute(client)
+def test_invalid_fields_answer_422(client, catalog, fields):
+    catalog.attribute()
     response = client.post("/api/ingredients", json={**OATS, **fields})
     assert response.status_code == 422
     assert client.get("/api/ingredients").json() == []
 
 
-def test_an_unknown_attribute_or_tag_answers_422_on_its_field(client):
-    energy = attribute(client)
+def test_an_unknown_attribute_or_tag_answers_422_on_its_field(client, catalog):
+    energy = catalog.attribute()
     response = client.post(
         "/api/ingredients",
         json={
@@ -152,8 +140,8 @@ def test_an_unknown_attribute_or_tag_answers_422_on_its_field(client):
     assert client.get("/api/ingredients").json() == []
 
 
-def test_two_values_for_one_attribute_answer_422(client):
-    energy = attribute(client)
+def test_two_values_for_one_attribute_answer_422(client, catalog):
+    energy = catalog.attribute()
     response = client.post(
         "/api/ingredients",
         json={
@@ -181,9 +169,9 @@ def test_creating_a_name_in_use_answers_409_with_a_field_error(client):
     assert len(client.get("/api/ingredients").json()) == 1
 
 
-def test_update_changes_every_field(client):
-    energy, protein, fat = attribute(client), attribute(client, "Protein"), attribute(client, "Fat")
-    vegan, quick = tag(client), tag(client, "quick")
+def test_update_changes_every_field(client, catalog):
+    energy, protein, fat = catalog.attribute(), catalog.attribute("Protein"), catalog.attribute("Fat")
+    vegan, quick = catalog.tag(), catalog.tag("quick")
     oats = create(
         client,
         values=[{"attribute_id": energy, "value": "389"}, {"attribute_id": protein, "value": "16.9"}],
@@ -202,8 +190,8 @@ def test_update_changes_every_field(client):
     assert client.get("/api/ingredients").json() == [response.json()]
 
 
-def test_update_can_clear_values_and_tags(client):
-    energy, vegan = attribute(client), tag(client)
+def test_update_can_clear_values_and_tags(client, catalog):
+    energy, vegan = catalog.attribute(), catalog.tag()
     oats = create(client, values=[{"attribute_id": energy, "value": "389"}], tag_ids=[vegan])
     response = client.put(f"/api/ingredients/{oats['id']}", json=OATS)
     assert (response.json()["values"], response.json()["tag_ids"]) == ([], [])
@@ -225,8 +213,8 @@ def test_update_checks_attributes_like_create(client):
     assert client.get(f"/api/ingredients/{oats['id']}").json() == oats
 
 
-def test_delete_removes_the_ingredient_and_its_values_and_tags(client):
-    energy, vegan = attribute(client), tag(client)
+def test_delete_removes_the_ingredient_and_its_values_and_tags(client, catalog):
+    energy, vegan = catalog.attribute(), catalog.tag()
     oats = create(client, values=[{"attribute_id": energy, "value": "389"}], tag_ids=[vegan])
     milk = create(client, name="Milk")
     assert client.delete(f"/api/ingredients/{oats['id']}").status_code == 204
@@ -252,47 +240,3 @@ def test_counts_for_the_menu(client):
     create(client)
     create(client, name="Milk")
     assert client.get("/api/counts").json() == {"ingredients": 2, "attributes": 0, "tags": 0}
-
-
-# Deleting an attribute or a tag cascades to ingredients, after a warning.
-
-
-def test_an_attribute_counts_the_ingredients_with_a_value_for_it(client):
-    energy, protein = attribute(client), attribute(client, "Protein")
-    create(
-        client, values=[{"attribute_id": energy, "value": "389"}, {"attribute_id": protein, "value": "0"}]
-    )
-    create(client, name="Milk", values=[{"attribute_id": energy, "value": "64"}])
-    create(client, name="Salt")
-    counts = {a["name"]: a["ingredient_count"] for a in client.get("/api/attributes").json()}
-    assert counts == {"Energy": 2, "Protein": 1}
-    renamed = client.put(f"/api/attributes/{energy}", json={"name": "Kcal", "unit": "kcal", "decimals": 0})
-    assert renamed.json()["ingredient_count"] == 2
-
-
-def test_deleting_an_attribute_removes_its_ingredient_values(client):
-    energy, protein = attribute(client), attribute(client, "Protein")
-    oats = create(
-        client, values=[{"attribute_id": energy, "value": "389"}, {"attribute_id": protein, "value": "16.9"}]
-    )
-    assert client.delete(f"/api/attributes/{energy}").status_code == 204
-    stored = client.get(f"/api/ingredients/{oats['id']}").json()
-    assert stored["values"] == [{"attribute_id": protein, "value": "16.9"}]
-
-
-def test_a_tag_counts_the_ingredients_that_have_it(client):
-    vegan, quick = tag(client), tag(client, "quick")
-    tag(client, "organic")
-    create(client, tag_ids=[vegan, quick])
-    create(client, name="Milk", tag_ids=[quick])
-    counts = {t["name"]: t["ingredient_count"] for t in client.get("/api/tags").json()}
-    assert counts == {"vegan": 1, "quick": 2, "organic": 0}
-    renamed = client.put(f"/api/tags/{quick}", json={"name": "fast", "derive": "any"})
-    assert renamed.json()["ingredient_count"] == 2
-
-
-def test_deleting_a_tag_removes_it_from_ingredients(client):
-    vegan, quick = tag(client), tag(client, "quick")
-    oats = create(client, tag_ids=[vegan, quick])
-    assert client.delete(f"/api/tags/{vegan}").status_code == 204
-    assert client.get(f"/api/ingredients/{oats['id']}").json()["tag_ids"] == [quick]

@@ -1,8 +1,9 @@
 import { afterEach, expect, test, vi } from 'vitest'
 import { button, click, dialog, fakeServer, field, mountApp, texts, type FakeServer } from '../test-app'
+import { tag } from '../test-data'
 
-const vegan = { id: 1, name: 'vegan', derive: 'all', ingredient_count: 9, recipe_count: 2, filter_count: 1 }
-const quick = { id: 2, name: 'quick', derive: 'any', ingredient_count: 0, recipe_count: 0, filter_count: 0 }
+const vegan = tag({ id: 1, name: 'vegan', ingredient_count: 9, recipe_count: 2, filter_count: 1 })
+const quick = tag({ id: 2, name: 'quick', derive: 'any' })
 
 afterEach(() => {
   vi.unstubAllGlobals()

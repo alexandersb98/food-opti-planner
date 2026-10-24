@@ -3,13 +3,10 @@ import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api } from '../api/client'
 import { fieldErrors } from '../api/errors'
-import type { components } from '../api/schema'
+import type { Tag, TagFields as Fields } from '../api/types'
 import ConfirmDelete from '../components/ConfirmDelete.vue'
 import LoadState from '../components/LoadState.vue'
 import { useLoad } from '../composables/useLoad'
-
-type Tag = components['schemas']['Tag']
-type Fields = components['schemas']['TagFields']
 
 const { t } = useI18n()
 

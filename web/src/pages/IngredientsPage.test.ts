@@ -1,30 +1,27 @@
 import { afterEach, expect, test, vi } from 'vitest'
 import { button, click, fakeServer, field, mountApp, texts, type FakeServer } from '../test-app'
+import { attribute, ingredient } from '../test-data'
 
-const energy = { id: 1, name: 'Energy', unit: 'kcal', decimals: 0, ingredient_count: 2, goal_count: 0 }
-const protein = { id: 2, name: 'Protein', unit: 'g', decimals: 1, ingredient_count: 1, goal_count: 0 }
-const oats = {
+const energy = attribute({ id: 1, name: 'Energy', unit: 'kcal', ingredient_count: 2 })
+const protein = attribute({ id: 2, name: 'Protein', unit: 'g', decimals: 1, ingredient_count: 1 })
+const oats = ingredient({
   id: 1,
   name: 'Oats',
-  unit: 'g',
-  basis: '100',
   values: [
     { attribute_id: 1, value: '389' },
     { attribute_id: 2, value: '16.9' },
   ],
-  tag_ids: [],
   recipe_count: 3,
-}
-const egg = {
-  ...oats,
+})
+const egg = ingredient({
   id: 2,
   name: 'egg',
   unit: 'pcs',
   basis: '1',
   values: [{ attribute_id: 1, value: '78' }],
   recipe_count: 1,
-}
-const milk = { ...oats, id: 3, name: 'Milk', unit: 'ml', values: [], recipe_count: 0 }
+})
+const milk = ingredient({ id: 3, name: 'Milk', unit: 'ml' })
 
 afterEach(() => {
   vi.unstubAllGlobals()
