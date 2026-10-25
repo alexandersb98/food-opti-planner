@@ -109,6 +109,20 @@ def test_the_planner_gets_the_setup_and_the_whole_catalog(client, porridge, cata
     assert request.solve_time_limit == 10
 
 
+def test_no_connection_is_held_while_solving(client, porridge, monkeypatch):
+    # A solve may take minutes; Neon drops a connection idle for 5.
+    pool = client.app.state.engine.pool
+    checked_out = []
+
+    def counted(request):
+        checked_out.append(pool.checkedout())
+        return meal_planner.plan(request)
+
+    monkeypatch.setattr(plan_api, "solve_plan", counted)
+    assert solve(client)["plan"] is not None
+    assert checked_out == [0]
+
+
 def test_without_recipes_there_is_no_plan(client, catalog):
     catalog.attribute()
     assert solve(client) == {"plan": None, "failure": "no_recipes"}

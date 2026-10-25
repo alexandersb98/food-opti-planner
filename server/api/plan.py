@@ -240,6 +240,13 @@ def solve(db: DbSession) -> SolveOutcome:
     # Any PlanRequestError means the server let through what the library
     # refuses: a bug, so it is not caught.
     request = translate.plan_request(plan, attributes, tags, rows)
+    start_date = plan.start_date
+    meal_names = [meal.name for meal in plan.meals]
+    units = {attribute.name: attribute.unit for attribute in attributes}
+    # End the read before solving, so no connection waits in a transaction
+    # for minutes (Neon drops one idle for 5). Only the plain values above
+    # are used after this, as the commit expires the rows.
+    db.commit()
     try:
         answer = solve_plan(request)
     except ModelTooLargeError:
@@ -247,13 +254,7 @@ def solve(db: DbSession) -> SolveOutcome:
     if answer.solve_status in FAILURES:
         return SolveOutcome(plan=None, failure=FAILURES[answer.solve_status])
 
-    result = freeze.freeze(
-        request,
-        answer,
-        plan.start_date,
-        [meal.name for meal in plan.meals],
-        {attribute.name: attribute.unit for attribute in attributes},
-    )
+    result = freeze.freeze(request, answer, start_date, meal_names, units)
     result.created_at = plan_results.now()
     # The old unsaved plan goes first, as only one may exist.
     db.execute(delete(models.PlanResult).where(models.PlanResult.saved.is_(False)))
