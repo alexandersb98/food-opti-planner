@@ -126,7 +126,8 @@ marked red in the goals list. Both limits of the report (no suggested
 bound, no side) are in `future-features.md`.
 
 The results screen itself (the meal plan, missed Prefer goals) is not
-part of this spec.
+part of this spec; it is designed in
+[`2026-10-25-gui-results-screen-design.md`](2026-10-25-gui-results-screen-design.md).
 
 ## Screens: catalog
 

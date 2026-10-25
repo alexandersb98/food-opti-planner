@@ -1,7 +1,8 @@
 # GUI, first version — Vertical Slices
 
-**Status:** Agreed with the user. The results screen must be designed
-before slice 7 (see "Before slice 7" below).
+**Status:** Agreed with the user. The results screen is designed in
+[`2026-10-25-gui-results-screen-design.md`](../specs/2026-10-25-gui-results-screen-design.md)
+(the "results spec"), which also added slice 7a.
 
 **Specs:** [`2026-10-21-gui-wireframes-design.md`](../specs/2026-10-21-gui-wireframes-design.md)
 (the "GUI spec", screen ids A1, C2, ...) and
@@ -18,7 +19,9 @@ This document does not contain those plans.
 ## Rules for every slice
 
 - `meal_planner/` is not changed. A slice that seems to need a library
-  change stops and raises it as an open question.
+  change stops and raises it as an open question. Slice 7a is the
+  exception: it adds a way to stop a running solve, as the results spec
+  decided.
 - A slice ships its own Alembic migration. The migration test (all
   migrations on an empty database compared with the models) stays green.
 - API tests run on SQLite and, in CI, on Postgres.
@@ -44,14 +47,14 @@ This document does not contain those plans.
 | 4 | Tags | C6 | Manage tags |
 | 5 | Ingredients | C3, C4 | Manage ingredients with values and tags |
 | 6 | Recipes | C1, C2 | Manage recipes; derived tags and per-portion totals |
-| 7 | Schedule and Make plan | A1 (part), A2, results | **First real plan**, without goals or filters |
+| 7 | Schedule and Make plan | A1 (part), A2, R1 | **First real plan**, without goals or filters; saved plans and Today |
+| 7a | Stop solving | A1 progress card | Cancel a running solve, keeping the best plan so far |
 | 8 | Goals: main form | A1 goals card, A3, A3c | Plans that follow Must and Prefer goals |
 | 9 | Goals: advanced | A3b | Custom names, below/above importance, day guard-rail |
 | 10 | Recipe filters | A1 recipes card, A4 | Only / Never tags, live recipe count |
 | 11 | Must goals clash | A5 | Infeasible plans explained and fixable |
 
-Order of dependencies: 0 → 1 → 3 → 4 → 5 → 6 → 7 → 8 → {9, 10, 11}.
-Slice 7 also needs the results screen design (see "Before slice 7").
+Order of dependencies: 0 → 1 → 3 → 4 → 5 → 6 → 7 → 7a → 8 → {9, 10, 11}.
 Slice 2 can merge at any time after 1. Slices 9, 10 and 11 depend only on
 8 and can go in any order.
 
@@ -195,13 +198,36 @@ come later, so the plan is chosen only by the recipes' own limits.
   sub-screen, the plan/skip grid and the "At least" column.
 - Translation: the whole `PlanRequest` from stored data (schedule grid →
   `Day`/`Slot`, "all" → `min_meals_per_day=None`, `solve_time_limit`).
-- The results screen, as designed before this slice (see "Before
-  slice 7" below).
+- From the results spec: the `plan_results` tables (a frozen copy of
+  each plan), the unsaved plan kept on the server, `/api/plan-results`,
+  the R1 results page (Summary card, day carousel, scaled ingredients,
+  Save / Discard / Use for today / Delete), and on A1 the Making plan…
+  card (without Cancel), Couldn't make a plan, New plan not saved,
+  Today and Saved plans.
 - Playwright: the flow from slice 5 (log in, add an attribute, a tag
   and an ingredient) adds a recipe, makes a plan and sees the result.
 
 **Tests:** translation tests for the schedule rules; API test that
-solve returns a plan; Playwright as above.
+solve returns and stores a plan as the unsaved one; save, discard,
+delete, and which plan is used for today (latest chosen at, Use for
+today); a saved plan is unchanged after its recipe is edited or
+deleted. Vitest: day carousel start day and Today button, Summary
+collapse. Playwright as above, then save the plan.
+
+### 7a · Stop solving
+
+- Library: a stop handle for a running solve (CP-SAT `stop_search()`),
+  also stopping the extra solves for a minimal clash. A stopped solve
+  returns what it has, as on a timeout.
+- Server: one solve at a time (a second is a 409);
+  `POST /api/plan/solve/cancel`; a stopped plan is stored with status
+  `stopped`.
+- A1: **Cancel** on the Making plan… card; "Stopped before any plan was
+  found" when there was none; R1's "Stopped early" status line.
+
+**Tests:** library: stopping a long solve returns the best plan found,
+or none; stopping during the clash search. API: cancel during a solve,
+a second solve refused. Component test for the Cancel button.
 
 ### 8 · Goals: main form (A3, A3c, A1 goals card)
 
@@ -209,6 +235,9 @@ solve returns a plan; Playwright as above.
   advanced ones, so slice 9 needs no migration); cascade with the
   attribute.
 - Goals in `GET/PUT /api/plan`.
+- The frozen copy gains `plan_result_goals` and `plan_result_misses`;
+  R1 shows Missed goals in the Summary and missed values on the days,
+  and the day line switches to the attributes that have goals.
 - A3 bottom sheet: attribute, Min/Max (at least one), Applies to,
   Must/Prefer, importance 1–5 (Prefer only), the zero-bound field.
   Generated name, " (2)" for a second goal on the same thing.
@@ -265,14 +294,9 @@ Try again succeeds.
 
 ## Before slice 7: design the results screen
 
-The GUI spec leaves the results screen undesigned, but from slice 7 on
-**Make plan** has to show the plan, and the stack spec's end-to-end
-test makes one. The user chose to design the results screen first
-rather than ship a temporary list. That design (a spec with wireframes,
-like the GUI spec) must be agreed before slice 7's plan is written. It
-should also say how missed Prefer goals are shown (needed from slice 8)
-and may decide how a clashing day minimum is shown (slice 11). Slices
-0-6 do not depend on it, so the design can be done alongside them.
+Done: [`2026-10-25-gui-results-screen-design.md`](../specs/2026-10-25-gui-results-screen-design.md).
+It also decides how missed Prefer goals are shown (slice 8). How a
+clashing day minimum is shown is still slice 11's to decide.
 
 ## Not in any slice
 

@@ -175,7 +175,9 @@ cascades. The database enforces them with foreign keys.
 - Ingredient values are stored as typed (per the value basis) in exact
   decimals (`NUMERIC`), so forms show exactly what was entered; the
   server divides when solving.
-- Plan results are not stored. The results screen is not designed yet.
+- Plan results are stored as frozen copies (saved plans and one
+  unsaved plan); see
+  [`2026-10-25-gui-results-screen-design.md`](2026-10-25-gui-results-screen-design.md).
 - Schema changes are Alembic migrations, run when the container starts.
   This is safe because Cloud Run is limited to one instance.
 - Code uses only features both Postgres and SQLite support, so tests can
@@ -271,8 +273,9 @@ The deployment itself is checked only by the health call after deploy.
 
 ## Not in this spec
 
-- The results screen (still undesigned; see the GUI spec).
-- Several users, accounts, several saved plans.
+- The results screen and saved plans: see
+  [`2026-10-25-gui-results-screen-design.md`](2026-10-25-gui-results-screen-design.md).
+- Several users, accounts, several plan setups.
 - JSON export/import (`future-features.md`).
 - Visual style beyond Quasar's defaults.
 
