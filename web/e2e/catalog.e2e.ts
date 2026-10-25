@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
 // One flow through the app, growing with each slice that changes it:
-// log in, then build a small catalog and a recipe from it.
+// log in, build a small catalog and a recipe from it, then make a plan.
 
 const password = process.env.E2E_PASSWORD
 if (!password) throw new Error('Set E2E_PASSWORD to the login password')
@@ -83,6 +83,28 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await page.getByRole('button', { name: 'Delete' }).click()
   await expect(page.getByRole('dialog')).toContainText('This also removes its values from 1 ingredient')
   await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click()
+
+  // Make a plan: two days in the schedule, then the solve opens the result
+  // with the recipe in every meal. Saving returns to the Plan page.
+  await openPage(page, 'Plan')
+  await page.getByRole('link', { name: 'Edit' }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Schedule')
+  await page.getByLabel('Number of days').fill('2')
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Plan')
+  await expect(page.locator('.schedule-day')).toHaveCount(2)
+
+  await page.getByRole('button', { name: 'Make plan' }).click()
+  await expect(page.getByText('Best possible plan')).toBeVisible({ timeout: 60_000 })
+  await expect(page.locator('.day-position')).toContainText('1 of 2')
+  await expect(page.locator('.meal-row')).toHaveText([/Breakfast.*Porridge/, /Lunch.*Porridge/, /Dinner.*Porridge/])
+  await page.getByRole('button', { name: 'Next day' }).click()
+  await expect(page.locator('.day-position')).toContainText('2 of 2')
+  await expect(page.locator('.meal-row')).toHaveText([/Breakfast.*Porridge/, /Lunch.*Porridge/, /Dinner.*Porridge/])
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Plan')
+  await expect(page.locator('.saved-plan')).toHaveCount(1)
+  await expect(page.locator('.new-plan-card')).toHaveCount(0)
 
   // Designed at phone width: nothing scrolls sideways.
   const scrolls = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)
