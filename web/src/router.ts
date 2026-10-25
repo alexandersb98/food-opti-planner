@@ -4,6 +4,7 @@ import MainLayout from './layouts/MainLayout.vue'
 import IngredientPage from './pages/IngredientPage.vue'
 import LoginPage from './pages/LoginPage.vue'
 import RecipePage from './pages/RecipePage.vue'
+import ResultsPage from './pages/ResultsPage.vue'
 import SchedulePage from './pages/SchedulePage.vue'
 import { pages } from './pages'
 
@@ -24,6 +25,10 @@ export function makeRouter(history: RouterHistory = createWebHistory()) {
           ...pages.map(({ path, name, component }) => ({ path, name, component })),
           // Editors, opened from their page's list or card.
           { path: '/plan/schedule', name: 'schedule', component: SchedulePage },
+          // A made plan (R1): the unsaved one, or a saved one, opened at
+          // `?day=` (from 0) with `?meal=` open, from the Today card.
+          { path: '/plans/new', name: 'new-plan', component: ResultsPage },
+          { path: '/plans/:id(\\d+)', name: 'saved-plan', component: ResultsPage },
           { path: '/recipes/new', name: 'new-recipe', component: RecipePage },
           { path: '/recipes/:id(\\d+)', name: 'recipe', component: RecipePage },
           { path: '/ingredients/new', name: 'new-ingredient', component: IngredientPage },

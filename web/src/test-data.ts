@@ -1,4 +1,4 @@
-import type { Attribute, Ingredient, Plan, Recipe, Tag } from './api/types'
+import type { Attribute, Ingredient, Plan, PlanResult, PlanResultSummary, Recipe, ResultMeal, Tag } from './api/types'
 
 // Rows as the server answers them, for tests: give what the test is about,
 // the rest gets a plain default. Typed, so a change to the API shows up
@@ -47,6 +47,39 @@ export function plan(fields: Partial<Plan> = {}): Plan {
     skips: [],
     minimums: [],
     solve_time_limit: 30,
+    ...fields,
+  }
+}
+
+/** A made plan without its days, by default saved, best possible, for the
+ * same week as `plan()` and saved the evening before it starts. */
+export function planSummary(fields: Given<PlanResultSummary, 'id'>): PlanResultSummary {
+  return {
+    saved: true,
+    status: 'optimal',
+    start_date: '2026-09-21',
+    days: 7,
+    created_at: '2026-09-20T16:04:00Z',
+    saved_at: '2026-09-20T16:04:00Z',
+    ...fields,
+  }
+}
+
+/** A meal of a made plan, by default not planned. */
+export function resultMeal(fields: Given<ResultMeal, 'name'>): ResultMeal {
+  return { planned: false, recipe: null, portion: null, totals: [], items: [], ...fields }
+}
+
+/** A made plan in full, by default with no attributes and no meals. */
+export function planResult(fields: Given<PlanResult, 'id'>): PlanResult {
+  const days = fields.days ?? 7
+  return {
+    ...planSummary(fields),
+    attributes: [],
+    totals: [],
+    averages: [],
+    day_totals: Array.from({ length: days }, () => []),
+    meals: Array.from({ length: days }, () => []),
     ...fields,
   }
 }

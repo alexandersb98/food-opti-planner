@@ -51,3 +51,9 @@ export function portionTotals(items: readonly Amount[], attributes: readonly Att
   }
   return totals
 }
+
+/** A plain decimal number rounded to at most `decimals` places, half away
+ * from zero, without trailing zeros: "270.004" to 2 places is "270". */
+export function roundedText(text: string, decimals: number): string {
+  return rounded(fraction(text), decimals)
+}

@@ -1,15 +1,24 @@
 import { flushPromises } from '@vue/test-utils'
 import { afterEach, expect, test, vi } from 'vitest'
-import { click, dialog, fakeServer, mountApp, type FakeServer } from '../test-app'
-import { plan } from '../test-data'
+import { resetSolve } from '../solve'
+import { button, click, dialog, fakeServer, mountApp, texts, type FakeReply, type FakeServer } from '../test-app'
+import { plan, planResult, planSummary, resultMeal } from '../test-data'
 
 afterEach(() => {
+  resetSolve()
+  vi.useRealTimers()
   vi.unstubAllGlobals()
   document.body.innerHTML = ''
 })
 
 async function mountPage(server: FakeServer = {}) {
-  const calls = fakeServer({ 'GET /api/session': 204, 'GET /api/plan': { body: plan() }, ...server })
+  const calls = fakeServer({
+    'GET /api/session': 204,
+    'GET /api/plan': { body: plan() },
+    'GET /api/plan-results': { body: { unsaved: null, saved: [] } },
+    'GET /api/plan-results/today': { body: null },
+    ...server,
+  })
   const { wrapper, router } = await mountApp('/')
   return { wrapper, router, calls }
 }
@@ -143,5 +152,174 @@ test('Cancel leaves the time as it was', async () => {
 test('a plan that fails to load says so', async () => {
   const { wrapper } = await mountPage({ 'GET /api/plan': 500 })
   expect(wrapper.text()).toContain('Could not load the plan.')
+  wrapper.unmount()
+})
+
+/** A solve that answers when `answer` is called (once the request is in). */
+function slowSolve() {
+  let answer!: (reply: FakeReply) => void
+  return {
+    reply: () => new Promise<FakeReply>((resolve) => (answer = resolve)),
+    async answer(reply: FakeReply) {
+      await flushPromises()
+      answer(reply)
+      await flushPromises()
+    },
+  }
+}
+
+function makePlanButton(wrapper: Wrapper) {
+  return wrapper.get('button.make-plan')
+}
+
+test('Make plan shows the Making plan… card, its bar filling towards Max solving time', async () => {
+  vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] })
+  const solve = slowSolve()
+  const { wrapper, calls } = await mountPage({ 'POST /api/plan/solve': solve.reply })
+  expect(wrapper.find('.solve-card').exists()).toBe(false)
+  expect(makePlanButton(wrapper).text()).toBe('Make plan')
+  await click(makePlanButton(wrapper))
+  const card = wrapper.get('.solve-card')
+  expect(card.text()).toContain('Making plan…')
+  expect(card.text()).toContain('0 of 30 s')
+  expect(makePlanButton(wrapper).attributes('disabled')).toBeDefined()
+
+  await vi.advanceTimersByTimeAsync(12_000)
+  expect(wrapper.get('.solve-card').text()).toContain('12 of 30 s')
+  expect(wrapper.get('.solve-card [role="progressbar"]').attributes('aria-valuenow')).toBe('0.4')
+  await vi.advanceTimersByTimeAsync(30_000)
+  expect(wrapper.get('.solve-card').text()).toContain('42 of 30 s')
+  expect(wrapper.get('.solve-card [role="progressbar"]').attributes('aria-valuenow')).toBe('1')
+
+  await solve.answer({ body: { plan: null, failure: 'infeasible' } })
+  expect(wrapper.find('.solve-card').exists()).toBe(false)
+  expect(makePlanButton(wrapper).attributes('disabled')).toBeUndefined()
+  expect(calls.filter((call) => call === 'POST /api/plan/solve')).toHaveLength(1)
+  wrapper.unmount()
+})
+
+test('the Making plan… card stays while the user visits other pages', async () => {
+  const solve = slowSolve()
+  const { wrapper, router } = await mountPage({ 'GET /api/recipes': { body: [] }, 'POST /api/plan/solve': solve.reply })
+  await click(makePlanButton(wrapper))
+  await router.push('/recipes')
+  await flushPromises()
+  await router.push('/')
+  await flushPromises()
+  expect(wrapper.get('.solve-card').text()).toContain('Making plan…')
+  await solve.answer({ body: { plan: null, failure: 'infeasible' } })
+  wrapper.unmount()
+})
+
+test('a plan made opens the results', async () => {
+  const made = planResult({ id: 5, saved: false, saved_at: null })
+  const { wrapper, router } = await mountPage({
+    'POST /api/plan/solve': { body: { plan: made, failure: null } },
+    'GET /api/plan-results': { body: { unsaved: planSummary(made), saved: [] } },
+    'GET /api/plan-results/5': { body: made },
+  })
+  await click(makePlanButton(wrapper))
+  expect(router.currentRoute.value.fullPath).toBe('/plans/new')
+  wrapper.unmount()
+})
+
+test.each([
+  ['no_plan_in_time', 'No plan found within 45 s. Try a longer Max solving time.'],
+  ['infeasible', 'No plan possible with these settings.'],
+  ['no_recipes', 'There are no recipes to plan with yet. Add some on the Recipes page.'],
+  ['too_large', 'This plan is too large to solve. Try fewer days or meals.'],
+])('no plan (%s) shows the Couldn’t make a plan card until dismissed', async (failure, text) => {
+  const { wrapper, router } = await mountPage({
+    'GET /api/plan': { body: plan({ solve_time_limit: 45 }) },
+    'POST /api/plan/solve': { body: { plan: null, failure } },
+  })
+  await click(makePlanButton(wrapper))
+  expect(router.currentRoute.value.fullPath).toBe('/')
+  const card = wrapper.get('.solve-failed')
+  expect(card.text()).toContain('Couldn\'t make a plan')
+  expect(card.text()).toContain(text)
+  await click(button(wrapper, 'Dismiss'))
+  expect(wrapper.find('.solve-failed').exists()).toBe(false)
+  wrapper.unmount()
+})
+
+test('a solve the server fails says so', async () => {
+  const { wrapper } = await mountPage({ 'POST /api/plan/solve': 500 })
+  await click(makePlanButton(wrapper))
+  expect(wrapper.get('.solve-failed').text()).toContain('Could not make a plan. Try again.')
+  wrapper.unmount()
+})
+
+test('the New plan card shows the unsaved plan, and Open opens it', async () => {
+  const unsaved = planSummary({ id: 5, saved: false, saved_at: null, status: 'time_ran_out' })
+  const { wrapper, router } = await mountPage({
+    'GET /api/plan-results': { body: { unsaved, saved: [] } },
+    'GET /api/plan-results/5': { body: planResult(unsaved) },
+  })
+  const card = wrapper.get('.new-plan-card')
+  expect(card.text()).toContain('New plan, not saved')
+  expect(card.text()).toContain('Mon 21 – Sun 27 Sep · Time ran out')
+  await click(wrapper.get('.new-plan-card a'))
+  expect(router.currentRoute.value.fullPath).toBe('/plans/new')
+  wrapper.unmount()
+})
+
+test('without an unsaved plan, a saved plan for today or saved plans, their cards are hidden', async () => {
+  const { wrapper } = await mountPage()
+  expect(wrapper.find('.new-plan-card').exists()).toBe(false)
+  expect(wrapper.find('.today-card').exists()).toBe(false)
+  expect(wrapper.find('.saved-plans-card').exists()).toBe(false)
+  wrapper.unmount()
+})
+
+test('the Today card shows today’s meals of the plan used for today, asked for by the browser’s date', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date(2026, 8, 22, 23, 30)) // Tue 22 Sep, late evening locally
+  const today = {
+    id: 3,
+    day: 1,
+    date: '2026-09-22',
+    meals: [
+      resultMeal({ name: 'Breakfast', planned: true, recipe: 'Oat porridge', portion: '1' }),
+      resultMeal({ name: 'Lunch', planned: true, recipe: 'Chili', portion: '1.5' }),
+      resultMeal({ name: 'Dinner' }),
+    ],
+  }
+  const { wrapper, router, calls } = await mountPage({
+    'GET /api/plan-results/today': { body: today },
+    'GET /api/plan-results/3': { body: planResult({ id: 3 }) },
+  })
+  expect(calls).toContain('GET /api/plan-results/today?date=2026-09-22')
+  const card = wrapper.get('.today-card')
+  expect(card.text()).toContain('Today · Tue 22')
+  expect(texts(wrapper, '.today-meal')).toEqual([
+    expect.stringMatching(/^Breakfast\s*Oat porridge · 1 ×$/),
+    expect.stringMatching(/^Lunch\s*Chili · 1.5 ×$/),
+    expect.stringMatching(/^Dinner\s*skipped$/),
+  ])
+  await click(wrapper.findAll('.today-meal')[1]!)
+  expect(router.currentRoute.value.fullPath).toBe('/plans/3?day=1&meal=1')
+  wrapper.unmount()
+})
+
+test('saved plans are listed newest first with when they were saved, and the Today chip', async () => {
+  const saved = [
+    planSummary({ id: 4, saved_at: '2026-09-20T16:04:00Z' }),
+    planSummary({ id: 3, start_date: '2026-09-14', saved_at: '2026-09-12T07:30:00Z' }),
+    planSummary({ id: 2, start_date: '2026-09-28', days: 3, saved_at: '2026-09-11T22:15:00Z' }),
+  ]
+  const { wrapper, router } = await mountPage({
+    'GET /api/plan-results': { body: { unsaved: null, saved } },
+    'GET /api/plan-results/today': { body: { id: 3, day: 0, date: '2026-09-14', meals: [] } },
+    'GET /api/plan-results/3': { body: planResult({ id: 3, start_date: '2026-09-14' }) },
+  })
+  expect(wrapper.get('.saved-plans-card').text()).toContain('Saved plans')
+  expect(texts(wrapper, '.saved-plan')).toEqual([
+    expect.stringMatching(/^Mon 21 – Sun 27 Sep\s*saved Sun 20, 18:04$/),
+    expect.stringMatching(/^Mon 14 – Sun 20 Sep\s*saved Sat 12, 09:30\s*Today$/),
+    expect.stringMatching(/^Mon 28 – Wed 30 Sep\s*saved Sat 12, 00:15$/),
+  ])
+  await click(wrapper.findAll('.saved-plan')[1]!)
+  expect(router.currentRoute.value.fullPath).toBe('/plans/3')
   wrapper.unmount()
 })

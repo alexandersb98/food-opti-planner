@@ -150,7 +150,29 @@
     "maxTime": "Max solving time",
     "seconds": "{n} s",
     "maxTimeHint": "Whole seconds, at most {max} (5 minutes).",
-    "maxTimeRange": "A whole number of seconds from {min} to {max}."
+    "maxTimeRange": "A whole number of seconds from {min} to {max}.",
+    "makePlan": "Make plan",
+    "making": "Making plan…",
+    "elapsed": "{n} of {max} s",
+    "failedTitle": "Couldn't make a plan",
+    "failure": {
+      "no_plan_in_time": "No plan found within {n} s. Try a longer Max solving time.",
+      "infeasible": "No plan possible with these settings.",
+      "no_recipes": "There are no recipes to plan with yet. Add some on the Recipes page.",
+      "too_large": "This plan is too large to solve. Try fewer days or meals.",
+      "error": "Could not make a plan. Try again."
+    },
+    "dismiss": "Dismiss",
+    "newPlan": "New plan, not saved",
+    "open": "Open",
+    "statusShort": {
+      "optimal": "Best plan",
+      "time_ran_out": "Time ran out"
+    },
+    "today": "Today · {day}",
+    "savedPlans": "Saved plans",
+    "savedAt": "saved {day}, {time}",
+    "todayChip": "Today"
   },
   "schedule": {
     "title": "Schedule",
@@ -182,5 +204,26 @@
     "mostMeals": "At most {max} meals a day.",
     "nameInUse": "Another meal has this name.",
     "nameTooLong": "Use at most {max} characters."
+  },
+  "results": {
+    "loadFailed": "Could not load the plan.",
+    "status": {
+      "optimal": "Best possible plan",
+      "time_ran_out": "Time ran out: may not be the best plan"
+    },
+    "summary": "Summary",
+    "perDay": "{value}/day",
+    "showAll": "Show all {n}",
+    "showFewer": "Show fewer",
+    "position": "{day} · {n} of {days}",
+    "previousDay": "Previous day",
+    "nextDay": "Next day",
+    "today": "Today",
+    "portion": "{recipe} · {portion} ×",
+    "skipped": "skipped",
+    "discard": "Discard",
+    "discardTitle": "Discard this plan?",
+    "cannotUndo": "This can't be undone.",
+    "useForToday": "Use for today"
   }
 }
