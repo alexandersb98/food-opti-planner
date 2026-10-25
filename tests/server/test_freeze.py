@@ -37,9 +37,9 @@ def served(day, slot, multiplier, energy, protein="0"):
     return SlotAssignment(day, slot, "generated", "Porridge", Decimal(multiplier), totals(energy, protein))
 
 
-def frozen(slots, day_totals, horizon, days, status=SolveStatus.OPTIMAL, meals=("Breakfast", "Lunch")):
+def frozen(slots, day_totals, horizon, days, status=SolveStatus.OPTIMAL, meals=("Breakfast", "Lunch"), stopped=False):
     plan = Plan(status, Decimal(0), tuple(slots), tuple(day_totals), horizon)
-    return freeze.freeze(request(days), plan, START, list(meals), UNITS)
+    return freeze.freeze(request(days), plan, START, list(meals), UNITS, stopped=stopped)
 
 
 TWO_DAYS = (Day((Slot(), Slot("absent"))), Day((Slot(), Slot()), min_meals_per_day=1))
@@ -63,6 +63,16 @@ def test_the_plan_keeps_its_dates_status_and_attributes():
 def test_a_feasible_plan_is_one_where_time_ran_out():
     result = frozen(SLOTS, [totals("0"), totals("0")], totals("0"), TWO_DAYS, SolveStatus.FEASIBLE)
     assert result.status == "time_ran_out"
+
+
+def test_a_feasible_plan_from_a_cancelled_solve_is_stopped():
+    result = frozen(SLOTS, [totals("0"), totals("0")], totals("0"), TWO_DAYS, SolveStatus.FEASIBLE, stopped=True)
+    assert result.status == "stopped"
+
+
+def test_a_best_possible_plan_stays_optimal_when_cancelled_too_late():
+    result = frozen(SLOTS, [totals("0"), totals("0")], totals("0"), TWO_DAYS, stopped=True)
+    assert result.status == "optimal"
 
 
 def test_meals_keep_their_names_recipes_and_portions_in_schedule_order():

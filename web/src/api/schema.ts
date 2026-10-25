@@ -274,10 +274,32 @@ export interface paths {
         /**
          * Solve
          * @description Make a plan from the setup and the whole catalog, within the setup's
-         *     time limit. A plan replaces the unsaved one; without a plan nothing is
-         *     stored, and the unsaved plan stays. Runs inside the request.
+         *     time limit or until cancelled. A plan replaces the unsaved one; without
+         *     a plan nothing is stored, and the unsaved plan stays. Runs inside the
+         *     request, one at a time.
          */
         post: operations["solve_api_plan_solve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plan/solve/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel
+         * @description Stop the running solve, which then answers with the best plan found
+         *     so far. Without one, nothing happens: a Cancel may cross the answer.
+         */
+        post: operations["cancel_api_plan_solve_cancel_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -612,7 +634,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "optimal" | "time_ran_out";
+            status: "optimal" | "time_ran_out" | "stopped";
             /** Totals */
             totals: string[];
         };
@@ -643,7 +665,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "optimal" | "time_ran_out";
+            status: "optimal" | "time_ran_out" | "stopped";
         };
         /** PlanResults */
         PlanResults: {
@@ -765,7 +787,7 @@ export interface components {
          */
         SolveOutcome: {
             /** Failure */
-            failure: ("no_recipes" | "too_large" | "infeasible" | "no_plan_in_time") | null;
+            failure: ("no_recipes" | "too_large" | "infeasible" | "no_plan_in_time" | "stopped") | null;
             plan: components["schemas"]["PlanResult"] | null;
         };
         /** Tag */
@@ -1566,6 +1588,31 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SolveOutcome"];
                 };
+            };
+            /** @description A plan is already being made */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    cancel_api_plan_solve_cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

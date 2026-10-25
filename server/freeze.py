@@ -16,6 +16,8 @@ from meal_planner.scaling import to_decimal
 from . import models
 
 STATUS = {SolveStatus.OPTIMAL: "optimal", SolveStatus.FEASIBLE: "time_ran_out"}
+# A FEASIBLE plan from a cancelled solve. An OPTIMAL one stays "optimal".
+STOPPED = "stopped"
 # Scaled ingredient amounts are stored to the catalog's decimals.
 AMOUNT_DECIMALS = models.VALUE_DECIMALS
 
@@ -41,10 +43,13 @@ def freeze(
     start_date: date,
     meal_names: Sequence[str],
     units: Mapping[str, str],
+    stopped: bool = False,
 ) -> models.PlanResult:
     """The unsaved result rows for `plan`, solved from `request`. `meal_names`
     are the meals of a day in schedule order, one per slot; `units` gives
-    each attribute's unit by name. `created_at` is left to the caller.
+    each attribute's unit by name; `stopped` says the solve was cancelled,
+    which makes a plan that may not be the best one `stopped`. `created_at`
+    is left to the caller.
 
     A slot is planned when it was served; an absent slot and one the planner
     left out both come out as not planned, without items or totals. Each
@@ -60,7 +65,7 @@ def freeze(
         saved=False,
         start_date=start_date,
         days=len(request.days),
-        status=STATUS[plan.solve_status],
+        status=STOPPED if stopped and plan.solve_status is SolveStatus.FEASIBLE else STATUS[plan.solve_status],
         attributes=attributes,
         meals=[],
         totals=[],
