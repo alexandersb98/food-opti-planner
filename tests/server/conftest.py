@@ -110,3 +110,39 @@ class Catalog:
 @pytest.fixture
 def catalog(client):
     return Catalog(client)
+
+
+def schedule(client, **changes) -> dict:
+    """Save the plan setup with `changes`, answering the saved setup."""
+    response = client.put("/api/plan", json={**client.get("/api/plan").json(), **changes})
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def fixed_portion_recipe(catalog: Catalog, name: str, items: dict, portion: str) -> int:
+    """A recipe always eaten at `portion`, so a solve's choice is known."""
+    items = [{"ingredient_id": i, "amount": a} for i, a in items.items()]
+    fields = {**RECIPE, "min_multiplier": portion, "max_multiplier": portion}
+    return catalog._create("/api/recipes", {**fields, "name": name, "items": items, "extra_tag_ids": []})
+
+
+@pytest.fixture
+def porridge(client, catalog):
+    """Energy and Protein; Porridge of 60 g oats and 0.333333 l milk, eaten
+    at 1.5 portions; 2 days of Breakfast and Lunch, Lunch skipped on day 0.
+    Answers the recipe's id."""
+    energy = catalog.attribute()
+    protein = catalog.attribute("Protein", "g", 1)
+    oats = catalog.ingredient(values={energy: "389", protein: "16.9"})
+    milk = catalog.ingredient("Milk", "l", "1", values={energy: "640"})
+    recipe = fixed_portion_recipe(catalog, "Porridge", {oats: "60", milk: "0.333333"}, "1.5")
+    schedule(
+        client,
+        start_date="2026-10-26",
+        days=2,
+        meals=[{"name": "Breakfast"}, {"name": "Lunch"}],
+        skips=[{"day": 0, "meal": 1}],
+        minimums=[],
+        solve_time_limit=10,
+    )
+    return recipe

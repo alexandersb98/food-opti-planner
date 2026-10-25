@@ -61,8 +61,8 @@ class Ingredients(BaseModel):
     ingredient_ids: Annotated[list[int], Field(min_length=1)]
 
 
-def _loaded():
-    """Recipes with everything their responses need, in a few queries."""
+def loaded():
+    """Recipes with everything their responses and the planner need, in a few queries."""
     ingredient = selectinload(models.Recipe.items).selectinload(models.RecipeItem.ingredient)
     return select(models.Recipe).options(
         ingredient.selectinload(models.Ingredient.values).selectinload(models.IngredientValue.attribute),
@@ -184,7 +184,7 @@ def _item(stored: models.RecipeItem | None, fields: RecipeItem, position: int) -
 
 def _read(db: DbSession, recipe_id: int) -> Recipe:
     """The response for one recipe, or a 404."""
-    recipe = db.scalars(_loaded().where(models.Recipe.id == recipe_id)).one_or_none()
+    recipe = db.scalars(loaded().where(models.Recipe.id == recipe_id)).one_or_none()
     if recipe is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such recipe")
     return _Responses(db).response(recipe)
@@ -193,7 +193,7 @@ def _read(db: DbSession, recipe_id: int) -> Recipe:
 @router.get("")
 def list_recipes(db: DbSession) -> list[Recipe]:
     responses = _Responses(db)
-    return [responses.response(recipe) for recipe in db.scalars(_loaded().order_by(models.Recipe.id))]
+    return [responses.response(recipe) for recipe in db.scalars(loaded().order_by(models.Recipe.id))]
 
 
 @router.post("/derived-tags")

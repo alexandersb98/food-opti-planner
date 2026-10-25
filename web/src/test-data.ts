@@ -1,4 +1,4 @@
-import type { Attribute, Ingredient, Recipe, Tag } from './api/types'
+import type { Attribute, Ingredient, Plan, PlanResult, PlanResultSummary, Recipe, ResultMeal, Tag } from './api/types'
 
 // Rows as the server answers them, for tests: give what the test is about,
 // the rest gets a plain default. Typed, so a change to the API shows up
@@ -29,6 +29,57 @@ export function recipe(fields: Given<Recipe, 'id' | 'name'>): Recipe {
     serving_cap_weight: '1',
     derived_tag_ids: [],
     totals: [],
+    ...fields,
+  }
+}
+
+/** The plan setup, by default the server's first one: 7 days from Mon 21
+ * Sep 2026, Breakfast / Lunch / Dinner, every meal planned, 30 s. */
+export function plan(fields: Partial<Plan> = {}): Plan {
+  return {
+    start_date: '2026-09-21',
+    days: 7,
+    meals: [
+      { id: 1, name: 'Breakfast' },
+      { id: 2, name: 'Lunch' },
+      { id: 3, name: 'Dinner' },
+    ],
+    skips: [],
+    minimums: [],
+    solve_time_limit: 30,
+    ...fields,
+  }
+}
+
+/** A made plan without its days, by default saved, best possible, for the
+ * same week as `plan()` and saved the evening before it starts. */
+export function planSummary(fields: Given<PlanResultSummary, 'id'>): PlanResultSummary {
+  return {
+    saved: true,
+    status: 'optimal',
+    start_date: '2026-09-21',
+    days: 7,
+    created_at: '2026-09-20T16:04:00Z',
+    saved_at: '2026-09-20T16:04:00Z',
+    ...fields,
+  }
+}
+
+/** A meal of a made plan, by default not planned. */
+export function resultMeal(fields: Given<ResultMeal, 'name'>): ResultMeal {
+  return { planned: false, recipe: null, portion: null, totals: [], items: [], ...fields }
+}
+
+/** A made plan in full, by default with no attributes and no meals. */
+export function planResult(fields: Given<PlanResult, 'id'>): PlanResult {
+  const days = fields.days ?? 7
+  return {
+    ...planSummary(fields),
+    attributes: [],
+    totals: [],
+    averages: [],
+    day_totals: Array.from({ length: days }, () => []),
+    meals: Array.from({ length: days }, () => []),
     ...fields,
   }
 }

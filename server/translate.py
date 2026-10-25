@@ -1,13 +1,20 @@
 """Stored data to library objects: the GUI's mapping rules, in one place.
 
 Pure functions of model objects, with no database or HTTP, so each rule has
-its own plain test. Later slices add the plan and goals, up to the
-whole `PlanRequest`.
+its own plain test. Later slices add goals and recipe filters to the
+`PlanRequest`.
 """
 
-from meal_planner import Ingredient, IngredientAmount, Recipe, TagDef
+from collections.abc import Sequence
+
+from meal_planner import AttributeDef, Day, Ingredient, IngredientAmount, PlanRequest, Recipe, Slot, TagDef
 
 from . import models
+
+
+def attribute(row: models.Attribute) -> AttributeDef:
+    """`decimals` is the library's precision; `unit` is GUI-only."""
+    return AttributeDef(name=row.name, precision=row.decimals)
 
 
 def ingredient(row: models.Ingredient) -> Ingredient:
@@ -39,4 +46,36 @@ def recipe(row: models.Recipe) -> Recipe:
         max_multiplier=row.max_multiplier,
         hard_max_multiplier=row.hard_max_multiplier,
         serving_cap_weight=row.serving_cap_weight,
+    )
+
+
+def days(plan: models.Plan) -> tuple[Day, ...]:
+    """One `Day` per row of the grid, with a slot per meal in meal order:
+    planned is `Slot("generated")`, skipped `Slot("absent")`. A day without
+    a minimum serves all its planned meals (`min_meals_per_day=None`)."""
+    meals = sorted(plan.meals, key=lambda meal: meal.position)
+    skipped = [{skip.day for skip in meal.skips} for meal in meals]
+    minimums = {minimum.day: minimum.at_least for minimum in plan.minimums}
+    return tuple(
+        Day(
+            slots=tuple(Slot("absent" if day in cells else "generated") for cells in skipped),
+            min_meals_per_day=minimums.get(day),
+        )
+        for day in range(plan.days)
+    )
+
+
+def plan_request(
+    plan: models.Plan,
+    attributes: Sequence[models.Attribute],
+    tags: Sequence[models.Tag],
+    recipes: Sequence[models.Recipe],
+) -> PlanRequest:
+    """The whole catalog and the schedule. No goals or recipe filters yet."""
+    return PlanRequest(
+        attributes=tuple(attribute(row) for row in attributes),
+        tags=tuple(tag(row) for row in tags),
+        recipes=tuple(recipe(row) for row in recipes),
+        days=days(plan),
+        solve_time_limit=plan.solve_time_limit,
     )

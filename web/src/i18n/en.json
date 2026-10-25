@@ -11,7 +11,6 @@
     "attributes": "Attributes",
     "tags": "Tags"
   },
-  "placeholder": "Coming in a later version.",
   "login": {
     "title": "Log in",
     "password": "Password",
@@ -141,5 +140,90 @@
     "penaltyInvalid": "Enter a number, 0 or more.",
     "nameInUse": "A recipe with this name already exists.",
     "allIngredientsIn": "Every ingredient is in the recipe already."
+  },
+  "plan": {
+    "loadFailed": "Could not load the plan.",
+    "schedule": "Schedule",
+    "edit": "Edit",
+    "mealsADay": "no meals a day | 1 meal a day | {n} meals a day",
+    "skipped": "nothing skipped | 1 skipped | {n} skipped",
+    "maxTime": "Max solving time",
+    "seconds": "{n} s",
+    "maxTimeHint": "Whole seconds, at most {max} (5 minutes).",
+    "maxTimeRange": "A whole number of seconds from {min} to {max}.",
+    "makePlan": "Make plan",
+    "making": "Making plan…",
+    "elapsed": "{n} of {max} s",
+    "failedTitle": "Couldn't make a plan",
+    "failure": {
+      "no_plan_in_time": "No plan found within {n} s. Try a longer Max solving time.",
+      "infeasible": "No plan possible with these settings.",
+      "no_recipes": "There are no recipes to plan with yet. Add some on the Recipes page.",
+      "too_large": "This plan is too large to solve. Try fewer days or meals.",
+      "error": "Could not make a plan. Try again."
+    },
+    "dismiss": "Dismiss",
+    "newPlan": "New plan, not saved",
+    "open": "Open",
+    "statusShort": {
+      "optimal": "Best plan",
+      "time_ran_out": "Time ran out"
+    },
+    "today": "Today · {day}",
+    "savedPlans": "Saved plans",
+    "savedAt": "saved {day}, {time}",
+    "todayChip": "Today"
+  },
+  "schedule": {
+    "title": "Schedule",
+    "starts": "Starts",
+    "pickDate": "Pick a date",
+    "startInvalid": "Enter a date, such as 2026-10-21.",
+    "days": "Number of days",
+    "fewerDays": "Fewer days",
+    "moreDays": "More days",
+    "daysRange": "A whole number from {min} to {max}.",
+    "meals": "Meals each day",
+    "mealsHint": "Meal names are labels for you; the planner only counts meals.",
+    "mealsWrong": "Check the meal names.",
+    "atLeast": "At least",
+    "atLeastOn": "At least on {day}",
+    "all": "all",
+    "cell": "{meal} on {day}",
+    "skip": "skip",
+    "legendPlanned": "Plan this meal",
+    "legendSkipped": "Skip (eating out, not home)",
+    "legendTap": "Tap a meal to switch. “At least” lets the planner leave some meals empty that day.",
+    "abovePlanned": "Must be at most the meals planned that day.",
+    "mealName": "Name of meal {n}",
+    "mealN": "meal {n}",
+    "moveUp": "Move {name} up",
+    "moveDown": "Move {name} down",
+    "remove": "Remove {name}",
+    "addMeal": "+ Add meal",
+    "mostMeals": "At most {max} meals a day.",
+    "nameInUse": "Another meal has this name.",
+    "nameTooLong": "Use at most {max} characters."
+  },
+  "results": {
+    "loadFailed": "Could not load the plan.",
+    "status": {
+      "optimal": "Best possible plan",
+      "time_ran_out": "Time ran out: may not be the best plan"
+    },
+    "summary": "Summary",
+    "perDay": "{value}/day",
+    "showAll": "Show all {n}",
+    "showFewer": "Show fewer",
+    "position": "{day} · {n} of {days}",
+    "previousDay": "Previous day",
+    "nextDay": "Next day",
+    "today": "Today",
+    "portion": "{recipe} · {portion} ×",
+    "skipped": "skipped",
+    "discard": "Discard",
+    "discardTitle": "Discard this plan?",
+    "cannotUndo": "This can't be undone.",
+    "useForToday": "Use for today"
   }
 }

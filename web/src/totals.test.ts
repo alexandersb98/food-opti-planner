@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { attribute, ingredient } from './test-data'
-import { portionTotals } from './totals'
+import { portionTotals, roundedText } from './totals'
 
 const energy = attribute({ id: 1, name: 'Energy', decimals: 0 })
 const protein = attribute({ id: 2, name: 'Protein', decimals: 1 })
@@ -62,4 +62,12 @@ test('small totals round to 0 without a sign, and decimals are padded inside', (
   const salt = attribute({ id: 3, name: 'Salt', decimals: 3 })
   const pinch = ingredient({ id: 7, name: 'Pinch', basis: '100', values: [{ attribute_id: 3, value: '0.5' }] })
   expect(totals([{ ingredient: pinch, amount: '1.4' }], [salt])).toEqual({ 3: '0.007' })
+})
+
+test('a number is rounded to at most so many decimals, half away from zero', () => {
+  expect(roundedText('270.004', 2)).toBe('270')
+  expect(roundedText('2.555', 2)).toBe('2.56')
+  expect(roundedText('-2.555', 2)).toBe('-2.56')
+  expect(roundedText('80', 2)).toBe('80')
+  expect(roundedText('0.001', 2)).toBe('0')
 })

@@ -145,6 +145,145 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Plan */
+        get: operations["get_plan_api_plan_get"];
+        /** Update Plan */
+        put: operations["update_plan_api_plan_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plan-results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Plan Results */
+        get: operations["list_plan_results_api_plan_results_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plan-results/today": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Today
+         * @description Among the saved plans covering `date` (the browser's), the one
+         *     chosen last: saved, or picked with Use for today.
+         */
+        get: operations["today_api_plan_results_today_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plan-results/{plan_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Plan Result */
+        get: operations["get_plan_result_api_plan_results__plan_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Plan Result
+         * @description Delete a saved plan, or discard the unsaved one.
+         */
+        delete: operations["delete_plan_result_api_plan_results__plan_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plan-results/{plan_id}/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save Plan Result
+         * @description Save the unsaved plan. It becomes the plan used for the dates it covers.
+         */
+        post: operations["save_plan_result_api_plan_results__plan_id__save_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plan-results/{plan_id}/use-for-today": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Use Plan Result For Today
+         * @description Make a saved plan the one used for the dates it covers.
+         */
+        post: operations["use_plan_result_for_today_api_plan_results__plan_id__use_for_today_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plan/solve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Solve
+         * @description Make a plan from the setup and the whole catalog, within the setup's
+         *     time limit. A plan replaces the unsaved one; without a plan nothing is
+         *     stored, and the unsaved plan stays. Runs inside the request.
+         */
+        post: operations["solve_api_plan_solve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/recipes": {
         parameters: {
             query?: never;
@@ -376,6 +515,142 @@ export interface components {
             /** Password */
             password: string;
         };
+        /** Meal */
+        Meal: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+        };
+        /** MealFields */
+        MealFields: {
+            /** Id */
+            id?: number | null;
+            /** Name */
+            name: string;
+        };
+        /**
+         * Minimum
+         * @description The fewest meals a day may serve. A day without one serves all its
+         *     planned meals ("at least: all").
+         */
+        Minimum: {
+            /** At Least */
+            at_least: number;
+            /** Day */
+            day: number;
+        };
+        /** Plan */
+        Plan: {
+            /** Days */
+            days: number;
+            /** Meals */
+            meals: components["schemas"]["Meal"][];
+            /** Minimums */
+            minimums: components["schemas"]["Minimum"][];
+            /** Skips */
+            skips: components["schemas"]["Skip"][];
+            /** Solve Time Limit */
+            solve_time_limit: number;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+        };
+        /** PlanFields */
+        PlanFields: {
+            /** Days */
+            days: number;
+            /** Meals */
+            meals: components["schemas"]["MealFields"][];
+            /** Minimums */
+            minimums: components["schemas"]["Minimum"][];
+            /** Skips */
+            skips: components["schemas"]["Skip"][];
+            /** Solve Time Limit */
+            solve_time_limit: number;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+        };
+        /**
+         * PlanResult
+         * @description One plan in full. Totals are the library's, rounded to each
+         *     attribute's decimals; an average is the plan's total over its days.
+         */
+        PlanResult: {
+            /** Attributes */
+            attributes: components["schemas"]["ResultAttribute"][];
+            /** Averages */
+            averages: string[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Day Totals */
+            day_totals: string[][];
+            /** Days */
+            days: number;
+            /** Id */
+            id: number;
+            /** Meals */
+            meals: components["schemas"]["ResultMeal"][][];
+            /** Saved */
+            saved: boolean;
+            /** Saved At */
+            saved_at: string | null;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "optimal" | "time_ran_out";
+            /** Totals */
+            totals: string[];
+        };
+        /**
+         * PlanResultSummary
+         * @description A plan without its days, for the cards on A1. Times are UTC.
+         */
+        PlanResultSummary: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Days */
+            days: number;
+            /** Id */
+            id: number;
+            /** Saved */
+            saved: boolean;
+            /** Saved At */
+            saved_at: string | null;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "optimal" | "time_ran_out";
+        };
+        /** PlanResults */
+        PlanResults: {
+            /** Saved */
+            saved: components["schemas"]["PlanResultSummary"][];
+            unsaved: components["schemas"]["PlanResultSummary"] | null;
+        };
         /** Recipe */
         Recipe: {
             /** Derived Tag Ids */
@@ -434,6 +709,65 @@ export interface components {
             /** Ingredient Id */
             ingredient_id: number;
         };
+        /** ResultAttribute */
+        ResultAttribute: {
+            /** Decimals */
+            decimals: number;
+            /** Name */
+            name: string;
+            /** Unit */
+            unit: string;
+        };
+        /**
+         * ResultItem
+         * @description An ingredient scaled to the meal's portion, in its unit.
+         */
+        ResultItem: {
+            /** Amount */
+            amount: string;
+            /** Ingredient */
+            ingredient: string;
+            /** Unit */
+            unit: string;
+        };
+        /**
+         * ResultMeal
+         * @description A meal of a day. Not planned (no recipe, portion, totals or items)
+         *     when skipped in the schedule or left out by the planner.
+         */
+        ResultMeal: {
+            /** Items */
+            items: components["schemas"]["ResultItem"][];
+            /** Name */
+            name: string;
+            /** Planned */
+            planned: boolean;
+            /** Portion */
+            portion: string | null;
+            /** Recipe */
+            recipe: string | null;
+            /** Totals */
+            totals: string[];
+        };
+        /**
+         * Skip
+         * @description A skipped cell. `meal` is the meal's position in `meals`.
+         */
+        Skip: {
+            /** Day */
+            day: number;
+            /** Meal */
+            meal: number;
+        };
+        /**
+         * SolveOutcome
+         * @description The new unsaved plan, or why there is none.
+         */
+        SolveOutcome: {
+            /** Failure */
+            failure: ("no_recipes" | "too_large" | "infeasible" | "no_plan_in_time") | null;
+            plan: components["schemas"]["PlanResult"] | null;
+        };
         /** Tag */
         Tag: {
             /**
@@ -461,6 +795,23 @@ export interface components {
             derive: "all" | "any";
             /** Name */
             name: string;
+        };
+        /**
+         * TodayPlan
+         * @description The plan used for `date` and that day's meals; `day` is from 0.
+         */
+        TodayPlan: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Day */
+            day: number;
+            /** Id */
+            id: number;
+            /** Meals */
+            meals: components["schemas"]["ResultMeal"][];
         };
         /** Total */
         Total: {
@@ -927,6 +1278,294 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    get_plan_api_plan_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Plan"];
+                };
+            };
+        };
+    };
+    update_plan_api_plan_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanFields"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Plan"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_plan_results_api_plan_results_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanResults"];
+                };
+            };
+        };
+    };
+    today_api_plan_results_today_get: {
+        parameters: {
+            query: {
+                date: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TodayPlan"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_plan_result_api_plan_results__plan_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plan_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanResult"];
+                };
+            };
+            /** @description No such plan */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_plan_result_api_plan_results__plan_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plan_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such plan */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_plan_result_api_plan_results__plan_id__save_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plan_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanResultSummary"];
+                };
+            };
+            /** @description No such plan */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The plan is already saved */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    use_plan_result_for_today_api_plan_results__plan_id__use_for_today_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                plan_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanResultSummary"];
+                };
+            };
+            /** @description No such plan */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The plan is not saved */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    solve_api_plan_solve_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SolveOutcome"];
+                };
             };
         };
     };
