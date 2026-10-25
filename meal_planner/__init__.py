@@ -16,11 +16,12 @@ from .result import (
     ViolationReport,
 )
 from .schedule import Day, Slot
+from .stopping import StopHandle
 from .validation import PlanRequestError
 
 __all__ = [
     "AttributeDef", "ConflictMember", "ConflictReport", "Constraint", "Day",
     "Ingredient", "IngredientAmount", "ModelTooLargeError", "Plan", "PlanRequest",
-    "PlanRequestError", "Recipe", "SlotAssignment", "Slot", "SolveStatus", "TagDef",
+    "PlanRequestError", "Recipe", "SlotAssignment", "Slot", "SolveStatus", "StopHandle", "TagDef",
     "Violation", "ViolationReport", "plan",
 ]
