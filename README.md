@@ -8,12 +8,13 @@ failing outright.
 
 **Status:** First slice implemented as the `meal_planner` library:
 recipes, tags, day and horizon constraints (hard and soft), serving
-multipliers, and STRICT solving with violation and conflict reports.
+multipliers, STRICT solving with violation and conflict reports, and a
+stop handle to end a running solve early.
 The GUI is being built: so far a server (`server/`) and a web app
 (`web/`) with a login, the Recipes, Ingredients, Attributes and Tags
-pages, a Plan page with the schedule, Make plan, the results page, today's
-meals and saved plans (goals and recipe filters are still to come), and a
-deploy to Cloud Run.
+pages, a Plan page with the schedule, Make plan (which can be cancelled),
+the results page, today's meals and saved plans (goals and recipe filters
+are still to come), and a deploy to Cloud Run.
 
 Run the Python tests with `python3 -m pip install -e '.[server,dev]'` and
 then `python3 -m pytest`. Server tests use SQLite; set

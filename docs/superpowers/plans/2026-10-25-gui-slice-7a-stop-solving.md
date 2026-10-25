@@ -99,6 +99,10 @@ still stops it. `plan()`: a handle stopped before the call answers
 remaining solves and keeps their members; no handle leaves results
 unchanged.
 
+**Checked:** 175 library tests pass. With the first-log stop turned off,
+the "stop before the search starts" test runs to its 60 s limit and
+fails, so it tests that path.
+
 ### Task 2: Cancel on the server
 
 **Files:** `server/app.py`, `server/api/plan.py`,
@@ -117,6 +121,9 @@ one runs is 409 and the first still finishes; cancel with nothing
 running is 204; after a solve (also a failed one) the next may start;
 freeze stores `stopped`.
 
+**Checked:** 478 Python tests pass on SQLite; the server suite (282)
+also passes on Postgres 16.
+
 ### Task 3: Cancel in the app
 
 **Files:** `web/src/solve.ts` and its test,
@@ -130,6 +137,16 @@ test, `web/src/pages/ResultsPage.test.ts`, `web/src/i18n/en.json`.
 cancelling until the solve answers; a 409 is `busy`. Plan page: Cancel
 on the Making plan… card, Stopping… while cancelling, the `stopped` and
 `busy` texts. Results page: the Stopped early status line.
+
+**Checked:** lint, typecheck and Vitest (157 tests) pass. The slice 7
+Playwright flow still passes against uvicorn on SQLite with the built
+app. In a phone-sized browser, with the server's solve replaced by one
+that runs until cancelled, Cancel opened R1 with "Stopped early: may
+not be the best plan" about 0.1 s after the tap.
+
+No Playwright step is added: the flow is unchanged, and until goals
+(slice 8) a real plan solves at once, so there is nothing to cancel
+without replacing the solver.
 
 ### Task 4: Docs
 
