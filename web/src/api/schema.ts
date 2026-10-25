@@ -145,6 +145,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Plan */
+        get: operations["get_plan_api_plan_get"];
+        /** Update Plan */
+        put: operations["update_plan_api_plan_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/recipes": {
         parameters: {
             query?: never;
@@ -376,6 +394,67 @@ export interface components {
             /** Password */
             password: string;
         };
+        /** Meal */
+        Meal: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+        };
+        /** MealFields */
+        MealFields: {
+            /** Id */
+            id?: number | null;
+            /** Name */
+            name: string;
+        };
+        /**
+         * Minimum
+         * @description The fewest meals a day may serve. A day without one serves all its
+         *     planned meals ("at least: all").
+         */
+        Minimum: {
+            /** At Least */
+            at_least: number;
+            /** Day */
+            day: number;
+        };
+        /** Plan */
+        Plan: {
+            /** Days */
+            days: number;
+            /** Meals */
+            meals: components["schemas"]["Meal"][];
+            /** Minimums */
+            minimums: components["schemas"]["Minimum"][];
+            /** Skips */
+            skips: components["schemas"]["Skip"][];
+            /** Solve Time Limit */
+            solve_time_limit: number;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+        };
+        /** PlanFields */
+        PlanFields: {
+            /** Days */
+            days: number;
+            /** Meals */
+            meals: components["schemas"]["MealFields"][];
+            /** Minimums */
+            minimums: components["schemas"]["Minimum"][];
+            /** Skips */
+            skips: components["schemas"]["Skip"][];
+            /** Solve Time Limit */
+            solve_time_limit: number;
+            /**
+             * Start Date
+             * Format: date
+             */
+            start_date: string;
+        };
         /** Recipe */
         Recipe: {
             /** Derived Tag Ids */
@@ -433,6 +512,16 @@ export interface components {
             amount: string;
             /** Ingredient Id */
             ingredient_id: number;
+        };
+        /**
+         * Skip
+         * @description A skipped cell. `meal` is the meal's position in `meals`.
+         */
+        Skip: {
+            /** Day */
+            day: number;
+            /** Meal */
+            meal: number;
         };
         /** Tag */
         Tag: {
@@ -927,6 +1016,59 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    get_plan_api_plan_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Plan"];
+                };
+            };
+        };
+    };
+    update_plan_api_plan_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlanFields"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Plan"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };

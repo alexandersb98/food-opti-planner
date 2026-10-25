@@ -351,6 +351,180 @@
         "title": "Login",
         "type": "object"
       },
+      "Meal": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "Meal",
+        "type": "object"
+      },
+      "MealFields": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "MealFields",
+        "type": "object"
+      },
+      "Minimum": {
+        "description": "The fewest meals a day may serve. A day without one serves all its\nplanned meals (\"at least: all\").",
+        "properties": {
+          "at_least": {
+            "minimum": 0.0,
+            "title": "At Least",
+            "type": "integer"
+          },
+          "day": {
+            "exclusiveMaximum": 31.0,
+            "minimum": 0.0,
+            "title": "Day",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "day",
+          "at_least"
+        ],
+        "title": "Minimum",
+        "type": "object"
+      },
+      "Plan": {
+        "properties": {
+          "days": {
+            "maximum": 31.0,
+            "minimum": 1.0,
+            "title": "Days",
+            "type": "integer"
+          },
+          "meals": {
+            "items": {
+              "$ref": "#/components/schemas/Meal"
+            },
+            "title": "Meals",
+            "type": "array"
+          },
+          "minimums": {
+            "items": {
+              "$ref": "#/components/schemas/Minimum"
+            },
+            "title": "Minimums",
+            "type": "array"
+          },
+          "skips": {
+            "items": {
+              "$ref": "#/components/schemas/Skip"
+            },
+            "title": "Skips",
+            "type": "array"
+          },
+          "solve_time_limit": {
+            "maximum": 300.0,
+            "minimum": 1.0,
+            "title": "Solve Time Limit",
+            "type": "integer"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start_date",
+          "days",
+          "meals",
+          "skips",
+          "minimums",
+          "solve_time_limit"
+        ],
+        "title": "Plan",
+        "type": "object"
+      },
+      "PlanFields": {
+        "properties": {
+          "days": {
+            "maximum": 31.0,
+            "minimum": 1.0,
+            "title": "Days",
+            "type": "integer"
+          },
+          "meals": {
+            "items": {
+              "$ref": "#/components/schemas/MealFields"
+            },
+            "maxItems": 8,
+            "minItems": 1,
+            "title": "Meals",
+            "type": "array"
+          },
+          "minimums": {
+            "items": {
+              "$ref": "#/components/schemas/Minimum"
+            },
+            "title": "Minimums",
+            "type": "array"
+          },
+          "skips": {
+            "items": {
+              "$ref": "#/components/schemas/Skip"
+            },
+            "title": "Skips",
+            "type": "array"
+          },
+          "solve_time_limit": {
+            "maximum": 300.0,
+            "minimum": 1.0,
+            "title": "Solve Time Limit",
+            "type": "integer"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start_date",
+          "days",
+          "meals",
+          "skips",
+          "minimums",
+          "solve_time_limit"
+        ],
+        "title": "PlanFields",
+        "type": "object"
+      },
       "Recipe": {
         "properties": {
           "derived_tag_ids": {
@@ -582,6 +756,28 @@
           "amount"
         ],
         "title": "RecipeItem",
+        "type": "object"
+      },
+      "Skip": {
+        "description": "A skipped cell. `meal` is the meal's position in `meals`.",
+        "properties": {
+          "day": {
+            "exclusiveMaximum": 31.0,
+            "minimum": 0.0,
+            "title": "Day",
+            "type": "integer"
+          },
+          "meal": {
+            "minimum": 0.0,
+            "title": "Meal",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "day",
+          "meal"
+        ],
+        "title": "Skip",
         "type": "object"
       },
       "Tag": {
@@ -1193,6 +1389,66 @@
           }
         },
         "summary": "Logout"
+      }
+    },
+    "/api/plan": {
+      "get": {
+        "operationId": "get_plan_api_plan_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Plan",
+        "tags": [
+          "plan"
+        ]
+      },
+      "put": {
+        "operationId": "update_plan_api_plan_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanFields"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Plan"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Plan",
+        "tags": [
+          "plan"
+        ]
       }
     },
     "/api/recipes": {

@@ -1,5 +1,6 @@
 """The mapping rules from stored data to library objects, without a database."""
 
+from datetime import date
 from decimal import Decimal
 
 from meal_planner import IngredientAmount, Recipe
@@ -111,3 +112,68 @@ def test_derived_tags_come_from_the_ingredients_by_each_tags_rule():
     ]))
     tag_defs = {tag.name: translate.tag(tag) for tag in (VEGAN, nuts)}
     assert recipe.tags(tag_defs) == frozenset({"vegan", "contains-nuts"})
+
+
+# The plan
+
+
+def test_an_attribute_keeps_its_name_and_its_decimals_are_the_precision():
+    attribute = translate.attribute(PROTEIN)
+    assert (attribute.name, attribute.precision) == ("Protein", 1)
+    assert translate.attribute(ENERGY).precision == 0
+
+
+def plan(days=3, skips=(), minimums=(), solve_time_limit=30) -> models.Plan:
+    """Breakfast, Lunch and Dinner; `skips` are (day, meal position) pairs,
+    `minimums` (day, at least) pairs."""
+    meals = [
+        models.PlanMeal(position=position, name=name, skips=[
+            models.PlanSkip(day=day) for day, meal in skips if meal == position
+        ])
+        for position, name in enumerate(["Breakfast", "Lunch", "Dinner"])
+    ]
+    return models.Plan(
+        start_date=date(2026, 10, 26),
+        days=days,
+        meals=meals,
+        minimums=[models.PlanDayMinimum(day=day, at_least=at_least) for day, at_least in minimums],
+        solve_time_limit=solve_time_limit,
+    )
+
+
+def test_each_day_has_a_slot_per_meal_planned_unless_skipped():
+    days = translate.days(plan(skips=[(0, 1), (2, 0), (2, 2)]))
+    assert [[slot.kind for slot in day.slots] for day in days] == [
+        ["generated", "absent", "generated"],
+        ["generated", "generated", "generated"],
+        ["absent", "generated", "absent"],
+    ]
+
+
+def test_at_least_all_is_no_minimum_and_a_number_is_the_minimum():
+    days = translate.days(plan(skips=[(1, 0)], minimums=[(1, 1), (2, 0)]))
+    assert [day.min_meals_per_day for day in days] == [None, 1, 0]
+
+
+def test_the_meals_follow_their_positions_not_the_list_order():
+    setup = plan(skips=[(0, 0)])
+    setup.meals.reverse()
+    assert [slot.kind for slot in translate.days(setup)[0].slots] == ["absent", "generated", "generated"]
+
+
+def test_the_request_holds_every_attribute_tag_and_recipe_the_days_and_the_time_limit():
+    nuts = models.Tag(name="contains-nuts", derive="any")
+    milk_porridge = porridge(name="Milk porridge", extra_tags=[nuts])
+    request = translate.plan_request(
+        plan(days=2, skips=[(1, 2)], solve_time_limit=45),
+        [ENERGY, PROTEIN],
+        [VEGAN, nuts],
+        [porridge(), milk_porridge],
+    )
+    assert [(a.name, a.precision) for a in request.attributes] == [("Energy", 0), ("Protein", 1)]
+    assert [(t.name, t.derive) for t in request.tags] == [("vegan", "all"), ("contains-nuts", "any")]
+    assert [r.name for r in request.recipes] == ["Porridge", "Milk porridge"]
+    assert request.recipes[1].extra_tags == frozenset({"contains-nuts"})
+    assert request.days == translate.days(plan(days=2, skips=[(1, 2)]))
+    assert request.solve_time_limit == 45
+    assert (request.constraints, request.exclude_tags, request.require_tags) == ((), frozenset(), frozenset())

@@ -1,5 +1,6 @@
 """Database tables. Every model is imported here so migrations see it."""
 
+from datetime import date
 from decimal import Decimal
 
 from sqlalchemy import Column, ForeignKey, Numeric, String, Table
@@ -9,6 +10,7 @@ from .db import Base
 
 NAME_LENGTH = 100
 UNIT_LENGTH = 20
+MEAL_NAME_LENGTH = 40
 DERIVE_LENGTH = 3  # "all" or "any"
 # Numbers typed on forms (ingredient values, value bases, ...), stored
 # exactly as typed. 15 digits stay exact even in SQLite, which holds them as
@@ -132,11 +134,75 @@ class RecipeItem(Base):
     ingredient: Mapped[Ingredient] = relationship()
 
 
+class Plan(Base):
+    """The plan setup (A1, A2), one row. Its days are numbered from 0, from
+    `start_date`; every cell of the days × meals grid is planned unless
+    skipped, and every day serves all its planned meals unless it has a
+    minimum. `solve_time_limit` is in whole seconds."""
+
+    __tablename__ = "plan"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    start_date: Mapped[date]
+    days: Mapped[int]
+    solve_time_limit: Mapped[int]
+    meals: Mapped[list["PlanMeal"]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True, order_by="PlanMeal.position"
+    )
+    # Only the days with a minimum; the others are "at least: all".
+    minimums: Mapped[list["PlanDayMinimum"]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True, order_by="PlanDayMinimum.day"
+    )
+
+
+class PlanMeal(Base):
+    """A meal of each day ("Breakfast"). Its skipped cells refer to it by id,
+    so they stay with it when it is renamed or moved, and go with it when it
+    is removed. Names are unique within the plan; the API checks that, as a
+    unique constraint would trip over two meals swapping names."""
+
+    __tablename__ = "plan_meals"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    plan_id: Mapped[int] = mapped_column(ForeignKey("plan.id", ondelete="CASCADE"))
+    # The order of the meals in a day, from 0.
+    position: Mapped[int]
+    name: Mapped[str] = mapped_column(String(MEAL_NAME_LENGTH))
+    skips: Mapped[list["PlanSkip"]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True, order_by="PlanSkip.day"
+    )
+
+
+class PlanSkip(Base):
+    """A skipped cell: no meal is planned for this meal on this day."""
+
+    __tablename__ = "plan_skips"
+
+    meal_id: Mapped[int] = mapped_column(
+        ForeignKey("plan_meals.id", ondelete="CASCADE"), primary_key=True
+    )
+    day: Mapped[int] = mapped_column(primary_key=True)
+
+
+class PlanDayMinimum(Base):
+    """The fewest meals a day may serve, from 0 to its planned meals."""
+
+    __tablename__ = "plan_day_minimums"
+
+    plan_id: Mapped[int] = mapped_column(ForeignKey("plan.id", ondelete="CASCADE"), primary_key=True)
+    day: Mapped[int] = mapped_column(primary_key=True)
+    at_least: Mapped[int]
+
+
 __all__ = [
     "Attribute",
     "Base",
     "Ingredient",
     "IngredientValue",
+    "Plan",
+    "PlanDayMinimum",
+    "PlanMeal",
+    "PlanSkip",
     "Recipe",
     "RecipeItem",
     "Tag",
