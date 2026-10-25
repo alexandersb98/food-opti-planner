@@ -24,7 +24,9 @@ const LINE_ATTRIBUTES = 3
 
 const day = ref(props.initialDay)
 const openMeals = reactive(new Set<string>()) // "day:meal" of each open meal
-if (props.initialMeal !== null) openMeals.add(`${props.initialDay}:${props.initialMeal}`)
+// Only a planned meal opens; a skipped one has nothing to show.
+if (props.initialMeal !== null && props.plan.meals[props.initialDay]?.[props.initialMeal]?.planned)
+  openMeals.add(`${props.initialDay}:${props.initialMeal}`)
 const allTotals = reactive(new Set<number>()) // days showing every attribute
 
 function totalsText(values: readonly string[], count = values.length) {

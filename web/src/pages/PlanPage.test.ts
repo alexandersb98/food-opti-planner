@@ -299,6 +299,10 @@ test('the Today card shows today’s meals of the plan used for today, asked for
   ])
   await click(wrapper.findAll('.today-meal')[1]!)
   expect(router.currentRoute.value.fullPath).toBe('/plans/3?day=1&meal=1')
+  await router.push('/')
+  await flushPromises()
+  await click(wrapper.findAll('.today-meal')[2]!) // a skipped meal has nothing to open
+  expect(router.currentRoute.value.fullPath).toBe('/plans/3?day=1')
   wrapper.unmount()
 })
 

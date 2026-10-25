@@ -172,6 +172,9 @@ function checked(): Fields | null {
 }
 
 async function save() {
+  // The server's marks from an earlier save go; checked() redoes the rest.
+  errors.meals = {}
+  errors.minimums = {}
   errors.save = ''
   const fields = checked()
   if (!fields) return

@@ -1,3 +1,4 @@
+import { flushPromises } from '@vue/test-utils'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { PlanResult } from '../api/types'
 import { button, click, dialog, fakeServer, mountApp, texts, type FakeServer } from '../test-app'
@@ -81,6 +82,15 @@ async function mountUnsaved(shown: PlanResult, server: FakeServer = {}) {
 }
 
 type Wrapper = Awaited<ReturnType<typeof mountSaved>>['wrapper']
+type AppRouter = Awaited<ReturnType<typeof mountSaved>>['router']
+
+/** On the Plan page, and Back does not return to the plan left behind. */
+async function expectHomeInPlace(router: AppRouter) {
+  expect(router.currentRoute.value.fullPath).toBe('/')
+  router.back()
+  await flushPromises()
+  expect(router.currentRoute.value.fullPath).toBe('/')
+}
 
 function position(wrapper: Wrapper) {
   return wrapper.get('.day-position').text()
@@ -209,6 +219,13 @@ test('from the Today card, the plan opens at that day with the meal open', async
   wrapper.unmount()
 })
 
+test('a skipped meal in the link opens nothing', async () => {
+  const { wrapper } = await mountSaved(week(), {}, '/plans/7?day=4&meal=2')
+  expect(position(wrapper)).toBe('Fri 25 · 5 of 7')
+  expect(wrapper.find('.meal-detail').exists()).toBe(false)
+  wrapper.unmount()
+})
+
 test('the unsaved plan is saved, which returns to the Plan page', async () => {
   const shown = week({ saved: false, saved_at: null })
   const { wrapper, router, calls } = await mountUnsaved(shown, {
@@ -218,7 +235,7 @@ test('the unsaved plan is saved, which returns to the Plan page', async () => {
   expect(wrapper.findAll('button').map((b) => b.text())).not.toContain('Delete')
   await click(button(wrapper, 'Save'))
   expect(calls).toContain('POST /api/plan-results/7/save')
-  expect(router.currentRoute.value.fullPath).toBe('/')
+  await expectHomeInPlace(router)
   wrapper.unmount()
 })
 
@@ -249,7 +266,7 @@ test('Discard deletes the unsaved plan and returns to the Plan page', async () =
   await click(button(wrapper, 'Discard'))
   await dialog().click('Discard')
   expect(calls).toContain('DELETE /api/plan-results/7')
-  expect(router.currentRoute.value.fullPath).toBe('/')
+  await expectHomeInPlace(router)
   wrapper.unmount()
 })
 
@@ -287,7 +304,7 @@ test('Delete asks first, then deletes the saved plan and returns to the Plan pag
   expect(dialog().text).toContain('Delete Mon 21 – Sun 27 Sep?')
   await dialog().click('Delete')
   expect(calls).toContain('DELETE /api/plan-results/7')
-  expect(router.currentRoute.value.fullPath).toBe('/')
+  await expectHomeInPlace(router)
   wrapper.unmount()
 })
 

@@ -3,7 +3,8 @@ import type { TodayPlan } from '../api/types'
 import { dayLabel } from '../dates'
 
 // The Plan page's Today card (A1): today's meals from the plan used for
-// today. Tapping a meal opens that plan at today, with the meal open.
+// today. Tapping a meal opens that plan at today, with the meal open if
+// it is planned.
 defineProps<{ today: TodayPlan }>()
 </script>
 
@@ -25,7 +26,11 @@ defineProps<{ today: TodayPlan }>()
         v-ripple
         clickable
         class="today-meal"
-        :to="{ name: 'saved-plan', params: { id: today.id }, query: { day: today.day, meal: index } }"
+        :to="{
+          name: 'saved-plan',
+          params: { id: today.id },
+          query: meal.planned ? { day: today.day, meal: index } : { day: today.day },
+        }"
       >
         <q-item-section>{{ meal.name }}</q-item-section>
         <q-item-section

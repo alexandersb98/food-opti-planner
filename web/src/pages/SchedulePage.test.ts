@@ -326,6 +326,30 @@ test('the server refusing fields shows it on them', async () => {
   wrapper.unmount()
 })
 
+test('a later save clears what the server refused before', async () => {
+  const replies = [
+    {
+      status: 422,
+      body: {
+        detail: [
+          { loc: ['body', 'meals', 2, 'name'], type: 'duplicate', msg: 'twice' },
+          { loc: ['body', 'minimums', 0, 'at_least'], type: 'above_planned', msg: 'high' },
+        ],
+      },
+    },
+    500,
+  ]
+  const { wrapper } = await mountPage({ 'PUT /api/plan': () => replies.shift()! })
+  await click(button(wrapper, 'Save'))
+  expect(wrapper.get('.meals-row').text()).toContain('Check the meal names.')
+  expect(wrapper.findAll('.schedule-row-error')).toHaveLength(1)
+  await click(button(wrapper, 'Save'))
+  expect(wrapper.get('[role="alert"]').text()).toBe('Could not save. Try again.')
+  expect(wrapper.get('.meals-row').text()).not.toContain('Check the meal names.')
+  expect(wrapper.findAll('.schedule-row-error')).toHaveLength(0)
+  wrapper.unmount()
+})
+
 test('any other failed save says so', async () => {
   const { wrapper } = await mountPage({ 'PUT /api/plan': 500 })
   await click(button(wrapper, 'Save'))

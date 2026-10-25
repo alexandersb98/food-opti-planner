@@ -94,7 +94,7 @@ const path = (planId: number) => ({ params: { path: { plan_id: planId } } })
 
 async function save() {
   if (await act((planId) => api.POST('/api/plan-results/{plan_id}/save', path(planId)), t('common.saveFailed')))
-    await router.push('/')
+    await router.replace('/')
 }
 
 async function useForToday() {
@@ -110,7 +110,7 @@ async function remove() {
   discardOpen.value = false
   deleteOpen.value = false
   if (await act((planId) => api.DELETE('/api/plan-results/{plan_id}', path(planId)), t('common.deleteFailed')))
-    await router.push('/')
+    await router.replace('/')
 }
 </script>
 
