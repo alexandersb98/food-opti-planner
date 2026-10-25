@@ -11,7 +11,9 @@ recipes, tags, day and horizon constraints (hard and soft), serving
 multipliers, and STRICT solving with violation and conflict reports.
 The GUI is being built: so far a server (`server/`) and a web app
 (`web/`) with a login, the Recipes, Ingredients, Attributes and Tags
-pages (the Plan page is still empty), and a deploy to Cloud Run.
+pages, a Plan page with the schedule, Make plan, the results page, today's
+meals and saved plans (goals and recipe filters are still to come), and a
+deploy to Cloud Run.
 
 Run the Python tests with `python3 -m pip install -e '.[server,dev]'` and
 then `python3 -m pytest`. Server tests use SQLite; set

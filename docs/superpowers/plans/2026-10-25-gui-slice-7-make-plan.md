@@ -32,7 +32,9 @@ placeholder, `SchedulePage.vue` is A2 and `ResultsPage.vue` is R1;
 (the "stack spec"); slice 7 in
 [`2026-10-22-gui-slices.md`](2026-10-22-gui-slices.md).
 
-**Status:** Planned, not started. Branch `claude/slice-7-make-plan`.
+**Status:** Built and committed task by task on branch
+`claude/relaxed-darwin-ovc29s`. Each task names its files and how it was
+checked; the code is in the commits.
 
 ## Global Constraints
 
@@ -147,6 +149,9 @@ meal. Translation: planned and skipped cells, "all" → `None`, a number
 minimum, the time limit, attribute precision, every recipe and tag in
 the request.
 
+**Checked:** 425 Python tests pass on SQLite; the server tests (237)
+also pass on Postgres 16, including the migration test.
+
 ### Task 2: Solve and saved plans on the server
 
 **Files:** `server/models.py`, `server/migrations/versions/0006_plan.py`,
@@ -193,6 +198,13 @@ after its recipe is edited and after it is deleted (and the delete is
 not blocked); rounding of totals and amounts; averages. Freeze: absent
 and unserved slots both come out as not planned.
 
+`freeze()` takes a 5th argument, `units` (attribute name → unit), since
+`AttributeDef` has no unit. Save and Use for today answer
+`PlanResultSummary`; Use for today on the unsaved plan is a 409.
+
+**Checked:** 460 Python tests pass on SQLite; the server suite (271)
+also passes on Postgres 16, including the migration test.
+
 ### Task 3: Plan page and schedule in the app
 
 **Files:** `web/src/pages/{PlanPage,SchedulePage}.vue` and their tests,
@@ -212,6 +224,11 @@ start date, days stepper, cell toggling, At least choices limited to
 the planned meals; meal names dialog adds, renames, reorders and
 removes (not the last one); Save sends the setup and returns; server
 field errors show on their fields; back leaves without saving.
+
+The dot grid on A1 has one column per day (weekday letter, meal dots
+stacked, wrapping weekly), as in the wireframe, not one row per weekday.
+
+**Checked:** lint, typecheck and Vitest (115 tests) pass.
 
 ### Task 4: Make plan, results and saved plans in the app
 
@@ -243,6 +260,11 @@ totals; Save and Discard (asks) for the unsaved plan, Use for today
 only when it applies, Delete (asks) for a saved one; Save, Discard and
 Delete return to the Plan page; unknown plan fails to load.
 
+`useSolve().start(seconds)` takes the time limit, so the bar and the
+"No plan found within N s" text use the time the solve ran with.
+
+**Checked:** lint, typecheck and Vitest (149 tests) pass.
+
 ### Task 5: End-to-end test
 
 **Files:** `web/e2e/catalog.e2e.ts`.
@@ -250,6 +272,8 @@ Delete return to the Plan page; unknown plan fails to load.
 **Test:** the slice 6 flow then opens the Plan page, sets 2 days in the
 schedule, taps **Make plan**, sees R1 with the recipe on both days and
 "Best possible plan", saves, and sees the plan under Saved plans.
+
+**Checked:** passes against uvicorn on SQLite with the built app.
 
 ### Task 6: Docs
 
