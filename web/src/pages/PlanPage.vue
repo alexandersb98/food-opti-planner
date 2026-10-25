@@ -54,9 +54,11 @@ function makePlan() {
       >
         <SolveCard
           :running="solve.running.value"
+          :cancelling="solve.cancelling.value"
           :started-at="solve.startedAt.value"
           :seconds="solve.seconds.value"
           :failure="solve.failure.value"
+          @cancel="solve.cancel"
           @dismiss="solve.dismiss"
         />
 
