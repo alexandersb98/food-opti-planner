@@ -525,6 +525,195 @@
         "title": "PlanFields",
         "type": "object"
       },
+      "PlanResult": {
+        "description": "One plan in full. Totals are the library's, rounded to each\nattribute's decimals; an average is the plan's total over its days.",
+        "properties": {
+          "attributes": {
+            "items": {
+              "$ref": "#/components/schemas/ResultAttribute"
+            },
+            "title": "Attributes",
+            "type": "array"
+          },
+          "averages": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Averages",
+            "type": "array"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "day_totals": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "title": "Day Totals",
+            "type": "array"
+          },
+          "days": {
+            "title": "Days",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "meals": {
+            "items": {
+              "items": {
+                "$ref": "#/components/schemas/ResultMeal"
+              },
+              "type": "array"
+            },
+            "title": "Meals",
+            "type": "array"
+          },
+          "saved": {
+            "title": "Saved",
+            "type": "boolean"
+          },
+          "saved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saved At"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "optimal",
+              "time_ran_out"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "totals": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Totals",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "saved",
+          "status",
+          "start_date",
+          "days",
+          "created_at",
+          "saved_at",
+          "attributes",
+          "totals",
+          "averages",
+          "day_totals",
+          "meals"
+        ],
+        "title": "PlanResult",
+        "type": "object"
+      },
+      "PlanResultSummary": {
+        "description": "A plan without its days, for the cards on A1. Times are UTC.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "days": {
+            "title": "Days",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "saved": {
+            "title": "Saved",
+            "type": "boolean"
+          },
+          "saved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saved At"
+          },
+          "start_date": {
+            "format": "date",
+            "title": "Start Date",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "optimal",
+              "time_ran_out"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "saved",
+          "status",
+          "start_date",
+          "days",
+          "created_at",
+          "saved_at"
+        ],
+        "title": "PlanResultSummary",
+        "type": "object"
+      },
+      "PlanResults": {
+        "properties": {
+          "saved": {
+            "items": {
+              "$ref": "#/components/schemas/PlanResultSummary"
+            },
+            "title": "Saved",
+            "type": "array"
+          },
+          "unsaved": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanResultSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "unsaved",
+          "saved"
+        ],
+        "title": "PlanResults",
+        "type": "object"
+      },
       "Recipe": {
         "properties": {
           "derived_tag_ids": {
@@ -758,6 +947,112 @@
         "title": "RecipeItem",
         "type": "object"
       },
+      "ResultAttribute": {
+        "properties": {
+          "decimals": {
+            "title": "Decimals",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "unit",
+          "decimals"
+        ],
+        "title": "ResultAttribute",
+        "type": "object"
+      },
+      "ResultItem": {
+        "description": "An ingredient scaled to the meal's portion, in its unit.",
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "string"
+          },
+          "ingredient": {
+            "title": "Ingredient",
+            "type": "string"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ingredient",
+          "unit",
+          "amount"
+        ],
+        "title": "ResultItem",
+        "type": "object"
+      },
+      "ResultMeal": {
+        "description": "A meal of a day. Not planned (no recipe, portion, totals or items)\nwhen skipped in the schedule or left out by the planner.",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ResultItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "planned": {
+            "title": "Planned",
+            "type": "boolean"
+          },
+          "portion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Portion"
+          },
+          "recipe": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipe"
+          },
+          "totals": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Totals",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "planned",
+          "recipe",
+          "portion",
+          "totals",
+          "items"
+        ],
+        "title": "ResultMeal",
+        "type": "object"
+      },
       "Skip": {
         "description": "A skipped cell. `meal` is the meal's position in `meals`.",
         "properties": {
@@ -778,6 +1073,44 @@
           "meal"
         ],
         "title": "Skip",
+        "type": "object"
+      },
+      "SolveOutcome": {
+        "description": "The new unsaved plan, or why there is none.",
+        "properties": {
+          "failure": {
+            "anyOf": [
+              {
+                "enum": [
+                  "no_recipes",
+                  "too_large",
+                  "infeasible",
+                  "no_plan_in_time"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlanResult"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "plan",
+          "failure"
+        ],
+        "title": "SolveOutcome",
         "type": "object"
       },
       "Tag": {
@@ -846,6 +1179,39 @@
           "derive"
         ],
         "title": "TagFields",
+        "type": "object"
+      },
+      "TodayPlan": {
+        "description": "The plan used for `date` and that day's meals; `day` is from 0.",
+        "properties": {
+          "date": {
+            "format": "date",
+            "title": "Date",
+            "type": "string"
+          },
+          "day": {
+            "title": "Day",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "meals": {
+            "items": {
+              "$ref": "#/components/schemas/ResultMeal"
+            },
+            "title": "Meals",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "day",
+          "date",
+          "meals"
+        ],
+        "title": "TodayPlan",
         "type": "object"
       },
       "Total": {
@@ -1446,6 +1812,281 @@
           }
         },
         "summary": "Update Plan",
+        "tags": [
+          "plan"
+        ]
+      }
+    },
+    "/api/plan-results": {
+      "get": {
+        "operationId": "list_plan_results_api_plan_results_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanResults"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Plan Results",
+        "tags": [
+          "plan results"
+        ]
+      }
+    },
+    "/api/plan-results/today": {
+      "get": {
+        "description": "Among the saved plans covering `date` (the browser's), the one\nchosen last: saved, or picked with Use for today.",
+        "operationId": "today_api_plan_results_today_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "date",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/TodayPlan"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Today Api Plan Results Today Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Today",
+        "tags": [
+          "plan results"
+        ]
+      }
+    },
+    "/api/plan-results/{plan_id}": {
+      "delete": {
+        "description": "Delete a saved plan, or discard the unsaved one.",
+        "operationId": "delete_plan_result_api_plan_results__plan_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "title": "Plan Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such plan"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Plan Result",
+        "tags": [
+          "plan results"
+        ]
+      },
+      "get": {
+        "operationId": "get_plan_result_api_plan_results__plan_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "title": "Plan Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such plan"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Plan Result",
+        "tags": [
+          "plan results"
+        ]
+      }
+    },
+    "/api/plan-results/{plan_id}/save": {
+      "post": {
+        "description": "Save the unsaved plan. It becomes the plan used for the dates it covers.",
+        "operationId": "save_plan_result_api_plan_results__plan_id__save_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "title": "Plan Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanResultSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such plan"
+          },
+          "409": {
+            "description": "The plan is already saved"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Plan Result",
+        "tags": [
+          "plan results"
+        ]
+      }
+    },
+    "/api/plan-results/{plan_id}/use-for-today": {
+      "post": {
+        "description": "Make a saved plan the one used for the dates it covers.",
+        "operationId": "use_plan_result_for_today_api_plan_results__plan_id__use_for_today_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "plan_id",
+            "required": true,
+            "schema": {
+              "title": "Plan Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanResultSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such plan"
+          },
+          "409": {
+            "description": "The plan is not saved"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Use Plan Result For Today",
+        "tags": [
+          "plan results"
+        ]
+      }
+    },
+    "/api/plan/solve": {
+      "post": {
+        "description": "Make a plan from the setup and the whole catalog, within the setup's\ntime limit. A plan replaces the unsaved one; without a plan nothing is\nstored, and the unsaved plan stays. Runs inside the request.",
+        "operationId": "solve_api_plan_solve_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolveOutcome"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Solve",
         "tags": [
           "plan"
         ]

@@ -1,15 +1,21 @@
-"""/api/plan: read and save the plan setup (A1, A2). There is one plan,
-made with the defaults the first time it is read."""
+"""/api/plan: read and save the plan setup (A1, A2), and make a plan from
+it (Make plan). There is one setup, made with the defaults the first time
+it is read."""
 
 from datetime import date
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field, StringConstraints
+from sqlalchemy import delete, select
 from sqlalchemy.orm import selectinload
 
-from .. import models
+from meal_planner import ModelTooLargeError, SolveStatus
+from meal_planner import plan as solve_plan
+
+from .. import freeze, models, translate
 from ..db import DbSession
+from . import plan_results, recipes
 from .errors import FieldError, invalid_fields
 
 router = APIRouter(prefix="/plan", tags=["plan"])
@@ -202,3 +208,55 @@ def update_plan(body: PlanFields, db: DbSession) -> Plan:
     _fill(plan, body)
     db.commit()
     return _response(plan)
+
+
+# Why a solve made no plan: the catalog has no recipes; the numbers are too
+# large for the solver; no plan meets the setup; or time ran out first.
+Failure = Literal["no_recipes", "too_large", "infeasible", "no_plan_in_time"]
+FAILURES: dict[SolveStatus, Failure] = {
+    SolveStatus.INFEASIBLE: "infeasible",
+    SolveStatus.TIMEOUT_NO_SOLUTION: "no_plan_in_time",
+}
+
+
+class SolveOutcome(BaseModel):
+    """The new unsaved plan, or why there is none."""
+
+    plan: plan_results.PlanResult | None
+    failure: Failure | None
+
+
+@router.post("/solve")
+def solve(db: DbSession) -> SolveOutcome:
+    """Make a plan from the setup and the whole catalog, within the setup's
+    time limit. A plan replaces the unsaved one; without a plan nothing is
+    stored, and the unsaved plan stays. Runs inside the request."""
+    plan = _stored(db)
+    attributes = db.scalars(select(models.Attribute).order_by(models.Attribute.id)).all()
+    tags = db.scalars(select(models.Tag).order_by(models.Tag.id)).all()
+    rows = db.scalars(recipes.loaded().order_by(models.Recipe.id)).all()
+    if not rows:
+        return SolveOutcome(plan=None, failure="no_recipes")
+    # Any PlanRequestError means the server let through what the library
+    # refuses: a bug, so it is not caught.
+    request = translate.plan_request(plan, attributes, tags, rows)
+    try:
+        answer = solve_plan(request)
+    except ModelTooLargeError:
+        return SolveOutcome(plan=None, failure="too_large")
+    if answer.solve_status in FAILURES:
+        return SolveOutcome(plan=None, failure=FAILURES[answer.solve_status])
+
+    result = freeze.freeze(
+        request,
+        answer,
+        plan.start_date,
+        [meal.name for meal in plan.meals],
+        {attribute.name: attribute.unit for attribute in attributes},
+    )
+    result.created_at = plan_results.now()
+    # The old unsaved plan goes first, as only one may exist.
+    db.execute(delete(models.PlanResult).where(models.PlanResult.saved.is_(False)))
+    db.add(result)
+    db.commit()
+    return SolveOutcome(plan=plan_results.read(db, result.id), failure=None)
