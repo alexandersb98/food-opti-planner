@@ -4,6 +4,7 @@ import MainLayout from './layouts/MainLayout.vue'
 import IngredientPage from './pages/IngredientPage.vue'
 import LoginPage from './pages/LoginPage.vue'
 import RecipePage from './pages/RecipePage.vue'
+import SchedulePage from './pages/SchedulePage.vue'
 import { pages } from './pages'
 
 /** The login page, coming back to `redirect` afterwards. */
@@ -21,7 +22,8 @@ export function makeRouter(history: RouterHistory = createWebHistory()) {
         component: MainLayout,
         children: [
           ...pages.map(({ path, name, component }) => ({ path, name, component })),
-          // Editors, opened from their page's list.
+          // Editors, opened from their page's list or card.
+          { path: '/plan/schedule', name: 'schedule', component: SchedulePage },
           { path: '/recipes/new', name: 'new-recipe', component: RecipePage },
           { path: '/recipes/:id(\\d+)', name: 'recipe', component: RecipePage },
           { path: '/ingredients/new', name: 'new-ingredient', component: IngredientPage },
