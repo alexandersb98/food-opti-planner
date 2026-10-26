@@ -264,6 +264,21 @@
     "discard": "Discard",
     "discardTitle": "Discard this plan?",
     "cannotUndo": "This can't be undone.",
-    "useForToday": "Use for today"
+    "useForToday": "Use for today",
+    "missedGoals": "Missed goals",
+    "allGoalsMet": "All goals met"
+  },
+  "misses": {
+    "days": {
+      "below": "{goal} · below on {n} day | {goal} · below on {n} days",
+      "above": "{goal} · above on {n} day | {goal} · above on {n} days"
+    },
+    "plan": {
+      "below": "{goal} · below, whole plan",
+      "above": "{goal} · above, whole plan"
+    },
+    "worstDay": "worst {day}: {actual} of {bound} {unit} {percent}",
+    "worstPlan": "{actual} of {bound} {unit} {percent}",
+    "dayValue": "{name} {actual} / {bound} {unit}"
   }
 }

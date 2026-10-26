@@ -1,4 +1,4 @@
-import type { Attribute, Goal, Ingredient, Plan, PlanResult, PlanResultSummary, Recipe, ResultMeal, Tag } from './api/types'
+import type { Attribute, Goal, Ingredient, Plan, PlanResult, PlanResultSummary, Recipe, ResultGoal, ResultMeal, ResultMiss, Tag } from './api/types'
 
 // Rows as the server answers them, for tests: give what the test is about,
 // the rest gets a plain default. Typed, so a change to the API shows up
@@ -83,6 +83,18 @@ export function planSummary(fields: Given<PlanResultSummary, 'id'>): PlanResultS
 /** A meal of a made plan, by default not planned. */
 export function resultMeal(fields: Given<ResultMeal, 'name'>): ResultMeal {
   return { planned: false, recipe: null, portion: null, totals: [], items: [], ...fields }
+}
+
+/** A goal of a made plan, by default on the first attribute, each day, Prefer,
+ * with a minimum. */
+export function resultGoal(fields: Given<ResultGoal, 'name'>): ResultGoal {
+  return { attribute: 0, applies_to: 'day', must: false, min: '100', max: null, ...fields }
+}
+
+/** A miss of a made plan, by default of the first goal, below its bound on
+ * the first day, by 20 of 100 (20%). */
+export function resultMiss(fields: Partial<ResultMiss> = {}): ResultMiss {
+  return { goal: 0, day: 0, side: 'below', bound: '100', actual: '80', amount: '20', percent: '20', ...fields }
 }
 
 /** A made plan in full, by default with no attributes and no meals. */
