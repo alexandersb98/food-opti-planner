@@ -9,7 +9,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .db import Base
 
 NAME_LENGTH = 100
-# A goal's generated name: an attribute's name, ", daily average" and " (NN)".
+# A goal's generated name: an attribute's name, ", daily average" and " (NNN)",
+# as names typed for other goals can move its number past the goals'.
 GOAL_NAME_LENGTH = 130
 UNIT_LENGTH = 20
 MEAL_NAME_LENGTH = 40
@@ -203,13 +204,16 @@ class PlanDayMinimum(Base):
 
 class Goal(Base):
     """A bound on an attribute that the plan aims for (the library's
-    constraint). `name` NULL means the generated one. `min` and `max` are
-    NULL for no bound. `applies_to` is "day", "plan_total" or
-    "daily_average". `importance` (1-5) is kept for a Must goal too, so
-    switching back restores it. `zero_reference` is the zero-bound field,
-    NULL when not needed. The last four columns have no API field yet: NULL
-    importance_below/importance_above mean the goal's importance, and NULL
-    guard_rail_importance the library's default (half the goal's weight)."""
+    constraint). `name` is the name the user typed (the API's
+    `custom_name`), NULL for the generated one. `min` and `max` are NULL for
+    no bound. `applies_to` is "day", "plan_total" or "daily_average".
+    `importance` (1-5) is kept for a Must goal too, so switching back
+    restores it. `zero_reference` is the zero-bound field, NULL when not
+    needed. `importance_below`/`importance_above` are set only for a Prefer
+    goal with both bounds, NULL for the goal's importance. `day_guard_rail`
+    is only turned off for a daily average, and `guard_rail_importance` is
+    set only while it is on, NULL to follow the goal's
+    (`translate.constraint`)."""
 
     __tablename__ = "goals"
 

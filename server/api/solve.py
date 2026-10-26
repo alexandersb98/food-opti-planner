@@ -139,8 +139,8 @@ def _solve(db: DbSession, stop: StopHandle) -> SolveOutcome:
     meal_names = [meal.name for meal in plan.meals]
     units = {attribute.name: attribute.unit for attribute in attributes}
     goals = [
-        freeze.FrozenGoal(name, goal.applies_to, goal.must, goal.min, goal.max)
-        for goal, name in translate.named_goals(plan.goals)
+        freeze.FrozenGoal(translate.constraint_key(i), name, goal.applies_to, goal.must, goal.min, goal.max)
+        for i, (goal, name) in enumerate(translate.named_goals(plan.goals))
     ]
     # End the read before solving, so no connection waits in a transaction
     # for minutes (Neon drops one idle for 5). Only the plain values above

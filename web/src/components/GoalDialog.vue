@@ -97,6 +97,11 @@ function fields(): GoalFields | null {
   if (showReference.value && reference.value === null) errors.reference = t('goals.editor.referenceNeeded')
   if (errors.min || errors.max || errors.reference) return null
   return {
+    // The advanced settings, which the editor doesn't show yet, stay as
+    // loaded; a new goal has none.
+    ...(props.goal
+      ? goalFields(props.goal)
+      : { custom_name: null, importance_below: null, importance_above: null, day_guard_rail: true, guard_rail_importance: null }),
     id: props.goal?.id ?? null,
     attribute_id: draft.attribute_id,
     min,

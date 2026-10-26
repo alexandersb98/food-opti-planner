@@ -483,10 +483,23 @@ export interface components {
             applies_to: "day" | "plan_total" | "daily_average";
             /** Attribute Id */
             attribute_id: number;
+            /** Custom Name */
+            custom_name?: string | null;
+            /**
+             * Day Guard Rail
+             * @default true
+             */
+            day_guard_rail: boolean;
+            /** Guard Rail Importance */
+            guard_rail_importance?: number | null;
             /** Id */
             id: number;
             /** Importance */
             importance: number;
+            /** Importance Above */
+            importance_above?: number | null;
+            /** Importance Below */
+            importance_below?: number | null;
             /** Max */
             max?: string | null;
             /** Min */
@@ -505,6 +518,15 @@ export interface components {
          *     goal weighs; a Must goal keeps its own. `zero_reference` is given exactly
          *     when a bound is 0 and a soft penalty is made from it (the library's
          *     rule, `translate.needs_zero_reference`) and is dropped otherwise.
+         *
+         *     The advanced settings: `custom_name` is the name the user typed, unique
+         *     among the goals, None to follow the generated one. `importance_below`
+         *     and `importance_above` weigh each side of a Prefer goal with both
+         *     bounds (None: the goal's importance) and are dropped for other goals.
+         *     `day_guard_rail` keeps each day of a daily average in range too, at
+         *     `guard_rail_importance` (None: follows the goal's, `translate.constraint`);
+         *     other goals keep it on, and without the guard-rail its importance is
+         *     dropped.
          */
         GoalFields: {
             /**
@@ -514,10 +536,23 @@ export interface components {
             applies_to: "day" | "plan_total" | "daily_average";
             /** Attribute Id */
             attribute_id: number;
+            /** Custom Name */
+            custom_name?: string | null;
+            /**
+             * Day Guard Rail
+             * @default true
+             */
+            day_guard_rail: boolean;
+            /** Guard Rail Importance */
+            guard_rail_importance?: number | null;
             /** Id */
             id?: number | null;
             /** Importance */
             importance: number;
+            /** Importance Above */
+            importance_above?: number | null;
+            /** Importance Below */
+            importance_below?: number | null;
             /** Max */
             max?: number | string | null;
             /** Min */

@@ -76,13 +76,21 @@ IMPORTANCE_WEIGHTS = {
 }
 
 
-def needs_zero_reference(applies_to: str, must: bool, min: Decimal | None, max: Decimal | None) -> bool:
+# A Must goal's day guard-rail without its own importance: importance 2. The
+# goal's own importance is hidden while it is Must, so it must not set the
+# guard-rail's weight (the library's default, half of it).
+MUST_GUARD_RAIL_WEIGHT = IMPORTANCE_WEIGHTS[2]
+
+
+def needs_zero_reference(
+    applies_to: str, must: bool, day_guard_rail: bool, min: Decimal | None, max: Decimal | None
+) -> bool:
     """Whether the library wants a reference: a bound is 0 or below and a soft
     penalty is built from it (without one the library uses the bound itself,
     and a negative bound would give the penalty a negative weight, a reward).
-    That is a Prefer goal, or a daily average, whose day guard-rail is soft
-    also for a Must goal."""
-    soft = not must or applies_to == "daily_average"
+    That is a Prefer goal, or a daily average with its day guard-rail, which
+    is soft also for a Must goal."""
+    soft = not must or (applies_to == "daily_average" and day_guard_rail)
     return soft and any(bound is not None and bound <= 0 for bound in (min, max))
 
 
@@ -96,15 +104,28 @@ def _generated_name(goal: models.Goal) -> str:
 
 
 def goal_names(goals: Sequence[models.Goal]) -> list[str]:
-    """Each goal's name, in goal order: the one it was given, or "Protein per
-    day", "Protein, plan total", "Protein, daily average". A name that came
-    before gets " (2)" on its second use, " (3)" on its third."""
-    base = [goal.name or _generated_name(goal) for goal in goals]
-    seen: dict[str, int] = {}
+    """Each goal's name, in goal order: the one the user typed, or "Protein
+    per day", "Protein, plan total", "Protein, daily average". A generated
+    name gets " (2)" on its second use, " (3)" on its third, and skips any
+    number whose name is taken already, by a typed name or an earlier
+    generated one. Typed names differ from each other (the API checks)."""
+    taken = {goal.name for goal in goals if goal.name is not None}
+    uses: dict[str, int] = {}
     names = []
-    for name in base:
-        seen[name] = seen.get(name, 0) + 1
-        names.append(name if seen[name] == 1 else f"{name} ({seen[name]})")
+    for goal in goals:
+        if goal.name is not None:
+            names.append(goal.name)
+            continue
+        generated = _generated_name(goal)
+        n = uses.get(generated, 0)
+        while True:
+            n += 1
+            name = generated if n == 1 else f"{generated} ({n})"
+            if name not in taken:
+                break
+        uses[generated] = n
+        taken.add(name)
+        names.append(name)
     return names
 
 
@@ -113,13 +134,35 @@ def named_goals(goals: Sequence[models.Goal]) -> list[tuple[models.Goal, str]]:
     return list(zip(goals, goal_names(goals), strict=True))
 
 
-def constraint(goal: models.Goal, name: str) -> Constraint:
+def constraint_key(position: int) -> str:
+    """The library's name for the goal at `position` (from 0): "goal 1",
+    "goal 2", ... Not the goal's name, so no name a user types can clash
+    with the library's own ("goal 1 (day guard-rail)", "serving cap: Oats");
+    the key leads a violation back to its goal."""
+    return f"goal {position + 1}"
+
+
+def _weight(importance: int | None) -> Decimal | None:
+    return None if importance is None else IMPORTANCE_WEIGHTS[importance]
+
+
+def constraint(goal: models.Goal, key: str) -> Constraint:
     """`applies_to` becomes scope and aggregate, Must becomes hard and the
-    importance the weight. The guard-rail stays the library's default."""
+    importance the weight; the importance below and above, when given, the
+    weight of each side. A daily average's day guard-rail is on or off; its
+    weight is its own importance's, or else the library's default (half of
+    each side's) for a Prefer goal and importance 2's for a Must goal. Other
+    goals keep the library's defaults, which they don't use."""
     horizon = goal.applies_to != "day"
     aggregate = {"plan_total": "total", "daily_average": "average_per_day"}.get(goal.applies_to)
+    guard_rail, guard_rail_weight = True, None
+    if goal.applies_to == "daily_average":
+        guard_rail = goal.day_guard_rail
+        guard_rail_weight = _weight(goal.guard_rail_importance)
+        if guard_rail and guard_rail_weight is None and goal.must:
+            guard_rail_weight = MUST_GUARD_RAIL_WEIGHT
     return Constraint(
-        name=name,
+        name=key,
         attribute=goal.attribute.name,
         scope="horizon" if horizon else "day",
         aggregate=aggregate,
@@ -127,7 +170,11 @@ def constraint(goal: models.Goal, name: str) -> Constraint:
         max=goal.max,
         hard=goal.must,
         weight=IMPORTANCE_WEIGHTS[goal.importance],
+        weight_below=_weight(goal.importance_below),
+        weight_above=_weight(goal.importance_above),
         normalization_reference=goal.zero_reference,
+        add_day_guardrail=guard_rail,
+        guardrail_weight=guard_rail_weight,
     )
 
 
@@ -137,12 +184,13 @@ def plan_request(
     tags: Sequence[models.Tag],
     recipes: Sequence[models.Recipe],
 ) -> PlanRequest:
-    """The whole catalog, the schedule and the goals. No recipe filters yet."""
+    """The whole catalog, the schedule and the goals, each keyed by its
+    place (`constraint_key`). No recipe filters yet."""
     return PlanRequest(
         attributes=tuple(attribute(row) for row in attributes),
         tags=tuple(tag(row) for row in tags),
         recipes=tuple(recipe(row) for row in recipes),
         days=days(plan),
-        constraints=tuple(constraint(goal, name) for goal, name in named_goals(plan.goals)),
+        constraints=tuple(constraint(goal, constraint_key(i)) for i, goal in enumerate(plan.goals)),
         solve_time_limit=plan.solve_time_limit,
     )

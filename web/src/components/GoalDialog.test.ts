@@ -17,6 +17,14 @@ const attributes = [
 ]
 const protein = goal({ id: 7, attribute_id: 2, min: '120', max: null, importance: 4 })
 const energy = goal({ id: 8, attribute_id: 1, min: '1800', max: '2200', must: true, applies_to: 'daily_average' })
+// A goal's advanced settings when it has none, as sent.
+const noAdvanced = {
+  custom_name: null,
+  importance_below: null,
+  importance_above: null,
+  day_guard_rail: true,
+  guard_rail_importance: null,
+}
 
 /** The sent setup is answered back as the server's, with names. */
 function server(extra: FakeServer = {}) {
@@ -140,9 +148,9 @@ test('Save sends the whole setup with a new goal added, a comma taken as the dec
     {
       ...plan({ goals: [] }),
       goals: [
-        { id: 7, attribute_id: 2, min: '120', max: null, applies_to: 'day', must: false, importance: 4, zero_reference: null },
-        { id: 8, attribute_id: 1, min: '1800', max: '2200', applies_to: 'daily_average', must: true, importance: 3, zero_reference: null },
-        { id: null, attribute_id: 1, min: '1.5', max: null, applies_to: 'day', must: false, importance: 3, zero_reference: null },
+        { id: 7, attribute_id: 2, min: '120', max: null, applies_to: 'day', must: false, importance: 4, zero_reference: null, ...noAdvanced },
+        { id: 8, attribute_id: 1, min: '1800', max: '2200', applies_to: 'daily_average', must: true, importance: 3, zero_reference: null, ...noAdvanced },
+        { id: null, attribute_id: 1, min: '1.5', max: null, applies_to: 'day', must: false, importance: 3, zero_reference: null, ...noAdvanced },
       ],
     },
   ])
@@ -159,8 +167,8 @@ test('Save sends a changed goal in its place, with the reference only while it i
   await dialog().click('Must') // a Must goal each day: the reference is dropped
   await dialog().click('Save')
   expect(sent[0]!.goals).toEqual([
-    { id: 7, attribute_id: 2, min: '0', max: null, applies_to: 'day', must: true, importance: 4, zero_reference: null },
-    { id: 8, attribute_id: 1, min: '1800', max: '2200', applies_to: 'daily_average', must: true, importance: 3, zero_reference: null },
+    { id: 7, attribute_id: 2, min: '0', max: null, applies_to: 'day', must: true, importance: 4, zero_reference: null, ...noAdvanced },
+    { id: 8, attribute_id: 1, min: '1800', max: '2200', applies_to: 'daily_average', must: true, importance: 3, zero_reference: null, ...noAdvanced },
   ])
   wrapper.unmount()
 })
@@ -171,7 +179,7 @@ test('Delete removes the goal with one request and closes', async () => {
   await dialog().click('Delete')
   expect(sent).toHaveLength(1)
   expect(sent[0]!.goals).toEqual([
-    { id: 8, attribute_id: 1, min: '1800', max: '2200', applies_to: 'daily_average', must: true, importance: 3, zero_reference: null },
+    { id: 8, attribute_id: 1, min: '1800', max: '2200', applies_to: 'daily_average', must: true, importance: 3, zero_reference: null, ...noAdvanced },
   ])
   expect(wrapper.emitted('saved')).toHaveLength(1)
   expect(wrapper.emitted('update:modelValue')).toEqual([[false]])

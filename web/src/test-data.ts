@@ -33,7 +33,8 @@ export function recipe(fields: Given<Recipe, 'id' | 'name'>): Recipe {
   }
 }
 
-/** A goal, by default Prefer at importance 3, each day, with a minimum. */
+/** A goal, by default Prefer at importance 3, each day, with a minimum and
+ * no advanced settings. */
 export function goal(fields: Given<Goal, 'id' | 'attribute_id'>): Goal {
   return {
     name: 'Goal',
@@ -43,6 +44,11 @@ export function goal(fields: Given<Goal, 'id' | 'attribute_id'>): Goal {
     must: false,
     importance: 3,
     zero_reference: null,
+    custom_name: null,
+    importance_below: null,
+    importance_above: null,
+    day_guard_rail: true,
+    guard_rail_importance: null,
     ...fields,
   }
 }

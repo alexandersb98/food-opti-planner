@@ -181,7 +181,8 @@ def test_the_request_holds_every_attribute_tag_and_recipe_the_days_and_the_time_
     assert (request.constraints, request.exclude_tags, request.require_tags) == ((), frozenset(), frozenset())
 
 
-def goal(attribute=ENERGY, applies_to="day", must=False, importance=3, min="100", max=None, zero_reference=None, name=None):
+def goal(attribute=ENERGY, applies_to="day", must=False, importance=3, min="100", max=None, zero_reference=None,
+         name=None, importance_below=None, importance_above=None, day_guard_rail=True, guard_rail_importance=None):
     return models.Goal(
         attribute=attribute,
         name=name,
@@ -191,12 +192,16 @@ def goal(attribute=ENERGY, applies_to="day", must=False, importance=3, min="100"
         min=None if min is None else Decimal(min),
         max=None if max is None else Decimal(max),
         zero_reference=None if zero_reference is None else Decimal(zero_reference),
+        importance_below=importance_below,
+        importance_above=importance_above,
+        day_guard_rail=day_guard_rail,
+        guard_rail_importance=guard_rail_importance,
     )
 
 
 def test_a_day_goal_is_a_day_constraint():
-    c = translate.constraint(goal(min="1800", max="2200"), "Energy per day")
-    assert (c.name, c.attribute, c.scope, c.aggregate) == ("Energy per day", "Energy", "day", None)
+    c = translate.constraint(goal(min="1800", max="2200"), "goal 1")
+    assert (c.name, c.attribute, c.scope, c.aggregate) == ("goal 1", "Energy", "day", None)
     assert (c.min, c.max) == (Decimal(1800), Decimal(2200))
 
 
@@ -226,9 +231,44 @@ def test_the_zero_reference_is_the_normalization_reference():
     assert translate.constraint(goal(), "x").normalization_reference is None
 
 
-def test_the_guard_rail_is_the_librarys_default():
+def test_without_advanced_settings_a_prefer_goal_keeps_the_librarys_defaults():
     c = translate.constraint(goal(applies_to="daily_average"), "x")
     assert (c.add_day_guardrail, c.guardrail_weight, c.weight_below, c.weight_above) == (True, None, None, None)
+
+
+def test_the_importance_below_and_above_are_the_side_weights():
+    c = translate.constraint(goal(min="100", max="200", importance_below=5, importance_above=1), "x")
+    assert (c.weight, c.weight_below, c.weight_above) == (Decimal(1), Decimal(4), Decimal("0.25"))
+
+
+def test_the_guard_rail_off_is_no_guard_rail():
+    c = translate.constraint(goal(applies_to="daily_average", day_guard_rail=False), "x")
+    assert (c.add_day_guardrail, c.has_guardrail()) == (False, False)
+
+
+def test_the_guard_rails_own_importance_is_its_weight():
+    for must in (False, True):
+        c = translate.constraint(goal(applies_to="daily_average", must=must, guard_rail_importance=4), "x")
+        assert (c.add_day_guardrail, c.guardrail_weight) == (True, Decimal(2))
+
+
+def test_a_guard_rail_without_its_own_importance_is_half_for_prefer_and_importance_2_for_must():
+    # Prefer: the library's half of each side's weight, one step below.
+    prefer = translate.constraint(goal(applies_to="daily_average", importance=5), "x")
+    assert (prefer.guardrail_weight, prefer.guardrail_side_weight("below")) == (None, Decimal(2))
+    # Must: the goal's importance is hidden, so it must not reach the plan.
+    must = translate.constraint(goal(applies_to="daily_average", must=True, importance=5), "x")
+    assert must.guardrail_weight == Decimal("0.5")
+
+
+def test_only_a_daily_average_has_guard_rail_settings():
+    for applies_to in ("day", "plan_total"):
+        c = translate.constraint(goal(applies_to=applies_to, must=True), "x")
+        assert (c.add_day_guardrail, c.guardrail_weight) == (True, None)
+
+
+def test_constraint_keys_count_the_goals_from_1():
+    assert [translate.constraint_key(position) for position in range(3)] == ["goal 1", "goal 2", "goal 3"]
 
 
 def test_goal_names_say_the_scope():
@@ -243,9 +283,16 @@ def test_a_repeated_name_gets_2_then_3_in_goal_order():
     ]
 
 
-def test_a_stored_name_is_used_as_it_is_and_counts_for_the_numbering():
-    goals = [goal(name="Fuel"), goal(), goal(name="Fuel")]
-    assert translate.goal_names(goals) == ["Fuel", "Energy per day", "Fuel (2)"]
+def test_a_typed_name_is_kept_and_the_generated_ones_are_numbered_around_it():
+    goals = [goal(), goal(name="Energy per day"), goal(name="Fuel"), goal()]
+    assert translate.goal_names(goals) == ["Energy per day (2)", "Energy per day", "Fuel", "Energy per day (3)"]
+
+
+def test_a_number_taken_by_a_typed_name_moves_the_generated_name_on():
+    goals = [goal(), goal(), goal(name="Energy per day (2)"), goal()]
+    assert translate.goal_names(goals) == [
+        "Energy per day", "Energy per day (3)", "Energy per day (2)", "Energy per day (4)",
+    ]
 
 
 @pytest.mark.parametrize(
@@ -270,18 +317,24 @@ def test_a_stored_name_is_used_as_it_is_and_counts_for_the_numbering():
 )
 def test_the_zero_reference_is_needed_for_a_bound_of_zero_or_below_with_a_soft_penalty(applies_to, must, bound, needed):
     for min_, max_ in ((Decimal(bound), None), (None, Decimal(bound)), (Decimal(bound), Decimal(9))):
-        assert translate.needs_zero_reference(applies_to, must, min_, max_) is needed
+        assert translate.needs_zero_reference(applies_to, must, True, min_, max_) is needed
 
 
-def test_the_request_holds_the_goals_as_named_constraints_in_order():
+def test_a_must_daily_average_without_its_guard_rail_needs_no_zero_reference():
+    assert translate.needs_zero_reference("daily_average", True, False, Decimal(0), None) is False
+    assert translate.needs_zero_reference("daily_average", False, False, Decimal(0), None) is True
+
+
+def test_the_request_holds_the_goals_as_constraints_keyed_in_order():
     request = translate.plan_request(
-        plan_with([goal(), goal(PROTEIN, "plan_total", must=True, max="50", min=None), goal()]),
+        plan_with([goal(name="serving cap: Porridge"), goal(PROTEIN, "plan_total", must=True, max="50", min=None),
+                   goal(name="goal 1 (day guard-rail)")]),
         [ENERGY, PROTEIN], [], [porridge()],
     )
     assert [(c.name, c.attribute, c.scope) for c in request.constraints] == [
-        ("Energy per day", "Energy", "day"),
-        ("Protein, plan total", "Protein", "horizon"),
-        ("Energy per day (2)", "Energy", "day"),
+        ("goal 1", "Energy", "day"),
+        ("goal 2", "Protein", "horizon"),
+        ("goal 3", "Energy", "day"),
     ]
 
 

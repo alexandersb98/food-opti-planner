@@ -42,8 +42,10 @@ def average(total: Decimal, days: int, decimals: int) -> Decimal:
 
 @dataclass(frozen=True)
 class FrozenGoal:
-    """A goal as the plan's setup had it. `name` is the constraint's name."""
+    """A goal as the plan's setup had it. `key` names its constraint
+    (`translate.constraint_key`); `name` is the name it reads by."""
 
+    key: str
     name: str
     applies_to: str
     must: bool
@@ -63,7 +65,7 @@ def freeze(
     """The unsaved result rows for `plan`, solved from `request`. `meal_names`
     are the meals of a day in schedule order, one per slot; `units` gives
     each attribute's unit by name; `goals` are the plan's goals in order,
-    each named as its constraint; `stopped` says the solve was cancelled,
+    each with its constraint's key; `stopped` says the solve was cancelled,
     which makes a plan that may not be the best one `stopped`. `created_at`
     is left to the caller.
 
@@ -72,8 +74,8 @@ def freeze(
     total is the library's, rounded to its attribute's decimals; each
     ingredient amount is the recipe's × the portion, rounded to 6 decimals.
 
-    A violation named as a goal is a miss of it, and one named as its day
-    guard-rail a miss on its day; serving caps are not goals and are left
+    A violation named by a goal's key is a miss of it, and one named as its
+    day guard-rail a miss on its day; serving caps are not goals and are left
     out. A daily average's miss over the plan is stored per day, so its
     bound, actual and amount are divided by the days.
     """
@@ -130,12 +132,12 @@ def _goals(
     constraints = {c.name: c for c in request.constraints}
     attribute_of = {a.name: a for a in attributes}
     # `goals` and the request's constraints come from the same rows, so every
-    # goal's name is a constraint's.
+    # goal's key is a constraint's.
     rows = [
         models.PlanResultGoal(
             position=i,
             name=goal.name,
-            attribute=attribute_of[constraints[goal.name].attribute],
+            attribute=attribute_of[constraints[goal.key].attribute],
             applies_to=goal.applies_to,
             must=goal.must,
             min=goal.min,
@@ -144,10 +146,14 @@ def _goals(
         )
         for i, goal in enumerate(goals)
     ]
-    # A day guard-rail's miss is the goal's, on its day. A goal's own name
-    # wins over another's guard-rail name.
-    by_name = {guardrail_name(constraints[r.name]): r for r in rows if constraints[r.name].has_guardrail()}
-    by_name |= {row.name: row for row in rows}
+    # A day guard-rail's miss is the goal's, on its day. No key is another's
+    # guard-rail name, so no goal gets another's misses.
+    by_name = {}
+    for goal, row in zip(goals, rows, strict=True):
+        constraint = constraints[goal.key]
+        by_name[goal.key] = row
+        if constraint.has_guardrail():
+            by_name[guardrail_name(constraint)] = row
     days = len(request.days)
     for violation in plan.violations:
         row = by_name.get(violation.constraint)

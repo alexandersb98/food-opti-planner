@@ -64,12 +64,25 @@ class Minimum(BaseModel):
     at_least: Annotated[int, Field(ge=0)]
 
 
+GoalName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=models.NAME_LENGTH)]
+Importance = Annotated[int, Field(ge=1, le=5)]
+
+
 class GoalFields(BaseModel):
     """A goal: a bound on an attribute, per day or over the plan. At least
     one of `min` and `max` is given. `importance` (1-5) is how much a Prefer
     goal weighs; a Must goal keeps its own. `zero_reference` is given exactly
     when a bound is 0 and a soft penalty is made from it (the library's
-    rule, `translate.needs_zero_reference`) and is dropped otherwise."""
+    rule, `translate.needs_zero_reference`) and is dropped otherwise.
+
+    The advanced settings: `custom_name` is the name the user typed, unique
+    among the goals, None to follow the generated one. `importance_below`
+    and `importance_above` weigh each side of a Prefer goal with both
+    bounds (None: the goal's importance) and are dropped for other goals.
+    `day_guard_rail` keeps each day of a daily average in range too, at
+    `guard_rail_importance` (None: follows the goal's, `translate.constraint`);
+    other goals keep it on, and without the guard-rail its importance is
+    dropped."""
 
     # None for a goal added in the editor.
     id: int | None = None
@@ -78,18 +91,25 @@ class GoalFields(BaseModel):
     max: Number | None = None
     applies_to: AppliesTo
     must: bool
-    importance: Annotated[int, Field(ge=1, le=5)]
+    importance: Importance
     zero_reference: Annotated[Number, Field(gt=0)] | None = None
+    custom_name: GoalName | None = None
+    importance_below: Importance | None = None
+    importance_above: Importance | None = None
+    day_guard_rail: bool = True
+    guard_rail_importance: Importance | None = None
 
 
 class Goal(GoalFields):
     id: int
-    # Generated, as the goal reads ("Protein per day").
+    # The name the goal reads by: its custom name, or the generated one
+    # ("Protein per day"), numbered around the others (`translate.goal_names`).
     name: str
 
 
-# The fields a goal row and its API fields share, copied as they are.
-GOAL_FIELDS = [field for field in GoalFields.model_fields if field != "id"]
+# The fields a goal row and its API fields share, copied as they are. The
+# custom name is the row's `name`.
+GOAL_FIELDS = [field for field in GoalFields.model_fields if field not in ("id", "custom_name")]
 
 
 class PlanFields(BaseModel):
@@ -145,7 +165,12 @@ def _response(plan: models.Plan) -> Plan:
         ),
         minimums=[Minimum(day=m.day, at_least=m.at_least) for m in plan.minimums],
         goals=[
-            Goal(id=goal.id, name=name, **{field: getattr(goal, field) for field in GOAL_FIELDS})
+            Goal(
+                id=goal.id,
+                name=name,
+                custom_name=goal.name,
+                **{field: getattr(goal, field) for field in GOAL_FIELDS},
+            )
             for goal, name in translate.named_goals(plan.goals)
         ],
         solve_time_limit=plan.solve_time_limit,
@@ -223,10 +248,11 @@ def _minimum_errors(body: PlanFields, skipped: dict[int, set[int]]) -> list[Fiel
 def _goal_errors(
     stored_goals: Sequence[models.Goal], goals: Sequence[GoalFields], attributes: dict[int, models.Attribute]
 ) -> list[FieldError]:
-    """Goal ids of other goals or given twice, and each goal's own errors."""
+    """Goal ids of other goals or given twice, typed names given twice, and
+    each goal's own errors."""
     errors = []
     by_id = {goal.id: goal for goal in stored_goals}
-    ids = set()
+    ids, names = set(), set()
     for i, goal in enumerate(goals):
         if goal.id is not None:
             if goal.id not in by_id:
@@ -234,6 +260,10 @@ def _goal_errors(
             elif goal.id in ids:
                 errors.append(_error(["goals", i, "id"], "duplicate", "This goal is given twice"))
             ids.add(goal.id)
+        if goal.custom_name is not None:
+            if goal.custom_name in names:
+                errors.append(_error(["goals", i, "custom_name"], "duplicate", "Another goal has this name"))
+            names.add(goal.custom_name)
         errors += _one_goal_errors(i, goal, by_id.get(goal.id), attributes)
     return errors
 
@@ -264,7 +294,8 @@ def _one_goal_errors(
             bound = getattr(goal, field)
             if bound is not None and _decimals(bound) > attribute.decimals:
                 error(field, "too_many_decimals", f"{attribute.name} has {attribute.decimals} decimals")
-    if goal.zero_reference is None and translate.needs_zero_reference(goal.applies_to, goal.must, goal.min, goal.max):
+    needed = translate.needs_zero_reference(goal.applies_to, goal.must, goal.day_guard_rail, goal.min, goal.max)
+    if goal.zero_reference is None and needed:
         error("zero_reference", "needs_reference", "Needed when a bound is 0 or below")
     return errors
 
@@ -311,13 +342,26 @@ def _minimum(stored: models.PlanDayMinimum | None, fields: Minimum) -> models.Pl
 
 
 def _goal(stored: models.Goal | None, position: int, fields: GoalFields) -> models.Goal:
-    # A stored goal is changed rather than replaced, as its id and the
-    # columns the API doesn't have yet stay.
+    """The goal row for `fields`, keeping only the settings that apply: a
+    zero reference when needed, importance below and above for a Prefer goal
+    with both bounds, the guard-rail settings for a daily average (others
+    keep the defaults), its importance while it is on. So a setting the
+    editor hides never changes a plan."""
+    # A stored goal is changed rather than replaced, as its id stays.
     goal = stored or models.Goal()
     goal.position = position
+    goal.name = fields.custom_name
     for field in GOAL_FIELDS:
         setattr(goal, field, getattr(fields, field))
-    needed = translate.needs_zero_reference(fields.applies_to, fields.must, fields.min, fields.max)
+    split = not fields.must and fields.min is not None and fields.max is not None
+    if not split:
+        goal.importance_below = goal.importance_above = None
+    average = fields.applies_to == "daily_average"
+    if not average:
+        goal.day_guard_rail = True
+    if not (average and fields.day_guard_rail):
+        goal.guard_rail_importance = None
+    needed = translate.needs_zero_reference(fields.applies_to, fields.must, goal.day_guard_rail, fields.min, fields.max)
     goal.zero_reference = fields.zero_reference if needed else None
     return goal
 
