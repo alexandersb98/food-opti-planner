@@ -201,6 +201,11 @@
       "min": "Min",
       "max": "Max",
       "appliesTo": "Applies to",
+      "scope": {
+        "day": "Each day",
+        "plan_total": "Plan total",
+        "daily_average": "Daily average"
+      },
       "strictness": "How strict",
       "importance": "Importance",
       "zeroReference": "Count a miss as a percentage of",

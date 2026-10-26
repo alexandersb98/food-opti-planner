@@ -96,10 +96,21 @@ test('the zero-bound field shows when a bound is 0 and a soft penalty is made, w
   expect(dialog().text).toContain('With 25 kcal, missing by 5 kcal counts as 20%.')
   await dialog().click('Must')
   expect(input(label)).toBeNull() // a Must goal each day needs none
-  await dialog().click('Whole plan · daily average')
+  await dialog().click('Daily average')
   expect(input(label)).not.toBeNull() // its day guard-rail is soft
   await type('Min', '1')
   expect(input(label)).toBeNull()
+  await type('Min', '-5') // a negative bound would reward a miss, so it counts as 0 too
+  expect(input(label)).not.toBeNull()
+  wrapper.unmount()
+})
+
+test('Applies to has its own short labels', async () => {
+  const wrapper = await mountDialog(null)
+  const labels = [...document.querySelectorAll('.q-dialog .q-btn-toggle')[0]!.querySelectorAll('.q-btn')].map((b) =>
+    b.textContent?.trim(),
+  )
+  expect(labels).toEqual(['Each day', 'Plan total', 'Daily average'])
   wrapper.unmount()
 })
 
@@ -164,6 +175,22 @@ test('Delete removes the goal with one request and closes', async () => {
   ])
   expect(wrapper.emitted('saved')).toHaveLength(1)
   expect(wrapper.emitted('update:modelValue')).toEqual([[false]])
+  wrapper.unmount()
+})
+
+test('a refused Delete shows the general error only, not field errors at the next goal’s place', async () => {
+  // Without protein, energy is the goal at index 0 of the goals sent.
+  server({
+    'PUT /api/plan': {
+      status: 422,
+      body: { detail: [{ loc: ['body', 'goals', 0, 'min'], type: 'min_above_max', msg: 'no' }] },
+    },
+  })
+  const wrapper = await mountDialog(protein)
+  await dialog().click('Delete')
+  expect(dialog().text).toContain('Could not save. Try again.')
+  expect(dialog().text).not.toContain('Must be at most the maximum.')
+  expect(wrapper.emitted('saved')).toBeUndefined()
   wrapper.unmount()
 })
 

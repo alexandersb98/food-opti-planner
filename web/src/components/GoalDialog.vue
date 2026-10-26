@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { api } from '../api/client'
 import { fieldErrors } from '../api/errors'
 import type { Attribute, Goal, GoalFields, Plan } from '../api/types'
-import { IMPORTANCE, needsZeroReference, scopeText } from '../goals'
+import { IMPORTANCE, needsZeroReference } from '../goals'
 import { typedNumber } from '../numbers'
 
 // The goal editor on the Plan page (A3), a bottom sheet: a goal's main form,
@@ -53,7 +53,7 @@ const unit = computed(() => attribute.value?.unit ?? '')
 
 const appliesToOptions = (['day', 'plan_total', 'daily_average'] as const).map((value) => ({
   value,
-  label: t(scopeText(value)),
+  label: t(`goals.editor.scope.${value}`),
 }))
 const strictnessOptions = [
   { value: true, label: t('goals.must') },
@@ -115,7 +115,8 @@ function stored(goal: Goal): GoalFields {
   return { id, attribute_id, min, max, applies_to, must, importance, zero_reference }
 }
 
-async function send(goals: GoalFields[], index: number) {
+/** `index` is where the goal is among `goals`, or null when none is to be marked. */
+async function send(goals: GoalFields[], index: number | null) {
   saving.value = true
   try {
     const { data, error } = await api.PUT('/api/plan', { body: { ...props.plan, goals } })
@@ -124,7 +125,8 @@ async function send(goals: GoalFields[], index: number) {
       open.value = false
       return
     }
-    markServerErrors(fieldErrors(error), index)
+    if (index === null) errors.save = t('common.saveFailed')
+    else markServerErrors(fieldErrors(error), index)
   } catch {
     errors.save = t('common.saveFailed')
   } finally {
@@ -171,7 +173,7 @@ async function save() {
 
 async function remove() {
   errors.save = ''
-  await send(props.plan.goals.filter(({ id }) => id !== props.goal?.id).map(stored), index.value)
+  await send(props.plan.goals.filter(({ id }) => id !== props.goal?.id).map(stored), null)
 }
 </script>
 

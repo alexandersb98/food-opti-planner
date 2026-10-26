@@ -28,15 +28,16 @@ export function rangeText(min: string | null, max: string | null, unit: string, 
   return text('atMost', { value: max ?? '', unit })
 }
 
-/** Whether the library wants a reference: a bound is 0 and a soft penalty is
- * built from it. That is a Prefer goal, or a daily average, whose day
- * guard-rail is soft also for a Must goal (the server's rule). The bounds are
- * as stored or as typed; "0.0" is 0, a bound that is no number is not. */
+/** Whether the library wants a reference: a bound is 0 or below and a soft
+ * penalty is built from it (a negative bound would reward a miss). That is a
+ * Prefer goal, or a daily average, whose day guard-rail is soft also for a
+ * Must goal (the server's rule). The bounds are as stored or as typed; "0.0"
+ * is 0, a bound that is no number is not. */
 export function needsZeroReference(goal: Pick<Goal, 'applies_to' | 'must'> & { min: string | null; max: string | null }): boolean {
   const soft = !goal.must || goal.applies_to === 'daily_average'
-  const isZero = (bound: string | null) => {
+  const isZeroOrBelow = (bound: string | null) => {
     const number = bound === null ? null : typedNumber(bound)
-    return number !== null && Number(number) === 0
+    return number !== null && Number(number) <= 0
   }
-  return soft && (isZero(goal.min) || isZero(goal.max))
+  return soft && (isZeroOrBelow(goal.min) || isZeroOrBelow(goal.max))
 }

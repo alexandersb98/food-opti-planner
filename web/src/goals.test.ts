@@ -36,6 +36,11 @@ test.each([
   ['day', false, '0.0', null, true],
   ['day', false, '0,00', null, true],
   ['day', false, '0', '5', true],
+  ['day', false, '-5', null, true], // a negative bound would reward a miss
+  ['plan_total', false, null, '-0.5', true],
+  ['daily_average', true, '-5', null, true],
+  ['day', true, '-5', null, false],
+  ['plan_total', true, null, '-5', false],
   ['day', false, '', '', false],
   ['day', false, 'x', null, false],
 ] as const)('%s, must %s, bounds %s and %s: reference needed is %s', (applies_to, must, min, max, needed) => {
