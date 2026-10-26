@@ -70,10 +70,15 @@ it was checked; the code is in the commits.
    catalog is read) to its answer. A second solve meanwhile answers 409.
    A cancel that lands before the solver starts makes the solve answer
    `stopped` without searching.
-7. **`POST /api/plan/solve/cancel` answers 204 whether or not a solve
+7. **A Cancel names its solve.** Both requests carry a `solve_id` the
+   app makes at the click. A Cancel for the running solve stops it; one
+   for a solve the server does not have yet is remembered and stops that
+   solve as it starts, since Cancel can beat Make plan to the server;
+   one for any other solve does nothing.
+8. **`POST /api/plan/solve/cancel` answers 204 whether or not a solve
    runs**, so a Cancel tapped as the solve ends is not an error. The
    solve's own answer tells what came of it.
-8. **The app:** Cancel sends the cancel request and then shows
+9. **The app:** Cancel sends the cancel request and then shows
    "Stopping…" disabled until the solve answers. A 409 on Make plan
    (a solve started in another tab, or before a reload) shows the
    Couldn't make a plan card with "A plan is already being made. Try
@@ -110,19 +115,22 @@ fails, so it tests that path.
 (comment), `web/openapi.json`, `web/src/api/schema.ts`,
 `tests/server/{test_solve,test_freeze}.py`.
 
-**Interfaces produced:** `POST /api/plan/solve/cancel` → 204;
-`POST /api/plan/solve` → 409 while one runs; `Failure` gains `stopped`;
+**Interfaces produced:** `POST /api/plan/solve` and
+`POST /api/plan/solve/cancel` both take `{solve_id}` (decision 7);
+cancel → 204; solve → 409 while one runs; `Failure` gains `stopped`;
 `Status` gains `stopped`; `freeze(..., stopped=False)`.
 
 **Tests:** cancel during a solve returns the plan found with status
 `stopped`; cancel with no plan answers `stopped` and keeps the unsaved
 plan; a stopped `OPTIMAL` plan stays `optimal`; a second solve while
-one runs is 409 and the first still finishes; cancel with nothing
-running is 204; after a solve (also a failed one) the next may start;
-freeze stores `stopped`.
+one runs is 409 and the first still finishes; a cancel naming another
+solve leaves the running one alone; a cancel that arrives before its
+solve stops it as it starts, and only it; a cancel for a solve that is
+over does not touch the next one; after a solve (also a failed one) the
+next may start; freeze stores `stopped`.
 
-**Checked:** 478 Python tests pass on SQLite; the server suite (282)
-also passes on Postgres 16.
+**Checked:** 480 Python tests pass on SQLite; the server suite also
+passes on Postgres 16.
 
 ### Task 3: Cancel in the app
 
@@ -134,11 +142,13 @@ test, `web/src/pages/ResultsPage.test.ts`, `web/src/i18n/en.json`.
 `cancel(): Promise<void>`; `Failure` gains `'busy'`.
 
 **Tests:** solve store: cancel sends the request once and sets
-cancelling until the solve answers; a 409 is `busy`. Plan page: Cancel
+cancelling until the solve answers; cancel carries the running solve's
+name, from the click, and each solve is named anew; a 409 is `busy`.
+Plan page: Cancel
 on the Making plan… card, Stopping… while cancelling, the `stopped` and
 `busy` texts. Results page: the Stopped early status line.
 
-**Checked:** lint, typecheck and Vitest (157 tests) pass. The slice 7
+**Checked:** lint, typecheck and Vitest (158 tests) pass. The slice 7
 Playwright flow still passes against uvicorn on SQLite with the built
 app. In a phone-sized browser, with the server's solve replaced by one
 that runs until cancelled, Cancel opened R1 with "Stopped early: may

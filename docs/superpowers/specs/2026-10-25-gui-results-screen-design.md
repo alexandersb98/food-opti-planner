@@ -244,7 +244,7 @@ bound, actual, amount, percent).
 | `POST /api/plan-results/{id}/save` | Save the unsaved plan; sets chosen at. |
 | `POST /api/plan-results/{id}/use-for-today` | Set chosen at to now. |
 | `DELETE /api/plan-results/{id}` | Delete a saved plan or discard the unsaved one. |
-| `POST /api/plan/solve/cancel` | Slice 7a: stop the running solve. |
+| `POST /api/plan/solve/cancel` | Slice 7a: stop the solve named by `solve_id`. |
 
 ## Stopping a solve (slice 7a)
 
@@ -259,7 +259,11 @@ bound, actual, amount, percent).
   `POST /api/plan/solve/cancel` stops it. One solve at a time: a second
   `POST /api/plan/solve` while one runs is a 409. This works because
   Cloud Run is limited to one instance. The solve request then stores
-  and returns the result as usual, with status `stopped`.
+  and returns the result as usual, with status `stopped`. Both requests
+  carry a `solve_id` the app makes, so a Cancel names the solve it
+  means: the server may not have that solve yet (and then stops it as it
+  starts), and a Cancel that crosses the answer must not stop the next
+  solve.
 - **App:** **Cancel** on the Making plan… card. The plan found opens as
   usual; with none, the Couldn't make a plan card says so.
 

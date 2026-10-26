@@ -16,8 +16,8 @@ from server.api import plan as plan_api
 from .conftest import schedule
 
 
-def solve(client) -> dict:
-    response = client.post("/api/plan/solve")
+def solve(client, solve_id: str = "s1") -> dict:
+    response = client.post("/api/plan/solve", json={"solve_id": solve_id})
     assert response.status_code == 200, response.text
     return response.json()
 
@@ -166,7 +166,7 @@ def test_any_other_request_error_is_a_bug(client, porridge, monkeypatch):
 
     monkeypatch.setattr(plan_api, "solve_plan", refused)
     with pytest.raises(PlanRequestError):
-        client.post("/api/plan/solve")
+        client.post("/api/plan/solve", json={"solve_id": "s2"})
 
 
 def test_a_plan_left_out_by_the_planner_is_skipped(client, porridge, monkeypatch):
@@ -214,23 +214,23 @@ class UntilCancelled:
         return replace(meal_planner.plan(request), solve_status=SolveStatus.FEASIBLE)
 
 
-def solving(client, monkeypatch, long_solve: UntilCancelled):
+def solving(client, monkeypatch, long_solve: UntilCancelled, solve_id: str = "s1"):
     """Start a solve in another thread; answer its future once it solves."""
     monkeypatch.setattr(plan_api, "solve_plan", long_solve)
     pool = ThreadPoolExecutor(max_workers=1)
-    future = pool.submit(client.post, "/api/plan/solve")
+    future = pool.submit(client.post, "/api/plan/solve", json={"solve_id": solve_id})
     pool.shutdown(wait=False)
     assert long_solve.started.wait(10)
     return future
 
 
-def cancel(client) -> None:
-    assert client.post("/api/plan/solve/cancel").status_code == 204
+def cancel(client, solve_id: str) -> None:
+    assert client.post("/api/plan/solve/cancel", json={"solve_id": solve_id}).status_code == 204
 
 
 def test_cancel_stops_the_solve_which_keeps_the_plan_found(client, porridge, monkeypatch):
     answer = solving(client, monkeypatch, UntilCancelled())
-    cancel(client)
+    cancel(client, "s1")
     response = answer.result(10)
     assert response.status_code == 200
     plan = response.json()["plan"]
@@ -241,7 +241,7 @@ def test_cancel_stops_the_solve_which_keeps_the_plan_found(client, porridge, mon
 def test_cancel_before_any_plan_answers_stopped_and_keeps_the_unsaved_plan(client, porridge, monkeypatch):
     kept = solve(client)["plan"]
     answer = solving(client, monkeypatch, UntilCancelled(found=False))
-    cancel(client)
+    cancel(client, "s1")
     assert answer.result(10).json() == {"plan": None, "failure": "stopped"}
     assert unsaved(client) == summary(kept)
 
@@ -257,16 +257,37 @@ def test_a_cancelled_infeasible_solve_is_still_infeasible(client, porridge, monk
 
 def test_a_second_solve_while_one_runs_is_refused(client, porridge, monkeypatch):
     answer = solving(client, monkeypatch, UntilCancelled())
-    response = client.post("/api/plan/solve")
+    response = client.post("/api/plan/solve", json={"solve_id": "s2"})
     assert response.status_code == 409
     assert response.json() == {"detail": "A plan is already being made"}
-    cancel(client)
+    cancel(client, "s1")
     assert answer.result(10).json()["plan"]["status"] == "stopped"
 
 
-def test_cancel_without_a_running_solve_does_nothing(client, porridge):
-    cancel(client)
-    assert solve(client)["plan"]["status"] == "optimal"
+def test_cancel_of_a_solve_that_is_over_does_not_touch_the_next_one(client, porridge):
+    """A Cancel may cross the answer, or be left over from a solve that has
+    ended; the solve after it is not the one it named."""
+    cancel(client, "gone")
+    assert solve(client, "s2")["plan"]["status"] == "optimal"
+
+
+def test_cancel_of_another_solve_leaves_the_running_one_alone(client, porridge, monkeypatch):
+    long_solve = UntilCancelled()
+    answer = solving(client, monkeypatch, long_solve, solve_id="s1")
+    cancel(client, "s2")
+    with pytest.raises(TimeoutError):
+        answer.result(0.5)
+    cancel(client, "s1")
+    assert answer.result(10).json()["plan"]["status"] == "stopped"
+
+
+def test_a_cancel_that_arrives_before_its_solve_stops_it_as_it_starts(client, porridge):
+    """Cancel can beat Make plan to the server, as the card's Cancel is
+    there from the click. The solve is stopped as soon as it starts."""
+    cancel(client, "s1")
+    assert solve(client, "s1") == {"plan": None, "failure": "stopped"}
+    # Only that one solve: the next one is not stopped by the same Cancel.
+    assert solve(client, "s2")["plan"]["status"] == "optimal"
 
 
 def test_after_a_solve_another_may_start(client, porridge, monkeypatch):
@@ -278,7 +299,7 @@ def test_after_a_solve_another_may_start(client, porridge, monkeypatch):
 
     monkeypatch.setattr(plan_api, "solve_plan", refused)
     with pytest.raises(PlanRequestError):
-        client.post("/api/plan/solve")
+        client.post("/api/plan/solve", json={"solve_id": "s2"})
     monkeypatch.undo()
     assert solve(client)["plan"] is not None
 
@@ -290,7 +311,7 @@ def test_a_real_solve_can_be_cancelled(client, porridge, monkeypatch):
 
     def stopped_first(request, stop):
         stops.append(stop)
-        client.post("/api/plan/solve/cancel")
+        client.post("/api/plan/solve/cancel", json={"solve_id": "s1"})
         return meal_planner.plan(request, stop)
 
     monkeypatch.setattr(plan_api, "solve_plan", stopped_first)

@@ -223,29 +223,60 @@ FAILURES: dict[SolveStatus, Failure] = {
 BUSY = {409: {"description": "A plan is already being made"}}
 
 
+# The client names its solve, so a Cancel says which solve it means. Both
+# requests carry the same id, which only has to tell one solve from the
+# next; the client makes it.
+SOLVE_ID_LENGTH = 64
+
+
+class SolveId(BaseModel):
+    """Which solve a request is about."""
+
+    solve_id: str = Field(min_length=1, max_length=SOLVE_ID_LENGTH)
+
+
 class RunningSolve:
-    """The one solve a server process runs at a time, and its stop handle.
-    One process is enough, as Cloud Run runs one instance."""
+    """The one solve a server process runs at a time, named by its solve id,
+    and its stop handle. One process is enough, as Cloud Run runs one
+    instance."""
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
+        self._id: str | None = None
         self._stop: StopHandle | None = None
+        # A solve cancelled before it reached the server, remembered so the
+        # Cancel is not lost in that instant.
+        self._cancelled: str | None = None
 
-    def begin(self) -> StopHandle | None:
-        """The new solve's handle, or None while another solve runs."""
+    def begin(self, solve_id: str) -> StopHandle | None:
+        """The new solve's handle, or None while another solve runs. The
+        handle comes stopped if this solve was cancelled before it got
+        here, which ends it as it starts."""
         with self._lock:
             if self._stop is not None:
                 return None
-            self._stop = StopHandle()
-            return self._stop
+            stop = StopHandle()
+            if self._cancelled == solve_id:
+                self._cancelled = None
+                stop.stop()
+            self._id, self._stop = solve_id, stop
+            return stop
 
     def end(self) -> None:
         with self._lock:
-            self._stop = None
+            self._id = self._stop = None
 
-    def cancel(self) -> None:
+    def cancel(self, solve_id: str) -> None:
+        """Stop the solve named `solve_id`. Another solve is left alone: a
+        Cancel that crosses the answer must not stop the next solve."""
         with self._lock:
-            stop = self._stop
+            if self._id == solve_id:
+                stop = self._stop
+            else:
+                # Still on its way, or long over. Remembering it stops the
+                # first; an id that never comes back is forgotten by the
+                # next Cancel, and means nothing until then.
+                stop, self._cancelled = None, solve_id
         if stop is not None:
             stop.stop()
 
@@ -265,12 +296,12 @@ class SolveOutcome(BaseModel):
 
 
 @router.post("/solve", responses=BUSY)
-def solve(db: DbSession, running: Running) -> SolveOutcome:
+def solve(body: SolveId, db: DbSession, running: Running) -> SolveOutcome:
     """Make a plan from the setup and the whole catalog, within the setup's
     time limit or until cancelled. A plan replaces the unsaved one; without
     a plan nothing is stored, and the unsaved plan stays. Runs inside the
     request, one at a time."""
-    stop = running.begin()
+    stop = running.begin(body.solve_id)
     if stop is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A plan is already being made")
     try:
@@ -280,10 +311,11 @@ def solve(db: DbSession, running: Running) -> SolveOutcome:
 
 
 @router.post("/solve/cancel", status_code=status.HTTP_204_NO_CONTENT)
-def cancel(running: Running) -> None:
-    """Stop the running solve, which then answers with the best plan found
-    so far. Without one, nothing happens: a Cancel may cross the answer."""
-    running.cancel()
+def cancel(body: SolveId, running: Running) -> None:
+    """Stop the solve `solve_id` names, which then answers with the best
+    plan found so far. A Cancel that arrives first stops it as it starts;
+    one for any other solve does nothing, as it may cross the answer."""
+    running.cancel(body.solve_id)
 
 
 def _solve(db: DbSession, stop: StopHandle) -> SolveOutcome:

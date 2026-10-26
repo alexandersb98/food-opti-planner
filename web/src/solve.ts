@@ -21,6 +21,11 @@ const state = reactive({
 })
 // Counts solves, so one forgotten by resetSolve can't change the state.
 let solves = 0
+// Names the running solve. Make plan and Cancel both carry it, so a Cancel
+// says which solve it means: the server may not have the solve yet (the
+// card's Cancel is there from the click), and a Cancel that crosses the
+// answer must not reach the next solve.
+let runningId = ''
 
 export function useSolve() {
   const router = useRouter()
@@ -31,10 +36,11 @@ export function useSolve() {
   async function start(seconds: number) {
     if (state.running) return
     const solve = ++solves
+    runningId = crypto.randomUUID()
     Object.assign(state, { running: true, cancelling: false, startedAt: Date.now(), seconds, failure: null })
     let failure: Failure | null = 'error'
     try {
-      const { data, response } = await api.POST('/api/plan/solve')
+      const { data, response } = await api.POST('/api/plan/solve', { body: { solve_id: runningId } })
       if (data) failure = data.plan ? null : (data.failure ?? 'error')
       else if (response.status === 409) failure = 'busy'
     } catch {
@@ -46,15 +52,15 @@ export function useSolve() {
   }
 
   /** Stop the running solve. It then answers as usual: with the best plan
-   * found so far, or the 'stopped' reason. Cancel can be tried again if the
-   * request fails. */
+   * found so far, or the 'stopped' reason, even when the server gets the
+   * Cancel first. Cancel can be tried again if the request fails. */
   async function cancel() {
     if (!state.running || state.cancelling) return
     const solve = solves
     state.cancelling = true
     let sent = false
     try {
-      sent = (await api.POST('/api/plan/solve/cancel')).response.ok
+      sent = (await api.POST('/api/plan/solve/cancel', { body: { solve_id: runningId } })).response.ok
     } catch {
       // not sent
     }

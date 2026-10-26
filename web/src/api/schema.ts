@@ -296,8 +296,9 @@ export interface paths {
         put?: never;
         /**
          * Cancel
-         * @description Stop the running solve, which then answers with the best plan found
-         *     so far. Without one, nothing happens: a Cancel may cross the answer.
+         * @description Stop the solve `solve_id` names, which then answers with the best
+         *     plan found so far. A Cancel that arrives first stops it as it starts;
+         *     one for any other solve does nothing, as it may cross the answer.
          */
         post: operations["cancel_api_plan_solve_cancel_post"];
         delete?: never;
@@ -780,6 +781,14 @@ export interface components {
             day: number;
             /** Meal */
             meal: number;
+        };
+        /**
+         * SolveId
+         * @description Which solve a request is about.
+         */
+        SolveId: {
+            /** Solve Id */
+            solve_id: string;
         };
         /**
          * SolveOutcome
@@ -1578,7 +1587,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SolveId"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -1596,6 +1609,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     cancel_api_plan_solve_cancel_post: {
@@ -1605,7 +1627,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SolveId"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             204: {
@@ -1613,6 +1639,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };
