@@ -81,6 +81,8 @@ export function planResult(fields: Given<PlanResult, 'id'>): PlanResult {
     averages: [],
     day_totals: Array.from({ length: days }, () => []),
     meals: Array.from({ length: days }, () => []),
+    goals: [],
+    misses: [],
     ...fields,
   }
 }

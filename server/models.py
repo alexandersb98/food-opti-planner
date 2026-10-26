@@ -268,6 +268,9 @@ class PlanResult(Base):
     totals: Mapped[list["PlanResultTotal"]] = relationship(
         cascade="all, delete-orphan", passive_deletes=True, order_by="PlanResultTotal.id"
     )
+    goals: Mapped[list["PlanResultGoal"]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True, order_by="PlanResultGoal.position"
+    )
 
 
 class PlanResultAttribute(Base):
@@ -337,6 +340,46 @@ class PlanResultTotal(Base):
     meal: Mapped[PlanResultMeal | None] = relationship()
 
 
+class PlanResultGoal(Base):
+    """A goal as it was when the plan was made, on the result's copy of its
+    attribute. `name` is the one the plan's constraint had."""
+
+    __tablename__ = "plan_result_goals"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    plan_result_id: Mapped[int] = mapped_column(ForeignKey("plan_results.id", ondelete="CASCADE"))
+    attribute_id: Mapped[int] = mapped_column(ForeignKey("plan_result_attributes.id", ondelete="CASCADE"))
+    # The goals' order, from 0.
+    position: Mapped[int]
+    name: Mapped[str] = mapped_column(String(NAME_LENGTH))
+    applies_to: Mapped[str] = mapped_column(String(APPLIES_TO_LENGTH))
+    must: Mapped[bool]
+    min: Mapped[Decimal | None] = mapped_column(EXACT_NUMBER)
+    max: Mapped[Decimal | None] = mapped_column(EXACT_NUMBER)
+    attribute: Mapped[PlanResultAttribute] = relationship()
+    misses: Mapped[list["PlanResultMiss"]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True, order_by="PlanResultMiss.id"
+    )
+
+
+class PlanResultMiss(Base):
+    """Where the plan missed a goal's bound: on a day (`day` from 0) or over
+    the whole plan (NULL). `side` is "below" or "above". The numbers are
+    rounded to the attribute's decimals, `percent` to 1 decimal; a daily
+    average's are per day."""
+
+    __tablename__ = "plan_result_misses"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    goal_id: Mapped[int] = mapped_column(ForeignKey("plan_result_goals.id", ondelete="CASCADE"))
+    day: Mapped[int | None]
+    side: Mapped[str] = mapped_column(String(5))
+    bound: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
+    actual: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
+    amount: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
+    percent: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
+
+
 __all__ = [
     "Attribute",
     "Base",
@@ -348,8 +391,10 @@ __all__ = [
     "PlanMeal",
     "PlanResult",
     "PlanResultAttribute",
+    "PlanResultGoal",
     "PlanResultMeal",
     "PlanResultMealItem",
+    "PlanResultMiss",
     "PlanResultTotal",
     "PlanSkip",
     "Recipe",

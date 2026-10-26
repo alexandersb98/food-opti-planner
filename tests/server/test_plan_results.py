@@ -10,8 +10,8 @@ from sqlalchemy.orm import Session
 
 from server import models
 
-from .conftest import RECIPE
-from .test_solve import solve, summary
+from .conftest import RECIPE, schedule
+from .test_solve import goal, one_meal_two_recipes, solve, summary
 
 
 def saved_plan(client) -> dict:
@@ -166,6 +166,16 @@ def test_a_saved_plan_is_unchanged_by_catalog_edits_and_deletes(client, catalog,
         assert client.delete(f"/api/attributes/{attribute['id']}").status_code == 204
     for ingredient in client.get("/api/ingredients").json():
         assert client.delete(f"/api/ingredients/{ingredient['id']}").status_code == 204
+    assert client.get(f"/api/plan-results/{plan['id']}").json() == plan
+
+
+def test_a_saved_plan_keeps_its_goals_and_misses_after_the_goal_and_attribute_are_deleted(client, catalog):
+    energy = one_meal_two_recipes(client, catalog)
+    schedule(client, goals=[goal(energy, min="400")])
+    plan = saved_plan(client)
+    assert (len(plan["goals"]), len(plan["misses"])) == (1, 1)
+    schedule(client, goals=[])
+    assert client.delete(f"/api/attributes/{energy}").status_code == 204
     assert client.get(f"/api/plan-results/{plan['id']}").json() == plan
 
 

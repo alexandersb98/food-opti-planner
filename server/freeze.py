@@ -6,11 +6,13 @@ deletes there never change a plan.
 """
 
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 from fractions import Fraction
 
 from meal_planner import Plan, PlanRequest, SolveStatus
+from meal_planner.bounds import guardrail_name
 from meal_planner.scaling import to_decimal
 
 from . import models
@@ -20,6 +22,7 @@ STATUS = {SolveStatus.OPTIMAL: "optimal", SolveStatus.FEASIBLE: "time_ran_out"}
 STOPPED = "stopped"
 # Scaled ingredient amounts are stored to the catalog's decimals.
 AMOUNT_DECIMALS = models.VALUE_DECIMALS
+PERCENT_DECIMALS = 1
 
 
 def rounded(value: Decimal | Fraction, decimals: int) -> Decimal:
@@ -37,17 +40,30 @@ def average(total: Decimal, days: int, decimals: int) -> Decimal:
     return rounded(Fraction(total) / days, decimals)
 
 
+@dataclass(frozen=True)
+class FrozenGoal:
+    """A goal as the plan's setup had it. `name` is the constraint's name."""
+
+    name: str
+    applies_to: str
+    must: bool
+    min: Decimal | None
+    max: Decimal | None
+
+
 def freeze(
     request: PlanRequest,
     plan: Plan,
     start_date: date,
     meal_names: Sequence[str],
     units: Mapping[str, str],
+    goals: Sequence[FrozenGoal],
     stopped: bool = False,
 ) -> models.PlanResult:
     """The unsaved result rows for `plan`, solved from `request`. `meal_names`
     are the meals of a day in schedule order, one per slot; `units` gives
-    each attribute's unit by name; `stopped` says the solve was cancelled,
+    each attribute's unit by name; `goals` are the plan's goals in order,
+    each named as its constraint; `stopped` says the solve was cancelled,
     which makes a plan that may not be the best one `stopped`. `created_at`
     is left to the caller.
 
@@ -55,6 +71,11 @@ def freeze(
     left out both come out as not planned, without items or totals. Each
     total is the library's, rounded to its attribute's decimals; each
     ingredient amount is the recipe's × the portion, rounded to 6 decimals.
+
+    A violation named as a goal is a miss of it, and one named as its day
+    guard-rail a miss on its day; serving caps are not goals and are left
+    out. A daily average's miss over the plan is stored per day, so its
+    bound, actual and amount are divided by the days.
     """
     attributes = [
         models.PlanResultAttribute(position=i, name=a.name, unit=units[a.name], decimals=a.precision)
@@ -69,6 +90,7 @@ def freeze(
         attributes=attributes,
         meals=[],
         totals=[],
+        goals=[],
     )
 
     def add_totals(values: Mapping[str, Decimal], meal: models.PlanResultMeal | None = None,
@@ -98,4 +120,47 @@ def freeze(
     for day, values in enumerate(plan.day_totals):
         add_totals(values, day=day)
     add_totals(plan.horizon_totals)
+    result.goals = _goals(request, plan, goals, attributes)
     return result
+
+
+def _goals(
+    request: PlanRequest, plan: Plan, goals: Sequence[FrozenGoal], attributes: Sequence[models.PlanResultAttribute]
+) -> list[models.PlanResultGoal]:
+    constraints = {c.name: c for c in request.constraints}
+    attribute_of = {a.name: a for a in attributes}
+    rows = [
+        models.PlanResultGoal(
+            position=i,
+            name=goal.name,
+            attribute=attribute_of[constraints[goal.name].attribute],
+            applies_to=goal.applies_to,
+            must=goal.must,
+            min=goal.min,
+            max=goal.max,
+            misses=[],
+        )
+        for i, goal in enumerate(goals)
+    ]
+    # A day guard-rail's miss is the goal's, on its day.
+    by_name = {row.name: row for row in rows}
+    by_name |= {guardrail_name(constraints[row.name]): row for row in rows}
+    days = len(request.days)
+    for violation in plan.violations:
+        row = by_name.get(violation.constraint)
+        if row is None:
+            continue
+        decimals = row.attribute.decimals
+        # The library's horizon numbers of an average are totals over the days.
+        divisor = days if row.applies_to == "daily_average" and violation.day is None else 1
+        row.misses.append(
+            models.PlanResultMiss(
+                day=violation.day,
+                side=violation.side,
+                bound=rounded(Fraction(violation.bound) / divisor, decimals),
+                actual=rounded(Fraction(violation.actual) / divisor, decimals),
+                amount=rounded(Fraction(violation.amount) / divisor, decimals),
+                percent=rounded(violation.percent, PERCENT_DECIMALS),
+            )
+        )
+    return rows

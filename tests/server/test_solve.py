@@ -47,12 +47,13 @@ def test_a_plan_is_stored_as_the_unsaved_plan_and_answered_in_full(client, porri
     plan = outcome["plan"]
     assert set(plan) == {
         "id", "saved", "status", "start_date", "days", "created_at", "saved_at",
-        "attributes", "totals", "averages", "day_totals", "meals",
+        "attributes", "totals", "averages", "day_totals", "meals", "goals", "misses",
     }
     assert plan["created_at"].endswith("Z")
     assert {k: plan[k] for k in ("saved", "status", "start_date", "days", "saved_at")} == {
         "saved": False, "status": "optimal", "start_date": "2026-10-26", "days": 2, "saved_at": None,
     }
+    assert (plan["goals"], plan["misses"]) == ([], [])
     assert plan["attributes"] == [
         {"name": "Energy", "unit": "kcal", "decimals": 0},
         {"name": "Protein", "unit": "g", "decimals": 1},
@@ -359,3 +360,23 @@ def test_a_must_goal_the_catalog_can_meet_is_kept(client, catalog):
     energy = one_meal_two_recipes(client, catalog)
     schedule(client, goals=[goal(energy, min="250", must=True, applies_to="plan_total")])
     assert chosen(client) == "Heavy"
+
+
+def test_a_prefer_goal_the_plan_misses_is_answered_with_its_miss(client, catalog):
+    energy = one_meal_two_recipes(client, catalog)
+    schedule(client, goals=[goal(energy, min="400")])
+    # Heavy, at 300 kcal, is as close as the catalog gets.
+    plan = solve(client)["plan"]
+    assert plan["goals"] == [
+        {"name": "Energy per day", "attribute": 0, "applies_to": "day", "must": False, "min": "400", "max": None},
+    ]
+    assert plan["misses"] == [
+        {"goal": 0, "day": 0, "side": "below", "bound": "400", "actual": "300", "amount": "100", "percent": "25"},
+    ]
+
+
+def test_a_goal_the_plan_meets_has_no_miss(client, catalog):
+    energy = one_meal_two_recipes(client, catalog)
+    schedule(client, goals=[goal(energy, min="250")])
+    plan = solve(client)["plan"]
+    assert (len(plan["goals"]), plan["misses"]) == (1, [])

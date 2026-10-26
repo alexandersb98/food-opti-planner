@@ -19,7 +19,7 @@ from .. import freeze, models, translate
 from ..db import DbSession
 from . import plan_results, recipes
 from .errors import FieldError, invalid_fields
-from .fields import Number
+from .fields import AppliesTo, Number
 
 router = APIRouter(prefix="/plan", tags=["plan"])
 
@@ -66,9 +66,6 @@ class Minimum(BaseModel):
 
     day: DayIndex
     at_least: Annotated[int, Field(ge=0)]
-
-
-AppliesTo = Literal["day", "plan_total", "daily_average"]
 
 
 class GoalFields(BaseModel):
@@ -433,6 +430,10 @@ def _solve(db: DbSession, stop: StopHandle) -> SolveOutcome:
     start_date = plan.start_date
     meal_names = [meal.name for meal in plan.meals]
     units = {attribute.name: attribute.unit for attribute in attributes}
+    goals = [
+        freeze.FrozenGoal(name, goal.applies_to, goal.must, goal.min, goal.max)
+        for goal, name in zip(plan.goals, translate.goal_names(plan.goals), strict=True)
+    ]
     # End the read before solving, so no connection waits in a transaction
     # for minutes (Neon drops one idle for 5). Only the plain values above
     # are used after this, as the commit expires the rows.
@@ -446,7 +447,7 @@ def _solve(db: DbSession, stop: StopHandle) -> SolveOutcome:
     if answer.solve_status in FAILURES:
         return SolveOutcome(plan=None, failure=FAILURES[answer.solve_status])
 
-    result = freeze.freeze(request, answer, start_date, meal_names, units, stopped=stop.stopped)
+    result = freeze.freeze(request, answer, start_date, meal_names, units, goals, stopped=stop.stopped)
     result.created_at = plan_results.now()
     # The old unsaved plan goes first, as only one may exist.
     db.execute(delete(models.PlanResult).where(models.PlanResult.saved.is_(False)))

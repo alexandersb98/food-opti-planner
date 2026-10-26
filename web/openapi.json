@@ -745,6 +745,13 @@
             "title": "Days",
             "type": "integer"
           },
+          "goals": {
+            "items": {
+              "$ref": "#/components/schemas/ResultGoal"
+            },
+            "title": "Goals",
+            "type": "array"
+          },
           "id": {
             "title": "Id",
             "type": "integer"
@@ -757,6 +764,13 @@
               "type": "array"
             },
             "title": "Meals",
+            "type": "array"
+          },
+          "misses": {
+            "items": {
+              "$ref": "#/components/schemas/ResultMiss"
+            },
+            "title": "Misses",
             "type": "array"
           },
           "saved": {
@@ -809,7 +823,9 @@
           "totals",
           "averages",
           "day_totals",
-          "meals"
+          "meals",
+          "goals",
+          "misses"
         ],
         "title": "PlanResult",
         "type": "object"
@@ -1156,6 +1172,64 @@
         "title": "ResultAttribute",
         "type": "object"
       },
+      "ResultGoal": {
+        "description": "A goal as the plan was made with it. `attribute` is an index into\n`attributes`; `min` and `max` are None for no bound.",
+        "properties": {
+          "applies_to": {
+            "enum": [
+              "day",
+              "plan_total",
+              "daily_average"
+            ],
+            "title": "Applies To",
+            "type": "string"
+          },
+          "attribute": {
+            "title": "Attribute",
+            "type": "integer"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "must": {
+            "title": "Must",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "attribute",
+          "applies_to",
+          "must",
+          "min",
+          "max"
+        ],
+        "title": "ResultGoal",
+        "type": "object"
+      },
       "ResultItem": {
         "description": "An ingredient scaled to the meal's portion, in its unit.",
         "properties": {
@@ -1237,6 +1311,61 @@
           "items"
         ],
         "title": "ResultMeal",
+        "type": "object"
+      },
+      "ResultMiss": {
+        "description": "Where the plan missed a goal's bound, on a `day` (from 0) or over the\nwhole plan (None). `goal` is an index into `goals`; the numbers are in\nthe attribute's unit, per day for a daily average. `percent` is the miss\nas a percentage of the goal's reference, to 1 decimal.",
+        "properties": {
+          "actual": {
+            "title": "Actual",
+            "type": "string"
+          },
+          "amount": {
+            "title": "Amount",
+            "type": "string"
+          },
+          "bound": {
+            "title": "Bound",
+            "type": "string"
+          },
+          "day": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day"
+          },
+          "goal": {
+            "title": "Goal",
+            "type": "integer"
+          },
+          "percent": {
+            "title": "Percent",
+            "type": "string"
+          },
+          "side": {
+            "enum": [
+              "below",
+              "above"
+            ],
+            "title": "Side",
+            "type": "string"
+          }
+        },
+        "required": [
+          "goal",
+          "day",
+          "side",
+          "bound",
+          "actual",
+          "amount",
+          "percent"
+        ],
+        "title": "ResultMiss",
         "type": "object"
       },
       "Skip": {

@@ -1,4 +1,5 @@
-"""The plan's goals: bounds on an attribute that the plan aims for (slice 8).
+"""The plan's goals: bounds on an attribute that the plan aims for, and the
+goals and misses a made plan keeps (slice 8).
 
 Revision ID: 0007
 Revises: 0006
@@ -36,7 +37,37 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["attribute_id"], ["attributes.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
+    op.create_table(
+        "plan_result_goals",
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("plan_result_id", sa.Integer(), nullable=False),
+        sa.Column("attribute_id", sa.Integer(), nullable=False),
+        sa.Column("position", sa.Integer(), nullable=False),
+        sa.Column("name", sa.String(length=100), nullable=False),
+        sa.Column("applies_to", sa.String(length=13), nullable=False),
+        sa.Column("must", sa.Boolean(), nullable=False),
+        sa.Column("min", sa.Numeric(precision=15, scale=6), nullable=True),
+        sa.Column("max", sa.Numeric(precision=15, scale=6), nullable=True),
+        sa.ForeignKeyConstraint(["plan_result_id"], ["plan_results.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["attribute_id"], ["plan_result_attributes.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_table(
+        "plan_result_misses",
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("goal_id", sa.Integer(), nullable=False),
+        sa.Column("day", sa.Integer(), nullable=True),
+        sa.Column("side", sa.String(length=5), nullable=False),
+        sa.Column("bound", sa.Numeric(precision=15, scale=6), nullable=False),
+        sa.Column("actual", sa.Numeric(precision=15, scale=6), nullable=False),
+        sa.Column("amount", sa.Numeric(precision=15, scale=6), nullable=False),
+        sa.Column("percent", sa.Numeric(precision=15, scale=6), nullable=False),
+        sa.ForeignKeyConstraint(["goal_id"], ["plan_result_goals.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+    )
 
 
 def downgrade() -> None:
+    op.drop_table("plan_result_misses")
+    op.drop_table("plan_result_goals")
     op.drop_table("goals")

@@ -675,10 +675,14 @@ export interface components {
             day_totals: string[][];
             /** Days */
             days: number;
+            /** Goals */
+            goals: components["schemas"]["ResultGoal"][];
             /** Id */
             id: number;
             /** Meals */
             meals: components["schemas"]["ResultMeal"][][];
+            /** Misses */
+            misses: components["schemas"]["ResultMiss"][];
             /** Saved */
             saved: boolean;
             /** Saved At */
@@ -799,6 +803,28 @@ export interface components {
             unit: string;
         };
         /**
+         * ResultGoal
+         * @description A goal as the plan was made with it. `attribute` is an index into
+         *     `attributes`; `min` and `max` are None for no bound.
+         */
+        ResultGoal: {
+            /**
+             * Applies To
+             * @enum {string}
+             */
+            applies_to: "day" | "plan_total" | "daily_average";
+            /** Attribute */
+            attribute: number;
+            /** Max */
+            max: string | null;
+            /** Min */
+            min: string | null;
+            /** Must */
+            must: boolean;
+            /** Name */
+            name: string;
+        };
+        /**
          * ResultItem
          * @description An ingredient scaled to the meal's portion, in its unit.
          */
@@ -828,6 +854,32 @@ export interface components {
             recipe: string | null;
             /** Totals */
             totals: string[];
+        };
+        /**
+         * ResultMiss
+         * @description Where the plan missed a goal's bound, on a `day` (from 0) or over the
+         *     whole plan (None). `goal` is an index into `goals`; the numbers are in
+         *     the attribute's unit, per day for a daily average. `percent` is the miss
+         *     as a percentage of the goal's reference, to 1 decimal.
+         */
+        ResultMiss: {
+            /** Actual */
+            actual: string;
+            /** Amount */
+            amount: string;
+            /** Bound */
+            bound: string;
+            /** Day */
+            day: number | null;
+            /** Goal */
+            goal: number;
+            /** Percent */
+            percent: string;
+            /**
+             * Side
+             * @enum {string}
+             */
+            side: "below" | "above";
         };
         /**
          * Skip
