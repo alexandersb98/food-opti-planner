@@ -70,12 +70,25 @@ function totals(wrapper: Wrapper) {
   return texts(wrapper, '.portion-total')
 }
 
-function derivedTags(wrapper: Wrapper) {
-  return texts(wrapper, '.derived-tags .q-chip')
+/** The tags that are on, each with whether it comes from the ingredients. */
+function tagsOn(wrapper: Wrapper) {
+  return wrapper
+    .findAll('.tag-choice')
+    .filter((tag) => tag.attributes('aria-pressed') === 'true')
+    .map((tag) => [tag.text().replace('check', '').trim(), tag.attributes('disabled') !== undefined])
 }
 
-function extraTags(wrapper: Wrapper) {
-  return texts(wrapper, '.extra-tags .q-chip').map((text) => text.replace('cancel', '').trim())
+/** The tags from the ingredients. */
+function derivedTags(wrapper: Wrapper) {
+  return tagsOn(wrapper)
+    .filter(([, derived]) => derived)
+    .map(([name]) => name)
+}
+
+function tagButton(wrapper: Wrapper, name: string) {
+  const found = wrapper.findAll('.tag-choice').find((tag) => tag.text().replace('check', '').trim() === name)
+  expect(found, `tag ${name}`).toBeDefined()
+  return found!
 }
 
 /** Pick an ingredient in the "+ Add ingredient" picker, after searching. */
@@ -114,8 +127,10 @@ test('a recipe opens with its ingredients, totals per portion, tags and portion 
   ])
   expect(wrapper.text()).toContain('ml')
   expect(totals(wrapper)).toEqual(['Energy 361 kcal', 'Protein 10.1 g'])
-  expect(derivedTags(wrapper)).toEqual(['vegan'])
-  expect(extraTags(wrapper)).toEqual(['quick'])
+  expect(tagsOn(wrapper)).toEqual([
+    ['vegan', true],
+    ['quick', false],
+  ])
   expect(labelled(wrapper, 'From').find('input').element.value).toBe('0.5')
   expect(labelled(wrapper, 'To').find('input').element.value).toBe('2')
   expect(wrapper.text()).not.toContain('Step')
@@ -187,18 +202,16 @@ test('clearing the picker search box brings every ingredient back', async () => 
   wrapper.unmount()
 })
 
-test('tags are added from the ones the recipe lacks, and removed', async () => {
+test('tags are turned on and off by hand, except the ones from the ingredients', async () => {
   const { wrapper } = await mountPage('/recipes/7', {
     'GET /api/recipes/7': { body: { ...porridge, derived_tag_ids: [1] } },
   })
-  await click(button(wrapper, '+ Add tag'))
-  const offered = [...document.querySelectorAll<HTMLElement>('.q-menu .q-item')]
-  expect(offered.map((item) => item.textContent)).toEqual(['contains-nuts'])
-  offered[0]!.click()
-  await flushPromises()
-  expect(extraTags(wrapper)).toEqual(['quick', 'contains-nuts'])
-  await click(wrapper.get('.extra-tags [aria-label="Remove quick"]'))
-  expect(extraTags(wrapper)).toEqual(['contains-nuts'])
+  await click(tagButton(wrapper, 'contains-nuts'))
+  await click(tagButton(wrapper, 'quick'))
+  expect(tagsOn(wrapper)).toEqual([
+    ['vegan', true],
+    ['contains-nuts', false],
+  ])
   wrapper.unmount()
 })
 

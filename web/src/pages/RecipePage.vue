@@ -138,20 +138,15 @@ const totals = computed(() => {
   return portionTotals(amounts, data.value.attributes)
 })
 
-const derivedTags = computed(() => data.value.tags.filter((tag) => derivedTagIds.value.includes(tag.id)))
-const extraTags = computed(() => data.value.tags.filter((tag) => draft.extraTagIds.has(tag.id)))
-/** What "+ Add tag" offers: tags the recipe doesn't have yet. */
-const addableTags = computed(() =>
-  data.value.tags.filter((tag) => !draft.extraTagIds.has(tag.id) && !derivedTagIds.value.includes(tag.id)),
-)
-
-function addTag(tag: Tag) {
-  draft.extraTagIds = new Set([...draft.extraTagIds, tag.id])
+function hasTag(tag: Tag) {
+  return draft.extraTagIds.has(tag.id) || derivedTagIds.value.includes(tag.id)
 }
 
-function removeTag(tag: Tag) {
+/** A tag added by hand, on or off; the ingredients' tags stay on. */
+function toggleTag(tag: Tag) {
   const tags = new Set(draft.extraTagIds)
-  tags.delete(tag.id)
+  if (tags.has(tag.id)) tags.delete(tag.id)
+  else tags.add(tag.id)
   draft.extraTagIds = tags
 }
 
@@ -398,60 +393,37 @@ async function confirmDelete() {
         </q-card>
 
         <div>
-          <div class="text-subtitle1">
+          <div class="text-subtitle1 q-mb-xs">
             {{ $t('recipes.tags') }}
           </div>
-          <div class="text-caption text-grey-8">
-            {{ $t('recipes.fromIngredients') }}
+          <div
+            v-if="data.tags.length === 0"
+            class="text-grey-8"
+          >
+            {{ $t('ingredients.noTags') }}
           </div>
-          <div class="derived-tags">
-            <q-chip
-              v-for="tag in derivedTags"
-              :key="tag.id"
-              :label="tag.name"
-            />
-            <span
-              v-if="derivedTags.length === 0"
-              class="text-grey-8"
-            >{{ $t('recipes.noTags') }}</span>
-          </div>
-          <div class="text-caption text-grey-8 q-mt-sm">
-            {{ $t('recipes.addedByHand') }}
-          </div>
-          <div class="extra-tags row items-center">
-            <q-chip
-              v-for="tag in extraTags"
-              :key="tag.id"
-              removable
-              color="primary"
-              text-color="white"
-              :label="tag.name"
-              :remove-aria-label="$t('recipes.remove', { name: tag.name })"
-              @remove="removeTag(tag)"
-            />
-            <q-btn
-              flat
-              no-caps
-              dense
-              color="primary"
-              :label="$t('recipes.addTag')"
-              :disable="addableTags.length === 0"
-            >
-              <q-menu>
-                <q-list>
-                  <q-item
-                    v-for="tag in addableTags"
-                    :key="tag.id"
-                    v-close-popup
-                    clickable
-                    @click="addTag(tag)"
-                  >
-                    <q-item-section>{{ tag.name }}</q-item-section>
-                  </q-item>
-                </q-list>
-              </q-menu>
-            </q-btn>
-          </div>
+          <template v-else>
+            <div class="q-gutter-sm">
+              <q-btn
+                v-for="tag in data.tags"
+                :key="tag.id"
+                class="tag-choice"
+                no-caps
+                rounded
+                color="primary"
+                :outline="!hasTag(tag)"
+                :unelevated="hasTag(tag)"
+                :icon="hasTag(tag) ? 'check' : undefined"
+                :label="tag.name"
+                :aria-pressed="hasTag(tag)"
+                :disable="derivedTagIds.includes(tag.id)"
+                @click="toggleTag(tag)"
+              />
+            </div>
+            <div class="text-caption text-grey-8 q-mt-xs">
+              {{ $t('recipes.tagsHint') }}
+            </div>
+          </template>
         </div>
 
         <q-card
@@ -488,16 +460,24 @@ async function confirmDelete() {
                 hide-bottom-space
               />
             </div>
-            <q-btn-toggle
-              v-model="draft.inSteps"
-              spread
-              no-caps
-              toggle-color="primary"
-              :options="[
-                { label: $t('recipes.anyAmount'), value: false },
-                { label: $t('recipes.inSteps'), value: true },
-              ]"
-            />
+            <div class="q-gutter-x-sm">
+              <q-btn
+                v-for="choice in [
+                  { label: $t('recipes.anyAmount'), inSteps: false },
+                  { label: $t('recipes.inSteps'), inSteps: true },
+                ]"
+                :key="choice.label"
+                class="step-choice"
+                size="sm"
+                no-caps
+                :outline="draft.inSteps !== choice.inSteps"
+                :unelevated="draft.inSteps === choice.inSteps"
+                color="primary"
+                :label="choice.label"
+                :aria-pressed="draft.inSteps === choice.inSteps"
+                @click="draft.inSteps = choice.inSteps"
+              />
+            </div>
             <q-input
               v-if="draft.inSteps"
               v-model="draft.step"
