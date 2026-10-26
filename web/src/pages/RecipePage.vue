@@ -3,13 +3,13 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '../api/client'
-import { fieldErrors } from '../api/errors'
 import type { Attribute, Ingredient, Recipe, RecipeFields as Fields, Tag } from '../api/types'
 import ConfirmDelete from '../components/ConfirmDelete.vue'
 import EditorHeader from '../components/EditorHeader.vue'
 import IngredientPicker from '../components/IngredientPicker.vue'
 import LoadState from '../components/LoadState.vue'
 import { loadAll, useLoad } from '../composables/useLoad'
+import { useSave, type FieldErrors } from '../composables/useSave'
 import { valueText } from '../format'
 import { byId } from '../lists'
 import { typedNumber } from '../numbers'
@@ -45,7 +45,7 @@ const errors = reactive({
   penalty: '',
   save: '',
 })
-const saving = ref(false)
+const { saving, save: send, remove } = useSave(errors)
 const deleteOpen = ref(false)
 const pickerOpen = ref(false)
 // Open when it holds something other than the defaults, or a mistake.
@@ -220,27 +220,19 @@ async function save() {
   errors.save = ''
   const fields = checked()
   if (!fields) return
-  saving.value = true
-  try {
-    const { data: saved, error } =
+  await send(
+    () =>
       id === null
-        ? await api.POST('/api/recipes', { body: fields })
-        : await api.PUT('/api/recipes/{recipe_id}', { params: { path: { recipe_id: id } }, body: fields })
-    if (saved) {
-      await router.push('/recipes')
-      return
-    }
-    showServerErrors(fieldErrors(error), fields)
-  } catch {
-    errors.save = t('common.saveFailed')
-  } finally {
-    saving.value = false
-  }
+        ? api.POST('/api/recipes', { body: fields })
+        : api.PUT('/api/recipes/{recipe_id}', { params: { path: { recipe_id: id } }, body: fields }),
+    () => router.push('/recipes'),
+    (byField) => showServerErrors(byField, fields),
+  )
 }
 
-/** A name in use, or a number the server can't take, on its field;
- * anything else just failed. */
-function showServerErrors(byField: Partial<Record<string, string>>, fields: Fields) {
+/** A name in use, or a number the server can't take, on its field; false
+ * if there was none. */
+function showServerErrors(byField: FieldErrors, fields: Fields) {
   const messages: Partial<Record<string, string>> = {
     below_min: t('recipes.belowMin'),
     below_max: t('recipes.belowMax'),
@@ -267,24 +259,14 @@ function showServerErrors(byField: Partial<Record<string, string>>, fields: Fiel
   fields.items.forEach(({ ingredient_id }, i) =>
     show(`items.${i}.amount`, (m) => (errors.amounts[ingredient_id] = m), t('ingredients.numberTooLong')),
   )
-  if (!shown) errors.save = t('common.saveFailed')
+  return shown
 }
 
 async function confirmDelete() {
   if (id === null) return
-  errors.save = ''
-  try {
-    const { response } = await api.DELETE('/api/recipes/{recipe_id}', { params: { path: { recipe_id: id } } })
-    if (response.ok) {
-      deleteOpen.value = false
-      await router.push('/recipes')
-      return
-    }
-    errors.save = t('common.deleteFailed')
-  } catch {
-    errors.save = t('common.deleteFailed')
-  }
+  const deleted = await remove(() => api.DELETE('/api/recipes/{recipe_id}', { params: { path: { recipe_id: id } } }))
   deleteOpen.value = false
+  if (deleted) await router.push('/recipes')
 }
 </script>
 

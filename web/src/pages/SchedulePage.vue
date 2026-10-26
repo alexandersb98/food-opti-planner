@@ -3,20 +3,17 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { api } from '../api/client'
-import { fieldErrors } from '../api/errors'
 import type { Plan, PlanFields as Fields } from '../api/types'
 import EditorHeader from '../components/EditorHeader.vue'
 import LoadState from '../components/LoadState.vue'
 import MealNamesDialog, { type MealName } from '../components/MealNamesDialog.vue'
 import { useLoad } from '../composables/useLoad'
+import { useSave, type FieldErrors } from '../composables/useSave'
 import { dateRange, dayLabel } from '../dates'
+import { MEAL_NAME_LENGTH, PLAN_DAYS } from '../limits'
 
 const { t } = useI18n()
 const router = useRouter()
-
-// The server's limits on the number of days and a meal's name.
-const DAYS = { min: 1, max: 31 }
-const MEAL_NAME_LENGTH = 40
 
 // The schedule as edited. Meals have a key, which stays when they are
 // renamed or moved, so a skipped cell ("day:key") keeps its meal. Cells
@@ -31,7 +28,7 @@ const draft = reactive({
   minimums: [] as (number | null)[], // by day; null is "all"
 })
 // The days shown: the last valid number of days, and start date for labels.
-const days = ref(DAYS.min)
+const days = ref(PLAN_DAYS.min)
 const labelStart = ref('')
 const errors = reactive({
   start: '',
@@ -40,7 +37,7 @@ const errors = reactive({
   minimums: {} as Partial<Record<number, string>>, // by day
   save: '',
 })
-const saving = ref(false)
+const { saving, save: send } = useSave(errors)
 const mealsOpen = ref(false)
 let solveTimeLimit = 30
 let nextKey = 0
@@ -57,7 +54,7 @@ function fillDraft(plan: Plan) {
   days.value = plan.days
   draft.meals = plan.meals.map(({ id, name }) => ({ key: nextKey++, id, name }))
   draft.skipped = new Set(plan.skips.map(({ day, meal }) => cellKey(day, draft.meals[meal]!.key)))
-  draft.minimums = Array.from({ length: DAYS.max }, () => null)
+  draft.minimums = Array.from({ length: PLAN_DAYS.max }, () => null)
   for (const { day, at_least } of plan.minimums) draft.minimums[day] = at_least
   solveTimeLimit = plan.solve_time_limit
 }
@@ -78,7 +75,7 @@ function validDate(text: string): string | null {
 function validDays(text: string): number | null {
   const typed = text.trim()
   const number = Number(typed)
-  return /^\d+$/.test(typed) && number >= DAYS.min && number <= DAYS.max ? number : null
+  return /^\d+$/.test(typed) && number >= PLAN_DAYS.min && number <= PLAN_DAYS.max ? number : null
 }
 
 watch(
@@ -96,7 +93,7 @@ watch(
 )
 
 function step(by: -1 | 1) {
-  const number = Math.min(DAYS.max, Math.max(DAYS.min, days.value + by))
+  const number = Math.min(PLAN_DAYS.max, Math.max(PLAN_DAYS.min, days.value + by))
   days.value = number
   draft.daysText = String(number)
   errors.days = ''
@@ -153,7 +150,7 @@ function checked(): Fields | null {
   const start = validDate(draft.start)
   const count = validDays(draft.daysText)
   errors.start = start ? '' : t('schedule.startInvalid')
-  errors.days = count === null ? t('schedule.daysRange', DAYS) : ''
+  errors.days = count === null ? t('schedule.daysRange', PLAN_DAYS) : ''
   if (!start || count === null) return null
   const visible = rows.value.slice(0, count)
   return {
@@ -178,30 +175,22 @@ async function save() {
   errors.save = ''
   const fields = checked()
   if (!fields) return
-  saving.value = true
-  try {
-    const { data, error } = await api.PUT('/api/plan', { body: fields })
-    if (data) {
-      await router.push('/')
-      return
-    }
-    showServerErrors(fieldErrors(error), fields)
-  } catch {
-    errors.save = t('common.saveFailed')
-  } finally {
-    saving.value = false
-  }
+  await send(
+    () => api.PUT('/api/plan', { body: fields }),
+    () => router.push('/'),
+    (byField) => showServerErrors(byField, fields),
+  )
 }
 
-/** A field the server refuses, on its field; anything else just failed. */
-function showServerErrors(byField: Partial<Record<string, string>>, fields: Fields) {
+/** A field the server refuses, on its field; false if there was none. */
+function showServerErrors(byField: FieldErrors, fields: Fields) {
   let shown = false
   if (byField.start_date) {
     errors.start = t('schedule.startInvalid')
     shown = true
   }
   if (byField.days) {
-    errors.days = t('schedule.daysRange', DAYS)
+    errors.days = t('schedule.daysRange', PLAN_DAYS)
     shown = true
   }
   const nameMessages: Partial<Record<string, string>> = {
@@ -219,7 +208,7 @@ function showServerErrors(byField: Partial<Record<string, string>>, fields: Fiel
     errors.minimums[day] = t('schedule.abovePlanned')
     shown = true
   })
-  if (!shown) errors.save = t('common.saveFailed')
+  return shown
 }
 
 const mealsWrong = computed(() => Object.keys(errors.meals).length > 0)
@@ -295,7 +284,7 @@ const columns = computed(() => `4.2em repeat(${draft.meals.length}, minmax(0, 1f
               outline
               dense
               icon="remove"
-              :disable="days <= DAYS.min"
+              :disable="days <= PLAN_DAYS.min"
               :aria-label="$t('schedule.fewerDays')"
               @click="step(-1)"
             />
@@ -314,7 +303,7 @@ const columns = computed(() => `4.2em repeat(${draft.meals.length}, minmax(0, 1f
               outline
               dense
               icon="add"
-              :disable="days >= DAYS.max"
+              :disable="days >= PLAN_DAYS.max"
               :aria-label="$t('schedule.moreDays')"
               @click="step(1)"
             />

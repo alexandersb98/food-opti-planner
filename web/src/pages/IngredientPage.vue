@@ -3,12 +3,12 @@ import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '../api/client'
-import { fieldErrors } from '../api/errors'
 import type { Attribute, Ingredient, IngredientFields as Fields, Recipe, Tag } from '../api/types'
 import ConfirmDelete from '../components/ConfirmDelete.vue'
 import EditorHeader from '../components/EditorHeader.vue'
 import LoadState from '../components/LoadState.vue'
 import { loadAll, useLoad } from '../composables/useLoad'
+import { useSave, type FieldErrors } from '../composables/useSave'
 import { searchByName } from '../lists'
 import { typedNumber } from '../numbers'
 
@@ -41,7 +41,7 @@ const errors = reactive({
   values: {} as Partial<Record<number, string>>,
   save: '',
 })
-const saving = ref(false)
+const { saving, save: send, remove } = useSave(errors)
 const deleteOpen = ref(false)
 
 const { data, loading, failed, load } = useLoad(
@@ -127,29 +127,19 @@ async function save() {
   errors.save = ''
   const fields = checked()
   if (!fields) return
-  saving.value = true
-  try {
-    const { data: saved, error } =
+  await send(
+    () =>
       id === null
-        ? await api.POST('/api/ingredients', { body: fields })
-        : await api.PUT('/api/ingredients/{ingredient_id}', {
-            params: { path: { ingredient_id: id } },
-            body: fields,
-          })
-    if (saved) {
-      await router.push('/ingredients')
-      return
-    }
-    showServerErrors(fieldErrors(error), fields)
-  } catch {
-    errors.save = t('common.saveFailed')
-  } finally {
-    saving.value = false
-  }
+        ? api.POST('/api/ingredients', { body: fields })
+        : api.PUT('/api/ingredients/{ingredient_id}', { params: { path: { ingredient_id: id } }, body: fields }),
+    () => router.push('/ingredients'),
+    (byField) => showServerErrors(byField, fields),
+  )
 }
 
-/** A name in use, or a number with too many digits; anything else just failed. */
-function showServerErrors(byField: Partial<Record<string, string>>, fields: Fields) {
+/** A name in use, or a number with too many digits, on its field; false
+ * if there was none. */
+function showServerErrors(byField: FieldErrors, fields: Fields) {
   let shown = false
   if (byField.name === 'name_in_use') {
     errors.name = t('ingredients.nameInUse')
@@ -165,26 +155,16 @@ function showServerErrors(byField: Partial<Record<string, string>>, fields: Fiel
       shown = true
     }
   })
-  if (!shown) errors.save = t('common.saveFailed')
+  return shown
 }
 
 async function confirmDelete() {
   if (id === null) return
-  errors.save = ''
-  try {
-    const { response } = await api.DELETE('/api/ingredients/{ingredient_id}', {
-      params: { path: { ingredient_id: id } },
-    })
-    if (response.ok) {
-      deleteOpen.value = false
-      await router.push('/ingredients')
-      return
-    }
-    errors.save = t('common.deleteFailed')
-  } catch {
-    errors.save = t('common.deleteFailed')
-  }
+  const deleted = await remove(() =>
+    api.DELETE('/api/ingredients/{ingredient_id}', { params: { path: { ingredient_id: id } } }),
+  )
   deleteOpen.value = false
+  if (deleted) await router.push('/ingredients')
 }
 </script>
 

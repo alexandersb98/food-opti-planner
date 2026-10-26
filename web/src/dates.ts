@@ -33,6 +33,11 @@ export function dateRange(start: string, days: number): string {
   return `${from} – ${label(last)} ${month.format(last)}`
 }
 
+/** The days from `from` to `to`: 0 on the same day, below 0 when `to` is earlier. */
+export function daysBetween(from: string, to: string): number {
+  return Math.round((day(to, 0).getTime() - day(from, 0).getTime()) / 86_400_000)
+}
+
 /** "2026-10-25": the browser's date today (or `now`'s), in its own time zone. */
 export function localDate(now: Date = new Date()): string {
   const pad = (n: number) => String(n).padStart(2, '0')

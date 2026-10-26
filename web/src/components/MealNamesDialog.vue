@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { MEAL_NAME_LENGTH, MOST_MEALS } from '../limits'
 
 // "Meals each day" in the schedule (A2): the meal names in the order of
 // the day, added, renamed, moved and removed on a copy; Done hands the
@@ -14,10 +15,6 @@ const props = defineProps<{
   errors: Partial<Record<number, string>> // by meal key, from the server
 }>()
 const emit = defineEmits<{ done: [meals: MealName[]] }>()
-
-// The server's limits.
-const MAX_MEALS = 8
-const MAX_NAME = 40
 
 const { t } = useI18n()
 // The rows as edited; `row` only tells them apart while open.
@@ -52,7 +49,7 @@ function done() {
   for (const row of rows.value) {
     const name = row.name.trim()
     if (name === '') row.error = t('common.nameRequired')
-    else if (name.length > MAX_NAME) row.error = t('schedule.nameTooLong', { max: MAX_NAME })
+    else if (name.length > MEAL_NAME_LENGTH) row.error = t('schedule.nameTooLong', { max: MEAL_NAME_LENGTH })
     else if (seen.has(name)) row.error = t('schedule.nameInUse')
     else row.error = ''
     seen.add(name)
@@ -83,7 +80,7 @@ function done() {
             class="col"
             outlined
             dense
-            :maxlength="MAX_NAME"
+            :maxlength="MEAL_NAME_LENGTH"
             :aria-label="$t('schedule.mealName', { n: index + 1 })"
             :error="!!meal.error"
             :error-message="meal.error"
@@ -124,13 +121,13 @@ function done() {
             color="primary"
             :label="$t('schedule.addMeal')"
             :aria-label="$t('schedule.addMeal')"
-            :disable="rows.length >= MAX_MEALS"
+            :disable="rows.length >= MOST_MEALS"
             @click="add"
           />
           <span
-            v-if="rows.length >= MAX_MEALS"
+            v-if="rows.length >= MOST_MEALS"
             class="text-caption text-grey-8"
-          >{{ $t('schedule.mostMeals', { max: MAX_MEALS }) }}</span>
+          >{{ $t('schedule.mostMeals', { max: MOST_MEALS }) }}</span>
         </div>
       </q-card-section>
       <q-card-actions align="right">

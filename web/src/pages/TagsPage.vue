@@ -2,11 +2,11 @@
 import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api } from '../api/client'
-import { fieldErrors } from '../api/errors'
 import type { Tag, TagFields as Fields } from '../api/types'
 import ConfirmDelete from '../components/ConfirmDelete.vue'
 import LoadState from '../components/LoadState.vue'
 import { useLoad } from '../composables/useLoad'
+import { useSave } from '../composables/useSave'
 
 const { t } = useI18n()
 
@@ -16,7 +16,7 @@ const { data: tags, loading, failed: loadFailed, load } = useLoad(() => api.GET(
 const openId = ref<number | 'new' | null>(null)
 const draft = reactive<Fields>({ name: '', derive: 'all' })
 const errors = reactive({ name: '', save: '' })
-const saving = ref(false)
+const { saving, save: send, remove } = useSave(errors)
 const deleteOpen = ref(false)
 
 const NEW_ROW: Tag = {
@@ -80,24 +80,20 @@ async function done(): Promise<boolean> {
     return true
   }
 
-  saving.value = true
-  try {
-    const { data, error } = current
-      ? await api.PUT('/api/tags/{tag_id}', { params: { path: { tag_id: current.id } }, body: fields })
-      : await api.POST('/api/tags', { body: fields })
-    if (data) {
+  return send(
+    () =>
+      current
+        ? api.PUT('/api/tags/{tag_id}', { params: { path: { tag_id: current.id } }, body: fields })
+        : api.POST('/api/tags', { body: fields }),
+    (data) => {
       tags.value = current ? tags.value.map((tag) => (tag.id === data.id ? data : tag)) : [...tags.value, data]
       openId.value = null
-      return true
-    }
-    if (fieldErrors(error).name === 'name_in_use') errors.name = t('tags.nameInUse')
-    else errors.save = t('common.saveFailed')
-  } catch {
-    errors.save = t('common.saveFailed')
-  } finally {
-    saving.value = false
-  }
-  return false
+    },
+    (byField) => {
+      if (byField.name === 'name_in_use') errors.name = t('tags.nameInUse')
+      return byField.name === 'name_in_use'
+    },
+  )
 }
 
 const deleteWarning = computed(() => {
@@ -115,17 +111,9 @@ const deleteWarning = computed(() => {
 async function confirmDelete() {
   const tag = openTag.value
   if (!tag) return
-  errors.save = ''
-  try {
-    const { response } = await api.DELETE('/api/tags/{tag_id}', { params: { path: { tag_id: tag.id } } })
-    if (response.ok) {
-      tags.value = tags.value.filter((other) => other.id !== tag.id)
-      openId.value = null
-    } else {
-      errors.save = t('common.deleteFailed')
-    }
-  } catch {
-    errors.save = t('common.deleteFailed')
+  if (await remove(() => api.DELETE('/api/tags/{tag_id}', { params: { path: { tag_id: tag.id } } }))) {
+    tags.value = tags.value.filter((other) => other.id !== tag.id)
+    openId.value = null
   }
   deleteOpen.value = false
 }

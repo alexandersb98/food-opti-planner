@@ -2,8 +2,9 @@
 import { reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api } from '../api/client'
-import { fieldErrors } from '../api/errors'
 import type { Plan } from '../api/types'
+import { useSave } from '../composables/useSave'
+import { SOLVE_SECONDS } from '../limits'
 
 // Max solving time on the Plan page (A1): whole seconds, saved with the
 // rest of the setup as it is, since the server takes the setup whole.
@@ -11,13 +12,10 @@ const open = defineModel<boolean>({ required: true })
 const props = defineProps<{ plan: Plan }>()
 const emit = defineEmits<{ saved: [plan: Plan] }>()
 
-// The server's limits; the solve runs inside the request (the 5-minute ceiling).
-const LIMIT = { min: 1, max: 300 }
-
 const { t } = useI18n()
 const text = ref('')
 const errors = reactive({ time: '', save: '' })
-const saving = ref(false)
+const { saving, save: send } = useSave(errors)
 
 watch(open, (isOpen) => {
   if (!isOpen) return
@@ -30,29 +28,25 @@ function seconds(): number | null {
   const typed = text.value.trim()
   if (!/^\d+$/.test(typed)) return null
   const number = Number(typed)
-  return number >= LIMIT.min && number <= LIMIT.max ? number : null
+  return number >= SOLVE_SECONDS.min && number <= SOLVE_SECONDS.max ? number : null
 }
 
 async function save() {
   const time = seconds()
-  errors.time = time === null ? t('plan.maxTimeRange', LIMIT) : ''
+  errors.time = time === null ? t('plan.maxTimeRange', SOLVE_SECONDS) : ''
   errors.save = ''
   if (time === null) return
-  saving.value = true
-  try {
-    const { data, error } = await api.PUT('/api/plan', { body: { ...props.plan, solve_time_limit: time } })
-    if (data) {
+  await send(
+    () => api.PUT('/api/plan', { body: { ...props.plan, solve_time_limit: time } }),
+    (data) => {
       emit('saved', data)
       open.value = false
-      return
-    }
-    if (fieldErrors(error).solve_time_limit) errors.time = t('plan.maxTimeRange', LIMIT)
-    else errors.save = t('common.saveFailed')
-  } catch {
-    errors.save = t('common.saveFailed')
-  } finally {
-    saving.value = false
-  }
+    },
+    (byField) => {
+      if (byField.solve_time_limit) errors.time = t('plan.maxTimeRange', SOLVE_SECONDS)
+      return !!byField.solve_time_limit
+    },
+  )
 }
 </script>
 
@@ -71,7 +65,7 @@ async function save() {
             inputmode="numeric"
             :label="$t('plan.maxTime')"
             suffix="s"
-            :hint="$t('plan.maxTimeHint', { max: LIMIT.max })"
+            :hint="$t('plan.maxTimeHint', { max: SOLVE_SECONDS.max })"
             :error="!!errors.time"
             :error-message="errors.time"
           />

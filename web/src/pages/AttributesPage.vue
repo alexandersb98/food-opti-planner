@@ -2,16 +2,17 @@
 import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api } from '../api/client'
-import { fieldErrors } from '../api/errors'
 import type { Attribute, AttributeFields as Fields } from '../api/types'
 import ConfirmDelete from '../components/ConfirmDelete.vue'
 import LoadState from '../components/LoadState.vue'
 import { useLoad } from '../composables/useLoad'
+import { useSave } from '../composables/useSave'
+import { DECIMALS } from '../limits'
 
 const { t } = useI18n()
 
-// The library's precision range, and its default for a new attribute.
-const DECIMALS = { min: 0, max: 6, default: 3 }
+// The decimals of a new attribute.
+const NEW_DECIMALS = 3
 
 const { data: attributes, loading, failed: loadFailed, load } = useLoad(() => api.GET('/api/attributes'), [])
 
@@ -20,14 +21,14 @@ const { data: attributes, loading, failed: loadFailed, load } = useLoad(() => ap
 const openId = ref<number | 'new' | null>(null)
 const draft = reactive({ name: '', unit: '', decimals: '' })
 const errors = reactive({ name: '', decimals: '', save: '' })
-const saving = ref(false)
+const { saving, save: send, remove } = useSave(errors)
 const deleteOpen = ref(false)
 
 const NEW_ROW: Attribute = {
   id: -1,
   name: '',
   unit: '',
-  decimals: DECIMALS.default,
+  decimals: NEW_DECIMALS,
   ingredient_count: 0,
   goal_count: 0,
 }
@@ -102,29 +103,22 @@ async function done(): Promise<boolean> {
     return true
   }
 
-  saving.value = true
-  try {
-    const { data, error } = current
-      ? await api.PUT('/api/attributes/{attribute_id}', {
-          params: { path: { attribute_id: current.id } },
-          body: fields,
-        })
-      : await api.POST('/api/attributes', { body: fields })
-    if (data) {
+  return send(
+    () =>
+      current
+        ? api.PUT('/api/attributes/{attribute_id}', { params: { path: { attribute_id: current.id } }, body: fields })
+        : api.POST('/api/attributes', { body: fields }),
+    (data) => {
       attributes.value = current
         ? attributes.value.map((a) => (a.id === data.id ? data : a))
         : [...attributes.value, data]
       openId.value = null
-      return true
-    }
-    if (fieldErrors(error).name === 'name_in_use') errors.name = t('attributes.nameInUse')
-    else errors.save = t('common.saveFailed')
-  } catch {
-    errors.save = t('common.saveFailed')
-  } finally {
-    saving.value = false
-  }
-  return false
+    },
+    (byField) => {
+      if (byField.name === 'name_in_use') errors.name = t('attributes.nameInUse')
+      return byField.name === 'name_in_use'
+    },
+  )
 }
 
 const deleteWarning = computed(() => {
@@ -141,19 +135,12 @@ const deleteWarning = computed(() => {
 async function confirmDelete() {
   const attribute = openAttribute.value
   if (!attribute) return
-  errors.save = ''
-  try {
-    const { response } = await api.DELETE('/api/attributes/{attribute_id}', {
-      params: { path: { attribute_id: attribute.id } },
-    })
-    if (response.ok) {
-      attributes.value = attributes.value.filter((a) => a.id !== attribute.id)
-      openId.value = null
-    } else {
-      errors.save = t('common.deleteFailed')
-    }
-  } catch {
-    errors.save = t('common.deleteFailed')
+  const deleted = await remove(() =>
+    api.DELETE('/api/attributes/{attribute_id}', { params: { path: { attribute_id: attribute.id } } }),
+  )
+  if (deleted) {
+    attributes.value = attributes.value.filter((a) => a.id !== attribute.id)
+    openId.value = null
   }
   deleteOpen.value = false
 }

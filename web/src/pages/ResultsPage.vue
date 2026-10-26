@@ -10,7 +10,7 @@ import EditorHeader from '../components/EditorHeader.vue'
 import LoadState from '../components/LoadState.vue'
 import SummaryCard from '../components/SummaryCard.vue'
 import { useLoad } from '../composables/useLoad'
-import { dateRange, localDate } from '../dates'
+import { dateRange, daysBetween, localDate } from '../dates'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -46,11 +46,7 @@ const plan = computed(() => data.value.plan)
 /** Today's day in the plan, or null when the plan doesn't cover today. */
 const todayIndex = computed(() => {
   if (!plan.value) return null
-  const utc = (date: string) => {
-    const [year, month, day] = date.split('-').map(Number)
-    return Date.UTC(year!, month! - 1, day!)
-  }
-  const index = Math.round((utc(todayDate) - utc(plan.value.start_date)) / 86_400_000)
+  const index = daysBetween(plan.value.start_date, todayDate)
   return index >= 0 && index < plan.value.days ? index : null
 })
 
