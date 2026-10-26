@@ -27,8 +27,9 @@ a library name; `server/freeze.py` matches violations by key. In the app,
 [`2026-10-26-gui-slice-8-goals.md`](2026-10-26-gui-slice-8-goals.md)
 (its numbered decisions are "slice 8 decision N" below).
 
-**Status:** Being built task by task on branch
-`claude/gui-slice-9-goals-advanced`.
+**Status:** Built and committed task by task on branch
+`claude/gui-slice-9-goals-advanced`. Each task names its files and how it
+was checked; the code is in the commits.
 
 ## Global Constraints
 
@@ -140,6 +141,15 @@ their goal, a goal typed "X (day guard-rail)" or "serving cap: Y" gets
 no other's misses. Solve: a plan with a typed name and the split solves
 and stores the name.
 
+**Checked:** 574 Python tests pass on SQLite, the migration test among
+them; typecheck, lint and Vitest (218 tests) pass. The API schema was
+regenerated.
+
+Differences from the plan text: the guard-rail settings reach the
+library only for a daily average (other goals get the library's
+defaults, which they don't use); the goal editor got a stopgap that kept
+a loaded goal's advanced settings, replaced in Task 2.
+
 ### Task 2: The Advanced section in the app
 
 **Files:** `web/src/goals.ts` and its test,
@@ -162,6 +172,13 @@ Advanced open for a goal with advanced settings; Save sends the fields;
 a server error on the name shows on it. Goals card: typed name as
 title; split chip.
 
+**Checked:** typecheck, lint and Vitest (245 tests) pass; the editor
+was looked at in a browser at 390 px.
+
+Differences from the plan text: a cleared name follows again when the
+field is left, not on each keystroke, so the generated name doesn't jump
+back while the user is deleting; `test-data.ts` needed no change.
+
 ### Task 3: End-to-end test and docs
 
 **Files:** `web/e2e/catalog.e2e.ts`, `README.md`, this plan, the slices
@@ -169,6 +186,8 @@ plan.
 
 **Test:** after adding the goal, open it, type the name "Energy floor"
 under Advanced, save; the Goals card shows "Energy floor".
+
+**Checked:** passes against uvicorn on SQLite with the built app.
 
 ## Done when
 

@@ -14,8 +14,9 @@ The GUI is being built: so far a server (`server/`) and a web app
 (`web/`) with a login, the Recipes, Ingredients, Attributes and Tags
 pages, a Plan page with the schedule, Make plan (which can be cancelled),
 the results page, today's meals and saved plans, goals (added and edited
-on the Plan page, with missed goals on the results page), and a deploy to
-Cloud Run. Recipe filters are still to come.
+on the Plan page, with their own names, importance below and above and a
+day guard-rail under Advanced, and missed goals on the results page), and
+a deploy to Cloud Run. Recipe filters are still to come.
 
 Run the Python tests with `python3 -m pip install -e '.[server,dev]'` and
 then `python3 -m pytest`. Server tests use SQLite; set
