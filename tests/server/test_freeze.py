@@ -250,3 +250,12 @@ def test_misses_are_rounded_half_away_from_zero_and_percent_to_one_decimal():
         (Decimal("20"), Decimal("0.3"), Decimal("19.8"), Decimal("98.8")),
         (Decimal("20"), Decimal("0.1"), Decimal("20"), Decimal("99.3")),
     ]
+
+
+def test_a_goal_named_like_anothers_guard_rail_keeps_its_own_misses():
+    result = missing(
+        [goal_case("X", "daily_average", min=Decimal("20")),
+         goal_case("X (day guard-rail)", "day", min=Decimal("20"))],
+        [miss("X (day guard-rail)", 0, "below", "20", "5", "15", "75")],
+    )
+    assert [len(g.misses) for g in result.goals] == [0, 1]

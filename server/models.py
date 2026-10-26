@@ -9,6 +9,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .db import Base
 
 NAME_LENGTH = 100
+# A goal's generated name: an attribute's name, ", daily average" and " (NN)".
+GOAL_NAME_LENGTH = 130
 UNIT_LENGTH = 20
 MEAL_NAME_LENGTH = 40
 DERIVE_LENGTH = 3  # "all" or "any"
@@ -216,7 +218,7 @@ class Goal(Base):
     attribute_id: Mapped[int] = mapped_column(ForeignKey("attributes.id", ondelete="CASCADE"))
     # The goals' order, from 0.
     position: Mapped[int]
-    name: Mapped[str | None] = mapped_column(String(NAME_LENGTH))
+    name: Mapped[str | None] = mapped_column(String(GOAL_NAME_LENGTH))
     min: Mapped[Decimal | None] = mapped_column(EXACT_NUMBER)
     max: Mapped[Decimal | None] = mapped_column(EXACT_NUMBER)
     applies_to: Mapped[str] = mapped_column(String(APPLIES_TO_LENGTH))
@@ -351,7 +353,7 @@ class PlanResultGoal(Base):
     attribute_id: Mapped[int] = mapped_column(ForeignKey("plan_result_attributes.id", ondelete="CASCADE"))
     # The goals' order, from 0.
     position: Mapped[int]
-    name: Mapped[str] = mapped_column(String(NAME_LENGTH))
+    name: Mapped[str] = mapped_column(String(GOAL_NAME_LENGTH))
     applies_to: Mapped[str] = mapped_column(String(APPLIES_TO_LENGTH))
     must: Mapped[bool]
     min: Mapped[Decimal | None] = mapped_column(EXACT_NUMBER)

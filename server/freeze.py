@@ -129,6 +129,8 @@ def _goals(
 ) -> list[models.PlanResultGoal]:
     constraints = {c.name: c for c in request.constraints}
     attribute_of = {a.name: a for a in attributes}
+    # `goals` and the request's constraints come from the same rows, so every
+    # goal's name is a constraint's.
     rows = [
         models.PlanResultGoal(
             position=i,
@@ -142,9 +144,10 @@ def _goals(
         )
         for i, goal in enumerate(goals)
     ]
-    # A day guard-rail's miss is the goal's, on its day.
-    by_name = {row.name: row for row in rows}
-    by_name |= {guardrail_name(constraints[row.name]): row for row in rows}
+    # A day guard-rail's miss is the goal's, on its day. A goal's own name
+    # wins over another's guard-rail name.
+    by_name = {guardrail_name(constraints[r.name]): r for r in rows if constraints[r.name].has_guardrail()}
+    by_name |= {row.name: row for row in rows}
     days = len(request.days)
     for violation in plan.violations:
         row = by_name.get(violation.constraint)

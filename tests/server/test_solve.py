@@ -11,6 +11,7 @@ import pytest
 
 import meal_planner
 from meal_planner import ConflictReport, ModelTooLargeError, Plan, PlanRequestError, SolveStatus
+from server import models
 from server.api import plan as plan_api
 
 from .conftest import fixed_portion_recipe, schedule
@@ -380,3 +381,26 @@ def test_a_goal_the_plan_meets_has_no_miss(client, catalog):
     schedule(client, goals=[goal(energy, min="250")])
     plan = solve(client)["plan"]
     assert (len(plan["goals"]), plan["misses"]) == (1, [])
+
+
+def test_a_generated_name_of_the_longest_attribute_fits_the_stored_name(client, catalog):
+    name = "A" * 100
+    energy = catalog.attribute(name)
+    food = catalog.ingredient("Food", "g", "1", values={energy: "100"})
+    fixed_portion_recipe(catalog, "Light", {food: "1"}, "1")
+    schedule(client, start_date="2026-10-26", days=1, meals=[{"name": "Lunch"}], skips=[], minimums=[],
+             goals=[goal(energy, min="400", applies_to="daily_average")], solve_time_limit=10)
+    full = f"{name}, daily average"
+    assert [g["name"] for g in solve(client)["plan"]["goals"]] == [full]
+    # SQLite does not enforce lengths, Postgres does; with " (NN)" too.
+    for column in (models.Goal.name, models.PlanResultGoal.name):
+        assert column.type.length >= len(f"{full} (50)")
+
+
+def test_misses_come_by_goal_then_the_whole_plan_before_the_days(client, catalog):
+    energy = one_meal_two_recipes(client, catalog)
+    schedule(client, goals=[goal(energy, min="400"), goal(energy, min="400", applies_to="daily_average")])
+    misses = solve(client)["plan"]["misses"]
+    assert [(m["goal"], m["day"], m["side"]) for m in misses] == [
+        (0, 0, "below"), (1, None, "below"), (1, 0, "below"),
+    ]
