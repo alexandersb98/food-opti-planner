@@ -1,7 +1,6 @@
 """/api/recipes: list, read, create, update and delete recipes (C1, C2), and
 the tags a recipe would get from its ingredients, for the editor."""
 
-from decimal import Decimal
 from fractions import Fraction
 from typing import Annotated
 
@@ -11,9 +10,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from .. import models, translate
+from ..rounding import rounded
 from ..db import DbSession
 from .catalog import References, commit_named, get_or_404, in_list
-from .errors import NAME_IN_USE, FieldError
+from .errors import NAME_IN_USE, FieldChecks
 from .fields import Multiplier, Name, Number, plain
 
 router = APIRouter(prefix="/recipes", tags=["recipes"])
@@ -96,7 +96,7 @@ class _Responses:
             serving_cap_weight=row.serving_cap_weight,
             derived_tag_ids=self.derived_tag_ids([item.ingredient for item in row.items]),
             totals=[
-                Total(attribute_id=a.id, value=_rounded(_total(row, a), a.decimals))
+                Total(attribute_id=a.id, value=plain(rounded(_total(row, a), a.decimals)))
                 for a in self.attributes
             ],
         )
@@ -123,37 +123,22 @@ def _total(row: models.Recipe, attribute: models.Attribute) -> Fraction:
     )
 
 
-def _rounded(total: Fraction, decimals: int) -> str:
-    # Half away from zero, as the library rounds.
-    magnitude = abs(total)
-    units = (2 * magnitude.numerator * 10**decimals + magnitude.denominator) // (
-        2 * magnitude.denominator
-    )
-    return plain(Decimal(-units if total < 0 else units).scaleb(-decimals))
-
-
-def _portion_errors(body: RecipeFields) -> list[FieldError]:
+def _check_portion(body: RecipeFields, checks: FieldChecks) -> None:
     """The library's rules for the portion size that span fields:
     0 < min <= max <= hard max, and min a whole number of steps."""
-    errors = []
-
-    def error(field: str, error_type: str, msg: str) -> None:
-        errors.append(FieldError(loc=["body", field], type=error_type, msg=msg))
-
     if body.max_multiplier < body.min_multiplier:
-        error("max_multiplier", "below_min", "Must be at least the smallest portion")
+        checks.add(["max_multiplier"], "below_min", "Must be at least the smallest portion")
     if body.hard_max_multiplier is not None and body.hard_max_multiplier < body.max_multiplier:
-        error("hard_max_multiplier", "below_max", "Must be at least the largest portion")
+        checks.add(["hard_max_multiplier"], "below_max", "Must be at least the largest portion")
     if body.step is not None and body.min_multiplier % body.step != 0:
-        error("min_multiplier", "not_in_steps", "Must be a whole number of steps")
-    return errors
+        checks.add(["min_multiplier"], "not_in_steps", "Must be a whole number of steps")
 
 
 def _fill(recipe: models.Recipe, body: RecipeFields, db: DbSession) -> None:
     """Set the recipe's fields from `body`, answering 422 for portion sizes
     the library would refuse, ingredients given twice and ids that name nothing."""
     refs = References(db)
-    refs.errors += _portion_errors(body)
+    _check_portion(body, refs)
     ingredient_ids = [item.ingredient_id for item in body.items]
     refs.rows(models.Ingredient, in_list("items", ingredient_ids, "ingredient_id"), "ingredient", unique=True)
     tags = refs.rows(models.Tag, in_list("extra_tag_ids", body.extra_tag_ids), "tag")

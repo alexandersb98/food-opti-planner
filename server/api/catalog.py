@@ -9,10 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .. import models
-from .errors import FieldError, invalid_fields, name_in_use
-
-# Where in the request body a field is, after "body": ["tag_ids", 0].
-Loc = list[str | int]
+from .errors import FieldChecks, Loc, name_in_use
 
 
 def get_or_404[M: models.Base](db: Session, model: type[M], row_id: int, what: str) -> M:
@@ -30,13 +27,14 @@ def in_list(field: str, ids: Sequence[int], key: str | None = None) -> list[tupl
     return [([field, i] if key is None else [field, i, key], row_id) for i, row_id in enumerate(ids)]
 
 
-class References:
-    """The ids a request refers to, checked together so that one 422 names
-    every bad field: `rows` for each kind of id, then `check()`."""
+class References(FieldChecks):
+    """The ids a request refers to, checked together with its other problems
+    so that one 422 names every bad field: `rows` for each kind of id, then
+    `check()`."""
 
     def __init__(self, db: Session):
+        super().__init__()
         self.db = db
-        self.errors: list[FieldError] = []
 
     def rows[M: models.Base](
         self, model: type[M], refs: Sequence[tuple[Loc, int]], what: str, *, unique: bool = False
@@ -48,19 +46,11 @@ class References:
         seen = set()
         for loc, row_id in refs:
             if row_id not in found:
-                self._error(loc, f"unknown_{what}", f"No such {what}")
+                self.add(loc, f"unknown_{what}", f"No such {what}")
             elif unique and row_id in seen:
-                self._error(loc, "duplicate", f"This {what} is given twice")
+                self.add(loc, "duplicate", f"This {what} is given twice")
             seen.add(row_id)
         return found
-
-    def check(self) -> None:
-        """Answer 422 if any reference named nothing."""
-        if self.errors:
-            raise invalid_fields(self.errors)
-
-    def _error(self, loc: Loc, error_type: str, msg: str) -> None:
-        self.errors.append(FieldError(loc=["body", *loc], type=error_type, msg=msg))
 
 
 def count_by(db: Session, column: ColumnElement[int]) -> dict[int, int]:

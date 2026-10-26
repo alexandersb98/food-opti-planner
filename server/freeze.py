@@ -5,15 +5,16 @@ units and amounts rather than refer to the catalog, so later edits or
 deletes there never change a plan.
 """
 
-from collections.abc import Mapping, Sequence
-from datetime import date
-from decimal import ROUND_HALF_UP, Decimal
+from collections.abc import Mapping
+from decimal import Decimal
 from fractions import Fraction
 
-from meal_planner import Plan, PlanRequest, SolveStatus
+from meal_planner import Plan, SolveStatus
 from meal_planner.scaling import to_decimal
 
 from . import models
+from .rounding import rounded
+from .translate import SolveInput
 
 STATUS = {SolveStatus.OPTIMAL: "optimal", SolveStatus.FEASIBLE: "time_ran_out"}
 # A FEASIBLE plan from a cancelled solve. An OPTIMAL one stays "optimal".
@@ -22,48 +23,32 @@ STOPPED = "stopped"
 AMOUNT_DECIMALS = models.VALUE_DECIMALS
 
 
-def rounded(value: Decimal | Fraction, decimals: int) -> Decimal:
-    """Half away from zero, as the library rounds (and the recipe totals)."""
-    if isinstance(value, Fraction):
-        magnitude = abs(value)
-        units = (2 * magnitude.numerator * 10**decimals + magnitude.denominator) // (2 * magnitude.denominator)
-        return Decimal(-units if value < 0 else units).scaleb(-decimals)
-    return value.quantize(Decimal(1).scaleb(-decimals), rounding=ROUND_HALF_UP)
-
-
 def average(total: Decimal, days: int, decimals: int) -> Decimal:
     """The daily average: the plan's rounded total over its days, rounded
     the same way. Divided exactly, so a tie rounds the right way."""
     return rounded(Fraction(total) / days, decimals)
 
 
-def freeze(
-    request: PlanRequest,
-    plan: Plan,
-    start_date: date,
-    meal_names: Sequence[str],
-    units: Mapping[str, str],
-    stopped: bool = False,
-) -> models.PlanResult:
-    """The unsaved result rows for `plan`, solved from `request`. `meal_names`
-    are the meals of a day in schedule order, one per slot; `units` gives
-    each attribute's unit by name; `stopped` says the solve was cancelled,
-    which makes a plan that may not be the best one `stopped`. `created_at`
-    is left to the caller.
+def freeze(solve_input: SolveInput, plan: Plan, stopped: bool = False) -> models.PlanResult:
+    """The unsaved result rows for `plan`, solved from `solve_input`, which
+    names each slot's meal and gives each attribute's unit. `stopped` says
+    the solve was cancelled, which makes a plan that may not be the best one
+    `stopped`. `created_at` is left to the caller.
 
     A slot is planned when it was served; an absent slot and one the planner
     left out both come out as not planned, without items or totals. Each
     total is the library's, rounded to its attribute's decimals; each
     ingredient amount is the recipe's × the portion, rounded to 6 decimals.
     """
+    request, meal_names = solve_input.request, solve_input.meal_names
     attributes = [
-        models.PlanResultAttribute(position=i, name=a.name, unit=units[a.name], decimals=a.precision)
+        models.PlanResultAttribute(position=i, name=a.name, unit=solve_input.units[a.name], decimals=a.precision)
         for i, a in enumerate(request.attributes)
     ]
     recipes = {recipe.name: recipe for recipe in request.recipes}
     result = models.PlanResult(
         saved=False,
-        start_date=start_date,
+        start_date=solve_input.start_date,
         days=len(request.days),
         status=STOPPED if stopped and plan.solve_status is SolveStatus.FEASIBLE else STATUS[plan.solve_status],
         attributes=attributes,

@@ -16,6 +16,7 @@ from meal_planner import (
     SolveStatus,
 )
 from server import freeze
+from server.translate import SolveInput
 
 OATS = Ingredient(name="Oats", unit="g", attributes={"Energy": Decimal("3.89")})
 MILK = Ingredient(name="Milk", unit="ml", attributes={"Energy": Decimal("0.64")})
@@ -39,7 +40,7 @@ def served(day, slot, multiplier, energy, protein="0"):
 
 def frozen(slots, day_totals, horizon, days, status=SolveStatus.OPTIMAL, meals=("Breakfast", "Lunch"), stopped=False):
     plan = Plan(status, Decimal(0), tuple(slots), tuple(day_totals), horizon)
-    return freeze.freeze(request(days), plan, START, list(meals), UNITS, stopped=stopped)
+    return freeze.freeze(SolveInput(request(days), START, tuple(meals), UNITS), plan, stopped=stopped)
 
 
 TWO_DAYS = (Day((Slot(), Slot("absent"))), Day((Slot(), Slot()), min_meals_per_day=1))

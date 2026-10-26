@@ -5,7 +5,9 @@ its own plain test. Later slices add goals and recipe filters to the
 `PlanRequest`.
 """
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
+from datetime import date
 
 from meal_planner import AttributeDef, Day, Ingredient, IngredientAmount, PlanRequest, Recipe, Slot, TagDef
 
@@ -78,4 +80,31 @@ def plan_request(
         recipes=tuple(recipe(row) for row in recipes),
         days=days(plan),
         solve_time_limit=plan.solve_time_limit,
+    )
+
+
+@dataclass(frozen=True)
+class SolveInput:
+    """What a solve needs, read before it starts: the library's request, and
+    what the frozen plan keeps that the library doesn't know: the first
+    day's date, the meals' names in the order of the day and each
+    attribute's unit by name. Plain values, so they outlive the session."""
+
+    request: PlanRequest
+    start_date: date
+    meal_names: tuple[str, ...]
+    units: Mapping[str, str]
+
+
+def solve_input(
+    plan: models.Plan,
+    attributes: Sequence[models.Attribute],
+    tags: Sequence[models.Tag],
+    recipes: Sequence[models.Recipe],
+) -> SolveInput:
+    return SolveInput(
+        request=plan_request(plan, attributes, tags, recipes),
+        start_date=plan.start_date,
+        meal_names=tuple(meal.name for meal in sorted(plan.meals, key=lambda meal: meal.position)),
+        units={attribute.name: attribute.unit for attribute in attributes},
     )

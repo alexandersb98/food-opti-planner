@@ -177,3 +177,13 @@ def test_the_request_holds_every_attribute_tag_and_recipe_the_days_and_the_time_
     assert request.days == translate.days(plan(days=2, skips=[(1, 2)]))
     assert request.solve_time_limit == 45
     assert (request.constraints, request.exclude_tags, request.require_tags) == ((), frozenset(), frozenset())
+
+
+def test_the_solve_input_keeps_the_start_the_meal_names_in_order_and_the_units():
+    setup = plan()
+    setup.meals.reverse()
+    solve_input = translate.solve_input(setup, [ENERGY, PROTEIN], [VEGAN], [porridge()])
+    assert solve_input.request == translate.plan_request(setup, [ENERGY, PROTEIN], [VEGAN], [porridge()])
+    assert solve_input.start_date == date(2026, 10, 26)
+    assert solve_input.meal_names == ("Breakfast", "Lunch", "Dinner")
+    assert solve_input.units == {"Energy": "kcal", "Protein": "g"}
