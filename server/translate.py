@@ -77,11 +77,13 @@ IMPORTANCE_WEIGHTS = {
 
 
 def needs_zero_reference(applies_to: str, must: bool, min: Decimal | None, max: Decimal | None) -> bool:
-    """Whether the library wants a reference: a bound is 0 and a soft penalty
-    is built from it. That is a Prefer goal, or a daily average, whose day
-    guard-rail is soft also for a Must goal."""
+    """Whether the library wants a reference: a bound is 0 or below and a soft
+    penalty is built from it (without one the library uses the bound itself,
+    and a negative bound would give the penalty a negative weight, a reward).
+    That is a Prefer goal, or a daily average, whose day guard-rail is soft
+    also for a Must goal."""
     soft = not must or applies_to == "daily_average"
-    return soft and Decimal(0) in (min, max)
+    return soft and any(bound is not None and bound <= 0 for bound in (min, max))
 
 
 def _generated_name(goal: models.Goal) -> str:

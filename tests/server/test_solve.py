@@ -399,7 +399,7 @@ def test_a_generated_name_of_the_longest_attribute_fits_the_stored_name(client, 
 
 def test_misses_come_by_goal_then_the_whole_plan_before_the_days(client, catalog):
     energy = one_meal_two_recipes(client, catalog)
-    schedule(client, goals=[goal(energy, min="400"), goal(energy, min="400", applies_to="daily_average")])
+    schedule(client, goals=[goal(energy, min="1000"), goal(energy, min="1000", applies_to="daily_average")])
     misses = solve(client)["plan"]["misses"]
     assert [(m["goal"], m["day"], m["side"]) for m in misses] == [
         (0, 0, "below"), (1, None, "below"), (1, 0, "below"),

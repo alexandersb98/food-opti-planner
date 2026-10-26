@@ -156,13 +156,18 @@ def _goals(
         decimals = row.attribute.decimals
         # The library's horizon numbers of an average are totals over the days.
         divisor = days if row.applies_to == "daily_average" and violation.day is None else 1
+        amount = rounded(Fraction(violation.amount) / divisor, decimals)
+        # The library's totals carry more decimals than the attribute; a miss
+        # too small to show at its precision is not one.
+        if amount == 0:
+            continue
         row.misses.append(
             models.PlanResultMiss(
                 day=violation.day,
                 side=violation.side,
                 bound=rounded(Fraction(violation.bound) / divisor, decimals),
                 actual=rounded(Fraction(violation.actual) / divisor, decimals),
-                amount=rounded(Fraction(violation.amount) / divisor, decimals),
+                amount=amount,
                 percent=rounded(violation.percent, PERCENT_DECIMALS),
             )
         )

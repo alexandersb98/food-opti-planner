@@ -210,7 +210,7 @@ def _errors(plan: models.Plan, body: PlanFields, attributes: dict[int, models.At
             error(["minimums", i, "at_least"], "above_planned", f"Must be at most the {planned} planned meals")
         days.add(minimum.day)
 
-    stored_goals = {goal.id for goal in plan.goals}
+    stored_goals = {goal.id: goal for goal in plan.goals}
     goal_ids = set()
     for i, goal in enumerate(body.goals):
         if goal.id is not None:
@@ -226,13 +226,17 @@ def _errors(plan: models.Plan, body: PlanFields, attributes: dict[int, models.At
             error(["goals", i, "min"], "no_bound", "Give a minimum, a maximum or both")
         elif goal.min is not None and goal.max is not None and goal.min > goal.max:
             error(["goals", i, "min"], "min_above_max", "Must be at most the maximum")
-        if attribute is not None:
+        # A stored goal is not held to a later cut in its attribute's decimals
+        # unless its attribute or a bound changes.
+        stored = stored_goals.get(goal.id)
+        unchanged = stored is not None and (stored.attribute_id, stored.min, stored.max) == (goal.attribute_id, goal.min, goal.max)
+        if attribute is not None and not unchanged:
             for field in ("min", "max"):
                 bound = getattr(goal, field)
                 if bound is not None and _decimals(bound) > attribute.decimals:
                     error(["goals", i, field], "too_many_decimals", f"{attribute.name} has {attribute.decimals} decimals")
         if goal.zero_reference is None and translate.needs_zero_reference(goal.applies_to, goal.must, goal.min, goal.max):
-            error(["goals", i, "zero_reference"], "needs_reference", "Needed when a bound is 0")
+            error(["goals", i, "zero_reference"], "needs_reference", "Needed when a bound is 0 or below")
     return errors
 
 

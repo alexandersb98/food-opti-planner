@@ -260,9 +260,15 @@ def test_a_stored_name_is_used_as_it_is_and_counts_for_the_numbering():
         ("daily_average", True, "0", True),
         ("day", False, "5", False),
         ("daily_average", True, "5", False),
+        # A negative bound would make the penalty's weight negative, a reward.
+        ("day", False, "-5", True),
+        ("plan_total", False, "-5", True),
+        ("daily_average", True, "-5", True),
+        ("day", True, "-5", False),
+        ("plan_total", True, "-5", False),
     ],
 )
-def test_the_zero_reference_is_needed_for_a_zero_bound_with_a_soft_penalty(applies_to, must, bound, needed):
+def test_the_zero_reference_is_needed_for_a_bound_of_zero_or_below_with_a_soft_penalty(applies_to, must, bound, needed):
     for min_, max_ in ((Decimal(bound), None), (None, Decimal(bound)), (Decimal(bound), Decimal(9))):
         assert translate.needs_zero_reference(applies_to, must, min_, max_) is needed
 

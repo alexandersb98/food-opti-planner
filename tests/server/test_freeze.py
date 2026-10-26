@@ -252,6 +252,16 @@ def test_misses_are_rounded_half_away_from_zero_and_percent_to_one_decimal():
     ]
 
 
+def test_a_miss_that_rounds_to_nothing_at_the_attributes_decimals_is_dropped():
+    # Protein has 1 decimal here; the library's totals carry more.
+    result = missing(
+        [goal_case("Protein per day", "day", min=Decimal("120"))],
+        [miss("Protein per day", 0, "below", "120", "119.96", "0.04", "0.03"),
+         miss("Protein per day", 1, "below", "120", "119.95", "0.05", "0.04")],
+    )
+    assert [(m[0], m[4]) for m in stored(result)[0][7]] == [(1, Decimal("0.1"))]
+
+
 def test_a_goal_named_like_anothers_guard_rail_keeps_its_own_misses():
     result = missing(
         [goal_case("X", "daily_average", min=Decimal("20")),

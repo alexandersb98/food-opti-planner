@@ -282,6 +282,7 @@ def test_a_goal_with_no_zero_bound_and_a_zero_bound_needing_it(client, catalog):
     energy = catalog.attribute()
     for fields in (
         {"min": "0"}, {"min": None, "max": "0"}, {"must": True, "applies_to": "daily_average", "min": "0"},
+        {"min": "-5"}, {"min": None, "max": "-5"}, {"must": True, "applies_to": "daily_average", "min": None, "max": "-5"},
     ):
         response = client.put("/api/plan", json={**read(client), "goals": [goal(energy, **fields)]})
         assert response.status_code == 422, fields
@@ -294,8 +295,30 @@ def test_a_goal_with_no_zero_bound_and_a_zero_bound_needing_it(client, catalog):
 
 def test_a_bound_may_be_negative(client, catalog):
     energy = catalog.attribute()
-    saved = put(client, goals=[goal(energy, min="-50", max="-10")])
+    saved = put(client, goals=[goal(energy, must=True, min="-50", max="-10")])
     assert (saved["goals"][0]["min"], saved["goals"][0]["max"]) == ("-50", "-10")
+
+
+def test_a_stored_goal_is_not_held_to_a_later_cut_in_its_attributes_decimals(client, catalog):
+    protein = catalog.attribute("Protein", "g", 1)
+    [stored] = put(client, goals=[goal(protein, min=None, max="10.5")])["goals"]
+    response = client.put(f"/api/attributes/{protein}", json={"name": "Protein", "unit": "g", "decimals": 0})
+    assert response.status_code == 200, response.text
+    # The schedule and the unchanged goal save; a changed bound is checked again.
+    assert put(client, days=5, goals=[stored])["days"] == 5
+    response = client.put("/api/plan", json={**read(client), "goals": [{**stored, "max": "10.6"}]})
+    assert response.status_code == 422
+    assert [(e["loc"], e["type"]) for e in response.json()["detail"]] == [(["body", "goals", 0, "max"], "too_many_decimals")]
+    # Equal as numbers is unchanged; a bound of its own attribute's precision is fine.
+    assert put(client, goals=[{**stored, "max": "10.50"}])["goals"][0]["max"] == "10.5"
+
+
+def test_a_goal_moved_to_another_attribute_is_checked_again(client, catalog):
+    energy, protein = catalog.attribute(), catalog.attribute("Protein", "g", 1)
+    [stored] = put(client, goals=[goal(protein, min=None, max="10.5")])["goals"]
+    response = client.put("/api/plan", json={**read(client), "goals": [{**stored, "attribute_id": energy}]})
+    assert response.status_code == 422
+    assert [e["type"] for e in response.json()["detail"]] == ["too_many_decimals"]
 
 
 def test_a_bound_may_have_trailing_zeros_beyond_the_attributes_decimals(client, catalog):
