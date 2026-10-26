@@ -4,8 +4,10 @@ import type { Attribute, Goal } from '../api/types'
 import { IMPORTANCE, rangeText, scopeText } from '../goals'
 
 // The Plan page's Goals card (A1): a row per goal with its attribute, range,
-// scope and a chip, "Must" or "Prefer" with its importance as dots, each row
-// opening the goal editor, and "+ Add goal" at the end.
+// scope and a chip, "Must" or "Prefer" with its importance as dots (or its
+// importance below / above), each row opening the goal editor, and "+ Add
+// goal" at the end. A goal with a typed name has it as the row's title, the
+// attribute then leading the range.
 const props = defineProps<{ goals: Goal[]; attributes: Attribute[] }>()
 defineEmits<{ edit: [goal: Goal]; add: [] }>()
 
@@ -16,7 +18,14 @@ function attributeOf(goal: Goal) {
 }
 
 function range(goal: Goal) {
-  return rangeText(goal.min ?? null, goal.max ?? null, attributeOf(goal)?.unit ?? '', t)
+  const text = rangeText(goal.min ?? null, goal.max ?? null, attributeOf(goal)?.unit ?? '', t)
+  return goal.custom_name ? t('goals.attributeRange', { attribute: attributeOf(goal)?.name ?? '', range: text }) : text
+}
+
+/** A Prefer goal's importance below and above the range, if it has its own. */
+function split(goal: Goal): [number, number] | null {
+  if (goal.must || (goal.importance_below == null && goal.importance_above == null)) return null
+  return [goal.importance_below ?? goal.importance, goal.importance_above ?? goal.importance]
 }
 </script>
 
@@ -41,7 +50,7 @@ function range(goal: Goal) {
         @click="$emit('edit', goal)"
       >
         <q-item-section>
-          <q-item-label>{{ attributeOf(goal)?.name }}</q-item-label>
+          <q-item-label>{{ goal.custom_name ?? attributeOf(goal)?.name }}</q-item-label>
           <q-item-label
             caption
             class="goal-range"
@@ -68,6 +77,33 @@ function range(goal: Goal) {
             <template v-else>
               {{ $t('goals.prefer') }}
               <span
+                v-if="split(goal)"
+                class="importance-split q-ml-sm"
+                role="img"
+                :aria-label="
+                  $t('goals.importanceSplit', { below: split(goal)![0], above: split(goal)![1], max: IMPORTANCE.max })
+                "
+              >
+                <template
+                  v-for="(level, side) in split(goal)"
+                  :key="side"
+                >
+                  <span
+                    v-if="side > 0"
+                    class="q-mx-xs"
+                  >/</span>
+                  <span class="importance">
+                    <span
+                      v-for="n in IMPORTANCE.max"
+                      :key="n"
+                      class="importance-dot"
+                      :class="{ filled: n <= level }"
+                    />
+                  </span>
+                </template>
+              </span>
+              <span
+                v-else
                 class="importance q-ml-sm"
                 role="img"
                 :aria-label="$t('goals.importanceOf', { n: goal.importance, max: IMPORTANCE.max })"
@@ -105,8 +141,10 @@ function range(goal: Goal) {
 </template>
 
 <style scoped>
-.importance {
+.importance,
+.importance-split {
   display: inline-flex;
+  align-items: center;
   gap: 3px;
 }
 .importance-dot {

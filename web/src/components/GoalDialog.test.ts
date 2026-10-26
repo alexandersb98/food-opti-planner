@@ -1,4 +1,4 @@
-import { flushPromises, mount } from '@vue/test-utils'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { Quasar, QSelect, QSlider } from 'quasar'
 import { afterEach, expect, test, vi } from 'vitest'
 import { makeI18n } from '../i18n'
@@ -61,6 +61,38 @@ async function type(label: string, text: string) {
   await flushPromises()
 }
 
+/** The importance slider labelled `label`, if shown. */
+function slider(wrapper: VueWrapper, label: string) {
+  return wrapper.findAllComponents(QSlider).find((found) => found.find(`[aria-label="${label}"]`).exists())
+}
+
+async function move(wrapper: VueWrapper, label: string, value: number) {
+  slider(wrapper, label)!.vm.$emit('update:modelValue', value)
+  await flushPromises()
+}
+
+/** The switch labelled `label`, if shown. */
+function toggle(label: string) {
+  return document.querySelector<HTMLElement>(`.q-dialog [role="switch"][aria-label="${label}"]`)
+}
+
+async function flip(label: string) {
+  toggle(label)!.click()
+  await flushPromises()
+}
+
+const advancedOpen = () => document.querySelector('.q-dialog .q-expansion-item--expanded') !== null
+
+async function openAdvanced() {
+  document.querySelector<HTMLElement>('.q-dialog .q-expansion-item .q-item')!.click()
+  await flushPromises()
+}
+
+async function pickAttribute(wrapper: VueWrapper, id: number) {
+  wrapper.findComponent(QSelect).vm.$emit('update:modelValue', id)
+  await flushPromises()
+}
+
 test('it opens with the goal’s fields', async () => {
   const wrapper = await mountDialog(protein)
   const { text } = dialog()
@@ -106,6 +138,9 @@ test('the zero-bound field shows when a bound is 0 and a soft penalty is made, w
   expect(input(label)).toBeNull() // a Must goal each day needs none
   await dialog().click('Daily average')
   expect(input(label)).not.toBeNull() // its day guard-rail is soft
+  await flip('Also keep each day in range')
+  expect(input(label)).toBeNull() // without it, nothing soft is left
+  await flip('Also keep each day in range')
   await type('Min', '1')
   expect(input(label)).toBeNull()
   await type('Min', '-5') // a negative bound would reward a miss, so it counts as 0 too
@@ -232,5 +267,202 @@ test('the server’s field errors show on their fields', async () => {
   await dialog().click('Save')
   expect(dialog().text).toContain('Could not save. Try again.')
   expect(wrapper.emitted('saved')).toBeUndefined()
+  wrapper.unmount()
+})
+
+test('the name follows the attribute and Applies to, numbered among the goals, until typed in', async () => {
+  const sent = server()
+  const wrapper = await mountDialog(null)
+  await type('Min', '100')
+  expect(input('Goal name')!.value).toBe('Energy per day')
+  await pickAttribute(wrapper, 2)
+  expect(input('Goal name')!.value).toBe('Protein per day (2)') // the first protein goal has it
+  await dialog().click('Plan total')
+  expect(input('Goal name')!.value).toBe('Protein, plan total')
+  await type('Goal name', '  Protein floor ')
+  await dialog().click('Each day') // the name stops following once edited
+  await pickAttribute(wrapper, 1)
+  expect(input('Goal name')!.value).toBe('  Protein floor ')
+  await dialog().click('Save')
+  expect(sent[0]!.goals[2]).toMatchObject({ custom_name: 'Protein floor' })
+  wrapper.unmount()
+})
+
+test('clearing the name follows again', async () => {
+  const sent = server()
+  const named = goal({ ...protein, custom_name: 'Protein floor' })
+  const wrapper = await mountDialog(named, [named, energy])
+  expect(input('Goal name')!.value).toBe('Protein floor')
+  await type('Goal name', '')
+  expect(input('Goal name')!.getAttribute('placeholder')).toBe('Protein per day')
+  input('Goal name')!.focus()
+  input('Goal name')!.blur()
+  await new Promise((resolve) => setTimeout(resolve)) // the field tells of a blur after a tick
+  await flushPromises()
+  expect(input('Goal name')!.value).toBe('Protein per day')
+  await dialog().click('Plan total')
+  expect(input('Goal name')!.value).toBe('Protein, plan total')
+  await dialog().click('Save')
+  expect(sent[0]!.goals[0]).toMatchObject({ custom_name: null })
+  wrapper.unmount()
+})
+
+test('Advanced is collapsed for a new goal and a goal without advanced settings', async () => {
+  let wrapper = await mountDialog(null)
+  expect(advancedOpen()).toBe(false)
+  expect(dialog().text).toContain('Advanced')
+  wrapper.unmount()
+  wrapper = await mountDialog(energy)
+  expect(advancedOpen()).toBe(false)
+  wrapper.unmount()
+})
+
+test.each([
+  ['a typed name', { custom_name: 'Fuel' }],
+  ['importance below and above', { applies_to: 'day', must: false, importance_below: 2, importance_above: 4 }],
+  ['the guard-rail off', { day_guard_rail: false }],
+  ['the guard-rail’s own importance', { guard_rail_importance: 5 }],
+] as const)('Advanced is open for a goal with %s', async (_, fields) => {
+  const wrapper = await mountDialog(goal({ ...energy, ...fields }))
+  expect(advancedOpen()).toBe(true)
+  wrapper.unmount()
+})
+
+test('importance below and above shows for Prefer with both bounds only, replacing the main slider', async () => {
+  const wrapper = await mountDialog(protein)
+  await openAdvanced()
+  const split = 'Different importance below and above'
+  expect(toggle(split)).toBeNull() // no maximum
+  await type('Max', '150')
+  expect(toggle(split)).not.toBeNull()
+  await flip(split)
+  expect(slider(wrapper, 'Importance')).toBeUndefined()
+  expect(dialog().text).toContain('Set below and above, under Advanced')
+  expect(slider(wrapper, 'Below the range')!.props('modelValue')).toBe(4) // starting at the goal's importance
+  expect(slider(wrapper, 'Above the range')!.props('modelValue')).toBe(4)
+  await dialog().click('Must')
+  expect(toggle(split)).toBeNull()
+  expect(slider(wrapper, 'Below the range')).toBeUndefined()
+  expect(dialog().text).not.toContain('Set below and above')
+  await dialog().click('Prefer')
+  await flip(split)
+  expect(slider(wrapper, 'Importance')!.props('modelValue')).toBe(4)
+  expect(slider(wrapper, 'Below the range')).toBeUndefined()
+  wrapper.unmount()
+})
+
+test('the day guard-rail shows for a daily average only, its importance following the goal until moved', async () => {
+  const wrapper = await mountDialog(protein)
+  await openAdvanced()
+  const guardRail = 'Also keep each day in range'
+  const each = 'Importance of each day'
+  expect(toggle(guardRail)).toBeNull()
+  await dialog().click('Plan total')
+  expect(toggle(guardRail)).toBeNull()
+  await dialog().click('Daily average')
+  expect(toggle(guardRail)!.getAttribute('aria-checked')).toBe('true') // on by default
+  expect(slider(wrapper, each)!.props('modelValue')).toBe(3) // one step below Prefer's 4
+  await move(wrapper, 'Importance', 2)
+  expect(slider(wrapper, each)!.props('modelValue')).toBe(1)
+  await dialog().click('Must')
+  expect(slider(wrapper, each)!.props('modelValue')).toBe(2) // shown for Must too
+  await move(wrapper, each, 5)
+  await dialog().click('Prefer')
+  expect(slider(wrapper, each)!.props('modelValue')).toBe(5) // once moved, its own
+  await flip(guardRail)
+  expect(slider(wrapper, each)).toBeUndefined()
+  wrapper.unmount()
+})
+
+test('Save sends the advanced settings shown', async () => {
+  const sent = server()
+  const wrapper = await mountDialog(null)
+  await type('Min', '1800')
+  await type('Max', '2200')
+  await openAdvanced()
+  await type('Goal name', 'Fuel')
+  await flip('Different importance below and above')
+  await move(wrapper, 'Below the range', 5)
+  await move(wrapper, 'Above the range', 1)
+  await dialog().click('Daily average')
+  await move(wrapper, 'Importance of each day', 4)
+  await dialog().click('Save')
+  expect(sent[0]!.goals[2]).toEqual({
+    id: null,
+    attribute_id: 1,
+    min: '1800',
+    max: '2200',
+    applies_to: 'daily_average',
+    must: false,
+    importance: 3,
+    zero_reference: null,
+    custom_name: 'Fuel',
+    importance_below: 5,
+    importance_above: 1,
+    day_guard_rail: true,
+    guard_rail_importance: 4,
+  })
+  wrapper.unmount()
+})
+
+test('Save sends the defaults for advanced settings hidden or off', async () => {
+  const sent = server()
+  const advanced = goal({ ...energy, must: false, importance_below: 5, importance_above: 1, guard_rail_importance: 4 })
+  let wrapper = await mountDialog(advanced, [protein, advanced])
+  await flip('Also keep each day in range')
+  await dialog().click('Save')
+  expect(sent[0]!.goals[1]).toMatchObject({ day_guard_rail: false, guard_rail_importance: null })
+  wrapper.unmount()
+
+  wrapper = await mountDialog(advanced, [protein, advanced])
+  await dialog().click('Each day') // the guard-rail is hidden
+  await dialog().click('Must') // the split is hidden
+  await dialog().click('Save')
+  expect(sent[1]!.goals[1]).toMatchObject({
+    importance_below: null,
+    importance_above: null,
+    day_guard_rail: true,
+    guard_rail_importance: null,
+  })
+  wrapper.unmount()
+})
+
+test('the guard-rail’s importance is sent as null while it follows the goal', async () => {
+  const sent = server()
+  const wrapper = await mountDialog(energy)
+  await dialog().click('Save')
+  expect(sent[0]!.goals[1]).toMatchObject({ day_guard_rail: true, guard_rail_importance: null })
+  wrapper.unmount()
+})
+
+test('the server’s errors on the advanced settings show on their fields, the name’s opening Advanced', async () => {
+  const refuse = (loc: string, type: string) => ({
+    status: 422,
+    body: { detail: [{ loc: ['body', 'goals', 2, loc], type, msg: 'no' }] },
+  })
+  server({ 'PUT /api/plan': refuse('custom_name', 'duplicate') })
+  const wrapper = await mountDialog(null)
+  await type('Min', '1800')
+  await type('Max', '2200')
+  await dialog().click('Daily average')
+  await dialog().click('Save')
+  expect(advancedOpen()).toBe(true)
+  expect(dialog().text).toContain('Another goal has this name.')
+  expect(dialog().text).not.toContain('Could not save. Try again.')
+
+  fakeServer({ 'PUT /api/plan': refuse('custom_name', 'string_too_long') })
+  await dialog().click('Save')
+  expect(dialog().text).toContain('At most 100 characters.')
+
+  await flip('Different importance below and above')
+  for (const field of ['importance_below', 'importance_above', 'guard_rail_importance']) {
+    fakeServer({ 'PUT /api/plan': refuse(field, 'less_than_equal') })
+    await dialog().click('Save')
+    expect(dialog().text.match(/An importance from 1 to 5./g)).toHaveLength(1)
+    expect(dialog().text).not.toContain('Could not save. Try again.')
+  }
+  fakeServer({ 'PUT /api/plan': refuse('day_guard_rail', 'bool_parsing') })
+  await dialog().click('Save')
+  expect(dialog().text).toContain('Could not save this setting.')
   wrapper.unmount()
 })

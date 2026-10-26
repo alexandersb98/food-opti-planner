@@ -1,21 +1,23 @@
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Attribute, Goal, GoalFields, Plan } from '../api/types'
-import { IMPORTANCE, needsZeroReference } from '../goals'
+import { goalNames, guardRailImportance, IMPORTANCE, NAME_LENGTH, needsZeroReference } from '../goals'
 import { typedNumber } from '../numbers'
 import { goalFields, planFields, useSavePlan } from '../plan'
 
-// The goal editor on the Plan page (A3), a bottom sheet: a goal's main form,
-// opened for a new goal or to change or delete `goal`. Saved by sending the
-// whole setup with the goal added, changed or removed, as Max solving time does.
+// The goal editor on the Plan page (A3), a bottom sheet: a goal's main form
+// and its Advanced section (A3b), opened for a new goal or to change or delete
+// `goal`. Saved by sending the whole setup with the goal added, changed or
+// removed, as Max solving time does.
 const open = defineModel<boolean>({ required: true })
 const props = defineProps<{ plan: Plan; attributes: Attribute[]; goal: Goal | null }>()
 const emit = defineEmits<{ saved: [plan: Plan] }>()
 
 const { t } = useI18n()
 
-// The fields as typed: the bounds and the reference stay text.
+// The fields as typed: the bounds, the reference and the name stay text.
+// Settings the form hides keep their value here and are sent as defaults.
 const draft = reactive({
   attribute_id: 0,
   min: '',
@@ -24,9 +26,22 @@ const draft = reactive({
   must: false,
   importance: IMPORTANCE.default,
   zero_reference: '',
+  // The typed name; empty while the name follows the generated one.
+  name: '',
+  split: false,
+  importance_below: IMPORTANCE.default,
+  importance_above: IMPORTANCE.default,
+  day_guard_rail: true,
+  // null while it follows the goal's importance (`guardRailImportance`).
+  guard_rail_importance: null as number | null,
 })
-const errors = reactive({ attribute: '', min: '', max: '', reference: '', save: '' })
+const noErrors = { attribute: '', min: '', max: '', reference: '', name: '', below: '', above: '', guardRail: '', save: '' }
+const errors = reactive({ ...noErrors })
 const { saving, savePlan } = useSavePlan()
+const advanced = ref(false)
+// Whether the name field shows the generated name: until the user types in
+// it, and again once it is left empty.
+const nameFollows = ref(true)
 
 watch(open, (isOpen) => {
   if (!isOpen) return
@@ -39,12 +54,21 @@ watch(open, (isOpen) => {
     must: goal?.must ?? false,
     importance: goal?.importance ?? IMPORTANCE.default,
     zero_reference: goal?.zero_reference ?? '',
+    name: goal?.custom_name ?? '',
+    split: goal?.importance_below != null || goal?.importance_above != null,
+    importance_below: goal?.importance_below ?? goal?.importance ?? IMPORTANCE.default,
+    importance_above: goal?.importance_above ?? goal?.importance ?? IMPORTANCE.default,
+    day_guard_rail: goal?.day_guard_rail ?? true,
+    guard_rail_importance: goal?.guard_rail_importance ?? null,
   })
+  nameFollows.value = !goal?.custom_name
+  // Open for a goal with advanced settings (the server keeps only those that apply).
+  advanced.value = !!goal && (draft.name !== '' || draft.split || !draft.day_guard_rail || draft.guard_rail_importance !== null)
   clearErrors()
 })
 
 function clearErrors() {
-  Object.assign(errors, { attribute: '', min: '', max: '', reference: '', save: '' })
+  Object.assign(errors, noErrors)
 }
 
 const attribute = computed(() => props.attributes.find(({ id }) => id === draft.attribute_id))
@@ -67,6 +91,47 @@ function bound(text: string) {
 const showReference = computed(() =>
   needsZeroReference({ ...draft, min: bound(draft.min), max: bound(draft.max) }),
 )
+
+/** The name the goal gets while it follows: generated, numbered among the
+ * plan's goals with this one in its place, or last when new. */
+const generatedName = computed(() => {
+  const goals = props.plan.goals.map(({ attribute_id, applies_to, custom_name }) => ({ attribute_id, applies_to, custom_name }))
+  const own = { attribute_id: draft.attribute_id, applies_to: draft.applies_to, custom_name: null }
+  if (props.goal) goals[index.value] = own
+  else goals.push(own)
+  return goalNames(goals, props.attributes)[index.value]
+})
+
+const nameShown = computed(() => (nameFollows.value ? generatedName.value : draft.name))
+
+/** The typed name, trimmed, or null while the name follows. */
+const customName = computed(() => (nameFollows.value || draft.name.trim() === '' ? null : draft.name.trim()))
+
+function typeName(text: string | number | null) {
+  draft.name = String(text ?? '')
+  nameFollows.value = false
+}
+
+/** Leaving the name empty goes back to the generated one. */
+function leaveName() {
+  if (draft.name.trim() === '') nameFollows.value = true
+}
+
+/** Importance below and above: for a Prefer goal with both bounds. */
+const showSplit = computed(() => !draft.must && bound(draft.min) !== null && bound(draft.max) !== null)
+const split = computed(() => showSplit.value && draft.split)
+
+/** Turned on, both sides start at the goal's importance. */
+function setSplit(on: boolean) {
+  draft.split = on
+  if (on) Object.assign(draft, { importance_below: draft.importance, importance_above: draft.importance })
+}
+
+/** The day guard-rail: for a daily average. */
+const showGuardRail = computed(() => draft.applies_to === 'daily_average')
+const guardRail = computed(() => !showGuardRail.value || draft.day_guard_rail)
+
+const guardRailShown = computed(() => guardRailImportance(draft))
 
 /** The reference typed, if a number above 0. */
 const reference = computed(() => {
@@ -97,11 +162,6 @@ function fields(): GoalFields | null {
   if (showReference.value && reference.value === null) errors.reference = t('goals.editor.referenceNeeded')
   if (errors.min || errors.max || errors.reference) return null
   return {
-    // The advanced settings, which the editor doesn't show yet, stay as
-    // loaded; a new goal has none.
-    ...(props.goal
-      ? goalFields(props.goal)
-      : { custom_name: null, importance_below: null, importance_above: null, day_guard_rail: true, guard_rail_importance: null }),
     id: props.goal?.id ?? null,
     attribute_id: draft.attribute_id,
     min,
@@ -110,6 +170,11 @@ function fields(): GoalFields | null {
     must: draft.must,
     importance: draft.importance,
     zero_reference: showReference.value ? reference.value : null,
+    custom_name: customName.value,
+    importance_below: split.value ? draft.importance_below : null,
+    importance_above: split.value ? draft.importance_above : null,
+    day_guard_rail: guardRail.value,
+    guard_rail_importance: showGuardRail.value && guardRail.value ? draft.guard_rail_importance : null,
   }
 }
 
@@ -141,7 +206,19 @@ function markServerErrors(found: Partial<Record<string, string>>, index: number)
             : ''
   errors.max = at('max') === 'too_many_decimals' ? tooMany : at('max') ? t('goals.editor.notNumber') : ''
   errors.reference = at('zero_reference') ? t('goals.editor.referenceNeeded') : ''
-  const marked = errors.attribute || errors.min || errors.max || errors.reference
+  errors.name =
+    at('custom_name') === 'duplicate'
+      ? t('goals.editor.nameInUse')
+      : at('custom_name')
+        ? t('goals.editor.nameTooLong', { n: NAME_LENGTH })
+        : ''
+  const importance = (field: string) => (at(field) ? t('goals.editor.importanceInvalid', IMPORTANCE) : '')
+  errors.below = importance('importance_below')
+  errors.above = importance('importance_above')
+  errors.guardRail = at('day_guard_rail') ? t('goals.editor.settingRefused') : importance('guard_rail_importance')
+  const advancedMarked = errors.name || errors.below || errors.above || errors.guardRail
+  if (advancedMarked) advanced.value = true
+  const marked = errors.attribute || errors.min || errors.max || errors.reference || advancedMarked
   errors.save = marked ? '' : t('common.saveFailed')
 }
 
@@ -254,7 +331,14 @@ async function remove() {
             <div class="text-caption text-grey-8">
               {{ $t('goals.editor.importance') }}
             </div>
+            <div
+              v-if="split"
+              class="split-set"
+            >
+              {{ $t('goals.editor.splitSet') }}
+            </div>
             <q-slider
+              v-else
               v-model="draft.importance"
               markers
               snap
@@ -263,6 +347,95 @@ async function remove() {
               :aria-label="$t('goals.editor.importance')"
             />
           </div>
+          <q-expansion-item
+            v-model="advanced"
+            dense
+            header-class="q-px-none text-grey-8"
+            :label="$t('goals.editor.advanced')"
+          >
+            <div class="q-gutter-y-sm q-pt-sm">
+              <q-input
+                :model-value="nameShown"
+                outlined
+                :maxlength="NAME_LENGTH"
+                :placeholder="generatedName"
+                :label="$t('goals.editor.name')"
+                :error="!!errors.name"
+                :error-message="errors.name"
+                @update:model-value="typeName"
+                @blur="leaveName"
+              />
+              <div v-if="showSplit">
+                <q-toggle
+                  :model-value="draft.split"
+                  :label="$t('goals.editor.split')"
+                  @update:model-value="setSplit"
+                />
+                <template v-if="draft.split">
+                  <div class="text-caption text-grey-8">
+                    {{ $t('goals.editor.below') }}
+                  </div>
+                  <q-slider
+                    v-model="draft.importance_below"
+                    markers
+                    snap
+                    :min="IMPORTANCE.min"
+                    :max="IMPORTANCE.max"
+                    :aria-label="$t('goals.editor.below')"
+                  />
+                  <div
+                    v-if="errors.below"
+                    class="text-caption text-negative"
+                  >
+                    {{ errors.below }}
+                  </div>
+                  <div class="text-caption text-grey-8">
+                    {{ $t('goals.editor.above') }}
+                  </div>
+                  <q-slider
+                    v-model="draft.importance_above"
+                    markers
+                    snap
+                    :min="IMPORTANCE.min"
+                    :max="IMPORTANCE.max"
+                    :aria-label="$t('goals.editor.above')"
+                  />
+                  <div
+                    v-if="errors.above"
+                    class="text-caption text-negative"
+                  >
+                    {{ errors.above }}
+                  </div>
+                </template>
+              </div>
+              <div v-if="showGuardRail">
+                <q-toggle
+                  v-model="draft.day_guard_rail"
+                  :label="$t('goals.editor.guardRail')"
+                />
+                <template v-if="draft.day_guard_rail">
+                  <div class="text-caption text-grey-8">
+                    {{ $t('goals.editor.guardRailImportance') }}
+                  </div>
+                  <q-slider
+                    :model-value="guardRailShown"
+                    markers
+                    snap
+                    :min="IMPORTANCE.min"
+                    :max="IMPORTANCE.max"
+                    :aria-label="$t('goals.editor.guardRailImportance')"
+                    @update:model-value="draft.guard_rail_importance = $event"
+                  />
+                </template>
+                <div
+                  v-if="errors.guardRail"
+                  class="text-caption text-negative"
+                >
+                  {{ errors.guardRail }}
+                </div>
+              </div>
+            </div>
+          </q-expansion-item>
           <div
             v-if="errors.save"
             class="text-negative"
