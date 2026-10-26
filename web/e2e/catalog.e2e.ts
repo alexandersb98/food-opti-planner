@@ -60,7 +60,9 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await page.getByRole('dialog').getByText('Oats').click()
   await page.getByLabel('Amount of Oats').fill('60')
   await expect(page.locator('.portion-total')).toHaveText(['Energy 233 kcal'])
-  await expect(page.locator('.derived-tags')).toHaveText('vegan')
+  const vegan = page.getByRole('button', { name: 'vegan' })
+  await expect(vegan).toHaveAttribute('aria-pressed', 'true')
+  await expect(vegan).toBeDisabled()
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(page.locator('.recipe-row')).toHaveText([/Porridge\s*Per portion: Energy 233 kcal\s*vegan/])
 

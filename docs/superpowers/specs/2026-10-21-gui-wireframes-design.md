@@ -146,8 +146,9 @@ values per their basis and how many recipes use them), and a round
   (`IngredientAmount`).
 - **Per portion:** attribute totals at 1×, worked out live and
   read-only (decision #22).
-- **Tags:** "From ingredients" (derived by each tag's rule, read-only)
-  and "Added to this recipe" (removable, "+ Add tag") → `extra_tags`.
+- **Tags:** on/off buttons, as on the ingredient (C4). Tags from the
+  ingredients (derived by each tag's rule) are on and can't be turned
+  off; the others are added by hand → `extra_tags`.
 - **Portion size:** From ×, To × → `min_multiplier`, `max_multiplier`;
   *Any amount / In steps* with a step → `multiplier_step` (`None` for
   any amount). Advanced: the hard upper limit (`hard_max_multiplier`,
