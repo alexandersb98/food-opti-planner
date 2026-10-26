@@ -4,6 +4,7 @@ the defaults the first time it is read."""
 
 import threading
 from datetime import date
+from decimal import Decimal
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -18,12 +19,14 @@ from .. import freeze, models, translate
 from ..db import DbSession
 from . import plan_results, recipes
 from .errors import FieldError, invalid_fields
+from .fields import Number
 
 router = APIRouter(prefix="/plan", tags=["plan"])
 
 PLAN_ID = 1
 MAX_DAYS = 31
 MAX_MEALS = 8
+MAX_GOALS = 50
 # The 5-minute ceiling: the solve runs inside the request.
 MAX_SOLVE_TIME = 300
 
@@ -65,6 +68,33 @@ class Minimum(BaseModel):
     at_least: Annotated[int, Field(ge=0)]
 
 
+AppliesTo = Literal["day", "plan_total", "daily_average"]
+
+
+class GoalFields(BaseModel):
+    """A goal: a bound on an attribute, per day or over the plan. At least
+    one of `min` and `max` is given. `importance` (1-5) is how much a Prefer
+    goal weighs; a Must goal keeps its own. `zero_reference` is given exactly
+    when a bound is 0 and a soft penalty is made from it (the library's
+    rule, `translate.needs_zero_reference`) and is dropped otherwise."""
+
+    # None for a goal added in the editor.
+    id: int | None = None
+    attribute_id: int
+    min: Number | None = None
+    max: Number | None = None
+    applies_to: AppliesTo
+    must: bool
+    importance: Annotated[int, Field(ge=1, le=5)]
+    zero_reference: Annotated[Number, Field(gt=0)] | None = None
+
+
+class Goal(GoalFields):
+    id: int
+    # Generated, as the goal reads ("Protein per day").
+    name: str
+
+
 class PlanFields(BaseModel):
     start_date: date
     days: Annotated[int, Field(ge=1, le=MAX_DAYS)]
@@ -73,12 +103,15 @@ class PlanFields(BaseModel):
     # Only the skipped cells; every other cell is planned.
     skips: list[Skip]
     minimums: list[Minimum]
+    # In the order the user keeps them in.
+    goals: Annotated[list[GoalFields], Field(max_length=MAX_GOALS)]
     # Whole seconds.
     solve_time_limit: Annotated[int, Field(ge=1, le=MAX_SOLVE_TIME)]
 
 
 class Plan(PlanFields):
     meals: list[Meal]
+    goals: list[Goal]
 
 
 def _stored(db: DbSession) -> models.Plan:
@@ -86,6 +119,7 @@ def _stored(db: DbSession) -> models.Plan:
     loaded = [
         selectinload(models.Plan.meals).selectinload(models.PlanMeal.skips),
         selectinload(models.Plan.minimums),
+        selectinload(models.Plan.goals).selectinload(models.Goal.attribute),
     ]
     plan = db.get(models.Plan, PLAN_ID, options=loaded)
     if plan is None:
@@ -95,6 +129,7 @@ def _stored(db: DbSession) -> models.Plan:
             days=DEFAULT_DAYS,
             meals=[models.PlanMeal(position=i, name=name) for i, name in enumerate(DEFAULT_MEALS)],
             minimums=[],
+            goals=[],
             solve_time_limit=DEFAULT_SOLVE_TIME,
         )
         db.add(plan)
@@ -112,15 +147,32 @@ def _response(plan: models.Plan) -> Plan:
             key=lambda skip: (skip.day, skip.meal),
         ),
         minimums=[Minimum(day=m.day, at_least=m.at_least) for m in plan.minimums],
+        goals=[
+            Goal(
+                id=goal.id,
+                name=name,
+                attribute_id=goal.attribute_id,
+                min=goal.min,
+                max=goal.max,
+                applies_to=goal.applies_to,
+                must=goal.must,
+                importance=goal.importance,
+                zero_reference=goal.zero_reference,
+            )
+            for goal, name in zip(plan.goals, translate.goal_names(plan.goals), strict=True)
+        ],
         solve_time_limit=plan.solve_time_limit,
     )
 
 
-def _errors(plan: models.Plan, body: PlanFields) -> list[FieldError]:
+def _errors(plan: models.Plan, body: PlanFields, attributes: dict[int, models.Attribute]) -> list[FieldError]:
     """What Pydantic can't check: meal ids of other meals or given twice,
-    names given twice, cells on no meal or given twice, and a minimum given
-    twice for a day or above the meals the day plans. Cells and minimums
-    beyond the days are not checked, as they are dropped."""
+    names given twice, cells on no meal or given twice, a minimum given twice
+    for a day or above the meals the day plans, and goals that name no
+    attribute, have no bound or a minimum above the maximum, lack a needed
+    zero reference, have bounds finer than their attribute, or have an id of
+    another goal or given twice. Cells and minimums beyond the days are not
+    checked, as they are dropped."""
     errors = []
 
     def error(loc: list[str | int], error_type: str, msg: str) -> None:
@@ -160,7 +212,36 @@ def _errors(plan: models.Plan, body: PlanFields) -> list[FieldError]:
         elif minimum.at_least > planned:
             error(["minimums", i, "at_least"], "above_planned", f"Must be at most the {planned} planned meals")
         days.add(minimum.day)
+
+    stored_goals = {goal.id for goal in plan.goals}
+    goal_ids = set()
+    for i, goal in enumerate(body.goals):
+        if goal.id is not None:
+            if goal.id not in stored_goals:
+                error(["goals", i, "id"], "unknown_goal", "No such goal")
+            elif goal.id in goal_ids:
+                error(["goals", i, "id"], "duplicate", "This goal is given twice")
+            goal_ids.add(goal.id)
+        attribute = attributes.get(goal.attribute_id)
+        if attribute is None:
+            error(["goals", i, "attribute_id"], "unknown_attribute", "No such attribute")
+        if goal.min is None and goal.max is None:
+            error(["goals", i, "min"], "no_bound", "Give a minimum, a maximum or both")
+        elif goal.min is not None and goal.max is not None and goal.min > goal.max:
+            error(["goals", i, "min"], "min_above_max", "Must be at most the maximum")
+        if attribute is not None:
+            for field in ("min", "max"):
+                bound = getattr(goal, field)
+                if bound is not None and _decimals(bound) > attribute.decimals:
+                    error(["goals", i, field], "too_many_decimals", f"{attribute.name} has {attribute.decimals} decimals")
+        if goal.zero_reference is None and translate.needs_zero_reference(goal.applies_to, goal.must, goal.min, goal.max):
+            error(["goals", i, "zero_reference"], "needs_reference", "Needed when a bound is 0")
     return errors
+
+
+def _decimals(number: Decimal) -> int:
+    """The decimal places of `number` as typed, not counting trailing zeros."""
+    return max(0, -number.normalize().as_tuple().exponent)
 
 
 def _fill(plan: models.Plan, body: PlanFields) -> None:
@@ -185,6 +266,10 @@ def _fill(plan: models.Plan, body: PlanFields) -> None:
         for m in sorted(body.minimums, key=lambda m: m.day)
         if m.day < body.days
     ]
+    by_id = {goal.id: goal for goal in plan.goals}
+    plan.goals = [
+        _goal(by_id.get(fields.id), position, fields) for position, fields in enumerate(body.goals)
+    ]
 
 
 def _minimum(stored: models.PlanDayMinimum | None, fields: Minimum) -> models.PlanDayMinimum:
@@ -195,6 +280,22 @@ def _minimum(stored: models.PlanDayMinimum | None, fields: Minimum) -> models.Pl
     return stored
 
 
+def _goal(stored: models.Goal | None, position: int, fields: GoalFields) -> models.Goal:
+    # A stored goal is changed rather than replaced, as its id and the
+    # columns the API doesn't have yet stay.
+    goal = stored or models.Goal()
+    goal.position = position
+    goal.attribute_id = fields.attribute_id
+    goal.min = fields.min
+    goal.max = fields.max
+    goal.applies_to = fields.applies_to
+    goal.must = fields.must
+    goal.importance = fields.importance
+    needed = translate.needs_zero_reference(fields.applies_to, fields.must, fields.min, fields.max)
+    goal.zero_reference = fields.zero_reference if needed else None
+    return goal
+
+
 @router.get("")
 def get_plan(db: DbSession) -> Plan:
     return _response(_stored(db))
@@ -203,7 +304,8 @@ def get_plan(db: DbSession) -> Plan:
 @router.put("")
 def update_plan(body: PlanFields, db: DbSession) -> Plan:
     plan = _stored(db)
-    errors = _errors(plan, body)
+    attributes = {a.id: a for a in db.scalars(select(models.Attribute))}
+    errors = _errors(plan, body, attributes)
     if errors:
         raise invalid_fields(errors)
     _fill(plan, body)

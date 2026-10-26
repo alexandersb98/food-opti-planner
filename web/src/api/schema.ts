@@ -474,6 +474,59 @@ export interface components {
             /** Detail */
             detail: components["schemas"]["FieldError"][];
         };
+        /** Goal */
+        Goal: {
+            /**
+             * Applies To
+             * @enum {string}
+             */
+            applies_to: "day" | "plan_total" | "daily_average";
+            /** Attribute Id */
+            attribute_id: number;
+            /** Id */
+            id: number;
+            /** Importance */
+            importance: number;
+            /** Max */
+            max?: string | null;
+            /** Min */
+            min?: string | null;
+            /** Must */
+            must: boolean;
+            /** Name */
+            name: string;
+            /** Zero Reference */
+            zero_reference?: string | null;
+        };
+        /**
+         * GoalFields
+         * @description A goal: a bound on an attribute, per day or over the plan. At least
+         *     one of `min` and `max` is given. `importance` (1-5) is how much a Prefer
+         *     goal weighs; a Must goal keeps its own. `zero_reference` is given exactly
+         *     when a bound is 0 and a soft penalty is made from it (the library's
+         *     rule, `translate.needs_zero_reference`) and is dropped otherwise.
+         */
+        GoalFields: {
+            /**
+             * Applies To
+             * @enum {string}
+             */
+            applies_to: "day" | "plan_total" | "daily_average";
+            /** Attribute Id */
+            attribute_id: number;
+            /** Id */
+            id?: number | null;
+            /** Importance */
+            importance: number;
+            /** Max */
+            max?: number | string | null;
+            /** Min */
+            min?: number | string | null;
+            /** Must */
+            must: boolean;
+            /** Zero Reference */
+            zero_reference?: number | string | null;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -567,6 +620,8 @@ export interface components {
         Plan: {
             /** Days */
             days: number;
+            /** Goals */
+            goals: components["schemas"]["Goal"][];
             /** Meals */
             meals: components["schemas"]["Meal"][];
             /** Minimums */
@@ -585,6 +640,8 @@ export interface components {
         PlanFields: {
             /** Days */
             days: number;
+            /** Goals */
+            goals: components["schemas"]["GoalFields"][];
             /** Meals */
             meals: components["schemas"]["MealFields"][];
             /** Minimums */

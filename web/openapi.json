@@ -149,6 +149,173 @@
         "title": "FieldErrors",
         "type": "object"
       },
+      "Goal": {
+        "properties": {
+          "applies_to": {
+            "enum": [
+              "day",
+              "plan_total",
+              "daily_average"
+            ],
+            "title": "Applies To",
+            "type": "string"
+          },
+          "attribute_id": {
+            "title": "Attribute Id",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "importance": {
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Importance",
+            "type": "integer"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "must": {
+            "title": "Must",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "zero_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zero Reference"
+          }
+        },
+        "required": [
+          "id",
+          "attribute_id",
+          "applies_to",
+          "must",
+          "importance",
+          "name"
+        ],
+        "title": "Goal",
+        "type": "object"
+      },
+      "GoalFields": {
+        "description": "A goal: a bound on an attribute, per day or over the plan. At least\none of `min` and `max` is given. `importance` (1-5) is how much a Prefer\ngoal weighs; a Must goal keeps its own. `zero_reference` is given exactly\nwhen a bound is 0 and a soft penalty is made from it (the library's\nrule, `translate.needs_zero_reference`) and is dropped otherwise.",
+        "properties": {
+          "applies_to": {
+            "enum": [
+              "day",
+              "plan_total",
+              "daily_average"
+            ],
+            "title": "Applies To",
+            "type": "string"
+          },
+          "attribute_id": {
+            "title": "Attribute Id",
+            "type": "integer"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "importance": {
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Importance",
+            "type": "integer"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "must": {
+            "title": "Must",
+            "type": "boolean"
+          },
+          "zero_reference": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zero Reference"
+          }
+        },
+        "required": [
+          "attribute_id",
+          "applies_to",
+          "must",
+          "importance"
+        ],
+        "title": "GoalFields",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -427,6 +594,13 @@
             "title": "Days",
             "type": "integer"
           },
+          "goals": {
+            "items": {
+              "$ref": "#/components/schemas/Goal"
+            },
+            "title": "Goals",
+            "type": "array"
+          },
           "meals": {
             "items": {
               "$ref": "#/components/schemas/Meal"
@@ -466,6 +640,7 @@
           "meals",
           "skips",
           "minimums",
+          "goals",
           "solve_time_limit"
         ],
         "title": "Plan",
@@ -478,6 +653,14 @@
             "minimum": 1.0,
             "title": "Days",
             "type": "integer"
+          },
+          "goals": {
+            "items": {
+              "$ref": "#/components/schemas/GoalFields"
+            },
+            "maxItems": 50,
+            "title": "Goals",
+            "type": "array"
           },
           "meals": {
             "items": {
@@ -520,6 +703,7 @@
           "meals",
           "skips",
           "minimums",
+          "goals",
           "solve_time_limit"
         ],
         "title": "PlanFields",

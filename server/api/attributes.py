@@ -34,8 +34,10 @@ class Attribute(AttributeFields):
 
 def _counts(db: DbSession) -> dict[str, dict[int, int]]:
     """What deleting each attribute removes, by response field and attribute id."""
-    # Goals arrive in slice 8; until then deleting an attribute removes none.
-    return {"ingredient_count": count_by(db, models.IngredientValue.attribute_id)}
+    return {
+        "ingredient_count": count_by(db, models.IngredientValue.attribute_id),
+        "goal_count": count_by(db, models.Goal.attribute_id),
+    }
 
 
 def _response(attribute: models.Attribute, counts: dict[str, dict[int, int]]) -> Attribute:
@@ -44,7 +46,6 @@ def _response(attribute: models.Attribute, counts: dict[str, dict[int, int]]) ->
         name=attribute.name,
         unit=attribute.unit,
         decimals=attribute.decimals,
-        goal_count=0,
         **{field: by_id.get(attribute.id, 0) for field, by_id in counts.items()},
     )
 

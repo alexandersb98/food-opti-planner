@@ -13,7 +13,7 @@ import meal_planner
 from meal_planner import ConflictReport, ModelTooLargeError, Plan, PlanRequestError, SolveStatus
 from server.api import plan as plan_api
 
-from .conftest import schedule
+from .conftest import fixed_portion_recipe, schedule
 
 
 def solve(client, solve_id: str = "s1") -> dict:
@@ -317,3 +317,45 @@ def test_a_real_solve_can_be_cancelled(client, porridge, monkeypatch):
     monkeypatch.setattr(plan_api, "solve_plan", stopped_first)
     assert solve(client) == {"plan": None, "failure": "stopped"}
     assert stops[0].stopped
+
+
+def one_meal_two_recipes(client, catalog):
+    """A day of one meal that either recipe can make: Light (100 kcal) or
+    Heavy (300 kcal), each always eaten as one portion. Answers Energy."""
+    energy = catalog.attribute()
+    food = catalog.ingredient("Food", "g", "1", values={energy: "100"})
+    fixed_portion_recipe(catalog, "Light", {food: "1"}, "1")
+    fixed_portion_recipe(catalog, "Heavy", {food: "3"}, "1")
+    schedule(client, start_date="2026-10-26", days=1, meals=[{"name": "Lunch"}], skips=[], minimums=[], solve_time_limit=10)
+    return energy
+
+
+def goal(attribute_id, **changes) -> dict:
+    return {
+        "attribute_id": attribute_id, "min": None, "max": None, "applies_to": "day",
+        "must": False, "importance": 3, "zero_reference": None, **changes,
+    }
+
+
+def chosen(client) -> str:
+    return solve(client)["plan"]["meals"][0][0]["recipe"]
+
+
+def test_a_prefer_goal_decides_between_recipes_that_are_otherwise_equal(client, catalog):
+    energy = one_meal_two_recipes(client, catalog)
+    schedule(client, goals=[goal(energy, max="150")])
+    assert chosen(client) == "Light"
+    schedule(client, goals=[goal(energy, min="250")])
+    assert chosen(client) == "Heavy"
+
+
+def test_a_must_goal_the_catalog_cannot_meet_is_infeasible(client, catalog):
+    energy = one_meal_two_recipes(client, catalog)
+    schedule(client, goals=[goal(energy, min="1000", must=True)])
+    assert solve(client) == {"plan": None, "failure": "infeasible"}
+
+
+def test_a_must_goal_the_catalog_can_meet_is_kept(client, catalog):
+    energy = one_meal_two_recipes(client, catalog)
+    schedule(client, goals=[goal(energy, min="250", must=True, applies_to="plan_total")])
+    assert chosen(client) == "Heavy"

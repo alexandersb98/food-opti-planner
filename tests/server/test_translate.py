@@ -3,6 +3,8 @@
 from datetime import date
 from decimal import Decimal
 
+import pytest
+
 from meal_planner import IngredientAmount, Recipe
 from server import models, translate
 
@@ -177,3 +179,107 @@ def test_the_request_holds_every_attribute_tag_and_recipe_the_days_and_the_time_
     assert request.days == translate.days(plan(days=2, skips=[(1, 2)]))
     assert request.solve_time_limit == 45
     assert (request.constraints, request.exclude_tags, request.require_tags) == ((), frozenset(), frozenset())
+
+
+def goal(attribute=ENERGY, applies_to="day", must=False, importance=3, min="100", max=None, zero_reference=None, name=None):
+    return models.Goal(
+        attribute=attribute,
+        name=name,
+        applies_to=applies_to,
+        must=must,
+        importance=importance,
+        min=None if min is None else Decimal(min),
+        max=None if max is None else Decimal(max),
+        zero_reference=None if zero_reference is None else Decimal(zero_reference),
+    )
+
+
+def test_a_day_goal_is_a_day_constraint():
+    c = translate.constraint(goal(min="1800", max="2200"), "Energy per day")
+    assert (c.name, c.attribute, c.scope, c.aggregate) == ("Energy per day", "Energy", "day", None)
+    assert (c.min, c.max) == (Decimal(1800), Decimal(2200))
+
+
+def test_a_plan_total_goal_is_a_horizon_total():
+    c = translate.constraint(goal(applies_to="plan_total"), "x")
+    assert (c.scope, c.aggregate) == ("horizon", "total")
+
+
+def test_a_daily_average_goal_is_a_horizon_average_per_day():
+    c = translate.constraint(goal(applies_to="daily_average"), "x")
+    assert (c.scope, c.aggregate) == ("horizon", "average_per_day")
+
+
+def test_must_is_hard_and_prefer_is_soft():
+    assert translate.constraint(goal(must=True), "x").hard is True
+    assert translate.constraint(goal(must=False), "x").hard is False
+
+
+def test_each_importance_is_a_weight():
+    weights = [translate.constraint(goal(importance=i), "x").weight for i in range(1, 6)]
+    assert weights == [Decimal("0.25"), Decimal("0.5"), Decimal(1), Decimal(2), Decimal(4)]
+    assert translate.IMPORTANCE_WEIGHTS == dict(zip(range(1, 6), weights, strict=True))
+
+
+def test_the_zero_reference_is_the_normalization_reference():
+    assert translate.constraint(goal(min="0", zero_reference="25"), "x").normalization_reference == Decimal(25)
+    assert translate.constraint(goal(), "x").normalization_reference is None
+
+
+def test_the_guard_rail_is_the_librarys_default():
+    c = translate.constraint(goal(applies_to="daily_average"), "x")
+    assert (c.add_day_guardrail, c.guardrail_weight, c.weight_below, c.weight_above) == (True, None, None, None)
+
+
+def test_goal_names_say_the_scope():
+    goals = [goal(PROTEIN), goal(PROTEIN, "plan_total"), goal(PROTEIN, "daily_average")]
+    assert translate.goal_names(goals) == ["Protein per day", "Protein, plan total", "Protein, daily average"]
+
+
+def test_a_repeated_name_gets_2_then_3_in_goal_order():
+    goals = [goal(), goal(PROTEIN), goal(), goal(applies_to="plan_total"), goal()]
+    assert translate.goal_names(goals) == [
+        "Energy per day", "Protein per day", "Energy per day (2)", "Energy, plan total", "Energy per day (3)",
+    ]
+
+
+def test_a_stored_name_is_used_as_it_is_and_counts_for_the_numbering():
+    goals = [goal(name="Fuel"), goal(), goal(name="Fuel")]
+    assert translate.goal_names(goals) == ["Fuel", "Energy per day", "Fuel (2)"]
+
+
+@pytest.mark.parametrize(
+    ("applies_to", "must", "bound", "needed"),
+    [
+        ("day", False, "0", True),
+        ("plan_total", False, "0", True),
+        ("daily_average", False, "0", True),
+        ("day", True, "0", False),
+        ("plan_total", True, "0", False),
+        # The day guard-rail is soft also for a Must goal.
+        ("daily_average", True, "0", True),
+        ("day", False, "5", False),
+        ("daily_average", True, "5", False),
+    ],
+)
+def test_the_zero_reference_is_needed_for_a_zero_bound_with_a_soft_penalty(applies_to, must, bound, needed):
+    for min_, max_ in ((Decimal(bound), None), (None, Decimal(bound)), (Decimal(bound), Decimal(9))):
+        assert translate.needs_zero_reference(applies_to, must, min_, max_) is needed
+
+
+def test_the_request_holds_the_goals_as_named_constraints_in_order():
+    request = translate.plan_request(
+        plan_with([goal(), goal(PROTEIN, "plan_total", must=True, max="50", min=None), goal()]),
+        [ENERGY, PROTEIN], [], [porridge()],
+    )
+    assert [(c.name, c.attribute, c.scope) for c in request.constraints] == [
+        ("Energy per day", "Energy", "day"),
+        ("Protein, plan total", "Protein", "horizon"),
+        ("Energy per day (2)", "Energy", "day"),
+    ]
+
+
+def plan_with(goals) -> models.Plan:
+    result = plan()
+    result.goals = goals
+    return result

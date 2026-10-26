@@ -1,6 +1,6 @@
 """Deleting an attribute or a tag is allowed after a warning, and removes
 it from whatever uses it. Each list response counts those uses for the
-warning. Later slices add goals and plan filters here. Deleting an
+warning. Later slices add plan filters here. Deleting an
 ingredient a recipe uses is refused instead (test_recipes.py)."""
 
 
@@ -65,3 +65,22 @@ def test_deleting_an_attribute_removes_it_from_recipe_totals(client, catalog):
     assert client.delete(f"/api/attributes/{energy}").status_code == 204
     totals = client.get(f"/api/recipes/{porridge}").json()["totals"]
     assert totals == [{"attribute_id": protein, "value": "17"}]
+
+
+def test_an_attribute_counts_its_goals(client, catalog):
+    energy, protein = catalog.attribute(), catalog.attribute("Protein")
+    goal = {"min": "1", "max": None, "applies_to": "day", "must": False, "importance": 3, "zero_reference": None}
+    plan = client.get("/api/plan").json()
+    plan["goals"] = [{**goal, "attribute_id": energy}, {**goal, "attribute_id": energy, "min": "2"}, {**goal, "attribute_id": protein}]
+    assert client.put("/api/plan", json=plan).status_code == 200
+    assert by_name(client, "/api/attributes", "goal_count") == {"Energy": 2, "Protein": 1}
+
+
+def test_deleting_an_attribute_removes_its_goals(client, catalog):
+    energy, protein = catalog.attribute(), catalog.attribute("Protein")
+    goal = {"min": "1", "max": None, "applies_to": "day", "must": False, "importance": 3, "zero_reference": None}
+    plan = client.get("/api/plan").json()
+    plan["goals"] = [{**goal, "attribute_id": energy}, {**goal, "attribute_id": protein}]
+    assert client.put("/api/plan", json=plan).status_code == 200
+    assert client.delete(f"/api/attributes/{energy}").status_code == 204
+    assert [g["attribute_id"] for g in client.get("/api/plan").json()["goals"]] == [protein]
