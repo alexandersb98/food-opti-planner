@@ -2,6 +2,7 @@
 made with the defaults the first time it is read. Making a plan from it is
 in `solve`."""
 
+from collections import Counter
 from collections.abc import Sequence
 from datetime import date
 from decimal import Decimal
@@ -252,7 +253,10 @@ def _goal_errors(
     each goal's own errors."""
     errors = []
     by_id = {goal.id: goal for goal in stored_goals}
-    ids, names = set(), set()
+    # Each goal with a name another has is marked, so the editor of either
+    # goal finds the error on its own.
+    names = Counter(goal.custom_name for goal in goals if goal.custom_name is not None)
+    ids = set()
     for i, goal in enumerate(goals):
         if goal.id is not None:
             if goal.id not in by_id:
@@ -260,10 +264,8 @@ def _goal_errors(
             elif goal.id in ids:
                 errors.append(_error(["goals", i, "id"], "duplicate", "This goal is given twice"))
             ids.add(goal.id)
-        if goal.custom_name is not None:
-            if goal.custom_name in names:
-                errors.append(_error(["goals", i, "custom_name"], "duplicate", "Another goal has this name"))
-            names.add(goal.custom_name)
+        if goal.custom_name is not None and names[goal.custom_name] > 1:
+            errors.append(_error(["goals", i, "custom_name"], "duplicate", "Another goal has this name"))
         errors += _one_goal_errors(i, goal, by_id.get(goal.id), attributes)
     return errors
 

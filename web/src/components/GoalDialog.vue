@@ -131,7 +131,13 @@ function setSplit(on: boolean) {
 const showGuardRail = computed(() => draft.applies_to === 'daily_average')
 const guardRail = computed(() => !showGuardRail.value || draft.day_guard_rail)
 
-const guardRailShown = computed(() => guardRailImportance(draft))
+const guardRailShown = computed(() =>
+  guardRailImportance({
+    ...draft,
+    importance_below: split.value ? draft.importance_below : null,
+    importance_above: split.value ? draft.importance_above : null,
+  }),
+)
 
 /** The reference typed, if a number above 0. */
 const reference = computed(() => {
@@ -357,7 +363,7 @@ async function remove() {
               <q-input
                 :model-value="nameShown"
                 outlined
-                :maxlength="NAME_LENGTH"
+                :maxlength="nameFollows ? undefined : NAME_LENGTH"
                 :placeholder="generatedName"
                 :label="$t('goals.editor.name')"
                 :error="!!errors.name"

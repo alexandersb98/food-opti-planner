@@ -76,10 +76,9 @@ IMPORTANCE_WEIGHTS = {
 }
 
 
-# A Must goal's day guard-rail without its own importance: importance 2. The
-# goal's own importance is hidden while it is Must, so it must not set the
-# guard-rail's weight (the library's default, half of it).
-MUST_GUARD_RAIL_WEIGHT = IMPORTANCE_WEIGHTS[2]
+# A Must goal's day guard-rail without its own importance. The goal's own
+# importance is hidden while it is Must, so it must not set the guard-rail's.
+MUST_GUARD_RAIL_IMPORTANCE = 2
 
 
 def needs_zero_reference(
@@ -142,6 +141,19 @@ def constraint_key(position: int) -> str:
     return f"goal {position + 1}"
 
 
+def guard_rail_importance(goal: models.Goal) -> int:
+    """A daily average's day guard-rail importance: its own, or else one step
+    below the goal's (the higher side's, with importance below and above),
+    at least 1, for a Prefer goal, and 2 for a Must goal. The editor shows the
+    same (`guardRailImportance` in the app)."""
+    if goal.guard_rail_importance is not None:
+        return goal.guard_rail_importance
+    if goal.must:
+        return MUST_GUARD_RAIL_IMPORTANCE
+    sides = [goal.importance if side is None else side for side in (goal.importance_below, goal.importance_above)]
+    return max(1, max(sides) - 1)
+
+
 def _weight(importance: int | None) -> Decimal | None:
     return None if importance is None else IMPORTANCE_WEIGHTS[importance]
 
@@ -149,18 +161,16 @@ def _weight(importance: int | None) -> Decimal | None:
 def constraint(goal: models.Goal, key: str) -> Constraint:
     """`applies_to` becomes scope and aggregate, Must becomes hard and the
     importance the weight; the importance below and above, when given, the
-    weight of each side. A daily average's day guard-rail is on or off; its
-    weight is its own importance's, or else the library's default (half of
-    each side's) for a Prefer goal and importance 2's for a Must goal. Other
-    goals keep the library's defaults, which they don't use."""
+    weight of each side. A daily average's day guard-rail is on or off, with
+    the weight of `guard_rail_importance`. Other goals keep the library's
+    defaults, which they don't use."""
     horizon = goal.applies_to != "day"
     aggregate = {"plan_total": "total", "daily_average": "average_per_day"}.get(goal.applies_to)
     guard_rail, guard_rail_weight = True, None
     if goal.applies_to == "daily_average":
         guard_rail = goal.day_guard_rail
-        guard_rail_weight = _weight(goal.guard_rail_importance)
-        if guard_rail and guard_rail_weight is None and goal.must:
-            guard_rail_weight = MUST_GUARD_RAIL_WEIGHT
+        if guard_rail:
+            guard_rail_weight = IMPORTANCE_WEIGHTS[guard_rail_importance(goal)]
     return Constraint(
         name=key,
         attribute=goal.attribute.name,

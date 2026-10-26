@@ -55,17 +55,25 @@ test('without its day guard-rail, a Must daily average needs no reference; a Pre
   expect(needsZeroReference({ applies_to: 'daily_average', must: false, day_guard_rail: false, min: '0', max: null })).toBe(true)
 })
 
+// The same cases as the server's `translate.guard_rail_importance`, and more.
 test.each([
-  [false, 3, null, 2], // Prefer: one step below the goal's importance
-  [false, 5, null, 4],
-  [false, 1, null, 1], // at least 1
-  [true, 3, null, 2], // Must: 2, whatever the hidden importance
-  [true, 5, null, 2],
-  [false, 3, 5, 5], // its own importance once set
-  [true, 4, 1, 1],
-] as const)('must %s, importance %s, own %s: the day guard-rail shows importance %s', (must, importance, own, shown) => {
-  expect(guardRailImportance({ must, importance, guard_rail_importance: own })).toBe(shown)
-})
+  [false, 3, null, null, null, 2], // Prefer: one step below the goal's importance
+  [false, 5, null, null, null, 4],
+  [false, 1, null, null, null, 1], // at least 1
+  [false, 3, 5, 1, null, 4], // with below and above: one step below the higher
+  [false, 3, null, 5, null, 4], // a side without its own is the goal's
+  [true, 3, null, null, null, 2], // Must: 2, whatever the hidden importance
+  [true, 5, null, null, null, 2],
+  [false, 3, null, null, 5, 5], // its own importance once set
+  [true, 4, null, null, 1, 1],
+] as const)(
+  'must %s, importance %s, below %s, above %s, own %s: the day guard-rail has importance %s',
+  (must, importance, importance_below, importance_above, own, shown) => {
+    expect(
+      guardRailImportance({ must, importance, importance_below, importance_above, guard_rail_importance: own }),
+    ).toBe(shown)
+  },
+)
 
 // The same cases as the server's `translate.goal_names` (tests/server/test_translate.py).
 describe('goal names', () => {

@@ -231,9 +231,11 @@ def test_the_zero_reference_is_the_normalization_reference():
     assert translate.constraint(goal(), "x").normalization_reference is None
 
 
-def test_without_advanced_settings_a_prefer_goal_keeps_the_librarys_defaults():
+def test_without_advanced_settings_a_prefer_goal_weighs_as_the_librarys_defaults():
+    # The guard-rail's weight is given, and is the library's own: half the goal's.
     c = translate.constraint(goal(applies_to="daily_average"), "x")
-    assert (c.add_day_guardrail, c.guardrail_weight, c.weight_below, c.weight_above) == (True, None, None, None)
+    assert (c.add_day_guardrail, c.weight_below, c.weight_above) == (True, None, None)
+    assert c.guardrail_side_weight("below") == c.side_weight("below") / 2
 
 
 def test_the_importance_below_and_above_are_the_side_weights():
@@ -252,13 +254,21 @@ def test_the_guard_rails_own_importance_is_its_weight():
         assert (c.add_day_guardrail, c.guardrail_weight) == (True, Decimal(2))
 
 
-def test_a_guard_rail_without_its_own_importance_is_half_for_prefer_and_importance_2_for_must():
-    # Prefer: the library's half of each side's weight, one step below.
-    prefer = translate.constraint(goal(applies_to="daily_average", importance=5), "x")
-    assert (prefer.guardrail_weight, prefer.guardrail_side_weight("below")) == (None, Decimal(2))
-    # Must: the goal's importance is hidden, so it must not reach the plan.
-    must = translate.constraint(goal(applies_to="daily_average", must=True, importance=5), "x")
-    assert must.guardrail_weight == Decimal("0.5")
+@pytest.mark.parametrize(
+    ("must", "importance", "below", "above", "shown"),
+    [
+        (False, 5, None, None, 4),  # Prefer: one step below the goal's importance
+        (False, 1, None, None, 1),  # at least 1
+        (False, 3, 5, 1, 4),  # with below and above: one step below the higher
+        (False, 3, None, 5, 4),  # a side without its own is the goal's
+        (True, 5, None, None, 2),  # Must: the goal's importance is hidden
+    ],
+)
+def test_a_guard_rail_without_its_own_importance_follows_the_goal(must, importance, below, above, shown):
+    g = goal(applies_to="daily_average", must=must, importance=importance, importance_below=below, importance_above=above)
+    assert translate.guard_rail_importance(g) == shown
+    c = translate.constraint(g, "x")
+    assert c.guardrail_weight == translate.IMPORTANCE_WEIGHTS[shown]
 
 
 def test_only_a_daily_average_has_guard_rail_settings():

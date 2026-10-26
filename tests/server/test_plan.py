@@ -278,14 +278,16 @@ def test_a_typed_name_is_kept_and_the_generated_ones_numbered_around_it(client, 
     assert [g["custom_name"] for g in saved["goals"]] == [None, "Energy per day (2)", None]
 
 
-def test_typed_names_equal_after_trimming_answer_422(client, catalog):
+def test_typed_names_equal_after_trimming_answer_422_on_each_goal_with_the_name(client, catalog):
+    # Both are marked, so the editor finds it whichever of them was edited.
     energy = catalog.attribute()
-    before = put(client, goals=[goal(energy, custom_name="Fuel")])
+    before = put(client, goals=[goal(energy, custom_name="Fuel"), goal(energy)])
     body = {**read(client), "goals": [*before["goals"], goal(energy, custom_name=" Fuel  ")]}
     response = client.put("/api/plan", json=body)
     assert response.status_code == 422
     assert [(e["loc"], e["type"], e["msg"]) for e in response.json()["detail"]] == [
-        (["body", "goals", 1, "custom_name"], "duplicate", "Another goal has this name")
+        (["body", "goals", 0, "custom_name"], "duplicate", "Another goal has this name"),
+        (["body", "goals", 2, "custom_name"], "duplicate", "Another goal has this name"),
     ]
     assert read(client) == before
 

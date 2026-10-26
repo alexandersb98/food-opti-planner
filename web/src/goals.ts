@@ -48,12 +48,18 @@ export function needsZeroReference(
   return soft && (isZeroOrBelow(goal.min) || isZeroOrBelow(goal.max))
 }
 
-/** The importance a daily average's day guard-rail shows: its own, or else
- * one step below the goal's (at least 1) for a Prefer goal, which is the
- * library's default, and 2 for a Must goal, whose importance is hidden. */
-export function guardRailImportance(goal: Pick<Goal, 'must' | 'importance' | 'guard_rail_importance'>): number {
+/** A daily average's day guard-rail importance: its own, or else one step
+ * below the goal's (the higher side's, with importance below and above), at
+ * least 1, for a Prefer goal, and 2 for a Must goal, whose importance is
+ * hidden. The server weighs the guard-rail by the same rule
+ * (`translate.guard_rail_importance`). */
+export function guardRailImportance(
+  goal: Pick<Goal, 'must' | 'importance' | 'importance_below' | 'importance_above' | 'guard_rail_importance'>,
+): number {
   if (goal.guard_rail_importance != null) return goal.guard_rail_importance
-  return goal.must ? 2 : Math.max(IMPORTANCE.min, goal.importance - 1)
+  if (goal.must) return 2
+  const higher = Math.max(goal.importance_below ?? goal.importance, goal.importance_above ?? goal.importance)
+  return Math.max(IMPORTANCE.min, higher - 1)
 }
 
 /** What names a goal: its typed name, or what it tracks and where. */

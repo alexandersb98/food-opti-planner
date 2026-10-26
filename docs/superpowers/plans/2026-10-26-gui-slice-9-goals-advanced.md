@@ -52,8 +52,8 @@ was checked; the code is in the commits.
    name the goal reads by. Each new field has a default, so a body
    without them is a goal with no advanced settings.
 2. **Unique names.** Typed names must differ from each other (422 on
-   `custom_name`, "Another goal has this name"; exact match after
-   trimming). Generated names are numbered around them, in goal order:
+   `custom_name` of each goal with the name, "Another goal has this
+   name"; exact match after trimming). Generated names are numbered around them, in goal order:
    a generated name's n-th use is "Protein per day" for n = 1 and
    "Protein per day (n)" after, and any candidate already taken (by a
    typed name or an earlier generated one) moves on to the next n. So
@@ -82,14 +82,16 @@ was checked; the code is in the commits.
    range", on by default, and under it "Importance of each day" (a
    slider), shown for Must and Prefer goals. While
    `guard_rail_importance` is `null` the slider shows one step below the
-   goal's importance (at least 1) for a Prefer goal, and 2 for a Must
-   goal, and follows the goal's importance; moving the slider sets it.
+   goal's importance (the higher side's, with importance below and
+   above; at least 1) for a Prefer goal, and 2 for a Must goal, and
+   follows the goal's importance; moving the slider sets it.
    Translation: on → `add_day_guardrail=True` and `guardrail_weight`
-   from the table when set; when `null`, not given for a Prefer goal
-   (the library's half of each side's weight, which is one step below)
-   and 0.5 (importance 2) for a Must goal. So a Must goal's hidden
-   importance never reaches the plan (the slices plan's note on the
-   hidden weight). Off → `add_day_guardrail=False`. For other scopes the
+   always the weight of the importance the slider shows
+   (`translate.guard_rail_importance`, the app's `guardRailImportance`),
+   so what the editor shows is what the plan uses. Without the split and
+   above importance 1 that is the library's default, half the goal's
+   weight. A Must goal's hidden importance never reaches the plan (the
+   slices plan's note on the hidden weight). Off → `add_day_guardrail=False`. For other scopes the
    server stores the defaults (on, NULL); with the guard-rail off it
    stores `guard_rail_importance` as NULL.
 6. **The zero-bound field** (slice 8 decision 6) now depends on the
@@ -188,6 +190,20 @@ plan.
 under Advanced, save; the Goals card shows "Energy floor".
 
 **Checked:** passes against uvicorn on SQLite with the built app.
+
+### Final review fixes
+
+A review of the whole slice found two defects, fixed: a duplicate typed
+name was reported only on the later goal, so editing the earlier one
+showed only the general error (now each goal with the name is marked);
+and the guard-rail importance shown while following was not the weight
+used with the split on or at importance 1 (now the server passes the
+shown importance's weight, decision 5). The name field has no length
+limit while it shows a generated name, which can be longer than a typed
+one may be.
+
+**Checked:** 578 Python tests pass on SQLite; typecheck, lint and
+Vitest (247 tests) pass; the end-to-end test passes.
 
 ## Done when
 
