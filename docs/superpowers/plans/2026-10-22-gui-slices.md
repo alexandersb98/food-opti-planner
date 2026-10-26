@@ -259,6 +259,12 @@ Prefer). Playwright: the flow from slice 7 adds a goal.
   average only, on by default).
 - Translation: `weight_below`/`weight_above`, `add_day_guardrail`,
   `guardrail_weight`.
+- A custom goal name like "X (2)" can collide with a generated numbered
+  name and give the library duplicate constraint names; this slice must
+  prevent that.
+- A Must daily-average goal's day guard-rail takes half the weight of the
+  goal's importance, which the editor hides for Must goals; the
+  guard-rail importance field settles it.
 
 **Tests:** translation tests for these; Vitest: the name stops following
 once edited; component test for which advanced fields show when.

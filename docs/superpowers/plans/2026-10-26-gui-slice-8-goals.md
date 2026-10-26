@@ -32,8 +32,9 @@ in
 (the "results spec"); slice 8 in
 [`2026-10-22-gui-slices.md`](2026-10-22-gui-slices.md).
 
-**Status:** Being built task by task on branch
-`claude/gui-slice-8-goals`.
+**Status:** Built and committed task by task on branch
+`claude/gui-slice-8-goals`. Each task names its files and how it was
+checked; the code is in the commits.
 
 ## Global Constraints
 
@@ -74,8 +75,10 @@ in
    importance outside 1–5, a zero reference of 0 or below, a missing
    zero reference when the library needs one (decision 6 below), a
    bound with more decimals than its attribute has (so the model and
-   the report agree, open question #23 on bound precision), an id of
-   another goal or given twice. At most 50 goals.
+   the report agree, open question #23 on bound precision; checked only
+   for a goal that is new or whose attribute or bounds changed, so
+   lowering an attribute's decimals does not lock the other saves), an
+   id of another goal or given twice. At most 50 goals.
 4. **Generated names** follow the GUI spec: "Protein per day",
    "Protein, plan total", "Protein, daily average". A second goal with
    the same generated name gets " (2)", a third " (3)", in goal order.
@@ -90,7 +93,8 @@ in
    `normalization_reference`. The guard-rail stays the library's
    default (on, half weight) until slice 9's fields.
 6. **When the zero-bound field shows.** The library needs a reference
-   when a bound is 0 and a soft penalty is built from it: the goal is
+   when a bound is 0 or below and a soft penalty is built from it (a
+   negative bound would be used as the weight, a reward): the goal is
    Prefer, or it is a daily average (whose day guard-rail is always soft,
    also for a Must goal). The editor shows the field exactly then and
    the server requires it exactly then. A reference sent when it is not
@@ -105,7 +109,8 @@ in
    that goal on its day. Serving cap violations are not goals and are
    not stored. A daily-average goal's whole-plan miss is stored per day,
    as the goal reads: the library's bound, actual and amount ÷ the
-   number of days (the percent is the same either way).
+   number of days (the percent is the same either way). A miss whose
+   amount rounds to 0 at the attribute's decimals is dropped.
 9. **Missed goals in the Summary:** one row per goal, side and kind
    (days or whole plan), in goal order, below before above: "Protein
    per day · below on 2 days" / "Cost, plan total · above, whole plan"
@@ -133,7 +138,10 @@ in
     first". A new goal starts on the first attribute, Each day, Prefer,
     importance 3. Min and Max are text inputs with the attribute's unit;
     the editor checks that one is given and that each is a number, and
-    shows the server's 422s on their fields. The zero-bound field reads
+    shows the server's 422s on their fields (none after a failed
+    Delete, only the general error). Applies to has the editor's own
+    short labels "Each day", "Plan total", "Daily average" (A3), as the
+    long ones wrap at 390 px. The zero-bound field reads
     "Count a miss as a percentage of [25] g", with the example "With
     25 g, missing by 5 g counts as 20%." (worked out from the typed
     reference).
@@ -175,6 +183,14 @@ each importance, the reference, generated names with " (2)" and " (3)",
 the catalog can't meet answers `infeasible`; a Prefer goal changes the
 plan (a fixed-portion recipe pair where only the goal decides).
 
+**Checked:** 526 Python tests pass on SQLite, the migration test
+among them; typecheck, lint and Vitest (159 tests) pass.
+
+Differences from the plan text: `AppliesTo` is in
+`server/api/fields.py`, shared by the plan and the results; the
+Schedule page now sends the goals back with the schedule (it would
+otherwise wipe them), with a test.
+
 ### Task 2: Goals and misses in the frozen copy
 
 **Files:** `server/models.py`, `server/migrations/versions/0007_goals.py`,
@@ -206,6 +222,15 @@ its day; serving cap violations left out; rounding. API: a solve with a
 Prefer goal it can't meet answers the miss; a saved plan keeps its goals
 and misses after the goal and its attribute are deleted.
 
+**Checked:** 540 Python tests pass on SQLite; a miss too small to show
+at its attribute's decimals is dropped, with a test. The API schema was
+regenerated.
+
+Differences from the plan text: `GOAL_NAME_LENGTH` is 130, for the name
+columns, so a longest attribute name with " (50)" fits. A guard-rail
+alias is used only for a goal that has a guard-rail, and an exact goal
+name wins over another goal's alias.
+
 ### Task 3: Goals card and goal editor in the app
 
 **Files:** `web/src/goals.ts` and its test,
@@ -230,6 +255,11 @@ zero-bound field only when needed, with its example; a goal needs a
 bound; Save sends the whole setup with the goal added or changed;
 Delete removes it; server field errors show on their fields.
 
+**Checked:** lint, typecheck and Vitest (194 tests) pass.
+
+Differences from the plan text: `rangeText` takes vue-i18n's `t` as its
+last argument.
+
 ### Task 4: Missed goals on the results page
 
 **Files:** `web/src/misses.ts` and its test,
@@ -250,6 +280,11 @@ its bound and the larger of two misses. Results page: Missed goals
 shown when collapsed, "All goals met", hidden without goals; the day
 line marks a miss.
 
+**Checked:** lint, typecheck and Vitest (207 tests) pass.
+
+Differences from the plan text: `missRows` and `dayLine` take vue-i18n's
+`t`.
+
 ### Task 5: End-to-end test
 
 **Files:** `web/e2e/catalog.e2e.ts`.
@@ -258,10 +293,15 @@ line marks a miss.
 least 100 kcal"; the Goals card shows "at least 100 kcal · Each day ·
 Must"; the result shows "All goals met" and the day line shows Energy.
 
+**Checked:** passes against uvicorn on SQLite with the built app.
+
 ### Task 6: Docs
 
 **Files:** `README.md` (status), this plan (status, how each task was
 checked), the slices plan.
+
+**Checked:** after the final review fixes: 548 Python tests pass on
+SQLite; typecheck, lint and Vitest (214 tests) pass.
 
 ## Done when
 
