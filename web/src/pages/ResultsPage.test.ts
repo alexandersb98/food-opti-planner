@@ -113,6 +113,10 @@ test('the header shows the dates and whether the plan is the best possible', asy
   const { wrapper: ranOut } = await mountSaved(week({ status: 'time_ran_out' }))
   expect(ranOut.get('.plan-status').text()).toBe('Time ran out: may not be the best plan')
   ranOut.unmount()
+
+  const { wrapper: stopped } = await mountSaved(week({ status: 'stopped' }))
+  expect(stopped.get('.plan-status').text()).toBe('Stopped early: may not be the best plan')
+  stopped.unmount()
 })
 
 test('the Summary shows every attribute’s total and daily average at 5 attributes', async () => {

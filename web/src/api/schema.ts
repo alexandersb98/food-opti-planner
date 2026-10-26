@@ -274,10 +274,33 @@ export interface paths {
         /**
          * Solve
          * @description Make a plan from the setup and the whole catalog, within the setup's
-         *     time limit. A plan replaces the unsaved one; without a plan nothing is
-         *     stored, and the unsaved plan stays. Runs inside the request.
+         *     time limit or until cancelled. A plan replaces the unsaved one; without
+         *     a plan nothing is stored, and the unsaved plan stays. Runs inside the
+         *     request, one at a time.
          */
         post: operations["solve_api_plan_solve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/plan/solve/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel
+         * @description Stop the solve `solve_id` names, which then answers with the best
+         *     plan found so far. A Cancel that arrives first stops it as it starts;
+         *     one for any other solve does nothing, as it may cross the answer.
+         */
+        post: operations["cancel_api_plan_solve_cancel_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -612,7 +635,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "optimal" | "time_ran_out";
+            status: "optimal" | "time_ran_out" | "stopped";
             /** Totals */
             totals: string[];
         };
@@ -643,7 +666,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "optimal" | "time_ran_out";
+            status: "optimal" | "time_ran_out" | "stopped";
         };
         /** PlanResults */
         PlanResults: {
@@ -760,12 +783,20 @@ export interface components {
             meal: number;
         };
         /**
+         * SolveId
+         * @description Which solve a request is about.
+         */
+        SolveId: {
+            /** Solve Id */
+            solve_id: string;
+        };
+        /**
          * SolveOutcome
          * @description The new unsaved plan, or why there is none.
          */
         SolveOutcome: {
             /** Failure */
-            failure: ("no_recipes" | "too_large" | "infeasible" | "no_plan_in_time") | null;
+            failure: ("no_recipes" | "too_large" | "infeasible" | "no_plan_in_time" | "stopped") | null;
             plan: components["schemas"]["PlanResult"] | null;
         };
         /** Tag */
@@ -1556,7 +1587,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SolveId"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -1565,6 +1600,53 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SolveOutcome"];
+                };
+            };
+            /** @description A plan is already being made */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_api_plan_solve_cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SolveId"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

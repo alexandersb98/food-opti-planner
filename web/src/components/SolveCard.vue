@@ -2,11 +2,18 @@
 import { computed, onUnmounted, ref, watch } from 'vue'
 import type { Failure } from '../solve'
 
-// The Plan page's card for Make plan (A1): Making plan… with a bar while a
-// solve runs, or Couldn't make a plan, until dismissed, after one that made
-// none. The bar is the browser's clock against Max solving time, full past it.
-const props = defineProps<{ running: boolean; startedAt: number | null; seconds: number; failure: Failure | null }>()
-defineEmits<{ dismiss: [] }>()
+// The Plan page's card for Make plan (A1): Making plan… with a bar and Cancel
+// while a solve runs, or Couldn't make a plan, until dismissed, after one that
+// made none. The bar is the browser's clock against Max solving time, full
+// past it.
+const props = defineProps<{
+  running: boolean
+  cancelling: boolean
+  startedAt: number | null
+  seconds: number
+  failure: Failure | null
+}>()
+defineEmits<{ cancel: []; dismiss: [] }>()
 
 const now = ref(Date.now())
 let timer: ReturnType<typeof setInterval> | undefined
@@ -49,6 +56,16 @@ const progress = computed(() => (props.seconds > 0 ? Math.min(1, elapsed.value /
         <span class="text-grey-8">{{ $t('plan.elapsed', { n: Math.floor(elapsed), max: seconds }) }}</span>
       </div>
     </q-card-section>
+    <q-card-actions align="right">
+      <q-btn
+        flat
+        no-caps
+        color="primary"
+        :label="cancelling ? $t('plan.stopping') : $t('plan.cancel')"
+        :disable="cancelling"
+        @click="$emit('cancel')"
+      />
+    </q-card-actions>
   </q-card>
   <q-card
     v-else-if="failure"

@@ -228,6 +228,7 @@ test.each([
   ['infeasible', 'No plan possible with these settings.'],
   ['no_recipes', 'There are no recipes to plan with yet. Add some on the Recipes page.'],
   ['too_large', 'This plan is too large to solve. Try fewer days or meals.'],
+  ['stopped', 'Stopped before any plan was found.'],
 ])('no plan (%s) shows the Couldn’t make a plan card until dismissed', async (failure, text) => {
   const { wrapper, router } = await mountPage({
     'GET /api/plan': { body: plan({ solve_time_limit: 45 }) },
@@ -240,6 +241,34 @@ test.each([
   expect(card.text()).toContain(text)
   await click(button(wrapper, 'Dismiss'))
   expect(wrapper.find('.solve-failed').exists()).toBe(false)
+  wrapper.unmount()
+})
+
+test('Cancel stops the solve: Stopping… until it answers, then the plan found opens', async () => {
+  const solve = slowSolve()
+  const made = planResult({ id: 5, saved: false, saved_at: null, status: 'stopped' })
+  const { wrapper, router, calls } = await mountPage({
+    'POST /api/plan/solve': solve.reply,
+    'POST /api/plan/solve/cancel': 204,
+    'GET /api/plan-results/5': { body: made },
+  })
+  await click(makePlanButton(wrapper))
+  await click(button(wrapper, 'Cancel'))
+  expect(calls.filter((call) => call === 'POST /api/plan/solve/cancel')).toHaveLength(1)
+  const stopping = button(wrapper, 'Stopping…')
+  expect(stopping.attributes('disabled')).toBeDefined()
+  await click(stopping)
+  expect(calls.filter((call) => call === 'POST /api/plan/solve/cancel')).toHaveLength(1)
+
+  await solve.answer({ body: { plan: made, failure: null } })
+  expect(router.currentRoute.value.fullPath).toBe('/plans/new')
+  wrapper.unmount()
+})
+
+test('a solve already running on the server says so', async () => {
+  const { wrapper } = await mountPage({ 'POST /api/plan/solve': { status: 409, body: { detail: 'busy' } } })
+  await click(makePlanButton(wrapper))
+  expect(wrapper.get('.solve-failed').text()).toContain('A plan is already being made. Try again when it is done.')
   wrapper.unmount()
 })
 

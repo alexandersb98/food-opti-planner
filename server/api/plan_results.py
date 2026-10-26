@@ -23,8 +23,8 @@ router = APIRouter(prefix="/plan-results", tags=["plan results"])
 NOT_FOUND = {404: {"description": "No such plan"}}
 
 # "optimal" for the best possible plan, "time_ran_out" for the best found
-# within Max solving time.
-Status = Literal["optimal", "time_ran_out"]
+# within Max solving time, "stopped" for the best found until cancelled.
+Status = Literal["optimal", "time_ran_out", "stopped"]
 
 
 class PlanResultSummary(BaseModel):

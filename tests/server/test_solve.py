@@ -1,5 +1,9 @@
-"""POST /api/plan/solve: a plan becomes the unsaved plan; no plan answers why."""
+"""POST /api/plan/solve: a plan becomes the unsaved plan; no plan answers
+why. POST /api/plan/solve/cancel stops it."""
 
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import datetime
 
@@ -12,8 +16,8 @@ from server.api import plan as plan_api
 from .conftest import schedule
 
 
-def solve(client) -> dict:
-    response = client.post("/api/plan/solve")
+def solve(client, solve_id: str = "s1") -> dict:
+    response = client.post("/api/plan/solve", json={"solve_id": solve_id})
     assert response.status_code == 200, response.text
     return response.json()
 
@@ -86,7 +90,7 @@ def summary(plan: dict) -> dict:
 
 def test_a_feasible_plan_is_one_where_time_ran_out(client, porridge, monkeypatch):
     monkeypatch.setattr(
-        plan_api, "solve_plan", lambda request: replace(meal_planner.plan(request), solve_status=SolveStatus.FEASIBLE)
+        plan_api, "solve_plan", lambda request, stop: replace(meal_planner.plan(request, stop), solve_status=SolveStatus.FEASIBLE)
     )
     assert solve(client)["plan"]["status"] == "time_ran_out"
 
@@ -94,9 +98,9 @@ def test_a_feasible_plan_is_one_where_time_ran_out(client, porridge, monkeypatch
 def test_the_planner_gets_the_setup_and_the_whole_catalog(client, porridge, catalog, monkeypatch):
     requests = []
 
-    def recorded(request):
+    def recorded(request, stop):
         requests.append(request)
-        return meal_planner.plan(request)
+        return meal_planner.plan(request, stop)
 
     monkeypatch.setattr(plan_api, "solve_plan", recorded)
     catalog.tag()
@@ -114,9 +118,9 @@ def test_no_connection_is_held_while_solving(client, porridge, monkeypatch):
     pool = client.app.state.engine.pool
     checked_out = []
 
-    def counted(request):
+    def counted(request, stop):
         checked_out.append(pool.checkedout())
-        return meal_planner.plan(request)
+        return meal_planner.plan(request, stop)
 
     monkeypatch.setattr(plan_api, "solve_plan", counted)
     assert solve(client)["plan"] is not None
@@ -138,7 +142,7 @@ def test_without_recipes_there_is_no_plan(client, catalog):
 )
 def test_no_plan_answers_why_and_keeps_the_unsaved_plan(client, porridge, monkeypatch, answer, failure):
     kept = solve(client)["plan"]
-    monkeypatch.setattr(plan_api, "solve_plan", lambda request: answer)
+    monkeypatch.setattr(plan_api, "solve_plan", lambda request, stop: answer)
     assert solve(client) == {"plan": None, "failure": failure}
     assert unsaved(client) == summary(kept)
 
@@ -148,7 +152,7 @@ def test_a_model_too_large_for_the_solver_answers_why(client, porridge, monkeypa
     large, so the library's error is stood in for."""
     kept = solve(client)["plan"]
 
-    def too_large(request):
+    def too_large(request, stop):
         raise ModelTooLargeError("scaled model reaches 10**21")
 
     monkeypatch.setattr(plan_api, "solve_plan", too_large)
@@ -157,19 +161,19 @@ def test_a_model_too_large_for_the_solver_answers_why(client, porridge, monkeypa
 
 
 def test_any_other_request_error_is_a_bug(client, porridge, monkeypatch):
-    def refused(request):
+    def refused(request, stop):
         raise PlanRequestError(["something the server should have caught"])
 
     monkeypatch.setattr(plan_api, "solve_plan", refused)
     with pytest.raises(PlanRequestError):
-        client.post("/api/plan/solve")
+        client.post("/api/plan/solve", json={"solve_id": "s2"})
 
 
 def test_a_plan_left_out_by_the_planner_is_skipped(client, porridge, monkeypatch):
     """A day whose minimum lets the planner leave a meal out shows it as
     not planned, like a skipped cell."""
-    def without_day_1_lunch(request):
-        answer = meal_planner.plan(request)
+    def without_day_1_lunch(request, stop):
+        answer = meal_planner.plan(request, stop)
         slots = tuple(
             replace(s, recipe=None, multiplier=None) if (s.day, s.slot) == (1, 1) else s for s in answer.slots
         )
@@ -189,3 +193,127 @@ def test_meals_follow_the_schedule_order_and_names(client, porridge):
         [("Supper", False), ("Breakfast", True)],
         [("Supper", True), ("Breakfast", True)],
     ]
+
+
+class UntilCancelled:
+    """Stands in for a long solve: runs until cancelled, then answers as the
+    library does when stopped, with `found` (a plan, or none)."""
+
+    def __init__(self, found: bool = True):
+        self.found = found
+        self.started = threading.Event()
+
+    def __call__(self, request, stop):
+        self.started.set()
+        deadline = time.monotonic() + 10
+        while not stop.stopped and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert stop.stopped
+        if not self.found:
+            return Plan(SolveStatus.TIMEOUT_NO_SOLUTION)
+        return replace(meal_planner.plan(request), solve_status=SolveStatus.FEASIBLE)
+
+
+def solving(client, monkeypatch, long_solve: UntilCancelled, solve_id: str = "s1"):
+    """Start a solve in another thread; answer its future once it solves."""
+    monkeypatch.setattr(plan_api, "solve_plan", long_solve)
+    pool = ThreadPoolExecutor(max_workers=1)
+    future = pool.submit(client.post, "/api/plan/solve", json={"solve_id": solve_id})
+    pool.shutdown(wait=False)
+    assert long_solve.started.wait(10)
+    return future
+
+
+def cancel(client, solve_id: str) -> None:
+    assert client.post("/api/plan/solve/cancel", json={"solve_id": solve_id}).status_code == 204
+
+
+def test_cancel_stops_the_solve_which_keeps_the_plan_found(client, porridge, monkeypatch):
+    answer = solving(client, monkeypatch, UntilCancelled())
+    cancel(client, "s1")
+    response = answer.result(10)
+    assert response.status_code == 200
+    plan = response.json()["plan"]
+    assert plan["status"] == "stopped"
+    assert unsaved(client) == summary(plan)
+
+
+def test_cancel_before_any_plan_answers_stopped_and_keeps_the_unsaved_plan(client, porridge, monkeypatch):
+    kept = solve(client)["plan"]
+    answer = solving(client, monkeypatch, UntilCancelled(found=False))
+    cancel(client, "s1")
+    assert answer.result(10).json() == {"plan": None, "failure": "stopped"}
+    assert unsaved(client) == summary(kept)
+
+
+def test_a_cancelled_infeasible_solve_is_still_infeasible(client, porridge, monkeypatch):
+    def infeasible(request, stop):
+        stop.stop()
+        return Plan(SolveStatus.INFEASIBLE, conflicts=ConflictReport(()))
+
+    monkeypatch.setattr(plan_api, "solve_plan", infeasible)
+    assert solve(client) == {"plan": None, "failure": "infeasible"}
+
+
+def test_a_second_solve_while_one_runs_is_refused(client, porridge, monkeypatch):
+    answer = solving(client, monkeypatch, UntilCancelled())
+    response = client.post("/api/plan/solve", json={"solve_id": "s2"})
+    assert response.status_code == 409
+    assert response.json() == {"detail": "A plan is already being made"}
+    cancel(client, "s1")
+    assert answer.result(10).json()["plan"]["status"] == "stopped"
+
+
+def test_cancel_of_a_solve_that_is_over_does_not_touch_the_next_one(client, porridge):
+    """A Cancel may cross the answer, or be left over from a solve that has
+    ended; the solve after it is not the one it named."""
+    cancel(client, "gone")
+    assert solve(client, "s2")["plan"]["status"] == "optimal"
+
+
+def test_cancel_of_another_solve_leaves_the_running_one_alone(client, porridge, monkeypatch):
+    long_solve = UntilCancelled()
+    answer = solving(client, monkeypatch, long_solve, solve_id="s1")
+    cancel(client, "s2")
+    with pytest.raises(TimeoutError):
+        answer.result(0.5)
+    cancel(client, "s1")
+    assert answer.result(10).json()["plan"]["status"] == "stopped"
+
+
+def test_a_cancel_that_arrives_before_its_solve_stops_it_as_it_starts(client, porridge):
+    """Cancel can beat Make plan to the server, as the card's Cancel is
+    there from the click. The solve is stopped as soon as it starts."""
+    cancel(client, "s1")
+    assert solve(client, "s1") == {"plan": None, "failure": "stopped"}
+    # Only that one solve: the next one is not stopped by the same Cancel.
+    assert solve(client, "s2")["plan"]["status"] == "optimal"
+
+
+def test_after_a_solve_another_may_start(client, porridge, monkeypatch):
+    monkeypatch.setattr(plan_api, "solve_plan", lambda request, stop: Plan(SolveStatus.INFEASIBLE))
+    assert solve(client)["failure"] == "infeasible"
+
+    def refused(request, stop):
+        raise PlanRequestError(["a bug"])
+
+    monkeypatch.setattr(plan_api, "solve_plan", refused)
+    with pytest.raises(PlanRequestError):
+        client.post("/api/plan/solve", json={"solve_id": "s2"})
+    monkeypatch.undo()
+    assert solve(client)["plan"] is not None
+
+
+def test_a_real_solve_can_be_cancelled(client, porridge, monkeypatch):
+    """The library's own stop, through the route: the solve sees the
+    request's handle, stopped before it starts."""
+    stops = []
+
+    def stopped_first(request, stop):
+        stops.append(stop)
+        client.post("/api/plan/solve/cancel", json={"solve_id": "s1"})
+        return meal_planner.plan(request, stop)
+
+    monkeypatch.setattr(plan_api, "solve_plan", stopped_first)
+    assert solve(client) == {"plan": None, "failure": "stopped"}
+    assert stops[0].stopped

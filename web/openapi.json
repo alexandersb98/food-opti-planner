@@ -599,7 +599,8 @@
           "status": {
             "enum": [
               "optimal",
-              "time_ran_out"
+              "time_ran_out",
+              "stopped"
             ],
             "title": "Status",
             "type": "string"
@@ -669,7 +670,8 @@
           "status": {
             "enum": [
               "optimal",
-              "time_ran_out"
+              "time_ran_out",
+              "stopped"
             ],
             "title": "Status",
             "type": "string"
@@ -1075,6 +1077,22 @@
         "title": "Skip",
         "type": "object"
       },
+      "SolveId": {
+        "description": "Which solve a request is about.",
+        "properties": {
+          "solve_id": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Solve Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "solve_id"
+        ],
+        "title": "SolveId",
+        "type": "object"
+      },
       "SolveOutcome": {
         "description": "The new unsaved plan, or why there is none.",
         "properties": {
@@ -1085,7 +1103,8 @@
                   "no_recipes",
                   "too_large",
                   "infeasible",
-                  "no_plan_in_time"
+                  "no_plan_in_time",
+                  "stopped"
                 ],
                 "type": "string"
               },
@@ -2072,8 +2091,18 @@
     },
     "/api/plan/solve": {
       "post": {
-        "description": "Make a plan from the setup and the whole catalog, within the setup's\ntime limit. A plan replaces the unsaved one; without a plan nothing is\nstored, and the unsaved plan stays. Runs inside the request.",
+        "description": "Make a plan from the setup and the whole catalog, within the setup's\ntime limit or until cancelled. A plan replaces the unsaved one; without\na plan nothing is stored, and the unsaved plan stays. Runs inside the\nrequest, one at a time.",
         "operationId": "solve_api_plan_solve_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolveId"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -2084,9 +2113,57 @@
               }
             },
             "description": "Successful Response"
+          },
+          "409": {
+            "description": "A plan is already being made"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Solve",
+        "tags": [
+          "plan"
+        ]
+      }
+    },
+    "/api/plan/solve/cancel": {
+      "post": {
+        "description": "Stop the solve `solve_id` names, which then answers with the best\nplan found so far. A Cancel that arrives first stops it as it starts;\none for any other solve does nothing, as it may cross the answer.",
+        "operationId": "cancel_api_plan_solve_cancel_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolveId"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cancel",
         "tags": [
           "plan"
         ]

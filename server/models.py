@@ -12,7 +12,7 @@ NAME_LENGTH = 100
 UNIT_LENGTH = 20
 MEAL_NAME_LENGTH = 40
 DERIVE_LENGTH = 3  # "all" or "any"
-STATUS_LENGTH = 12  # "optimal", "time_ran_out"; slice 7a adds "stopped"
+STATUS_LENGTH = 12  # "optimal", "time_ran_out", "stopped"
 # Numbers typed on forms (ingredient values, value bases, ...), stored
 # exactly as typed. 15 digits stay exact even in SQLite, which holds them as
 # floating point.

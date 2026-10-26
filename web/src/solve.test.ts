@@ -30,11 +30,12 @@ async function store(path: string) {
 }
 
 /** A solve that answers when `answer` is called (once the request is in). */
-function slowSolve() {
+function slowSolve(cancel: FakeReply = 204) {
   let answer!: (reply: FakeReply) => void
   const calls = fakeServer({
     'GET /api/session': 204,
     'POST /api/plan/solve': () => new Promise<FakeReply>((resolve) => (answer = resolve)),
+    'POST /api/plan/solve/cancel': cancel,
   })
   return {
     calls,
@@ -113,4 +114,74 @@ test('a solve the server fails, or that cannot reach it, is a failure too', asyn
   await solve.start(30)
   expect(solve.failure.value).toBe('error')
   expect(solve.running.value).toBe(false)
+})
+
+test('cancel is sent once, and the store is cancelling until the solve answers', async () => {
+  const { calls, answer } = slowSolve()
+  const { solve } = await store('/recipes')
+  await solve.cancel()
+  expect(calls).not.toContain('POST /api/plan/solve/cancel')
+  const solving = solve.start(30)
+  await solve.cancel()
+  await solve.cancel()
+  expect(solve.cancelling.value).toBe(true)
+  expect(calls.filter((call) => call === 'POST /api/plan/solve/cancel')).toHaveLength(1)
+  await answer({ body: { plan: null, failure: 'stopped' } })
+  await solving
+  expect(solve.cancelling.value).toBe(false)
+  expect(solve.failure.value).toBe('stopped')
+})
+
+test('a cancel the server fails can be tried again', async () => {
+  const { calls, answer } = slowSolve(500)
+  const { solve } = await store('/recipes')
+  const solving = solve.start(30)
+  await solve.cancel()
+  expect(solve.cancelling.value).toBe(false)
+  await solve.cancel()
+  expect(calls.filter((call) => call === 'POST /api/plan/solve/cancel')).toHaveLength(2)
+  await answer({ body: { plan: null, failure: 'infeasible' } })
+  await solving
+})
+
+test('a solve already running on the server is busy', async () => {
+  fakeServer({ 'GET /api/session': 204, 'POST /api/plan/solve': { status: 409, body: { detail: 'busy' } } })
+  const { solve } = await store('/')
+  await solve.start(30)
+  expect(solve.failure.value).toBe('busy')
+})
+
+test('cancel names the solve it means, and each solve is named anew', async () => {
+  const named: { solve: string[]; cancel: string[] } = { solve: [], cancel: [] }
+  const id = (body: unknown) => (body as { solve_id: string }).solve_id
+  let answer!: (reply: FakeReply) => void
+  fakeServer({
+    'GET /api/session': 204,
+    'POST /api/plan/solve': (body) => {
+      named.solve.push(id(body))
+      return new Promise<FakeReply>((resolve) => (answer = resolve))
+    },
+    'POST /api/plan/solve/cancel': (body) => {
+      named.cancel.push(id(body))
+      return 204
+    },
+  })
+  const { solve } = await store('/recipes')
+
+  // The name is the solve's from the click, before the server has it: a
+  // Cancel can reach the server first, and must still name this solve.
+  const first = solve.start(30)
+  await solve.cancel()
+  await flushPromises()
+  expect(named.cancel).toEqual([named.solve[0]])
+  answer({ body: { plan: null, failure: 'stopped' } })
+  await first
+
+  const second = solve.start(30)
+  await solve.cancel()
+  await flushPromises()
+  expect(named.solve[1]).not.toBe(named.solve[0])
+  expect(named.cancel).toEqual([named.solve[0], named.solve[1]])
+  answer({ body: { plan: null, failure: 'stopped' } })
+  await second
 })
