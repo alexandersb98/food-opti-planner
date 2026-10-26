@@ -96,9 +96,25 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Plan')
   await expect(page.locator('.schedule-day')).toHaveCount(2)
 
+  // A goal: at least 100 kcal of Energy each day, a must. The Goals card
+  // shows it as typed.
+  await page.getByRole('button', { name: '+ Add goal' }).click()
+  const goalDialog = page.getByRole('dialog')
+  await goalDialog.getByLabel('What to track').click()
+  await page.getByRole('option', { name: 'Energy' }).click()
+  await goalDialog.getByLabel('Min').fill('100')
+  await goalDialog.getByRole('button', { name: 'Each day' }).click()
+  await goalDialog.getByRole('button', { name: 'Must', exact: true }).click()
+  await goalDialog.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.locator('.goal-row')).toHaveText([/Energy\s*at least 100 kcal\s*Each day\s*Must/])
+
   await page.getByRole('button', { name: 'Make plan' }).click()
   await expect(page.getByText('Best possible plan')).toBeVisible({ timeout: 60_000 })
+  await expect(page.getByText('All goals met')).toBeVisible()
+  await expect(page.locator('.miss-row')).toHaveCount(0)
   await expect(page.locator('.day-position')).toContainText('1 of 2')
+  await expect(page.locator('.day-line').first()).toContainText(/Energy\s*\d+ kcal/)
   await expect(page.locator('.meal-row')).toHaveText([/Breakfast.*Porridge/, /Lunch.*Porridge/, /Dinner.*Porridge/])
   await page.getByRole('button', { name: 'Next day' }).click()
   await expect(page.locator('.day-position')).toContainText('2 of 2')
