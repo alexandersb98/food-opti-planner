@@ -108,6 +108,11 @@ def goal_names(goals: Sequence[models.Goal]) -> list[str]:
     return names
 
 
+def named_goals(goals: Sequence[models.Goal]) -> list[tuple[models.Goal, str]]:
+    """Each goal with its name (`goal_names`), in goal order."""
+    return list(zip(goals, goal_names(goals), strict=True))
+
+
 def constraint(goal: models.Goal, name: str) -> Constraint:
     """`applies_to` becomes scope and aggregate, Must becomes hard and the
     importance the weight. The guard-rail stays the library's default."""
@@ -138,6 +143,6 @@ def plan_request(
         tags=tuple(tag(row) for row in tags),
         recipes=tuple(recipe(row) for row in recipes),
         days=days(plan),
-        constraints=tuple(constraint(goal, name) for goal, name in zip(plan.goals, goal_names(plan.goals), strict=True)),
+        constraints=tuple(constraint(goal, name) for goal, name in named_goals(plan.goals)),
         solve_time_limit=plan.solve_time_limit,
     )

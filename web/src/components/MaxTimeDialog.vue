@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { api } from '../api/client'
-import { fieldErrors } from '../api/errors'
 import type { Plan } from '../api/types'
+import { planFields, useSavePlan } from '../plan'
 
 // Max solving time on the Plan page (A1): whole seconds, saved with the
 // rest of the setup as it is, since the server takes the setup whole.
@@ -17,7 +16,7 @@ const LIMIT = { min: 1, max: 300 }
 const { t } = useI18n()
 const text = ref('')
 const errors = reactive({ time: '', save: '' })
-const saving = ref(false)
+const { saving, savePlan } = useSavePlan()
 
 watch(open, (isOpen) => {
   if (!isOpen) return
@@ -38,21 +37,12 @@ async function save() {
   errors.time = time === null ? t('plan.maxTimeRange', LIMIT) : ''
   errors.save = ''
   if (time === null) return
-  saving.value = true
-  try {
-    const { data, error } = await api.PUT('/api/plan', { body: { ...props.plan, solve_time_limit: time } })
-    if (data) {
-      emit('saved', data)
-      open.value = false
-      return
-    }
-    if (fieldErrors(error).solve_time_limit) errors.time = t('plan.maxTimeRange', LIMIT)
-    else errors.save = t('common.saveFailed')
-  } catch {
-    errors.save = t('common.saveFailed')
-  } finally {
-    saving.value = false
-  }
+  const saved = await savePlan({ ...planFields(props.plan), solve_time_limit: time })
+  if (saved.plan) {
+    emit('saved', saved.plan)
+    open.value = false
+  } else if (saved.errors.solve_time_limit) errors.time = t('plan.maxTimeRange', LIMIT)
+  else errors.save = t('common.saveFailed')
 }
 </script>
 

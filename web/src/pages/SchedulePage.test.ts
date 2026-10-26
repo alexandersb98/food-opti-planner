@@ -286,10 +286,9 @@ test('Save sends the setup and returns to the Plan page', async () => {
   wrapper.unmount()
 })
 
-test('the plan\'s goals are sent back unchanged', async () => {
-  const goal = {
+test('the plan\'s goals are sent back unchanged, without their generated names', async () => {
+  const fields = {
     id: 7,
-    name: 'Energy per day',
     attribute_id: 1,
     min: '1800',
     max: null,
@@ -298,13 +297,14 @@ test('the plan\'s goals are sent back unchanged', async () => {
     importance: 3,
     zero_reference: null,
   }
+  const goal = { ...fields, name: 'Energy per day' }
   const { sent, handler } = recorder(200)
   const { wrapper } = await mountPage({
     'GET /api/plan': { body: { ...stored, goals: [goal] } },
     'PUT /api/plan': handler,
   })
   await click(button(wrapper, 'Save'))
-  expect(sent).toEqual([expect.objectContaining({ goals: [goal] })])
+  expect(sent).toEqual([expect.objectContaining({ goals: [fields] })])
   wrapper.unmount()
 })
 

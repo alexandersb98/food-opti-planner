@@ -28,7 +28,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="Meal planner", lifespan=lifespan)
     app.state.engine = make_engine(settings.database_url)
     app.state.auth = Auth(settings.password_hash, settings.session_key)
-    app.state.running_solve = api.plan.RunningSolve()
+    app.state.running_solve = api.solve.RunningSolve()
     app.include_router(api.router)
     if settings.web_dist.is_dir():
         _serve_frontend(app, settings.web_dist)
