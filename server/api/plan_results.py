@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session, selectinload
 from .. import freeze, models
 from ..db import DbSession
 from .catalog import get_or_404
-from .fields import plain
+from .fields import AppliesTo, plain
 
 router = APIRouter(prefix="/plan-results", tags=["plan results"])
 
@@ -66,6 +66,33 @@ class ResultMeal(BaseModel):
     items: list[ResultItem]
 
 
+class ResultGoal(BaseModel):
+    """A goal as the plan was made with it. `attribute` is an index into
+    `attributes`; `min` and `max` are None for no bound."""
+
+    name: str
+    attribute: int
+    applies_to: AppliesTo
+    must: bool
+    min: str | None
+    max: str | None
+
+
+class ResultMiss(BaseModel):
+    """Where the plan missed a goal's bound, on a `day` (from 0) or over the
+    whole plan (None). `goal` is an index into `goals`; the numbers are in
+    the attribute's unit, per day for a daily average. `percent` is the miss
+    as a percentage of the goal's reference, to 1 decimal."""
+
+    goal: int
+    day: int | None
+    side: Literal["below", "above"]
+    bound: str
+    actual: str
+    amount: str
+    percent: str
+
+
 class PlanResult(PlanResultSummary):
     """One plan in full. Totals are the library's, rounded to each
     attribute's decimals; an average is the plan's total over its days."""
@@ -77,6 +104,10 @@ class PlanResult(PlanResultSummary):
     day_totals: list[list[str]]
     # One list per day, each in the schedule's meal order.
     meals: list[list[ResultMeal]]
+    # In the setup's order.
+    goals: list[ResultGoal]
+    # By goal, then day (the whole plan first), then below before above.
+    misses: list[ResultMiss]
 
 
 class PlanResults(BaseModel):
@@ -144,6 +175,19 @@ def response(row: models.PlanResult) -> PlanResult:
                 items=[ResultItem(ingredient=i.ingredient, unit=i.unit, amount=plain(i.amount)) for i in meal.items],
             )
         )
+    misses = [
+        ResultMiss(
+            goal=i,
+            day=miss.day,
+            side=miss.side,
+            bound=plain(miss.bound),
+            actual=plain(miss.actual),
+            amount=plain(miss.amount),
+            percent=plain(miss.percent),
+        )
+        for i, goal in enumerate(row.goals)
+        for miss in sorted(goal.misses, key=lambda m: (-1 if m.day is None else m.day, m.side != "below"))
+    ]
     return PlanResult(
         **summary(row).model_dump(),
         attributes=[ResultAttribute(name=a.name, unit=a.unit, decimals=a.decimals) for a in row.attributes],
@@ -154,6 +198,18 @@ def response(row: models.PlanResult) -> PlanResult:
         ],
         day_totals=[answered(("day", day)) for day in range(row.days)],
         meals=meals,
+        goals=[
+            ResultGoal(
+                name=goal.name,
+                attribute=position[goal.attribute_id],
+                applies_to=goal.applies_to,
+                must=goal.must,
+                min=None if goal.min is None else plain(goal.min),
+                max=None if goal.max is None else plain(goal.max),
+            )
+            for goal in row.goals
+        ],
+        misses=misses,
     )
 
 
@@ -162,6 +218,7 @@ def _loaded():
         selectinload(models.PlanResult.attributes),
         selectinload(models.PlanResult.meals).selectinload(models.PlanResultMeal.items),
         selectinload(models.PlanResult.totals),
+        selectinload(models.PlanResult.goals).selectinload(models.PlanResultGoal.misses),
     )
 
 

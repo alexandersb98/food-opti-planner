@@ -1,10 +1,12 @@
 """A library plan to result rows, without a database."""
 
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 
 from meal_planner import (
     AttributeDef,
+    Constraint,
     Day,
     Ingredient,
     IngredientAmount,
@@ -14,6 +16,8 @@ from meal_planner import (
     Slot,
     SlotAssignment,
     SolveStatus,
+    Violation,
+    ViolationReport,
 )
 from server import freeze
 
@@ -37,9 +41,12 @@ def served(day, slot, multiplier, energy, protein="0"):
     return SlotAssignment(day, slot, "generated", "Porridge", Decimal(multiplier), totals(energy, protein))
 
 
-def frozen(slots, day_totals, horizon, days, status=SolveStatus.OPTIMAL, meals=("Breakfast", "Lunch"), stopped=False):
-    plan = Plan(status, Decimal(0), tuple(slots), tuple(day_totals), horizon)
-    return freeze.freeze(request(days), plan, START, list(meals), UNITS, stopped=stopped)
+def frozen(slots, day_totals, horizon, days, status=SolveStatus.OPTIMAL, meals=("Breakfast", "Lunch"), stopped=False,
+           goals=(), constraints=(), violations=()):
+    plan = Plan(status, Decimal(0), tuple(slots), tuple(day_totals), horizon, ViolationReport(tuple(violations)))
+    return freeze.freeze(
+        replace(request(days), constraints=tuple(constraints)), plan, START, list(meals), UNITS, list(goals), stopped=stopped
+    )
 
 
 TWO_DAYS = (Day((Slot(), Slot("absent"))), Day((Slot(), Slot()), min_meals_per_day=1))
@@ -135,3 +142,130 @@ def test_the_average_is_the_rounded_total_over_the_days_rounded_again():
     assert freeze.average(Decimal("5"), 2, 0) == Decimal("3")
     assert freeze.average(Decimal("-5"), 2, 0) == Decimal("-3")
     assert freeze.average(Decimal("0.5"), 3, 1) == Decimal("0.2")
+
+
+def goal_case(name, applies_to, attribute="Protein", must=False, min=None, max=None):
+    """A goal and its constraint, as the server makes them."""
+    scope, aggregate = {
+        "day": ("day", None), "plan_total": ("horizon", "total"), "daily_average": ("horizon", "average_per_day"),
+    }[applies_to]
+    constraint = Constraint(
+        name=name, attribute=attribute, scope=scope, aggregate=aggregate, min=min, max=max, hard=must,
+        normalization_reference=Decimal(100),
+    )
+    return freeze.FrozenGoal(name, applies_to, must, min, max), constraint
+
+
+def miss(constraint, day, side, bound, actual, amount, percent):
+    return Violation(constraint, day, None, side, Decimal(bound), Decimal(actual), Decimal(amount), Decimal(percent))
+
+
+def missing(goals_and_constraints, violations):
+    goals, constraints = zip(*goals_and_constraints, strict=True)
+    return frozen(SLOTS, [totals("0"), totals("0")], totals("0"), TWO_DAYS,
+                  goals=goals, constraints=constraints, violations=violations)
+
+
+def stored(result):
+    return [
+        (g.position, g.name, g.attribute.name, g.applies_to, g.must, g.min, g.max,
+         [(m.day, m.side, m.bound, m.actual, m.amount, m.percent) for m in g.misses])
+        for g in result.goals
+    ]
+
+
+def test_no_goals_is_no_goals_and_no_misses():
+    result = frozen(SLOTS, [totals("0"), totals("0")], totals("0"), TWO_DAYS)
+    assert result.goals == []
+
+
+def test_goals_are_copied_in_order_with_their_attribute():
+    result = missing(
+        [goal_case("Protein per day", "day", min=Decimal("20")),
+         goal_case("Energy, plan total", "plan_total", "Energy", True, max=Decimal("900"))],
+        [],
+    )
+    assert stored(result) == [
+        (0, "Protein per day", "Protein", "day", False, Decimal("20"), None, []),
+        (1, "Energy, plan total", "Energy", "plan_total", True, None, Decimal("900"), []),
+    ]
+    assert result.goals[1].attribute is result.attributes[0]
+
+
+def test_a_day_goals_misses_are_stored_per_day():
+    result = missing(
+        [goal_case("Protein per day", "day", min=Decimal("20"))],
+        [miss("Protein per day", 0, "below", "20", "12.25", "7.75", "7.75"),
+         miss("Protein per day", 1, "below", "20", "0", "20", "20")],
+    )
+    assert stored(result)[0][7] == [
+        (0, "below", Decimal("20"), Decimal("12.3"), Decimal("7.8"), Decimal("7.8")),
+        (1, "below", Decimal("20"), Decimal("0"), Decimal("20"), Decimal("20")),
+    ]
+
+
+def test_a_plan_total_miss_has_no_day():
+    result = missing(
+        [goal_case("Energy, plan total", "plan_total", "Energy", max=Decimal("500"))],
+        [miss("Energy, plan total", None, "above", "500", "584.1675", "84.1675", "16.83")],
+    )
+    assert stored(result)[0][7] == [(None, "above", Decimal("500"), Decimal("584"), Decimal("84"), Decimal("16.8"))]
+
+
+def test_a_daily_average_miss_over_the_plan_is_divided_by_the_days():
+    result = missing(
+        [goal_case("Protein, daily average", "daily_average", min=Decimal("20"))],
+        [miss("Protein, daily average", None, "below", "40", "12.25", "27.75", "69.4")],
+    )
+    # 2 days: bound 20, actual 6.125, amount 13.875, each to 1 decimal; percent as it is.
+    assert stored(result)[0][7] == [
+        (None, "below", Decimal("20"), Decimal("6.1"), Decimal("13.9"), Decimal("69.4"))
+    ]
+
+
+def test_a_day_guard_rail_miss_is_the_goals_miss_on_its_day():
+    result = missing(
+        [goal_case("Protein, daily average", "daily_average", min=Decimal("20"))],
+        [miss("Protein, daily average (day guard-rail)", 1, "below", "20", "5", "15", "75")],
+    )
+    # A day's numbers are per day already.
+    assert stored(result)[0][7] == [(1, "below", Decimal("20"), Decimal("5"), Decimal("15"), Decimal("75"))]
+
+
+def test_serving_cap_violations_are_not_misses():
+    result = missing(
+        [goal_case("Protein per day", "day", min=Decimal("20"))],
+        [miss("serving cap: Porridge", None, "above", "3", "4", "1", "33.3")],
+    )
+    assert stored(result)[0][7] == []
+
+
+def test_misses_are_rounded_half_away_from_zero_and_percent_to_one_decimal():
+    result = missing(
+        [goal_case("Protein per day", "day", min=Decimal("20"))],
+        [miss("Protein per day", 0, "below", "20", "0.25", "19.75", "98.75"),
+         miss("Protein per day", 1, "below", "20", "0.05", "19.95", "99.25")],
+    )
+    assert [m[2:] for m in stored(result)[0][7]] == [
+        (Decimal("20"), Decimal("0.3"), Decimal("19.8"), Decimal("98.8")),
+        (Decimal("20"), Decimal("0.1"), Decimal("20"), Decimal("99.3")),
+    ]
+
+
+def test_a_miss_that_rounds_to_nothing_at_the_attributes_decimals_is_dropped():
+    # Protein has 1 decimal here; the library's totals carry more.
+    result = missing(
+        [goal_case("Protein per day", "day", min=Decimal("120"))],
+        [miss("Protein per day", 0, "below", "120", "119.96", "0.04", "0.03"),
+         miss("Protein per day", 1, "below", "120", "119.95", "0.05", "0.04")],
+    )
+    assert [(m[0], m[4]) for m in stored(result)[0][7]] == [(1, Decimal("0.1"))]
+
+
+def test_a_goal_named_like_anothers_guard_rail_keeps_its_own_misses():
+    result = missing(
+        [goal_case("X", "daily_average", min=Decimal("20")),
+         goal_case("X (day guard-rail)", "day", min=Decimal("20"))],
+        [miss("X (day guard-rail)", 0, "below", "20", "5", "15", "75")],
+    )
+    assert [len(g.misses) for g in result.goals] == [0, 1]

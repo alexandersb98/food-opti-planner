@@ -2,7 +2,7 @@ import { flushPromises } from '@vue/test-utils'
 import { afterEach, expect, test, vi } from 'vitest'
 import { resetSolve } from '../solve'
 import { button, click, dialog, fakeServer, mountApp, texts, type FakeReply, type FakeServer } from '../test-app'
-import { plan, planResult, planSummary, resultMeal } from '../test-data'
+import { attribute, goal, plan, planResult, planSummary, resultMeal } from '../test-data'
 
 afterEach(() => {
   resetSolve()
@@ -15,6 +15,7 @@ async function mountPage(server: FakeServer = {}) {
   const calls = fakeServer({
     'GET /api/session': 204,
     'GET /api/plan': { body: plan() },
+    'GET /api/attributes': { body: [] },
     'GET /api/plan-results': { body: { unsaved: null, saved: [] } },
     'GET /api/plan-results/today': { body: null },
     ...server,
@@ -84,6 +85,43 @@ test('Edit on the Schedule card opens the schedule', async () => {
   await click(wrapper.get('.schedule-card a'))
   expect(router.currentRoute.value.fullPath).toBe('/plan/schedule')
   wrapper.unmount()
+})
+
+test('the Goals card follows the Schedule card, and a goal opens its editor, whose Save updates the card', async () => {
+  const stored = plan({ goals: [goal({ id: 4, attribute_id: 1, min: '120', importance: 2 })] })
+  const sent: { goals: unknown[] }[] = []
+  const { wrapper } = await mountPage({
+    'GET /api/plan': { body: stored },
+    'GET /api/attributes': { body: [attribute({ id: 1, name: 'Protein', unit: 'g' })] },
+    'PUT /api/plan': (body) => {
+      sent.push(body as { goals: unknown[] })
+      return { body: { ...stored, goals: [{ ...stored.goals[0]!, min: '150' }] } }
+    },
+  })
+  const cards = wrapper.findAll('.schedule-card, .goals-card').map((card) => card.classes().find((c) => c.endsWith('-card') && c !== 'q-card'))
+  expect(cards).toEqual(['schedule-card', 'goals-card'])
+  expect(wrapper.get('.goal-row').text()).toMatch(/^Protein\s*at least 120 g\s*Each day\s*Prefer/)
+  await click(wrapper.get('.goal-row'))
+  const min = document.querySelector<HTMLInputElement>('.q-dialog input[aria-label="Min"]')!
+  expect(min.value).toBe('120')
+  min.value = '150'
+  min.dispatchEvent(new Event('input'))
+  await dialog().click('Save')
+  expect(sent).toHaveLength(1)
+  expect(wrapper.get('.goal-range').text()).toBe('at least 150 g')
+  wrapper.unmount()
+})
+
+test('+ Add goal opens an empty editor; it is disabled without attributes', async () => {
+  const { wrapper } = await mountPage({ 'GET /api/attributes': { body: [] } })
+  expect(wrapper.get('.add-goal').attributes('disabled')).toBeDefined()
+  wrapper.unmount()
+  const withAttributes = await mountPage({
+    'GET /api/attributes': { body: [attribute({ id: 1, name: 'Protein', unit: 'g' })] },
+  })
+  await click(withAttributes.wrapper.get('.add-goal'))
+  expect(dialog().text).toContain('Add goal')
+  withAttributes.wrapper.unmount()
 })
 
 test('Max solving time is changed in a dialog, which saves the whole setup', async () => {

@@ -1,7 +1,7 @@
 """Field types that request and response models share."""
 
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import Field, PlainSerializer, StringConstraints, WithJsonSchema
 
@@ -13,6 +13,9 @@ from .. import models
 Name = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=1, max_length=models.NAME_LENGTH)
 ]
+
+# Where a goal's bounds apply: each day, the plan's total or its daily average.
+AppliesTo = Literal["day", "plan_total", "daily_average"]
 
 
 def plain(number: Decimal) -> str:

@@ -2,7 +2,7 @@ import { flushPromises } from '@vue/test-utils'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { PlanResult } from '../api/types'
 import { button, click, dialog, fakeServer, mountApp, texts, type FakeServer } from '../test-app'
-import { planResult, planSummary, resultMeal } from '../test-data'
+import { planResult, planSummary, resultGoal, resultMeal, resultMiss } from '../test-data'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -141,6 +141,44 @@ test('the Summary starts collapsed at 6 attributes, with Show all and Show fewer
   expect(texts(wrapper, '.summary-row').at(-1)).toMatch(/^Fibre\s*14 g · 14 g\/day$/)
   await click(button(wrapper, 'Show fewer'))
   expect(texts(wrapper, '.summary-row')).toHaveLength(5)
+  wrapper.unmount()
+})
+
+const proteinGoal = resultGoal({ name: 'Protein per day', attribute: 1, min: '12' })
+const proteinMiss = resultMiss({ goal: 0, day: 2, bound: '12', actual: '10', amount: '2', percent: '16.7' })
+
+test('the Summary lists the missed goals, also when collapsed', async () => {
+  const attributes = [energy, protein, fat, carbs, cost, fibre]
+  const { wrapper } = await mountSaved(week({ attributes, goals: [proteinGoal], misses: [proteinMiss] }))
+  expect(texts(wrapper, '.summary-row')).toHaveLength(5)
+  expect(wrapper.get('.summary-card').text()).toContain('Missed goals')
+  expect(texts(wrapper, '.miss-row')).toEqual([
+    expect.stringMatching(/^Protein per day · below on 1 day\s*worst Wed 23: 10 of 12 g −17%$/),
+  ])
+  expect(wrapper.find('.miss-row .missed').exists()).toBe(true)
+  wrapper.unmount()
+})
+
+test('the Summary says All goals met with goals and no misses, and nothing without goals', async () => {
+  const { wrapper } = await mountSaved(week({ goals: [proteinGoal] }))
+  expect(wrapper.get('.summary-card').text()).toContain('All goals met')
+  expect(wrapper.find('.miss-row').exists()).toBe(false)
+  wrapper.unmount()
+
+  const { wrapper: none } = await mountSaved(week())
+  expect(none.get('.summary-card').text()).not.toContain('All goals met')
+  expect(none.get('.summary-card').text()).not.toContain('Missed goals')
+  none.unmount()
+})
+
+test('the day line marks a value missed that day', async () => {
+  today('2026-09-23')
+  const { wrapper } = await mountSaved(week({ goals: [proteinGoal], misses: [proteinMiss] }))
+  expect(wrapper.get('.day-line').text()).toBe('Protein 10 / 12 g')
+  expect(wrapper.find('.day-line .missed').text()).toBe('Protein 10 / 12 g')
+  await click(arrow(wrapper, 'Previous day'))
+  expect(wrapper.get('.day-line').text()).toBe('Protein 10 g')
+  expect(wrapper.find('.day-line .missed').exists()).toBe(false)
   wrapper.unmount()
 })
 

@@ -1,4 +1,4 @@
-import type { Attribute, Ingredient, Plan, PlanResult, PlanResultSummary, Recipe, ResultMeal, Tag } from './api/types'
+import type { Attribute, Goal, Ingredient, Plan, PlanResult, PlanResultSummary, Recipe, ResultGoal, ResultMeal, ResultMiss, Tag } from './api/types'
 
 // Rows as the server answers them, for tests: give what the test is about,
 // the rest gets a plain default. Typed, so a change to the API shows up
@@ -33,6 +33,20 @@ export function recipe(fields: Given<Recipe, 'id' | 'name'>): Recipe {
   }
 }
 
+/** A goal, by default Prefer at importance 3, each day, with a minimum. */
+export function goal(fields: Given<Goal, 'id' | 'attribute_id'>): Goal {
+  return {
+    name: 'Goal',
+    min: '100',
+    max: null,
+    applies_to: 'day',
+    must: false,
+    importance: 3,
+    zero_reference: null,
+    ...fields,
+  }
+}
+
 /** The plan setup, by default the server's first one: 7 days from Mon 21
  * Sep 2026, Breakfast / Lunch / Dinner, every meal planned, 30 s. */
 export function plan(fields: Partial<Plan> = {}): Plan {
@@ -46,6 +60,7 @@ export function plan(fields: Partial<Plan> = {}): Plan {
     ],
     skips: [],
     minimums: [],
+    goals: [],
     solve_time_limit: 30,
     ...fields,
   }
@@ -70,6 +85,18 @@ export function resultMeal(fields: Given<ResultMeal, 'name'>): ResultMeal {
   return { planned: false, recipe: null, portion: null, totals: [], items: [], ...fields }
 }
 
+/** A goal of a made plan, by default on the first attribute, each day, Prefer,
+ * with a minimum. */
+export function resultGoal(fields: Given<ResultGoal, 'name'>): ResultGoal {
+  return { attribute: 0, applies_to: 'day', must: false, min: '100', max: null, ...fields }
+}
+
+/** A miss of a made plan, by default of the first goal, below its bound on
+ * the first day, by 20 of 100 (20%). */
+export function resultMiss(fields: Partial<ResultMiss> = {}): ResultMiss {
+  return { goal: 0, day: 0, side: 'below', bound: '100', actual: '80', amount: '20', percent: '20', ...fields }
+}
+
 /** A made plan in full, by default with no attributes and no meals. */
 export function planResult(fields: Given<PlanResult, 'id'>): PlanResult {
   const days = fields.days ?? 7
@@ -80,6 +107,8 @@ export function planResult(fields: Given<PlanResult, 'id'>): PlanResult {
     averages: [],
     day_totals: Array.from({ length: days }, () => []),
     meals: Array.from({ length: days }, () => []),
+    goals: [],
+    misses: [],
     ...fields,
   }
 }

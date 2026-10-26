@@ -31,6 +31,7 @@ def test_the_first_read_creates_the_defaults(client):
         ],
         "skips": [],
         "minimums": [],
+        "goals": [],
         "solve_time_limit": 30,
     }
     assert len(set(meal_ids)) == 3
@@ -40,7 +41,7 @@ def test_the_first_read_creates_the_defaults(client):
 def test_saving_before_the_first_read_creates_the_plan(client):
     response = client.put("/api/plan", json={
         "start_date": "2026-11-02", "days": 2, "meals": [{"name": "Lunch"}],
-        "skips": [], "minimums": [], "solve_time_limit": 10,
+        "skips": [], "minimums": [], "goals": [], "solve_time_limit": 10,
     })
     assert response.status_code == 200, response.text
     assert read(client) == response.json()
@@ -66,6 +67,7 @@ def test_every_field_round_trips(client):
         # By day, then meal.
         "skips": [{"day": 0, "meal": 0}, {"day": 0, "meal": 2}, {"day": 2, "meal": 1}],
         "minimums": [{"day": 0, "at_least": 0}, {"day": 2, "at_least": 1}],
+        "goals": [],
         "solve_time_limit": 120,
     }
     assert read(client) == saved
@@ -194,3 +196,174 @@ def test_invalid_fields_answer_422_on_their_field_and_change_nothing(client, cha
 def test_a_minimum_counts_the_planned_meals_after_cells_are_skipped(client):
     saved = put(client, skips=[{"day": 1, "meal": 0}], minimums=[{"day": 1, "at_least": 2}])
     assert saved["minimums"] == [{"day": 1, "at_least": 2}]
+
+
+def goal(attribute_id, **changes) -> dict:
+    """A goal as the editor sends it: Prefer 3, each day, at least 100."""
+    return {
+        "attribute_id": attribute_id, "min": "100", "max": None, "applies_to": "day",
+        "must": False, "importance": 3, "zero_reference": None, **changes,
+    }
+
+
+def test_every_field_of_a_goal_round_trips(client, catalog):
+    energy, protein = catalog.attribute(), catalog.attribute("Protein", "g", 1)
+    saved = put(client, goals=[
+        goal(energy, min=1800, max="2200", applies_to="daily_average", must=True, importance=5),
+        goal(protein, min="0", max="30.5", applies_to="plan_total", importance=1, zero_reference="25"),
+    ])
+    first, second = saved["goals"]
+    assert isinstance(first["id"], int) and first["id"] != second["id"]
+    assert first == {
+        "id": first["id"], "name": "Energy, daily average", "attribute_id": energy, "min": "1800",
+        "max": "2200", "applies_to": "daily_average", "must": True, "importance": 5, "zero_reference": None,
+    }
+    assert second == {
+        "id": second["id"], "name": "Protein, plan total", "attribute_id": protein, "min": "0",
+        "max": "30.5", "applies_to": "plan_total", "must": False, "importance": 1, "zero_reference": "25",
+    }
+    assert read(client) == saved
+
+
+def test_the_goals_are_kept_in_the_order_sent(client, catalog):
+    energy, protein = catalog.attribute(), catalog.attribute("Protein")
+    first, second = put(client, goals=[goal(energy), goal(protein)])["goals"]
+    swapped = put(client, goals=[second, first])
+    assert [g["id"] for g in swapped["goals"]] == [second["id"], first["id"]]
+
+
+def test_a_goal_with_an_id_is_changed_and_keeps_its_id_and_the_columns_the_api_lacks(client, catalog, database_url):
+    from sqlalchemy import create_engine, text
+
+    energy, protein = catalog.attribute(), catalog.attribute("Protein")
+    [stored] = put(client, goals=[goal(energy)])["goals"]
+    engine = create_engine(database_url)
+    with engine.begin() as connection:
+        connection.execute(text(
+            "UPDATE goals SET name = 'Fuel', importance_below = 5, importance_above = 2,"
+            " day_guard_rail = :off, guard_rail_importance = 4"
+        ), {"off": False})
+    [changed] = put(client, goals=[{**stored, "attribute_id": protein, "min": "50", "importance": 4}])["goals"]
+    assert changed["id"] == stored["id"]
+    assert (changed["attribute_id"], changed["min"], changed["importance"]) == (protein, "50", 4)
+    with engine.connect() as connection:
+        row = connection.execute(text(
+            "SELECT name, importance_below, importance_above, day_guard_rail, guard_rail_importance FROM goals"
+        )).one()
+    engine.dispose()
+    assert tuple(row) == ("Fuel", 5, 2, False, 4)
+    # A stored name is the goal's name.
+    assert read(client)["goals"][0]["name"] == "Fuel"
+
+
+def test_a_goal_left_out_is_removed(client, catalog):
+    energy, protein = catalog.attribute(), catalog.attribute("Protein")
+    first, second = put(client, goals=[goal(energy), goal(protein)])["goals"]
+    assert [g["id"] for g in put(client, goals=[second])["goals"]] == [second["id"]]
+    assert put(client, goals=[])["goals"] == []
+
+
+def test_goals_with_the_same_generated_name_are_numbered(client, catalog):
+    energy = catalog.attribute()
+    saved = put(client, goals=[goal(energy), goal(energy, min="1"), goal(energy, applies_to="plan_total")])
+    assert [g["name"] for g in saved["goals"]] == ["Energy per day", "Energy per day (2)", "Energy, plan total"]
+
+
+def test_a_reference_that_is_not_needed_is_not_stored(client, catalog):
+    energy = catalog.attribute()
+    saved = put(client, goals=[
+        goal(energy, must=True, applies_to="day", min="0", zero_reference="25"),
+        goal(energy, min="5", zero_reference="25"),
+    ])
+    assert [g["zero_reference"] for g in saved["goals"]] == [None, None]
+
+
+def test_a_goal_with_no_zero_bound_and_a_zero_bound_needing_it(client, catalog):
+    energy = catalog.attribute()
+    for fields in (
+        {"min": "0"}, {"min": None, "max": "0"}, {"must": True, "applies_to": "daily_average", "min": "0"},
+        {"min": "-5"}, {"min": None, "max": "-5"}, {"must": True, "applies_to": "daily_average", "min": None, "max": "-5"},
+    ):
+        response = client.put("/api/plan", json={**read(client), "goals": [goal(energy, **fields)]})
+        assert response.status_code == 422, fields
+        assert [(e["loc"], e["type"]) for e in response.json()["detail"]] == [
+            (["body", "goals", 0, "zero_reference"], "needs_reference")
+        ]
+    saved = put(client, goals=[goal(energy, min="0", zero_reference="10")])
+    assert saved["goals"][0]["zero_reference"] == "10"
+
+
+def test_a_bound_may_be_negative(client, catalog):
+    energy = catalog.attribute()
+    saved = put(client, goals=[goal(energy, must=True, min="-50", max="-10")])
+    assert (saved["goals"][0]["min"], saved["goals"][0]["max"]) == ("-50", "-10")
+
+
+def test_a_stored_goal_is_not_held_to_a_later_cut_in_its_attributes_decimals(client, catalog):
+    protein = catalog.attribute("Protein", "g", 1)
+    [stored] = put(client, goals=[goal(protein, min=None, max="10.5")])["goals"]
+    response = client.put(f"/api/attributes/{protein}", json={"name": "Protein", "unit": "g", "decimals": 0})
+    assert response.status_code == 200, response.text
+    # The schedule and the unchanged goal save; a changed bound is checked again.
+    assert put(client, days=5, goals=[stored])["days"] == 5
+    response = client.put("/api/plan", json={**read(client), "goals": [{**stored, "max": "10.6"}]})
+    assert response.status_code == 422
+    assert [(e["loc"], e["type"]) for e in response.json()["detail"]] == [(["body", "goals", 0, "max"], "too_many_decimals")]
+    # Equal as numbers is unchanged; a bound of its own attribute's precision is fine.
+    assert put(client, goals=[{**stored, "max": "10.50"}])["goals"][0]["max"] == "10.5"
+
+
+def test_a_goal_moved_to_another_attribute_is_checked_again(client, catalog):
+    energy, protein = catalog.attribute(), catalog.attribute("Protein", "g", 1)
+    [stored] = put(client, goals=[goal(protein, min=None, max="10.5")])["goals"]
+    response = client.put("/api/plan", json={**read(client), "goals": [{**stored, "attribute_id": energy}]})
+    assert response.status_code == 422
+    assert [e["type"] for e in response.json()["detail"]] == ["too_many_decimals"]
+
+
+def test_a_bound_may_have_trailing_zeros_beyond_the_attributes_decimals(client, catalog):
+    energy = catalog.attribute()
+    assert put(client, goals=[goal(energy, min="100.000")])["goals"][0]["min"] == "100"
+
+
+@pytest.mark.parametrize(
+    ("fields", "loc", "error_type"),
+    [
+        ({"attribute_id": 999}, ["attribute_id"], "unknown_attribute"),
+        ({"min": None, "max": None}, ["min"], "no_bound"),
+        ({"min": "10", "max": "9"}, ["min"], "min_above_max"),
+        ({"min": "100.5"}, ["min"], "too_many_decimals"),
+        ({"min": None, "max": "9.01"}, ["max"], "too_many_decimals"),
+        ({"id": 999}, ["id"], "unknown_goal"),
+        ({"importance": 0}, ["importance"], "greater_than_equal"),
+        ({"importance": 6}, ["importance"], "less_than_equal"),
+        ({"zero_reference": "0"}, ["zero_reference"], "greater_than"),
+        ({"zero_reference": "-1"}, ["zero_reference"], "greater_than"),
+        ({"applies_to": "week"}, ["applies_to"], "literal_error"),
+    ],
+)
+def test_an_invalid_goal_answers_422_on_its_field_and_changes_nothing(client, catalog, fields, loc, error_type):
+    energy = catalog.attribute()
+    before = put(client, goals=[goal(energy)])
+    body = {**read(client), "goals": [*before["goals"], {**goal(energy), **fields}]}
+    response = client.put("/api/plan", json=body)
+    assert response.status_code == 422
+    assert [(e["loc"], e["type"]) for e in response.json()["detail"]] == [(["body", "goals", 1, *loc], error_type)]
+    assert read(client) == before
+
+
+def test_a_goal_given_twice_or_of_a_deleted_attribute_answers_422(client, catalog):
+    energy = catalog.attribute()
+    [stored] = put(client, goals=[goal(energy)])["goals"]
+    response = client.put("/api/plan", json={**read(client), "goals": [stored, stored]})
+    assert [(e["loc"], e["type"]) for e in response.json()["detail"]] == [(["body", "goals", 1, "id"], "duplicate")]
+    client.delete(f"/api/attributes/{energy}")
+    assert read(client)["goals"] == []
+
+
+def test_at_most_50_goals(client, catalog):
+    energy = catalog.attribute()
+    assert len(put(client, goals=[goal(energy)] * 50)["goals"]) == 50
+    response = client.put("/api/plan", json={**read(client), "goals": [goal(energy)] * 51})
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "goals"]

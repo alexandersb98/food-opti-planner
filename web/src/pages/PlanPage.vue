@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { api } from '../api/client'
-import type { Plan, PlanResults, TodayPlan } from '../api/types'
+import type { Attribute, Goal, Plan, PlanResults, TodayPlan } from '../api/types'
+import GoalDialog from '../components/GoalDialog.vue'
+import GoalsCard from '../components/GoalsCard.vue'
 import LoadState from '../components/LoadState.vue'
 import MaxTimeDialog from '../components/MaxTimeDialog.vue'
 import SavedPlansCard from '../components/SavedPlansCard.vue'
@@ -19,17 +21,26 @@ const { data, loading, failed, load } = useLoad(
   () =>
     loadAll({
       plan: api.GET('/api/plan'),
+      attributes: api.GET('/api/attributes'),
       results: api.GET('/api/plan-results'),
       today: api.GET('/api/plan-results/today', { params: { query: { date: localDate() } } }),
     }),
   {
     plan: null as Plan | null,
+    attributes: [] as Attribute[],
     results: { unsaved: null, saved: [] } as PlanResults,
     today: null as TodayPlan | null,
   },
 )
 const maxTimeOpen = ref(false)
+const goalOpen = ref(false)
+const editedGoal = ref<Goal | null>(null)
 const solve = useSolve()
+
+function editGoal(goal: Goal | null) {
+  editedGoal.value = goal
+  goalOpen.value = true
+}
 
 function makePlan() {
   if (data.value.plan) void solve.start(data.value.plan.solve_time_limit)
@@ -95,6 +106,13 @@ function makePlan() {
 
         <ScheduleCard :plan="data.plan" />
 
+        <GoalsCard
+          :goals="data.plan.goals"
+          :attributes="data.attributes"
+          @edit="editGoal"
+          @add="editGoal(null)"
+        />
+
         <q-list
           bordered
           class="rounded-borders"
@@ -122,6 +140,14 @@ function makePlan() {
           v-if="data.results.saved.length > 0"
           :plans="data.results.saved"
           :today-id="data.today?.id ?? null"
+        />
+
+        <GoalDialog
+          v-model="goalOpen"
+          :plan="data.plan"
+          :attributes="data.attributes"
+          :goal="editedGoal"
+          @saved="data.plan = $event"
         />
 
         <MaxTimeDialog

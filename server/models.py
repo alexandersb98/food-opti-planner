@@ -9,9 +9,12 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .db import Base
 
 NAME_LENGTH = 100
+# A goal's generated name: an attribute's name, ", daily average" and " (NN)".
+GOAL_NAME_LENGTH = 130
 UNIT_LENGTH = 20
 MEAL_NAME_LENGTH = 40
 DERIVE_LENGTH = 3  # "all" or "any"
+APPLIES_TO_LENGTH = 13  # "daily_average"
 STATUS_LENGTH = 12  # "optimal", "time_ran_out", "stopped"
 # Numbers typed on forms (ingredient values, value bases, ...), stored
 # exactly as typed. 15 digits stay exact even in SQLite, which holds them as
@@ -154,6 +157,9 @@ class Plan(Base):
     minimums: Mapped[list["PlanDayMinimum"]] = relationship(
         cascade="all, delete-orphan", passive_deletes=True, order_by="PlanDayMinimum.day"
     )
+    goals: Mapped[list["Goal"]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True, order_by="Goal.position"
+    )
 
 
 class PlanMeal(Base):
@@ -195,6 +201,37 @@ class PlanDayMinimum(Base):
     at_least: Mapped[int]
 
 
+class Goal(Base):
+    """A bound on an attribute that the plan aims for (the library's
+    constraint). `name` NULL means the generated one. `min` and `max` are
+    NULL for no bound. `applies_to` is "day", "plan_total" or
+    "daily_average". `importance` (1-5) is kept for a Must goal too, so
+    switching back restores it. `zero_reference` is the zero-bound field,
+    NULL when not needed. The last four columns have no API field yet: NULL
+    importance_below/importance_above mean the goal's importance, and NULL
+    guard_rail_importance the library's default (half the goal's weight)."""
+
+    __tablename__ = "goals"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    plan_id: Mapped[int] = mapped_column(ForeignKey("plan.id", ondelete="CASCADE"))
+    attribute_id: Mapped[int] = mapped_column(ForeignKey("attributes.id", ondelete="CASCADE"))
+    # The goals' order, from 0.
+    position: Mapped[int]
+    name: Mapped[str | None] = mapped_column(String(GOAL_NAME_LENGTH))
+    min: Mapped[Decimal | None] = mapped_column(EXACT_NUMBER)
+    max: Mapped[Decimal | None] = mapped_column(EXACT_NUMBER)
+    applies_to: Mapped[str] = mapped_column(String(APPLIES_TO_LENGTH))
+    must: Mapped[bool]
+    importance: Mapped[int] = mapped_column(default=3)
+    zero_reference: Mapped[Decimal | None] = mapped_column(EXACT_NUMBER)
+    importance_below: Mapped[int | None]
+    importance_above: Mapped[int | None]
+    day_guard_rail: Mapped[bool] = mapped_column(default=True)
+    guard_rail_importance: Mapped[int | None]
+    attribute: Mapped[Attribute] = relationship()
+
+
 class PlanResult(Base):
     """A plan the planner made (R1): the unsaved one, or a saved one. A
     frozen copy of what was planned, so nothing in it refers to the catalog
@@ -232,6 +269,9 @@ class PlanResult(Base):
     # Every meal's, day's and the whole plan's totals.
     totals: Mapped[list["PlanResultTotal"]] = relationship(
         cascade="all, delete-orphan", passive_deletes=True, order_by="PlanResultTotal.id"
+    )
+    goals: Mapped[list["PlanResultGoal"]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True, order_by="PlanResultGoal.position"
     )
 
 
@@ -302,9 +342,50 @@ class PlanResultTotal(Base):
     meal: Mapped[PlanResultMeal | None] = relationship()
 
 
+class PlanResultGoal(Base):
+    """A goal as it was when the plan was made, on the result's copy of its
+    attribute. `name` is the one the plan's constraint had."""
+
+    __tablename__ = "plan_result_goals"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    plan_result_id: Mapped[int] = mapped_column(ForeignKey("plan_results.id", ondelete="CASCADE"))
+    attribute_id: Mapped[int] = mapped_column(ForeignKey("plan_result_attributes.id", ondelete="CASCADE"))
+    # The goals' order, from 0.
+    position: Mapped[int]
+    name: Mapped[str] = mapped_column(String(GOAL_NAME_LENGTH))
+    applies_to: Mapped[str] = mapped_column(String(APPLIES_TO_LENGTH))
+    must: Mapped[bool]
+    min: Mapped[Decimal | None] = mapped_column(EXACT_NUMBER)
+    max: Mapped[Decimal | None] = mapped_column(EXACT_NUMBER)
+    attribute: Mapped[PlanResultAttribute] = relationship()
+    misses: Mapped[list["PlanResultMiss"]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True, order_by="PlanResultMiss.id"
+    )
+
+
+class PlanResultMiss(Base):
+    """Where the plan missed a goal's bound: on a day (`day` from 0) or over
+    the whole plan (NULL). `side` is "below" or "above". The numbers are
+    rounded to the attribute's decimals, `percent` to 1 decimal; a daily
+    average's are per day."""
+
+    __tablename__ = "plan_result_misses"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    goal_id: Mapped[int] = mapped_column(ForeignKey("plan_result_goals.id", ondelete="CASCADE"))
+    day: Mapped[int | None]
+    side: Mapped[str] = mapped_column(String(5))
+    bound: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
+    actual: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
+    amount: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
+    percent: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
+
+
 __all__ = [
     "Attribute",
     "Base",
+    "Goal",
     "Ingredient",
     "IngredientValue",
     "Plan",
@@ -312,8 +393,10 @@ __all__ = [
     "PlanMeal",
     "PlanResult",
     "PlanResultAttribute",
+    "PlanResultGoal",
     "PlanResultMeal",
     "PlanResultMealItem",
+    "PlanResultMiss",
     "PlanResultTotal",
     "PlanSkip",
     "Recipe",

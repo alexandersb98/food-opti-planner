@@ -11,9 +11,10 @@ import pytest
 
 import meal_planner
 from meal_planner import ConflictReport, ModelTooLargeError, Plan, PlanRequestError, SolveStatus
+from server import models
 from server.api import plan as plan_api
 
-from .conftest import schedule
+from .conftest import fixed_portion_recipe, schedule
 
 
 def solve(client, solve_id: str = "s1") -> dict:
@@ -47,12 +48,13 @@ def test_a_plan_is_stored_as_the_unsaved_plan_and_answered_in_full(client, porri
     plan = outcome["plan"]
     assert set(plan) == {
         "id", "saved", "status", "start_date", "days", "created_at", "saved_at",
-        "attributes", "totals", "averages", "day_totals", "meals",
+        "attributes", "totals", "averages", "day_totals", "meals", "goals", "misses",
     }
     assert plan["created_at"].endswith("Z")
     assert {k: plan[k] for k in ("saved", "status", "start_date", "days", "saved_at")} == {
         "saved": False, "status": "optimal", "start_date": "2026-10-26", "days": 2, "saved_at": None,
     }
+    assert (plan["goals"], plan["misses"]) == ([], [])
     assert plan["attributes"] == [
         {"name": "Energy", "unit": "kcal", "decimals": 0},
         {"name": "Protein", "unit": "g", "decimals": 1},
@@ -317,3 +319,88 @@ def test_a_real_solve_can_be_cancelled(client, porridge, monkeypatch):
     monkeypatch.setattr(plan_api, "solve_plan", stopped_first)
     assert solve(client) == {"plan": None, "failure": "stopped"}
     assert stops[0].stopped
+
+
+def one_meal_two_recipes(client, catalog):
+    """A day of one meal that either recipe can make: Light (100 kcal) or
+    Heavy (300 kcal), each always eaten as one portion. Answers Energy."""
+    energy = catalog.attribute()
+    food = catalog.ingredient("Food", "g", "1", values={energy: "100"})
+    fixed_portion_recipe(catalog, "Light", {food: "1"}, "1")
+    fixed_portion_recipe(catalog, "Heavy", {food: "3"}, "1")
+    schedule(client, start_date="2026-10-26", days=1, meals=[{"name": "Lunch"}], skips=[], minimums=[], solve_time_limit=10)
+    return energy
+
+
+def goal(attribute_id, **changes) -> dict:
+    return {
+        "attribute_id": attribute_id, "min": None, "max": None, "applies_to": "day",
+        "must": False, "importance": 3, "zero_reference": None, **changes,
+    }
+
+
+def chosen(client) -> str:
+    return solve(client)["plan"]["meals"][0][0]["recipe"]
+
+
+def test_a_prefer_goal_decides_between_recipes_that_are_otherwise_equal(client, catalog):
+    energy = one_meal_two_recipes(client, catalog)
+    schedule(client, goals=[goal(energy, max="150")])
+    assert chosen(client) == "Light"
+    schedule(client, goals=[goal(energy, min="250")])
+    assert chosen(client) == "Heavy"
+
+
+def test_a_must_goal_the_catalog_cannot_meet_is_infeasible(client, catalog):
+    energy = one_meal_two_recipes(client, catalog)
+    schedule(client, goals=[goal(energy, min="1000", must=True)])
+    assert solve(client) == {"plan": None, "failure": "infeasible"}
+
+
+def test_a_must_goal_the_catalog_can_meet_is_kept(client, catalog):
+    energy = one_meal_two_recipes(client, catalog)
+    schedule(client, goals=[goal(energy, min="250", must=True, applies_to="plan_total")])
+    assert chosen(client) == "Heavy"
+
+
+def test_a_prefer_goal_the_plan_misses_is_answered_with_its_miss(client, catalog):
+    energy = one_meal_two_recipes(client, catalog)
+    schedule(client, goals=[goal(energy, min="400")])
+    # Heavy, at 300 kcal, is as close as the catalog gets.
+    plan = solve(client)["plan"]
+    assert plan["goals"] == [
+        {"name": "Energy per day", "attribute": 0, "applies_to": "day", "must": False, "min": "400", "max": None},
+    ]
+    assert plan["misses"] == [
+        {"goal": 0, "day": 0, "side": "below", "bound": "400", "actual": "300", "amount": "100", "percent": "25"},
+    ]
+
+
+def test_a_goal_the_plan_meets_has_no_miss(client, catalog):
+    energy = one_meal_two_recipes(client, catalog)
+    schedule(client, goals=[goal(energy, min="250")])
+    plan = solve(client)["plan"]
+    assert (len(plan["goals"]), plan["misses"]) == (1, [])
+
+
+def test_a_generated_name_of_the_longest_attribute_fits_the_stored_name(client, catalog):
+    name = "A" * 100
+    energy = catalog.attribute(name)
+    food = catalog.ingredient("Food", "g", "1", values={energy: "100"})
+    fixed_portion_recipe(catalog, "Light", {food: "1"}, "1")
+    schedule(client, start_date="2026-10-26", days=1, meals=[{"name": "Lunch"}], skips=[], minimums=[],
+             goals=[goal(energy, min="400", applies_to="daily_average")], solve_time_limit=10)
+    full = f"{name}, daily average"
+    assert [g["name"] for g in solve(client)["plan"]["goals"]] == [full]
+    # SQLite does not enforce lengths, Postgres does; with " (NN)" too.
+    for column in (models.Goal.name, models.PlanResultGoal.name):
+        assert column.type.length >= len(f"{full} (50)")
+
+
+def test_misses_come_by_goal_then_the_whole_plan_before_the_days(client, catalog):
+    energy = one_meal_two_recipes(client, catalog)
+    schedule(client, goals=[goal(energy, min="1000"), goal(energy, min="1000", applies_to="daily_average")])
+    misses = solve(client)["plan"]["misses"]
+    assert [(m["goal"], m["day"], m["side"]) for m in misses] == [
+        (0, 0, "below"), (1, None, "below"), (1, 0, "below"),
+    ]

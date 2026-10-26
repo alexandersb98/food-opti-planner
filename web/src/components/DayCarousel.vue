@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { PlanResult, ResultMeal } from '../api/types'
 import { dayLabel } from '../dates'
 import { valueText } from '../format'
+import { dayLine } from '../misses'
 import { roundedText } from '../totals'
 
 // The results page's days (R1): one day at a time, swiped or moved with
 // the arrows, with Today to jump back when the plan covers today. A day
-// shows a line of totals (until goals, the first three attributes; all on
-// tap) and its meals in schedule order; tapping a planned meal opens its
-// ingredients, scaled to the portion, and its totals.
+// shows a line of totals (the attributes with goals, or the first three; all
+// on tap; a value missed that day in the warning colour) and its meals in
+// schedule order; tapping a planned meal opens its ingredients, scaled to the
+// portion, and its totals.
 const props = defineProps<{
   plan: PlanResult
   today: number | null // today's day in the plan, if it covers today
@@ -19,8 +22,8 @@ const props = defineProps<{
 
 /** Scaled amounts are shown with at most this many decimals. */
 const AMOUNT_DECIMALS = 2
-/** Until goals (slice 8), the day's line shows this many attributes. */
-const LINE_ATTRIBUTES = 3
+
+const { t } = useI18n()
 
 const day = ref(props.initialDay)
 const openMeals = reactive(new Set<string>()) // "day:meal" of each open meal
@@ -29,9 +32,8 @@ if (props.initialMeal !== null && props.plan.meals[props.initialDay]?.[props.ini
   openMeals.add(`${props.initialDay}:${props.initialMeal}`)
 const allTotals = reactive(new Set<number>()) // days showing every attribute
 
-function totalsText(values: readonly string[], count = values.length) {
+function totalsText(values: readonly string[]) {
   return props.plan.attributes
-    .slice(0, count)
     .map((attribute, i) => valueText(attribute, values[i] ?? '0'))
     .join(' · ')
 }
@@ -112,7 +114,17 @@ const position = computed(() => ({
               class="day-line text-grey-9"
               @click="toggle(allTotals, dayIndex)"
             >
-              <q-item-section>{{ totalsText(plan.day_totals[dayIndex] ?? [], LINE_ATTRIBUTES) }}</q-item-section>
+              <q-item-section>
+                <div>
+                  <template
+                    v-for="(part, i) in dayLine(plan, dayIndex, t)"
+                    :key="i"
+                  >
+                    <span v-if="i > 0"> · </span>
+                    <span :class="{ 'missed text-deep-orange-9': part.missed }">{{ part.text }}</span>
+                  </template>
+                </div>
+              </q-item-section>
             </q-item>
             <div
               v-if="allTotals.has(dayIndex)"

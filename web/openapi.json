@@ -149,6 +149,173 @@
         "title": "FieldErrors",
         "type": "object"
       },
+      "Goal": {
+        "properties": {
+          "applies_to": {
+            "enum": [
+              "day",
+              "plan_total",
+              "daily_average"
+            ],
+            "title": "Applies To",
+            "type": "string"
+          },
+          "attribute_id": {
+            "title": "Attribute Id",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "importance": {
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Importance",
+            "type": "integer"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "must": {
+            "title": "Must",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "zero_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zero Reference"
+          }
+        },
+        "required": [
+          "id",
+          "attribute_id",
+          "applies_to",
+          "must",
+          "importance",
+          "name"
+        ],
+        "title": "Goal",
+        "type": "object"
+      },
+      "GoalFields": {
+        "description": "A goal: a bound on an attribute, per day or over the plan. At least\none of `min` and `max` is given. `importance` (1-5) is how much a Prefer\ngoal weighs; a Must goal keeps its own. `zero_reference` is given exactly\nwhen a bound is 0 and a soft penalty is made from it (the library's\nrule, `translate.needs_zero_reference`) and is dropped otherwise.",
+        "properties": {
+          "applies_to": {
+            "enum": [
+              "day",
+              "plan_total",
+              "daily_average"
+            ],
+            "title": "Applies To",
+            "type": "string"
+          },
+          "attribute_id": {
+            "title": "Attribute Id",
+            "type": "integer"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "importance": {
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Importance",
+            "type": "integer"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "must": {
+            "title": "Must",
+            "type": "boolean"
+          },
+          "zero_reference": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zero Reference"
+          }
+        },
+        "required": [
+          "attribute_id",
+          "applies_to",
+          "must",
+          "importance"
+        ],
+        "title": "GoalFields",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -427,6 +594,13 @@
             "title": "Days",
             "type": "integer"
           },
+          "goals": {
+            "items": {
+              "$ref": "#/components/schemas/Goal"
+            },
+            "title": "Goals",
+            "type": "array"
+          },
           "meals": {
             "items": {
               "$ref": "#/components/schemas/Meal"
@@ -466,6 +640,7 @@
           "meals",
           "skips",
           "minimums",
+          "goals",
           "solve_time_limit"
         ],
         "title": "Plan",
@@ -478,6 +653,14 @@
             "minimum": 1.0,
             "title": "Days",
             "type": "integer"
+          },
+          "goals": {
+            "items": {
+              "$ref": "#/components/schemas/GoalFields"
+            },
+            "maxItems": 50,
+            "title": "Goals",
+            "type": "array"
           },
           "meals": {
             "items": {
@@ -520,6 +703,7 @@
           "meals",
           "skips",
           "minimums",
+          "goals",
           "solve_time_limit"
         ],
         "title": "PlanFields",
@@ -561,6 +745,13 @@
             "title": "Days",
             "type": "integer"
           },
+          "goals": {
+            "items": {
+              "$ref": "#/components/schemas/ResultGoal"
+            },
+            "title": "Goals",
+            "type": "array"
+          },
           "id": {
             "title": "Id",
             "type": "integer"
@@ -573,6 +764,13 @@
               "type": "array"
             },
             "title": "Meals",
+            "type": "array"
+          },
+          "misses": {
+            "items": {
+              "$ref": "#/components/schemas/ResultMiss"
+            },
+            "title": "Misses",
             "type": "array"
           },
           "saved": {
@@ -625,7 +823,9 @@
           "totals",
           "averages",
           "day_totals",
-          "meals"
+          "meals",
+          "goals",
+          "misses"
         ],
         "title": "PlanResult",
         "type": "object"
@@ -972,6 +1172,64 @@
         "title": "ResultAttribute",
         "type": "object"
       },
+      "ResultGoal": {
+        "description": "A goal as the plan was made with it. `attribute` is an index into\n`attributes`; `min` and `max` are None for no bound.",
+        "properties": {
+          "applies_to": {
+            "enum": [
+              "day",
+              "plan_total",
+              "daily_average"
+            ],
+            "title": "Applies To",
+            "type": "string"
+          },
+          "attribute": {
+            "title": "Attribute",
+            "type": "integer"
+          },
+          "max": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max"
+          },
+          "min": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min"
+          },
+          "must": {
+            "title": "Must",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "attribute",
+          "applies_to",
+          "must",
+          "min",
+          "max"
+        ],
+        "title": "ResultGoal",
+        "type": "object"
+      },
       "ResultItem": {
         "description": "An ingredient scaled to the meal's portion, in its unit.",
         "properties": {
@@ -1053,6 +1311,61 @@
           "items"
         ],
         "title": "ResultMeal",
+        "type": "object"
+      },
+      "ResultMiss": {
+        "description": "Where the plan missed a goal's bound, on a `day` (from 0) or over the\nwhole plan (None). `goal` is an index into `goals`; the numbers are in\nthe attribute's unit, per day for a daily average. `percent` is the miss\nas a percentage of the goal's reference, to 1 decimal.",
+        "properties": {
+          "actual": {
+            "title": "Actual",
+            "type": "string"
+          },
+          "amount": {
+            "title": "Amount",
+            "type": "string"
+          },
+          "bound": {
+            "title": "Bound",
+            "type": "string"
+          },
+          "day": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day"
+          },
+          "goal": {
+            "title": "Goal",
+            "type": "integer"
+          },
+          "percent": {
+            "title": "Percent",
+            "type": "string"
+          },
+          "side": {
+            "enum": [
+              "below",
+              "above"
+            ],
+            "title": "Side",
+            "type": "string"
+          }
+        },
+        "required": [
+          "goal",
+          "day",
+          "side",
+          "bound",
+          "actual",
+          "amount",
+          "percent"
+        ],
+        "title": "ResultMiss",
         "type": "object"
       },
       "Skip": {

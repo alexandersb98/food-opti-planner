@@ -278,10 +278,33 @@ test('Save sends the setup and returns to the Plan page', async () => {
         { day: 0, at_least: 2 },
         { day: 3, at_least: 0 },
       ],
+      goals: [],
       solve_time_limit: 30,
     },
   ])
   expect(router.currentRoute.value.fullPath).toBe('/')
+  wrapper.unmount()
+})
+
+test('the plan\'s goals are sent back unchanged', async () => {
+  const goal = {
+    id: 7,
+    name: 'Energy per day',
+    attribute_id: 1,
+    min: '1800',
+    max: null,
+    applies_to: 'day' as const,
+    must: false,
+    importance: 3,
+    zero_reference: null,
+  }
+  const { sent, handler } = recorder(200)
+  const { wrapper } = await mountPage({
+    'GET /api/plan': { body: { ...stored, goals: [goal] } },
+    'PUT /api/plan': handler,
+  })
+  await click(button(wrapper, 'Save'))
+  expect(sent).toEqual([expect.objectContaining({ goals: [goal] })])
   wrapper.unmount()
 })
 
