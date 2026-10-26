@@ -3,13 +3,13 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { api } from '../api/client'
-import { fieldErrors } from '../api/errors'
 import type { Plan, PlanFields as Fields } from '../api/types'
 import EditorHeader from '../components/EditorHeader.vue'
 import LoadState from '../components/LoadState.vue'
 import MealNamesDialog, { type MealName } from '../components/MealNamesDialog.vue'
 import { useLoad } from '../composables/useLoad'
 import { dateRange, dayLabel } from '../dates'
+import { planFields, useSavePlan } from '../plan'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -40,17 +40,15 @@ const errors = reactive({
   minimums: {} as Partial<Record<number, string>>, // by day
   save: '',
 })
-const saving = ref(false)
+const { saving, savePlan } = useSavePlan()
 const mealsOpen = ref(false)
-let solveTimeLimit = 30
-// The goals, sent back as they were: this page doesn't edit them.
-let goals: Plan['goals'] = []
 let nextKey = 0
 
-const { loading, failed, load } = useLoad(async () => {
-  const loaded = await api.GET('/api/plan')
-  if (loaded.data) fillDraft(loaded.data)
-  return loaded
+// The setup as loaded: the parts this page doesn't edit are sent back as they were.
+const { data: loaded, loading, failed, load } = useLoad(async () => {
+  const answer = await api.GET('/api/plan')
+  if (answer.data) fillDraft(answer.data)
+  return answer
 }, null as Plan | null)
 
 function fillDraft(plan: Plan) {
@@ -61,8 +59,6 @@ function fillDraft(plan: Plan) {
   draft.skipped = new Set(plan.skips.map(({ day, meal }) => cellKey(day, draft.meals[meal]!.key)))
   draft.minimums = Array.from({ length: DAYS.max }, () => null)
   for (const { day, at_least } of plan.minimums) draft.minimums[day] = at_least
-  solveTimeLimit = plan.solve_time_limit
-  goals = plan.goals
 }
 
 function cellKey(day: number, mealKey: number) {
@@ -157,9 +153,10 @@ function checked(): Fields | null {
   const count = validDays(draft.daysText)
   errors.start = start ? '' : t('schedule.startInvalid')
   errors.days = count === null ? t('schedule.daysRange', DAYS) : ''
-  if (!start || count === null) return null
+  if (!start || count === null || !loaded.value) return null
   const visible = rows.value.slice(0, count)
   return {
+    ...planFields(loaded.value),
     start_date: start,
     days: count,
     meals: draft.meals.map(({ id, name }) => ({ id, name })),
@@ -170,8 +167,6 @@ function checked(): Fields | null {
       const atLeast = draft.minimums[day]
       return atLeast == null ? [] : [{ day, at_least: atLeast }]
     }),
-    goals,
-    solve_time_limit: solveTimeLimit,
   }
 }
 
@@ -182,19 +177,9 @@ async function save() {
   errors.save = ''
   const fields = checked()
   if (!fields) return
-  saving.value = true
-  try {
-    const { data, error } = await api.PUT('/api/plan', { body: fields })
-    if (data) {
-      await router.push('/')
-      return
-    }
-    showServerErrors(fieldErrors(error), fields)
-  } catch {
-    errors.save = t('common.saveFailed')
-  } finally {
-    saving.value = false
-  }
+  const saved = await savePlan(fields)
+  if (saved.plan) await router.push('/')
+  else showServerErrors(saved.errors, fields)
 }
 
 /** A field the server refuses, on its field; anything else just failed. */

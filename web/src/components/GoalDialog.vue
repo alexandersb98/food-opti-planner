@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { api } from '../api/client'
-import { fieldErrors } from '../api/errors'
 import type { Attribute, Goal, GoalFields, Plan } from '../api/types'
 import { IMPORTANCE, needsZeroReference } from '../goals'
 import { typedNumber } from '../numbers'
+import { goalFields, planFields, useSavePlan } from '../plan'
 
 // The goal editor on the Plan page (A3), a bottom sheet: a goal's main form,
 // opened for a new goal or to change or delete `goal`. Saved by sending the
@@ -27,7 +26,7 @@ const draft = reactive({
   zero_reference: '',
 })
 const errors = reactive({ attribute: '', min: '', max: '', reference: '', save: '' })
-const saving = ref(false)
+const { saving, savePlan } = useSavePlan()
 
 watch(open, (isOpen) => {
   if (!isOpen) return
@@ -109,29 +108,14 @@ function fields(): GoalFields | null {
   }
 }
 
-/** The goals as they are stored, as the server takes them. */
-function stored(goal: Goal): GoalFields {
-  const { id, attribute_id, min, max, applies_to, must, importance, zero_reference } = goal
-  return { id, attribute_id, min, max, applies_to, must, importance, zero_reference }
-}
-
 /** `index` is where the goal is among `goals`, or null when none is to be marked. */
 async function send(goals: GoalFields[], index: number | null) {
-  saving.value = true
-  try {
-    const { data, error } = await api.PUT('/api/plan', { body: { ...props.plan, goals } })
-    if (data) {
-      emit('saved', data)
-      open.value = false
-      return
-    }
-    if (index === null) errors.save = t('common.saveFailed')
-    else markServerErrors(fieldErrors(error), index)
-  } catch {
-    errors.save = t('common.saveFailed')
-  } finally {
-    saving.value = false
-  }
+  const saved = await savePlan({ ...planFields(props.plan), goals })
+  if (saved.plan) {
+    emit('saved', saved.plan)
+    open.value = false
+  } else if (index === null) errors.save = t('common.saveFailed')
+  else markServerErrors(saved.errors, index)
 }
 
 /** Mark what the server refused on the goal at `index` of the goals sent. */
@@ -165,7 +149,7 @@ const index = computed(() => {
 async function save() {
   const goal = fields()
   if (!goal) return
-  const goals = props.plan.goals.map(stored)
+  const goals = props.plan.goals.map(goalFields)
   if (props.goal) goals[index.value] = goal
   else goals.push(goal)
   await send(goals, index.value)
@@ -173,7 +157,7 @@ async function save() {
 
 async function remove() {
   errors.save = ''
-  await send(props.plan.goals.filter(({ id }) => id !== props.goal?.id).map(stored), null)
+  await send(props.plan.goals.filter(({ id }) => id !== props.goal?.id).map(goalFields), null)
 }
 </script>
 
