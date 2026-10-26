@@ -1,4 +1,4 @@
-import type { Attribute, Ingredient, Plan, PlanResult, PlanResultSummary, Recipe, ResultMeal, Tag } from './api/types'
+import type { Attribute, Goal, Ingredient, Plan, PlanResult, PlanResultSummary, Recipe, ResultMeal, Tag } from './api/types'
 
 // Rows as the server answers them, for tests: give what the test is about,
 // the rest gets a plain default. Typed, so a change to the API shows up
@@ -29,6 +29,20 @@ export function recipe(fields: Given<Recipe, 'id' | 'name'>): Recipe {
     serving_cap_weight: '1',
     derived_tag_ids: [],
     totals: [],
+    ...fields,
+  }
+}
+
+/** A goal, by default Prefer at importance 3, each day, with a minimum. */
+export function goal(fields: Given<Goal, 'id' | 'attribute_id'>): Goal {
+  return {
+    name: 'Goal',
+    min: '100',
+    max: null,
+    applies_to: 'day',
+    must: false,
+    importance: 3,
+    zero_reference: null,
     ...fields,
   }
 }

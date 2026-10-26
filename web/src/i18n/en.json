@@ -176,6 +176,43 @@
     "savedAt": "saved {day}, {time}",
     "todayChip": "Today"
   },
+  "goals": {
+    "title": "Goals",
+    "add": "+ Add goal",
+    "addAttributeFirst": "Add an attribute first",
+    "range": {
+      "between": "{min}–{max} {unit}",
+      "exactly": "exactly {value} {unit}",
+      "atLeast": "at least {value} {unit}",
+      "atMost": "at most {value} {unit}"
+    },
+    "scope": {
+      "day": "Each day",
+      "plan_total": "Whole plan · total",
+      "daily_average": "Whole plan · daily average"
+    },
+    "must": "Must",
+    "prefer": "Prefer",
+    "importanceOf": "Importance {n} of {max}",
+    "editor": {
+      "addTitle": "Add goal",
+      "editTitle": "Edit goal",
+      "attribute": "What to track",
+      "min": "Min",
+      "max": "Max",
+      "appliesTo": "Applies to",
+      "strictness": "How strict",
+      "importance": "Importance",
+      "zeroReference": "Count a miss as a percentage of",
+      "zeroExample": "With {reference} {unit}, missing by {miss} {unit} counts as {percent}%.",
+      "needBound": "Give a minimum, a maximum or both.",
+      "notNumber": "A number, such as 120 or 1.5.",
+      "minAboveMax": "Must be at most the maximum.",
+      "tooManyDecimals": "At most {n} decimals for {attribute}.",
+      "referenceNeeded": "A number above 0.",
+      "unknownAttribute": "Pick an attribute."
+    }
+  },
   "schedule": {
     "title": "Schedule",
     "starts": "Starts",
