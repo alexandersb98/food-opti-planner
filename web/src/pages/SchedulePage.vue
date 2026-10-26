@@ -43,6 +43,8 @@ const errors = reactive({
 const saving = ref(false)
 const mealsOpen = ref(false)
 let solveTimeLimit = 30
+// The goals, sent back as they were: this page doesn't edit them.
+let goals: Plan['goals'] = []
 let nextKey = 0
 
 const { loading, failed, load } = useLoad(async () => {
@@ -60,6 +62,7 @@ function fillDraft(plan: Plan) {
   draft.minimums = Array.from({ length: DAYS.max }, () => null)
   for (const { day, at_least } of plan.minimums) draft.minimums[day] = at_least
   solveTimeLimit = plan.solve_time_limit
+  goals = plan.goals
 }
 
 function cellKey(day: number, mealKey: number) {
@@ -167,6 +170,7 @@ function checked(): Fields | null {
       const atLeast = draft.minimums[day]
       return atLeast == null ? [] : [{ day, at_least: atLeast }]
     }),
+    goals,
     solve_time_limit: solveTimeLimit,
   }
 }
