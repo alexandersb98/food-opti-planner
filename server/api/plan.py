@@ -1,23 +1,19 @@
-"""/api/plan: read and save the plan setup (A1, A2), and make a plan from
-it (Make plan) or stop making it (Cancel). There is one setup, made with
-the defaults the first time it is read."""
+"""/api/plan: read and save the plan setup (A1, A2). There is one setup,
+made with the defaults the first time it is read. Making a plan from it is
+in `solve`."""
 
-import threading
+from collections.abc import Sequence
 from datetime import date
 from decimal import Decimal
-from typing import Annotated, Literal
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter
 from pydantic import BaseModel, Field, StringConstraints
-from sqlalchemy import delete, select
-from sqlalchemy.orm import selectinload
+from sqlalchemy import select
+from sqlalchemy.orm import Session, selectinload
 
-from meal_planner import ModelTooLargeError, SolveStatus, StopHandle
-from meal_planner import plan as solve_plan
-
-from .. import freeze, models, translate
+from .. import models, translate
 from ..db import DbSession
-from . import plan_results, recipes
 from .errors import FieldError, invalid_fields
 from .fields import AppliesTo, Number
 
@@ -92,6 +88,10 @@ class Goal(GoalFields):
     name: str
 
 
+# The fields a goal row and its API fields share, copied as they are.
+GOAL_FIELDS = [field for field in GoalFields.model_fields if field != "id"]
+
+
 class PlanFields(BaseModel):
     start_date: date
     days: Annotated[int, Field(ge=1, le=MAX_DAYS)]
@@ -111,7 +111,7 @@ class Plan(PlanFields):
     goals: list[Goal]
 
 
-def _stored(db: DbSession) -> models.Plan:
+def stored(db: Session) -> models.Plan:
     """The plan, made with the defaults if there is none yet."""
     loaded = [
         selectinload(models.Plan.meals).selectinload(models.PlanMeal.skips),
@@ -145,98 +145,127 @@ def _response(plan: models.Plan) -> Plan:
         ),
         minimums=[Minimum(day=m.day, at_least=m.at_least) for m in plan.minimums],
         goals=[
-            Goal(
-                id=goal.id,
-                name=name,
-                attribute_id=goal.attribute_id,
-                min=goal.min,
-                max=goal.max,
-                applies_to=goal.applies_to,
-                must=goal.must,
-                importance=goal.importance,
-                zero_reference=goal.zero_reference,
-            )
-            for goal, name in zip(plan.goals, translate.goal_names(plan.goals), strict=True)
+            Goal(id=goal.id, name=name, **{field: getattr(goal, field) for field in GOAL_FIELDS})
+            for goal, name in translate.named_goals(plan.goals)
         ],
         solve_time_limit=plan.solve_time_limit,
     )
 
 
 def _errors(plan: models.Plan, body: PlanFields, attributes: dict[int, models.Attribute]) -> list[FieldError]:
-    """What Pydantic can't check: meal ids of other meals or given twice,
-    names given twice, cells on no meal or given twice, a minimum given twice
-    for a day or above the meals the day plans, and goals that name no
-    attribute, have no bound or a minimum above the maximum, lack a needed
-    zero reference, have bounds finer than their attribute, or have an id of
-    another goal or given twice. Cells and minimums beyond the days are not
-    checked, as they are dropped."""
+    """What Pydantic can't check, section by section. Cells and minimums
+    beyond the days are not checked, as they are dropped."""
+    skipped, skip_errors = _skip_errors(body)
+    return [
+        *_meal_errors(plan, body),
+        *skip_errors,
+        *_minimum_errors(body, skipped),
+        *_goal_errors(plan.goals, body.goals, attributes),
+    ]
+
+
+def _error(loc: list[str | int], error_type: str, msg: str) -> FieldError:
+    return FieldError(loc=["body", *loc], type=error_type, msg=msg)
+
+
+def _meal_errors(plan: models.Plan, body: PlanFields) -> list[FieldError]:
+    """Meal ids of other meals or given twice, and names given twice."""
     errors = []
-
-    def error(loc: list[str | int], error_type: str, msg: str) -> None:
-        errors.append(FieldError(loc=["body", *loc], type=error_type, msg=msg))
-
     stored_ids = {meal.id for meal in plan.meals}
     ids, names = set(), set()
     for i, meal in enumerate(body.meals):
         if meal.id is not None:
             if meal.id not in stored_ids:
-                error(["meals", i, "id"], "unknown_meal", "No such meal")
+                errors.append(_error(["meals", i, "id"], "unknown_meal", "No such meal"))
             elif meal.id in ids:
-                error(["meals", i, "id"], "duplicate", "This meal is given twice")
+                errors.append(_error(["meals", i, "id"], "duplicate", "This meal is given twice"))
             ids.add(meal.id)
         if meal.name in names:
-            error(["meals", i, "name"], "duplicate", "Another meal has this name")
+            errors.append(_error(["meals", i, "name"], "duplicate", "Another meal has this name"))
         names.add(meal.name)
+    return errors
 
+
+def _skip_errors(body: PlanFields) -> tuple[dict[int, set[int]], list[FieldError]]:
+    """The skipped meals of each day, and the cells on no meal or given twice."""
+    errors = []
     skipped = {day: set() for day in range(body.days)}
     for i, skip in enumerate(body.skips):
         if skip.day >= body.days:
             continue
         if skip.meal >= len(body.meals):
-            error(["skips", i, "meal"], "unknown_meal", "No such meal")
+            errors.append(_error(["skips", i, "meal"], "unknown_meal", "No such meal"))
         elif skip.meal in skipped[skip.day]:
-            error(["skips", i], "duplicate", "This cell is given twice")
+            errors.append(_error(["skips", i], "duplicate", "This cell is given twice"))
         else:
             skipped[skip.day].add(skip.meal)
+    return skipped, errors
 
+
+def _minimum_errors(body: PlanFields, skipped: dict[int, set[int]]) -> list[FieldError]:
+    """A minimum given twice for a day, or above the meals the day plans."""
+    errors = []
     days = set()
     for i, minimum in enumerate(body.minimums):
         if minimum.day >= body.days:
             continue
         planned = len(body.meals) - len(skipped[minimum.day])
         if minimum.day in days:
-            error(["minimums", i, "day"], "duplicate", "This day is given twice")
+            errors.append(_error(["minimums", i, "day"], "duplicate", "This day is given twice"))
         elif minimum.at_least > planned:
-            error(["minimums", i, "at_least"], "above_planned", f"Must be at most the {planned} planned meals")
+            errors.append(
+                _error(["minimums", i, "at_least"], "above_planned", f"Must be at most the {planned} planned meals")
+            )
         days.add(minimum.day)
+    return errors
 
-    stored_goals = {goal.id: goal for goal in plan.goals}
-    goal_ids = set()
-    for i, goal in enumerate(body.goals):
+
+def _goal_errors(
+    stored_goals: Sequence[models.Goal], goals: Sequence[GoalFields], attributes: dict[int, models.Attribute]
+) -> list[FieldError]:
+    """Goal ids of other goals or given twice, and each goal's own errors."""
+    errors = []
+    by_id = {goal.id: goal for goal in stored_goals}
+    ids = set()
+    for i, goal in enumerate(goals):
         if goal.id is not None:
-            if goal.id not in stored_goals:
-                error(["goals", i, "id"], "unknown_goal", "No such goal")
-            elif goal.id in goal_ids:
-                error(["goals", i, "id"], "duplicate", "This goal is given twice")
-            goal_ids.add(goal.id)
-        attribute = attributes.get(goal.attribute_id)
-        if attribute is None:
-            error(["goals", i, "attribute_id"], "unknown_attribute", "No such attribute")
-        if goal.min is None and goal.max is None:
-            error(["goals", i, "min"], "no_bound", "Give a minimum, a maximum or both")
-        elif goal.min is not None and goal.max is not None and goal.min > goal.max:
-            error(["goals", i, "min"], "min_above_max", "Must be at most the maximum")
-        # A stored goal is not held to a later cut in its attribute's decimals
-        # unless its attribute or a bound changes.
-        stored = stored_goals.get(goal.id)
-        unchanged = stored is not None and (stored.attribute_id, stored.min, stored.max) == (goal.attribute_id, goal.min, goal.max)
-        if attribute is not None and not unchanged:
-            for field in ("min", "max"):
-                bound = getattr(goal, field)
-                if bound is not None and _decimals(bound) > attribute.decimals:
-                    error(["goals", i, field], "too_many_decimals", f"{attribute.name} has {attribute.decimals} decimals")
-        if goal.zero_reference is None and translate.needs_zero_reference(goal.applies_to, goal.must, goal.min, goal.max):
-            error(["goals", i, "zero_reference"], "needs_reference", "Needed when a bound is 0 or below")
+            if goal.id not in by_id:
+                errors.append(_error(["goals", i, "id"], "unknown_goal", "No such goal"))
+            elif goal.id in ids:
+                errors.append(_error(["goals", i, "id"], "duplicate", "This goal is given twice"))
+            ids.add(goal.id)
+        errors += _one_goal_errors(i, goal, by_id.get(goal.id), attributes)
+    return errors
+
+
+def _one_goal_errors(
+    i: int, goal: GoalFields, stored: models.Goal | None, attributes: dict[int, models.Attribute]
+) -> list[FieldError]:
+    """A goal that names no attribute, has no bound or a minimum above the
+    maximum, has bounds finer than its attribute, or lacks a needed zero
+    reference."""
+    errors = []
+
+    def error(field: str, error_type: str, msg: str) -> None:
+        errors.append(_error(["goals", i, field], error_type, msg))
+
+    attribute = attributes.get(goal.attribute_id)
+    if attribute is None:
+        error("attribute_id", "unknown_attribute", "No such attribute")
+    if goal.min is None and goal.max is None:
+        error("min", "no_bound", "Give a minimum, a maximum or both")
+    elif goal.min is not None and goal.max is not None and goal.min > goal.max:
+        error("min", "min_above_max", "Must be at most the maximum")
+    # A stored goal is not held to a later cut in its attribute's decimals
+    # unless its attribute or a bound changes.
+    unchanged = stored is not None and (stored.attribute_id, stored.min, stored.max) == (goal.attribute_id, goal.min, goal.max)
+    if attribute is not None and not unchanged:
+        for field in ("min", "max"):
+            bound = getattr(goal, field)
+            if bound is not None and _decimals(bound) > attribute.decimals:
+                error(field, "too_many_decimals", f"{attribute.name} has {attribute.decimals} decimals")
+    if goal.zero_reference is None and translate.needs_zero_reference(goal.applies_to, goal.must, goal.min, goal.max):
+        error("zero_reference", "needs_reference", "Needed when a bound is 0 or below")
     return errors
 
 
@@ -286,12 +315,8 @@ def _goal(stored: models.Goal | None, position: int, fields: GoalFields) -> mode
     # columns the API doesn't have yet stay.
     goal = stored or models.Goal()
     goal.position = position
-    goal.attribute_id = fields.attribute_id
-    goal.min = fields.min
-    goal.max = fields.max
-    goal.applies_to = fields.applies_to
-    goal.must = fields.must
-    goal.importance = fields.importance
+    for field in GOAL_FIELDS:
+        setattr(goal, field, getattr(fields, field))
     needed = translate.needs_zero_reference(fields.applies_to, fields.must, fields.min, fields.max)
     goal.zero_reference = fields.zero_reference if needed else None
     return goal
@@ -299,12 +324,12 @@ def _goal(stored: models.Goal | None, position: int, fields: GoalFields) -> mode
 
 @router.get("")
 def get_plan(db: DbSession) -> Plan:
-    return _response(_stored(db))
+    return _response(stored(db))
 
 
 @router.put("")
 def update_plan(body: PlanFields, db: DbSession) -> Plan:
-    plan = _stored(db)
+    plan = stored(db)
     attributes = {a.id: a for a in db.scalars(select(models.Attribute))}
     errors = _errors(plan, body, attributes)
     if errors:
@@ -312,149 +337,3 @@ def update_plan(body: PlanFields, db: DbSession) -> Plan:
     _fill(plan, body)
     db.commit()
     return _response(plan)
-
-
-# Why a solve made no plan: the catalog has no recipes; the numbers are too
-# large for the solver; no plan meets the setup; time ran out first; or it
-# was cancelled first.
-Failure = Literal["no_recipes", "too_large", "infeasible", "no_plan_in_time", "stopped"]
-FAILURES: dict[SolveStatus, Failure] = {
-    SolveStatus.INFEASIBLE: "infeasible",
-    SolveStatus.TIMEOUT_NO_SOLUTION: "no_plan_in_time",
-}
-
-BUSY = {409: {"description": "A plan is already being made"}}
-
-
-# The client names its solve, so a Cancel says which solve it means. Both
-# requests carry the same id, which only has to tell one solve from the
-# next; the client makes it.
-SOLVE_ID_LENGTH = 64
-
-
-class SolveId(BaseModel):
-    """Which solve a request is about."""
-
-    solve_id: str = Field(min_length=1, max_length=SOLVE_ID_LENGTH)
-
-
-class RunningSolve:
-    """The one solve a server process runs at a time, named by its solve id,
-    and its stop handle. One process is enough, as Cloud Run runs one
-    instance."""
-
-    def __init__(self) -> None:
-        self._lock = threading.Lock()
-        self._id: str | None = None
-        self._stop: StopHandle | None = None
-        # A solve cancelled before it reached the server, remembered so the
-        # Cancel is not lost in that instant.
-        self._cancelled: str | None = None
-
-    def begin(self, solve_id: str) -> StopHandle | None:
-        """The new solve's handle, or None while another solve runs. The
-        handle comes stopped if this solve was cancelled before it got
-        here, which ends it as it starts."""
-        with self._lock:
-            if self._stop is not None:
-                return None
-            stop = StopHandle()
-            if self._cancelled == solve_id:
-                self._cancelled = None
-                stop.stop()
-            self._id, self._stop = solve_id, stop
-            return stop
-
-    def end(self) -> None:
-        with self._lock:
-            self._id = self._stop = None
-
-    def cancel(self, solve_id: str) -> None:
-        """Stop the solve named `solve_id`. Another solve is left alone: a
-        Cancel that crosses the answer must not stop the next solve."""
-        with self._lock:
-            if self._id == solve_id:
-                stop = self._stop
-            else:
-                # Still on its way, or long over. Remembering it stops the
-                # first; an id that never comes back is forgotten by the
-                # next Cancel, and means nothing until then.
-                stop, self._cancelled = None, solve_id
-        if stop is not None:
-            stop.stop()
-
-
-def _running(request: Request) -> RunningSolve:
-    return request.app.state.running_solve
-
-
-Running = Annotated[RunningSolve, Depends(_running)]
-
-
-class SolveOutcome(BaseModel):
-    """The new unsaved plan, or why there is none."""
-
-    plan: plan_results.PlanResult | None
-    failure: Failure | None
-
-
-@router.post("/solve", responses=BUSY)
-def solve(body: SolveId, db: DbSession, running: Running) -> SolveOutcome:
-    """Make a plan from the setup and the whole catalog, within the setup's
-    time limit or until cancelled. A plan replaces the unsaved one; without
-    a plan nothing is stored, and the unsaved plan stays. Runs inside the
-    request, one at a time."""
-    stop = running.begin(body.solve_id)
-    if stop is None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A plan is already being made")
-    try:
-        return _solve(db, stop)
-    finally:
-        running.end()
-
-
-@router.post("/solve/cancel", status_code=status.HTTP_204_NO_CONTENT)
-def cancel(body: SolveId, running: Running) -> None:
-    """Stop the solve `solve_id` names, which then answers with the best
-    plan found so far. A Cancel that arrives first stops it as it starts;
-    one for any other solve does nothing, as it may cross the answer."""
-    running.cancel(body.solve_id)
-
-
-def _solve(db: DbSession, stop: StopHandle) -> SolveOutcome:
-    plan = _stored(db)
-    attributes = db.scalars(select(models.Attribute).order_by(models.Attribute.id)).all()
-    tags = db.scalars(select(models.Tag).order_by(models.Tag.id)).all()
-    rows = db.scalars(recipes.loaded().order_by(models.Recipe.id)).all()
-    if not rows:
-        return SolveOutcome(plan=None, failure="no_recipes")
-    # Any PlanRequestError means the server let through what the library
-    # refuses: a bug, so it is not caught.
-    request = translate.plan_request(plan, attributes, tags, rows)
-    start_date = plan.start_date
-    meal_names = [meal.name for meal in plan.meals]
-    units = {attribute.name: attribute.unit for attribute in attributes}
-    goals = [
-        freeze.FrozenGoal(name, goal.applies_to, goal.must, goal.min, goal.max)
-        for goal, name in zip(plan.goals, translate.goal_names(plan.goals), strict=True)
-    ]
-    # End the read before solving, so no connection waits in a transaction
-    # for minutes (Neon drops one idle for 5). Only the plain values above
-    # are used after this, as the commit expires the rows.
-    db.commit()
-    try:
-        answer = solve_plan(request, stop)
-    except ModelTooLargeError:
-        return SolveOutcome(plan=None, failure="too_large")
-    if answer.solve_status is SolveStatus.TIMEOUT_NO_SOLUTION and stop.stopped:
-        return SolveOutcome(plan=None, failure="stopped")
-    if answer.solve_status in FAILURES:
-        return SolveOutcome(plan=None, failure=FAILURES[answer.solve_status])
-
-    result = freeze.freeze(request, answer, start_date, meal_names, units, goals, stopped=stop.stopped)
-    result.created_at = plan_results.now()
-    # The old unsaved plan goes first, as only one may exist.
-    db.execute(delete(models.PlanResult).where(models.PlanResult.saved.is_(False)))
-    db.add(result)
-    db.commit()
-    return SolveOutcome(plan=plan_results.read(db, result.id), failure=None)
