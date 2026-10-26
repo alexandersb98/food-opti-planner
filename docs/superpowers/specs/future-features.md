@@ -12,6 +12,11 @@ after design review — see decisions #1 and #22 in
 
 ## Deferred product features
 
+See also
+[`2026-10-26-product-vision-data-and-attributes.md`](2026-10-26-product-vision-data-and-attributes.md)
+for the longer-term vision on data import, pluggable data sources,
+products per store, derived attributes and a fixed attribute set.
+
 - **Per-meal constraints.** v1 constraints apply at day or horizon scope
   only (decision #4). Constraining an individual meal slot (e.g. "dinner
   ≥ 30g protein") is a possible later extension.
