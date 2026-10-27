@@ -2,7 +2,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Attribute, Goal, GoalFields, Plan } from '../api/types'
-import { goalNames, guardRailImportance, IMPORTANCE, NAME_LENGTH, needsZeroReference } from '../goals'
+import { boundError, goalNames, guardRailImportance, IMPORTANCE, NAME_LENGTH, needsZeroReference } from '../goals'
 import { typedNumber } from '../numbers'
 import { goalFields, planFields, useSavePlan } from '../plan'
 
@@ -197,20 +197,9 @@ async function send(goals: GoalFields[], index: number | null) {
 /** Mark what the server refused on the goal at `index` of the goals sent. */
 function markServerErrors(found: Partial<Record<string, string>>, index: number) {
   const at = (field: string) => found[`goals.${index}.${field}`]
-  const decimals = attribute.value?.decimals ?? 0
-  const tooMany = t('goals.editor.tooManyDecimals', { n: decimals, attribute: attribute.value?.name ?? '' })
   errors.attribute = at('attribute_id') ? t('goals.editor.unknownAttribute') : ''
-  errors.min =
-    at('min') === 'no_bound'
-      ? t('goals.editor.needBound')
-      : at('min') === 'min_above_max'
-        ? t('goals.editor.minAboveMax')
-        : at('min') === 'too_many_decimals'
-          ? tooMany
-          : at('min')
-            ? t('goals.editor.notNumber')
-            : ''
-  errors.max = at('max') === 'too_many_decimals' ? tooMany : at('max') ? t('goals.editor.notNumber') : ''
+  errors.min = boundError(at('min'), attribute.value, t)
+  errors.max = boundError(at('max'), attribute.value, t)
   errors.reference = at('zero_reference') ? t('goals.editor.referenceNeeded') : ''
   errors.name =
     at('custom_name') === 'duplicate'
