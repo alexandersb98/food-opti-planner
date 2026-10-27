@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from .. import models, translate
 from ..db import DbSession
+from . import recipes
 from .errors import FieldError, invalid_fields
 from .fields import AppliesTo, Number
 
@@ -144,6 +145,17 @@ class PlanFields(BaseModel):
 class Plan(PlanFields):
     meals: list[Meal]
     goals: list[Goal]
+
+
+class RecipeCountFields(BaseModel):
+    tag_filters: list[TagFilter]
+
+
+class RecipeCount(BaseModel):
+    """How many recipes are left after the filters, out of all recipes."""
+
+    usable: int
+    total: int
 
 
 def stored(db: Session) -> models.Plan:
@@ -444,3 +456,17 @@ def update_plan(body: PlanFields, db: DbSession) -> Plan:
     _fill(plan, body)
     db.commit()
     return _response(plan)
+
+
+@router.post("/recipe-count")
+def recipe_count(body: RecipeCountFields, db: DbSession) -> RecipeCount:
+    """How many recipes the filters in `body` leave for a plan, by the
+    planner's rule (`translate.usable_recipes`). Nothing is saved."""
+    tags = {t.id: t for t in db.scalars(select(models.Tag).order_by(models.Tag.id))}
+    errors = filter_errors(body.tag_filters, tags)
+    if errors:
+        raise invalid_fields(errors)
+    rows = db.scalars(recipes.loaded()).all()
+    only, never = ({tags[f.tag_id].name for f in body.tag_filters if f.mode == mode} for mode in ("only", "never"))
+    usable = translate.usable_recipes(rows, list(tags.values()), only, never)
+    return RecipeCount(usable=len(usable), total=len(rows))

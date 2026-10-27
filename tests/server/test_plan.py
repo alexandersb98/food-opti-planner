@@ -491,3 +491,56 @@ def test_a_body_without_tag_filters_answers_422_rather_than_removing_them(client
     assert response.status_code == 422
     assert [e["loc"] for e in response.json()["detail"]] == [["body", "tag_filters"]]
     assert read(client) == before
+
+
+def count(client, *filters) -> dict:
+    response = client.post("/api/plan/recipe-count", json={"tag_filters": list(filters)})
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def vegan_and_nut_recipes(catalog) -> tuple[int, int]:
+    """Oat porridge (vegan by its ingredient), Nut porridge (vegan, with
+    nuts added by hand) and Milk porridge (not vegan). Answers the tags."""
+    vegan, nuts = catalog.tag(), catalog.tag("contains-nuts", "any")
+    oats = catalog.ingredient(tag_ids=[vegan])
+    milk = catalog.ingredient("Milk", "ml")
+    catalog.recipe("Oat porridge", {oats: "60"})
+    catalog.recipe("Nut porridge", {oats: "60"}, extra_tag_ids=[nuts])
+    catalog.recipe("Milk porridge", {oats: "60", milk: "200"})
+    return vegan, nuts
+
+
+def test_without_filters_every_recipe_can_be_used(client, catalog):
+    vegan_and_nut_recipes(catalog)
+    assert count(client) == {"usable": 3, "total": 3}
+
+
+def test_only_counts_the_recipes_with_the_tag_and_never_those_without(client, catalog):
+    vegan, nuts = vegan_and_nut_recipes(catalog)
+    assert count(client, {"tag_id": vegan, "mode": "only"}) == {"usable": 2, "total": 3}
+    assert count(client, {"tag_id": nuts, "mode": "never"}) == {"usable": 2, "total": 3}
+    both = count(client, {"tag_id": vegan, "mode": "only"}, {"tag_id": nuts, "mode": "never"})
+    assert both == {"usable": 1, "total": 3}
+
+
+def test_the_count_is_of_the_filters_sent_not_the_saved_ones(client, catalog):
+    vegan, _ = vegan_and_nut_recipes(catalog)
+    put(client, tag_filters=[{"tag_id": vegan, "mode": "never"}])
+    assert count(client) == {"usable": 3, "total": 3}
+
+
+def test_without_recipes_the_count_is_0_of_0(client, catalog):
+    vegan = catalog.tag()
+    assert count(client, {"tag_id": vegan, "mode": "only"}) == {"usable": 0, "total": 0}
+
+
+def test_a_count_with_a_filter_on_an_unknown_tag_or_given_twice_answers_422(client, catalog):
+    vegan = catalog.tag()
+    filters = [{"tag_id": vegan, "mode": "only"}, {"tag_id": 999, "mode": "never"}, {"tag_id": vegan, "mode": "never"}]
+    response = client.post("/api/plan/recipe-count", json={"tag_filters": filters})
+    assert response.status_code == 422
+    assert [(e["loc"], e["type"], e["msg"]) for e in response.json()["detail"]] == [
+        (["body", "tag_filters", 1, "tag_id"], "unknown_tag", "No such tag"),
+        (["body", "tag_filters", 2, "tag_id"], "duplicate", "This tag is given twice"),
+    ]

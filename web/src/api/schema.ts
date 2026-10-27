@@ -262,6 +262,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/plan/recipe-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Recipe Count
+         * @description How many recipes the filters in `body` leave for a plan, by the
+         *     planner's rule (`translate.usable_recipes`). Nothing is saved.
+         */
+        post: operations["recipe_count_api_plan_recipe_count_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/plan/solve": {
         parameters: {
             query?: never;
@@ -799,6 +820,21 @@ export interface components {
             /** Totals */
             totals: components["schemas"]["Total"][];
         };
+        /**
+         * RecipeCount
+         * @description How many recipes are left after the filters, out of all recipes.
+         */
+        RecipeCount: {
+            /** Total */
+            total: number;
+            /** Usable */
+            usable: number;
+        };
+        /** RecipeCountFields */
+        RecipeCountFields: {
+            /** Tag Filters */
+            tag_filters: components["schemas"]["TagFilter"][];
+        };
         /** RecipeFields */
         RecipeFields: {
             /** Extra Tag Ids */
@@ -944,7 +980,7 @@ export interface components {
          */
         SolveOutcome: {
             /** Failure */
-            failure: ("no_recipes" | "too_large" | "infeasible" | "no_plan_in_time" | "stopped") | null;
+            failure: ("no_recipes" | "no_usable_recipes" | "too_large" | "infeasible" | "no_plan_in_time" | "stopped") | null;
             plan: components["schemas"]["PlanResult"] | null;
         };
         /** Tag */
@@ -1730,6 +1766,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recipe_count_api_plan_recipe_count_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecipeCountFields"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecipeCount"];
+                };
             };
             /** @description Validation Error */
             422: {

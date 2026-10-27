@@ -265,6 +265,7 @@ test.each([
   ['no_plan_in_time', 'No plan found within 45 s. Try a longer Max solving time.'],
   ['infeasible', 'No plan possible with these settings.'],
   ['no_recipes', 'There are no recipes to plan with yet. Add some on the Recipes page.'],
+  ['no_usable_recipes', 'No recipe passes the recipe filters. Change them under Recipes.'],
   ['too_large', 'This plan is too large to solve. Try fewer days or meals.'],
   ['stopped', 'Stopped before any plan was found.'],
 ])('no plan (%s) shows the Couldn’t make a plan card until dismissed', async (failure, text) => {

@@ -119,11 +119,13 @@ def schedule(client, **changes) -> dict:
     return response.json()
 
 
-def fixed_portion_recipe(catalog: Catalog, name: str, items: dict, portion: str) -> int:
+def fixed_portion_recipe(catalog: Catalog, name: str, items: dict, portion: str, extra_tag_ids=()) -> int:
     """A recipe always eaten at `portion`, so a solve's choice is known."""
     items = [{"ingredient_id": i, "amount": a} for i, a in items.items()]
     fields = {**RECIPE, "min_multiplier": portion, "max_multiplier": portion}
-    return catalog._create("/api/recipes", {**fields, "name": name, "items": items, "extra_tag_ids": []})
+    return catalog._create(
+        "/api/recipes", {**fields, "name": name, "items": items, "extra_tag_ids": list(extra_tag_ids)}
+    )
 
 
 @pytest.fixture
