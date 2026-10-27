@@ -12,9 +12,9 @@ from sqlalchemy.orm import selectinload
 
 from .. import models, translate
 from ..db import DbSession
+from ..fields import Multiplier, Name, Number, plain
 from .catalog import References, commit_named, get_or_404, in_list
 from .errors import NAME_IN_USE, FieldError
-from .fields import Multiplier, Name, Number, plain
 
 router = APIRouter(prefix="/recipes", tags=["recipes"])
 

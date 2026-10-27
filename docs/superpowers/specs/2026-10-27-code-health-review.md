@@ -42,6 +42,19 @@ Ordered by priority. 1 and 2 belong together and are the ones to do first.
 
 ### 1. The server has no service layer
 
+**Partly done: the plan setup.** Its request fields (`PlanFields` and the
+types in it), the checks Pydantic can't make (`plans.errors`,
+`plans.filter_errors`, which return neutral `Problem`s the route turns into
+422s) and the update of the stored rows (`plans.fill`) moved to
+`server/plans.py`, tested without HTTP in `tests/server/test_plans.py`.
+`server/api/plan.py` keeps the response models, the loading and the routes.
+The shared field types moved from `server/api/fields.py` to
+`server/fields.py`, so `plans` depends on nothing in `api`. **Still to do:**
+the orchestration of a solve in `server/api/solve.py` (`_read`, `_solve`),
+and the reads that are finding 2.
+
+The finding as written:
+
 Route modules mix HTTP schemas, validation, persistence and orchestration.
 `server/api/plan.py` (472 lines) holds the Pydantic models, about 150 lines
 of cross-field validation (`_errors`, `_meal_errors`, `_skip_errors`,

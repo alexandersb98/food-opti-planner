@@ -15,8 +15,8 @@ from sqlalchemy.orm import Session, selectinload
 
 from .. import freeze, models
 from ..db import DbSession
+from ..fields import AppliesTo, plain
 from .catalog import get_or_404
-from .fields import AppliesTo, plain
 
 router = APIRouter(prefix="/plan-results", tags=["plan results"])
 

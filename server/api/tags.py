@@ -8,9 +8,9 @@ from sqlalchemy import select
 
 from .. import models
 from ..db import DbSession
+from ..fields import Name
 from .catalog import commit_named, count_by, get_or_404
 from .errors import NAME_IN_USE
-from .fields import Name
 
 router = APIRouter(prefix="/tags", tags=["tags"])
 

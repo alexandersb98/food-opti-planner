@@ -10,9 +10,9 @@ from meal_planner.domain import MAX_PRECISION, MIN_PRECISION
 
 from .. import models
 from ..db import DbSession
+from ..fields import Name
 from .catalog import commit_named, count_by, get_or_404
 from .errors import NAME_IN_USE
-from .fields import Name
 
 router = APIRouter(prefix="/attributes", tags=["attributes"])
 

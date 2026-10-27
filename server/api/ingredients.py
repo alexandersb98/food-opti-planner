@@ -9,9 +9,9 @@ from sqlalchemy.exc import IntegrityError
 
 from .. import models
 from ..db import DbSession
+from ..fields import Name, Number
 from .catalog import References, commit_named, count_by, get_or_404, in_list
 from .errors import NAME_IN_USE
-from .fields import Name, Number
 
 router = APIRouter(prefix="/ingredients", tags=["ingredients"])
 
