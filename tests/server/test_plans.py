@@ -43,7 +43,7 @@ def goal(**changes) -> dict:
     return {"attribute_id": ENERGY.id, "min": "1800", "applies_to": "day", "must": False, "importance": 3, **changes}
 
 
-def errors(plan: models.Plan, fields: plans.PlanFields) -> list[tuple[list, str]]:
+def errors(plan: models.Plan, fields: plans.PlanFields) -> list[tuple[tuple, str]]:
     return [(e.loc, e.type) for e in plans.errors(plan, fields, ATTRIBUTES, TAGS)]
 
 
@@ -53,7 +53,7 @@ def test_a_valid_setup_has_no_errors():
     assert errors(stored_plan(), fields) == []
 
 
-def test_every_error_is_reported_at_once_in_the_body():
+def test_every_error_is_reported_at_once():
     fields = setup(
         meals=[{"id": 99, "name": "Lunch"}, {"name": "Lunch"}],
         minimums=[{"day": 0, "at_least": 3}],
@@ -61,11 +61,11 @@ def test_every_error_is_reported_at_once_in_the_body():
         tag_filters=[{"tag_id": 99, "mode": "never"}],
     )
     assert errors(stored_plan(), fields) == [
-        (["body", "meals", 0, "id"], "unknown_meal"),
-        (["body", "meals", 1, "name"], "duplicate"),
-        (["body", "minimums", 0, "at_least"], "above_planned"),
-        (["body", "goals", 0, "attribute_id"], "unknown_attribute"),
-        (["body", "tag_filters", 0, "tag_id"], "unknown_tag"),
+        (("meals", 0, "id"), "unknown_meal"),
+        (("meals", 1, "name"), "duplicate"),
+        (("minimums", 0, "at_least"), "above_planned"),
+        (("goals", 0, "attribute_id"), "unknown_attribute"),
+        (("tag_filters", 0, "tag_id"), "unknown_tag"),
     ]
 
 
@@ -74,14 +74,14 @@ def test_a_stored_goal_is_not_held_to_a_later_cut_in_its_attributes_decimals():
     plan = stored_plan(goals=[stored])
     assert errors(plan, setup(goals=[goal(id=5, min="1800.5")])) == []
     assert errors(plan, setup(goals=[goal(id=5, min="1800.25")])) == [
-        (["body", "goals", 0, "min"], "too_many_decimals")
+        (("goals", 0, "min"), "too_many_decimals")
     ]
 
 
 def test_filter_errors_name_unknown_and_repeated_tags():
     filters = [plans.TagFilter(tag_id=VEGAN.id, mode="only"), plans.TagFilter(tag_id=VEGAN.id, mode="never")]
     assert [(e.loc, e.type) for e in plans.filter_errors(filters, TAGS)] == [
-        (["body", "tag_filters", 1, "tag_id"], "duplicate")
+        (("tag_filters", 1, "tag_id"), "duplicate")
     ]
 
 

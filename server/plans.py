@@ -1,11 +1,14 @@
 """The plan setup (A1, A2): what a valid setup is and how a saved one
-changes. The checks Pydantic can't make (`errors`, `filter_errors`) and the
-update of the stored rows (`fill`) are plain functions of the fields and
-model objects, with no database or HTTP, so each can be tested on its own.
-The route in `api/plan` loads the rows, calls these and answers."""
+changes. `PlanFields` is the setup as given, checked by Pydantic; the checks
+Pydantic can't make (`errors`, `filter_errors`) and the update of the stored
+rows (`fill`) are plain functions of it and the model objects, with no
+database or HTTP, so each can be tested on its own. The route in `api/plan`
+loads the rows, calls these and answers, with its own models for what it
+answers."""
 
 from collections import Counter
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from typing import Annotated, Literal
@@ -13,8 +16,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, Field, StringConstraints
 
 from . import models, translate
-from .api.errors import FieldError
-from .api.fields import AppliesTo, Number
+from .fields import AppliesTo, Number
 
 MAX_DAYS = 31
 MAX_MEALS = 8
@@ -121,9 +123,20 @@ class PlanFields(BaseModel):
     solve_time_limit: Annotated[int, Field(ge=1, le=MAX_SOLVE_TIME)]
 
 
+@dataclass(frozen=True)
+class Problem:
+    """A field of the setup that is wrong, where Pydantic would put it:
+    `loc` is its path in the setup (["meals", 0, "name"]), `type` what is
+    wrong ("duplicate") and `msg` the message to show."""
+
+    loc: tuple[str | int, ...]
+    type: str
+    msg: str
+
+
 def errors(
     plan: models.Plan, setup: PlanFields, attributes: dict[int, models.Attribute], tags: dict[int, models.Tag]
-) -> list[FieldError]:
+) -> list[Problem]:
     """What Pydantic can't check, section by section. Cells and minimums
     beyond the days are not checked, as they are dropped."""
     skipped, skip_errors = _skip_errors(setup)
@@ -136,12 +149,11 @@ def errors(
     ]
 
 
-def _error(loc: list[str | int], error_type: str, msg: str) -> FieldError:
-    # In the request body, where the API answers it.
-    return FieldError(loc=["body", *loc], type=error_type, msg=msg)
+def _error(loc: list[str | int], error_type: str, msg: str) -> Problem:
+    return Problem(loc=tuple(loc), type=error_type, msg=msg)
 
 
-def _meal_errors(plan: models.Plan, setup: PlanFields) -> list[FieldError]:
+def _meal_errors(plan: models.Plan, setup: PlanFields) -> list[Problem]:
     """Meal ids of other meals or given twice, and names given twice."""
     errors = []
     stored_ids = {meal.id for meal in plan.meals}
@@ -159,7 +171,7 @@ def _meal_errors(plan: models.Plan, setup: PlanFields) -> list[FieldError]:
     return errors
 
 
-def _skip_errors(setup: PlanFields) -> tuple[dict[int, set[int]], list[FieldError]]:
+def _skip_errors(setup: PlanFields) -> tuple[dict[int, set[int]], list[Problem]]:
     """The skipped meals of each day, and the cells on no meal or given twice."""
     errors = []
     skipped = {day: set() for day in range(setup.days)}
@@ -175,7 +187,7 @@ def _skip_errors(setup: PlanFields) -> tuple[dict[int, set[int]], list[FieldErro
     return skipped, errors
 
 
-def _minimum_errors(setup: PlanFields, skipped: dict[int, set[int]]) -> list[FieldError]:
+def _minimum_errors(setup: PlanFields, skipped: dict[int, set[int]]) -> list[Problem]:
     """A minimum given twice for a day, or above the meals the day plans."""
     errors = []
     days = set()
@@ -195,7 +207,7 @@ def _minimum_errors(setup: PlanFields, skipped: dict[int, set[int]]) -> list[Fie
 
 def _goal_errors(
     stored_goals: Sequence[models.Goal], goals: Sequence[GoalFields], attributes: dict[int, models.Attribute]
-) -> list[FieldError]:
+) -> list[Problem]:
     """Goal ids of other goals or given twice, typed names given twice, and
     each goal's own errors."""
     errors = []
@@ -219,7 +231,7 @@ def _goal_errors(
 
 def _one_goal_errors(
     i: int, goal: GoalFields, stored: models.Goal | None, attributes: dict[int, models.Attribute]
-) -> list[FieldError]:
+) -> list[Problem]:
     """A goal that names no attribute, has no bound or a minimum above the
     maximum, has bounds finer than its attribute, or lacks a needed zero
     reference."""
@@ -249,7 +261,7 @@ def _one_goal_errors(
     return errors
 
 
-def filter_errors(filters: Sequence[TagFilter], tags: dict[int, models.Tag]) -> list[FieldError]:
+def filter_errors(filters: Sequence[TagFilter], tags: dict[int, models.Tag]) -> list[Problem]:
     """Filters on no tag, or on a tag given twice."""
     errors = []
     ids = set()

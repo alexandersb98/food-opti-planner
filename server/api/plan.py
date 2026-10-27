@@ -4,7 +4,7 @@ how a save changes it are in `plans`; making a plan from it is in `solve`."""
 
 from datetime import date
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -13,7 +13,7 @@ from .. import models, plans, translate
 from ..db import DbSession
 from ..plans import GoalFields, MealFields, Minimum, PlanFields, Skip, TagFilter
 from . import recipes
-from .errors import invalid_fields
+from .errors import FieldError, invalid_fields
 
 router = APIRouter(prefix="/plan", tags=["plan"])
 
@@ -99,6 +99,11 @@ def _response(plan: models.Plan) -> Plan:
     )
 
 
+def _invalid(problems: list[plans.Problem]) -> HTTPException:
+    """A 422 naming each problem's field in the request body."""
+    return invalid_fields([FieldError(loc=["body", *p.loc], type=p.type, msg=p.msg) for p in problems])
+
+
 @router.get("")
 def get_plan(db: DbSession) -> Plan:
     return _response(stored(db))
@@ -111,7 +116,7 @@ def update_plan(body: PlanFields, db: DbSession) -> Plan:
     tags = {t.id: t for t in db.scalars(select(models.Tag))}
     errors = plans.errors(plan, body, attributes, tags)
     if errors:
-        raise invalid_fields(errors)
+        raise _invalid(errors)
     plans.fill(plan, body)
     db.commit()
     return _response(plan)
@@ -124,7 +129,7 @@ def recipe_count(body: RecipeCountFields, db: DbSession) -> RecipeCount:
     tags = {t.id: t for t in db.scalars(select(models.Tag).order_by(models.Tag.id))}
     errors = plans.filter_errors(body.tag_filters, tags)
     if errors:
-        raise invalid_fields(errors)
+        raise _invalid(errors)
     rows = db.scalars(recipes.loaded()).all()
     only, never = ({tags[f.tag_id].name for f in body.tag_filters if f.mode == mode} for mode in ("only", "never"))
     usable = translate.usable_recipes(rows, list(tags.values()), only, never)

@@ -7,7 +7,7 @@ from pydantic import Field, PlainSerializer, StringConstraints, WithJsonSchema
 
 from meal_planner.scaling import MULTIPLIER_PRECISION
 
-from .. import models
+from . import models
 
 # Trimmed, 1 to 100 characters. Names are compared exactly, as in the library.
 Name = Annotated[
