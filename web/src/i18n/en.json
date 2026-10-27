@@ -264,6 +264,19 @@
     "nameInUse": "Another meal has this name.",
     "nameTooLong": "Use at most {max} characters."
   },
+  "recipeFilters": {
+    "title": "Recipe filters",
+    "count": "{usable} of {total} recipe can be used | {usable} of {total} recipes can be used",
+    "countFailed": "Could not count the recipes.",
+    "showRecipes": "Show recipes",
+    "filterOf": "Filter for {tag}",
+    "mode": {
+      "any": "Any",
+      "only": "Only",
+      "never": "Never"
+    },
+    "noTags": "No tags yet. Add them on the Tags page."
+  },
   "results": {
     "loadFailed": "Could not load the plan.",
     "status": {
