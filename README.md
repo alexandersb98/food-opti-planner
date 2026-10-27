@@ -61,6 +61,8 @@ for the design notes and decisions made so far,
 for deferred features and alternatives considered, and
 [`docs/superpowers/specs/open-questions.md`](docs/superpowers/specs/open-questions.md)
 for holes/open questions found in review that still need resolving.
+Code-level refactors found in a design review are listed in
+[`docs/superpowers/specs/2026-10-27-code-health-review.md`](docs/superpowers/specs/2026-10-27-code-health-review.md).
 
 The first GUI is designed in
 [`docs/superpowers/specs/2026-10-21-gui-wireframes-design.md`](docs/superpowers/specs/2026-10-21-gui-wireframes-design.md)
