@@ -2,13 +2,15 @@
 (Cancel). One solve runs at a time; its plan becomes the unsaved one."""
 
 import threading
+from dataclasses import dataclass
+from datetime import date
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 
-from meal_planner import ModelTooLargeError, SolveStatus, StopHandle
+from meal_planner import ModelTooLargeError, PlanRequest, SolveStatus, StopHandle
 from meal_planner import plan as solve_plan
 
 from .. import freeze, models, translate
@@ -125,29 +127,51 @@ def cancel(body: SolveId, running: Running) -> None:
     running.cancel(body.solve_id)
 
 
-def _solve(db: DbSession, stop: StopHandle) -> SolveOutcome:
+@dataclass(frozen=True)
+class _Setup:
+    """What a solve uses of the setup and the catalog, as plain values: the
+    request, and what the frozen copy keeps besides (`freeze.freeze`)."""
+
+    request: PlanRequest
+    start_date: date
+    meal_names: list[str]
+    units: dict[str, str]
+    goals: list[freeze.FrozenGoal]
+
+
+def _read(db: DbSession) -> _Setup | None:
+    """The setup and the whole catalog, or None when there are no recipes.
+    The read is ended, so no connection waits in a transaction while the
+    solve runs for minutes (Neon drops one idle for 5); as that expires the
+    rows, only the plain values are kept."""
     plan = stored(db)
     attributes = db.scalars(select(models.Attribute).order_by(models.Attribute.id)).all()
     tags = db.scalars(select(models.Tag).order_by(models.Tag.id)).all()
     rows = db.scalars(recipes.loaded().order_by(models.Recipe.id)).all()
-    if not rows:
-        return SolveOutcome(plan=None, failure="no_recipes")
-    # Any PlanRequestError means the server let through what the library
-    # refuses: a bug, so it is not caught.
-    request = translate.plan_request(plan, attributes, tags, rows)
-    start_date = plan.start_date
-    meal_names = [meal.name for meal in plan.meals]
-    units = {attribute.name: attribute.unit for attribute in attributes}
-    goals = [
-        freeze.FrozenGoal(translate.constraint_key(i), name, goal.applies_to, goal.must, goal.min, goal.max)
-        for i, (goal, name) in enumerate(translate.named_goals(plan.goals))
-    ]
-    # End the read before solving, so no connection waits in a transaction
-    # for minutes (Neon drops one idle for 5). Only the plain values above
-    # are used after this, as the commit expires the rows.
+    setup = None
+    if rows:
+        # Any PlanRequestError means the server let through what the library
+        # refuses: a bug, so it is not caught.
+        setup = _Setup(
+            request=translate.plan_request(plan, attributes, tags, rows),
+            start_date=plan.start_date,
+            meal_names=[meal.name for meal in plan.meals],
+            units={attribute.name: attribute.unit for attribute in attributes},
+            goals=[
+                freeze.FrozenGoal(translate.constraint_key(i), name, goal.applies_to, goal.must, goal.min, goal.max)
+                for i, (goal, name) in enumerate(translate.named_goals(plan.goals))
+            ],
+        )
     db.commit()
+    return setup
+
+
+def _solve(db: DbSession, stop: StopHandle) -> SolveOutcome:
+    setup = _read(db)
+    if setup is None:
+        return SolveOutcome(plan=None, failure="no_recipes")
     try:
-        answer = solve_plan(request, stop)
+        answer = solve_plan(setup.request, stop)
     except ModelTooLargeError:
         return SolveOutcome(plan=None, failure="too_large")
     if answer.solve_status is SolveStatus.TIMEOUT_NO_SOLUTION and stop.stopped:
@@ -155,7 +179,9 @@ def _solve(db: DbSession, stop: StopHandle) -> SolveOutcome:
     if answer.solve_status in FAILURES:
         return SolveOutcome(plan=None, failure=FAILURES[answer.solve_status])
 
-    result = freeze.freeze(request, answer, start_date, meal_names, units, goals, stopped=stop.stopped)
+    result = freeze.freeze(
+        setup.request, answer, setup.start_date, setup.meal_names, setup.units, setup.goals, stopped=stop.stopped
+    )
     result.created_at = plan_results.now()
     # The old unsaved plan goes first, as only one may exist.
     db.execute(delete(models.PlanResult).where(models.PlanResult.saved.is_(False)))

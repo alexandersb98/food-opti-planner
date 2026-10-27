@@ -2,8 +2,8 @@ import type { Attribute, Goal, GoalFields } from './api/types'
 import { typedNumber } from './numbers'
 
 // What the Goals card and the goal editor share: how a goal's range and
-// scope read, its importance range, its name, and when the zero-bound field
-// and the day guard-rail's importance apply.
+// scope read, its importance range, its name, when the zero-bound field
+// and the day guard-rail's importance apply, and what a refused bound says.
 
 type AppliesTo = Goal['applies_to']
 type Translate = (key: string, named: Record<string, unknown>) => string
@@ -30,6 +30,22 @@ export function rangeText(min: string | null, max: string | null, unit: string, 
   }
   if (min !== null) return text('atLeast', { value: min, unit })
   return text('atMost', { value: max ?? '', unit })
+}
+
+/** What the server's error type on a bound (`min` or `max`) says, or '' for
+ * none. `attribute` is the goal's, whose decimals the bound may not exceed. */
+export function boundError(
+  type: string | undefined,
+  attribute: Pick<Attribute, 'name' | 'decimals'> | undefined,
+  t: Translate,
+): string {
+  if (!type) return ''
+  if (type === 'no_bound') return t('goals.editor.needBound', {})
+  if (type === 'min_above_max') return t('goals.editor.minAboveMax', {})
+  if (type === 'too_many_decimals') {
+    return t('goals.editor.tooManyDecimals', { n: attribute?.decimals ?? 0, attribute: attribute?.name ?? '' })
+  }
+  return t('goals.editor.notNumber', {})
 }
 
 /** Whether the library wants a reference: a bound is 0 or below and a soft

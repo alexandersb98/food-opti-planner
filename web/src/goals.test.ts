@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import type { Goal } from './api/types'
 import { makeI18n } from './i18n'
-import { goalNames, guardRailImportance, IMPORTANCE, needsZeroReference, rangeText, scopeText } from './goals'
+import { boundError, goalNames, guardRailImportance, IMPORTANCE, needsZeroReference, rangeText, scopeText } from './goals'
 import { attribute } from './test-data'
 
 const { t } = makeI18n().global
@@ -116,4 +116,14 @@ describe('goal names', () => {
       'Energy per day (4)',
     ])
   })
+})
+
+test.each([
+  [undefined, ''],
+  ['no_bound', 'Give a minimum, a maximum or both.'],
+  ['min_above_max', 'Must be at most the maximum.'],
+  ['too_many_decimals', 'At most 1 decimals for Protein.'],
+  ['decimal_parsing', 'A number, such as 120 or 1.5.'],
+])('a bound the server refuses with %s says "%s"', (type, message) => {
+  expect(boundError(type, { name: 'Protein', decimals: 1 }, t)).toBe(message)
 })

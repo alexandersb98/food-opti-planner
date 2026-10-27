@@ -308,12 +308,19 @@ def _decimals(number: Decimal) -> int:
 
 
 def _fill(plan: models.Plan, body: PlanFields) -> None:
-    """Replace the setup with `body`. Meals with an id are changed rather
-    than replaced, as their ids stay; a stored meal left out goes, with its
-    cells. Cells and minimums beyond the days are dropped."""
+    """Replace the setup with `body`, section by section. A stored row that
+    is kept is changed rather than replaced, as its id stays."""
     plan.start_date = body.start_date
     plan.days = body.days
     plan.solve_time_limit = body.solve_time_limit
+    _fill_meals(plan, body)
+    _fill_minimums(plan, body)
+    _fill_goals(plan, body)
+
+
+def _fill_meals(plan: models.Plan, body: PlanFields) -> None:
+    """Meals with an id are changed; a stored meal left out goes, with its
+    cells. Cells beyond the days are dropped."""
     by_id = {meal.id: meal for meal in plan.meals}
     meals = [by_id.get(meal.id) or models.PlanMeal() for meal in body.meals]
     skipped = [sorted({s.day for s in body.skips if s.meal == i and s.day < body.days}) for i in range(len(meals))]
@@ -323,12 +330,19 @@ def _fill(plan: models.Plan, body: PlanFields) -> None:
         kept = {skip.day: skip for skip in meal.skips}
         meal.skips = [kept.get(day) or models.PlanSkip(day=day) for day in days]
     plan.meals = meals
+
+
+def _fill_minimums(plan: models.Plan, body: PlanFields) -> None:
+    """Minimums beyond the days are dropped."""
     kept = {minimum.day: minimum for minimum in plan.minimums}
     plan.minimums = [
         _minimum(kept.get(m.day), m)
         for m in sorted(body.minimums, key=lambda m: m.day)
         if m.day < body.days
     ]
+
+
+def _fill_goals(plan: models.Plan, body: PlanFields) -> None:
     by_id = {goal.id: goal for goal in plan.goals}
     plan.goals = [
         _goal(by_id.get(fields.id), position, fields) for position, fields in enumerate(body.goals)
