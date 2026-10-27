@@ -2,7 +2,7 @@ import { flushPromises } from '@vue/test-utils'
 import { afterEach, expect, test, vi } from 'vitest'
 import { resetSolve } from '../solve'
 import { button, click, dialog, fakeServer, mountApp, texts, type FakeReply, type FakeServer } from '../test-app'
-import { attribute, goal, plan, planResult, planSummary, resultMeal } from '../test-data'
+import { attribute, goal, plan, planResult, planSummary, resultMeal, tag } from '../test-data'
 
 afterEach(() => {
   resetSolve()
@@ -18,6 +18,8 @@ async function mountPage(server: FakeServer = {}) {
     'GET /api/attributes': { body: [] },
     'GET /api/plan-results': { body: { unsaved: null, saved: [] } },
     'GET /api/plan-results/today': { body: null },
+    'GET /api/tags': { body: [] },
+    'POST /api/plan/recipe-count': { body: { usable: 0, total: 0 } },
     ...server,
   })
   const { wrapper, router } = await mountApp('/')
@@ -109,6 +111,22 @@ test('the Goals card follows the Schedule card, and a goal opens its editor, who
   await dialog().click('Save')
   expect(sent).toHaveLength(1)
   expect(wrapper.get('.goal-range').text()).toBe('at least 150 g')
+  wrapper.unmount()
+})
+
+test('the Recipes card follows the Goals card, with the count and a chip per filter; Edit opens the filters', async () => {
+  const { wrapper, router } = await mountPage({
+    'GET /api/plan': { body: plan({ tag_filters: [{ tag_id: 2, mode: 'never' }] }) },
+    'GET /api/tags': { body: [tag({ id: 2, name: 'contains-nuts' })] },
+    'POST /api/plan/recipe-count': { body: { usable: 5, total: 9 } },
+  })
+  const cards = wrapper.findAll('.goals-card, .recipes-card').map((card) => card.classes().find((c) => c.endsWith('-card') && c !== 'q-card'))
+  expect(cards).toEqual(['goals-card', 'recipes-card'])
+  const card = wrapper.get('.recipes-card')
+  expect(card.text()).toContain('5 of 9 recipes can be used')
+  expect(card.findAll('.filter-chip').map((chip) => chip.text())).toEqual(['Never: contains-nuts'])
+  await click(card.get('a'))
+  expect(router.currentRoute.value.fullPath).toBe('/plan/recipes')
   wrapper.unmount()
 })
 

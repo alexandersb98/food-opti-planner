@@ -141,6 +141,11 @@
   "plan": {
     "loadFailed": "Could not load the plan.",
     "schedule": "Schedule",
+    "recipes": "Recipes",
+    "filterChip": {
+      "only": "Only: {tag}",
+      "never": "Never: {tag}"
+    },
     "edit": "Edit",
     "mealsADay": "no meals a day | 1 meal a day | {n} meals a day",
     "skipped": "nothing skipped | 1 skipped | {n} skipped",
