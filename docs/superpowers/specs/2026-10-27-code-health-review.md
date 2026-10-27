@@ -47,11 +47,11 @@ types in it), the checks Pydantic can't make (`plans.errors`,
 `plans.filter_errors`, which return neutral `Problem`s the route turns into
 422s) and the update of the stored rows (`plans.fill`) moved to
 `server/plans.py`, tested without HTTP in `tests/server/test_plans.py`.
-`server/api/plan.py` keeps the response models, the loading and the routes.
+`server/api/plan.py` keeps the response models and the routes; the loading
+moved to `server/queries.py` with finding 2.
 The shared field types moved from `server/api/fields.py` to
 `server/fields.py`, so `plans` depends on nothing in `api`. **Still to do:**
 the orchestration of a solve in `server/api/solve.py` (`_read`, `_solve`).
-The shared reads moved with finding 2.
 
 The finding as written:
 
@@ -69,7 +69,7 @@ and update of the plan setup to a module such as `server/plans.py` (or a
 
 ### 2. ~~Route modules import each other~~ DONE
 
-**Done.** The shared reads moved to `server/queries.py`: `queries.plan`
+Done in commit 51d9887. The shared reads moved to `server/queries.py`: `queries.plan`
 (was `plan.stored`, with the setup's defaults), `queries.recipes` (was
 `recipes.loaded`) and `queries.plan_result` (the loading `plan_results.read`
 did). `models.now` (was `plan_results.now`) gives the time stored. The

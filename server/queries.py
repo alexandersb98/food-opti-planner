@@ -4,7 +4,7 @@ import these rather than each other."""
 
 from datetime import date
 
-from sqlalchemy import Select, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from . import models
@@ -40,7 +40,7 @@ def plan(db: Session) -> models.Plan:
     return setup
 
 
-def recipes() -> Select[tuple[models.Recipe]]:
+def recipes():
     """Recipes with everything their responses and the planner need, in a few queries."""
     ingredient = selectinload(models.Recipe.items).selectinload(models.RecipeItem.ingredient)
     return select(models.Recipe).options(
@@ -52,10 +52,10 @@ def recipes() -> Select[tuple[models.Recipe]]:
 
 def plan_result(db: Session, plan_id: int) -> models.PlanResult | None:
     """A plan result with everything its response needs, or None."""
-    loaded = select(models.PlanResult).options(
+    query = select(models.PlanResult).options(
         selectinload(models.PlanResult.attributes),
         selectinload(models.PlanResult.meals).selectinload(models.PlanResultMeal.items),
         selectinload(models.PlanResult.totals),
         selectinload(models.PlanResult.goals).selectinload(models.PlanResultGoal.misses),
     )
-    return db.scalars(loaded.where(models.PlanResult.id == plan_id)).one_or_none()
+    return db.scalars(query.where(models.PlanResult.id == plan_id)).one_or_none()
