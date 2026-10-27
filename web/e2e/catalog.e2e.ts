@@ -109,6 +109,14 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(page.locator('.goal-row')).toHaveText([/Energy\s*at least 100 kcal\s*Each day\s*Must/])
 
+  // Its name, typed under Advanced, becomes the row's title.
+  await page.locator('.goal-row').click()
+  await goalDialog.getByText('Advanced').click()
+  await goalDialog.getByLabel('Goal name').fill('Energy floor')
+  await goalDialog.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.locator('.goal-row')).toHaveText([/Energy floor\s*Energy · at least 100 kcal\s*Each day\s*Must/])
+
   await page.getByRole('button', { name: 'Make plan' }).click()
   await expect(page.getByText('Best possible plan')).toBeVisible({ timeout: 60_000 })
   await expect(page.getByText('All goals met')).toBeVisible()

@@ -209,20 +209,87 @@ def goal(attribute_id, **changes) -> dict:
 def test_every_field_of_a_goal_round_trips(client, catalog):
     energy, protein = catalog.attribute(), catalog.attribute("Protein", "g", 1)
     saved = put(client, goals=[
-        goal(energy, min=1800, max="2200", applies_to="daily_average", must=True, importance=5),
-        goal(protein, min="0", max="30.5", applies_to="plan_total", importance=1, zero_reference="25"),
+        goal(energy, min=1800, max="2200", applies_to="daily_average", must=True, importance=5,
+             custom_name="  Fuel ", day_guard_rail=True, guard_rail_importance=4),
+        goal(protein, min="0", max="30.5", applies_to="plan_total", importance=1, zero_reference="25",
+             importance_below=5, importance_above=2),
     ])
     first, second = saved["goals"]
     assert isinstance(first["id"], int) and first["id"] != second["id"]
     assert first == {
-        "id": first["id"], "name": "Energy, daily average", "attribute_id": energy, "min": "1800",
+        "id": first["id"], "name": "Fuel", "custom_name": "Fuel", "attribute_id": energy, "min": "1800",
         "max": "2200", "applies_to": "daily_average", "must": True, "importance": 5, "zero_reference": None,
+        "importance_below": None, "importance_above": None, "day_guard_rail": True, "guard_rail_importance": 4,
     }
     assert second == {
-        "id": second["id"], "name": "Protein, plan total", "attribute_id": protein, "min": "0",
+        "id": second["id"], "name": "Protein, plan total", "custom_name": None, "attribute_id": protein, "min": "0",
         "max": "30.5", "applies_to": "plan_total", "must": False, "importance": 1, "zero_reference": "25",
+        "importance_below": 5, "importance_above": 2, "day_guard_rail": True, "guard_rail_importance": None,
     }
     assert read(client) == saved
+
+
+def test_a_goal_without_advanced_fields_has_no_advanced_settings(client, catalog):
+    energy = catalog.attribute()
+    [saved] = put(client, goals=[goal(energy, applies_to="daily_average")])["goals"]
+    assert (saved["custom_name"], saved["importance_below"], saved["importance_above"],
+            saved["day_guard_rail"], saved["guard_rail_importance"]) == (None, None, None, True, None)
+
+
+def test_the_guard_rail_can_be_turned_off_for_a_daily_average(client, catalog):
+    energy = catalog.attribute()
+    [saved] = put(client, goals=[goal(energy, applies_to="daily_average", day_guard_rail=False)])["goals"]
+    assert (saved["day_guard_rail"], saved["guard_rail_importance"]) == (False, None)
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        # Must, or a single bound: no sides to weigh apart.
+        {"must": True, "min": "100", "max": "200"},
+        {"min": "100", "max": None},
+        {"min": None, "max": "200"},
+    ],
+)
+def test_the_importance_below_and_above_are_dropped_unless_prefer_with_both_bounds(client, catalog, fields):
+    energy = catalog.attribute()
+    [saved] = put(client, goals=[goal(energy, importance_below=5, importance_above=1, **fields)])["goals"]
+    assert (saved["importance_below"], saved["importance_above"]) == (None, None)
+
+
+def test_the_guard_rail_settings_are_dropped_unless_they_apply(client, catalog):
+    energy = catalog.attribute()
+    saved = put(client, goals=[
+        # Only a daily average has a day guard-rail.
+        goal(energy, day_guard_rail=False, guard_rail_importance=4),
+        goal(energy, applies_to="plan_total", day_guard_rail=False, guard_rail_importance=4),
+        # With the guard-rail off, its importance has nothing to weigh.
+        goal(energy, applies_to="daily_average", day_guard_rail=False, guard_rail_importance=4),
+    ])["goals"]
+    assert [(g["day_guard_rail"], g["guard_rail_importance"]) for g in saved] == [
+        (True, None), (True, None), (False, None),
+    ]
+
+
+def test_a_typed_name_is_kept_and_the_generated_ones_numbered_around_it(client, catalog):
+    energy = catalog.attribute()
+    saved = put(client, goals=[goal(energy), goal(energy, custom_name="Energy per day (2)"), goal(energy)])
+    assert [g["name"] for g in saved["goals"]] == ["Energy per day", "Energy per day (2)", "Energy per day (3)"]
+    assert [g["custom_name"] for g in saved["goals"]] == [None, "Energy per day (2)", None]
+
+
+def test_typed_names_equal_after_trimming_answer_422_on_each_goal_with_the_name(client, catalog):
+    # Both are marked, so the editor finds it whichever of them was edited.
+    energy = catalog.attribute()
+    before = put(client, goals=[goal(energy, custom_name="Fuel"), goal(energy)])
+    body = {**read(client), "goals": [*before["goals"], goal(energy, custom_name=" Fuel  ")]}
+    response = client.put("/api/plan", json=body)
+    assert response.status_code == 422
+    assert [(e["loc"], e["type"], e["msg"]) for e in response.json()["detail"]] == [
+        (["body", "goals", 0, "custom_name"], "duplicate", "Another goal has this name"),
+        (["body", "goals", 2, "custom_name"], "duplicate", "Another goal has this name"),
+    ]
+    assert read(client) == before
 
 
 def test_the_goals_are_kept_in_the_order_sent(client, catalog):
@@ -232,28 +299,12 @@ def test_the_goals_are_kept_in_the_order_sent(client, catalog):
     assert [g["id"] for g in swapped["goals"]] == [second["id"], first["id"]]
 
 
-def test_a_goal_with_an_id_is_changed_and_keeps_its_id_and_the_columns_the_api_lacks(client, catalog, database_url):
-    from sqlalchemy import create_engine, text
-
+def test_a_goal_with_an_id_is_changed_and_keeps_its_id(client, catalog):
     energy, protein = catalog.attribute(), catalog.attribute("Protein")
     [stored] = put(client, goals=[goal(energy)])["goals"]
-    engine = create_engine(database_url)
-    with engine.begin() as connection:
-        connection.execute(text(
-            "UPDATE goals SET name = 'Fuel', importance_below = 5, importance_above = 2,"
-            " day_guard_rail = :off, guard_rail_importance = 4"
-        ), {"off": False})
     [changed] = put(client, goals=[{**stored, "attribute_id": protein, "min": "50", "importance": 4}])["goals"]
     assert changed["id"] == stored["id"]
     assert (changed["attribute_id"], changed["min"], changed["importance"]) == (protein, "50", 4)
-    with engine.connect() as connection:
-        row = connection.execute(text(
-            "SELECT name, importance_below, importance_above, day_guard_rail, guard_rail_importance FROM goals"
-        )).one()
-    engine.dispose()
-    assert tuple(row) == ("Fuel", 5, 2, False, 4)
-    # A stored name is the goal's name.
-    assert read(client)["goals"][0]["name"] == "Fuel"
 
 
 def test_a_goal_left_out_is_removed(client, catalog):
@@ -291,6 +342,14 @@ def test_a_goal_with_no_zero_bound_and_a_zero_bound_needing_it(client, catalog):
         ]
     saved = put(client, goals=[goal(energy, min="0", zero_reference="10")])
     assert saved["goals"][0]["zero_reference"] == "10"
+
+
+def test_a_must_daily_average_without_its_guard_rail_needs_no_zero_reference(client, catalog):
+    energy = catalog.attribute()
+    [saved] = put(client, goals=[
+        goal(energy, must=True, applies_to="daily_average", day_guard_rail=False, min="0", zero_reference="25"),
+    ])["goals"]
+    assert (saved["min"], saved["zero_reference"]) == ("0", None)
 
 
 def test_a_bound_may_be_negative(client, catalog):
@@ -340,6 +399,13 @@ def test_a_bound_may_have_trailing_zeros_beyond_the_attributes_decimals(client, 
         ({"zero_reference": "0"}, ["zero_reference"], "greater_than"),
         ({"zero_reference": "-1"}, ["zero_reference"], "greater_than"),
         ({"applies_to": "week"}, ["applies_to"], "literal_error"),
+        ({"custom_name": ""}, ["custom_name"], "string_too_short"),
+        ({"custom_name": "   "}, ["custom_name"], "string_too_short"),
+        ({"custom_name": "x" * 101}, ["custom_name"], "string_too_long"),
+        ({"importance_below": 0}, ["importance_below"], "greater_than_equal"),
+        ({"importance_above": 6}, ["importance_above"], "less_than_equal"),
+        ({"guard_rail_importance": 0}, ["guard_rail_importance"], "greater_than_equal"),
+        ({"guard_rail_importance": 6}, ["guard_rail_importance"], "less_than_equal"),
     ],
 )
 def test_an_invalid_goal_answers_422_on_its_field_and_changes_nothing(client, catalog, fields, loc, error_type):

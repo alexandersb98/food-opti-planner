@@ -49,3 +49,26 @@ test('without attributes, + Add goal is disabled and says to add an attribute fi
   expect(enabled.get('.add-goal').attributes('disabled')).toBeUndefined()
   expect(enabled.text()).not.toContain('Add an attribute first')
 })
+
+test('a typed name is the row’s title, with the attribute before the range', () => {
+  const wrapper = mountCard({
+    attributes,
+    goals: [goal({ id: 1, attribute_id: 2, min: '120', max: null, custom_name: 'Protein floor', name: 'Protein floor' })],
+  })
+  expect(wrapper.get('.goal-row').text()).toMatch(/^Protein floor\s*Protein · at least 120 g\s*Each day\s*Prefer$/)
+})
+
+test('a goal with importance below and above shows both as dots, below / above', () => {
+  const wrapper = mountCard({
+    attributes,
+    goals: [goal({ id: 1, attribute_id: 1, min: '1800', max: '2200', importance_below: 2, importance_above: 4 })],
+  })
+  const row = wrapper.get('.goal-row')
+  const groups = row.findAll('.importance').map((group) => group.findAll('.importance-dot').map((dot) => dot.classes('filled')))
+  expect(groups).toEqual([
+    [true, true, false, false, false],
+    [true, true, true, true, false],
+  ])
+  expect(row.get('.goal-chip').text()).toMatch(/^Prefer\s*\/$/)
+  expect(row.get('.importance-split').attributes('aria-label')).toBe('Importance 2 of 5 below the range, 4 of 5 above')
+})

@@ -1,8 +1,11 @@
-import { expect, test } from 'vitest'
+import { describe, expect, test } from 'vitest'
+import type { Goal } from './api/types'
 import { makeI18n } from './i18n'
-import { IMPORTANCE, needsZeroReference, rangeText, scopeText } from './goals'
+import { goalNames, guardRailImportance, IMPORTANCE, needsZeroReference, rangeText, scopeText } from './goals'
+import { attribute } from './test-data'
 
 const { t } = makeI18n().global
+type AppliesTo = Goal['applies_to']
 
 test.each([
   ['1800', '2200', 'kcal', '1800–2200 kcal'],
@@ -44,5 +47,73 @@ test.each([
   ['day', false, '', '', false],
   ['day', false, 'x', null, false],
 ] as const)('%s, must %s, bounds %s and %s: reference needed is %s', (applies_to, must, min, max, needed) => {
-  expect(needsZeroReference({ applies_to, must, min, max })).toBe(needed)
+  expect(needsZeroReference({ applies_to, must, day_guard_rail: true, min, max })).toBe(needed)
+})
+
+test('without its day guard-rail, a Must daily average needs no reference; a Prefer one still does', () => {
+  expect(needsZeroReference({ applies_to: 'daily_average', must: true, day_guard_rail: false, min: '0', max: null })).toBe(false)
+  expect(needsZeroReference({ applies_to: 'daily_average', must: false, day_guard_rail: false, min: '0', max: null })).toBe(true)
+})
+
+// The same cases as the server's `translate.guard_rail_importance`, and more.
+test.each([
+  [false, 3, null, null, null, 2], // Prefer: one step below the goal's importance
+  [false, 5, null, null, null, 4],
+  [false, 1, null, null, null, 1], // at least 1
+  [false, 3, 5, 1, null, 4], // with below and above: one step below the higher
+  [false, 3, null, 5, null, 4], // a side without its own is the goal's
+  [true, 3, null, null, null, 2], // Must: 2, whatever the hidden importance
+  [true, 5, null, null, null, 2],
+  [false, 3, null, null, 5, 5], // its own importance once set
+  [true, 4, null, null, 1, 1],
+] as const)(
+  'must %s, importance %s, below %s, above %s, own %s: the day guard-rail has importance %s',
+  (must, importance, importance_below, importance_above, own, shown) => {
+    expect(
+      guardRailImportance({ must, importance, importance_below, importance_above, guard_rail_importance: own }),
+    ).toBe(shown)
+  },
+)
+
+// The same cases as the server's `translate.goal_names` (tests/server/test_translate.py).
+describe('goal names', () => {
+  const attributes = [attribute({ id: 1, name: 'Energy' }), attribute({ id: 2, name: 'Protein' })]
+  const ENERGY = 1
+  const PROTEIN = 2
+  const named = (attribute_id = ENERGY, applies_to: AppliesTo = 'day', custom_name: string | null = null) => ({
+    attribute_id,
+    applies_to,
+    custom_name,
+  })
+
+  test('they say the scope', () => {
+    const goals = [named(PROTEIN), named(PROTEIN, 'plan_total'), named(PROTEIN, 'daily_average')]
+    expect(goalNames(goals, attributes)).toEqual(['Protein per day', 'Protein, plan total', 'Protein, daily average'])
+  })
+
+  test('a repeated name gets 2 then 3 in goal order', () => {
+    const goals = [named(), named(PROTEIN), named(), named(ENERGY, 'plan_total'), named()]
+    expect(goalNames(goals, attributes)).toEqual([
+      'Energy per day',
+      'Protein per day',
+      'Energy per day (2)',
+      'Energy, plan total',
+      'Energy per day (3)',
+    ])
+  })
+
+  test('a typed name is kept and the generated ones are numbered around it', () => {
+    const goals = [named(), named(ENERGY, 'day', 'Energy per day'), named(ENERGY, 'day', 'Fuel'), named()]
+    expect(goalNames(goals, attributes)).toEqual(['Energy per day (2)', 'Energy per day', 'Fuel', 'Energy per day (3)'])
+  })
+
+  test('a number taken by a typed name moves the generated name on', () => {
+    const goals = [named(), named(), named(ENERGY, 'day', 'Energy per day (2)'), named()]
+    expect(goalNames(goals, attributes)).toEqual([
+      'Energy per day',
+      'Energy per day (3)',
+      'Energy per day (2)',
+      'Energy per day (4)',
+    ])
+  })
 })

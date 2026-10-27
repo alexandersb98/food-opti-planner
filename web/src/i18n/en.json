@@ -194,6 +194,8 @@
     "must": "Must",
     "prefer": "Prefer",
     "importanceOf": "Importance {n} of {max}",
+    "importanceSplit": "Importance {below} of {max} below the range, {above} of {max} above",
+    "attributeRange": "{attribute} · {range}",
     "editor": {
       "addTitle": "Add goal",
       "editTitle": "Edit goal",
@@ -215,7 +217,19 @@
       "minAboveMax": "Must be at most the maximum.",
       "tooManyDecimals": "At most {n} decimals for {attribute}.",
       "referenceNeeded": "A number above 0.",
-      "unknownAttribute": "Pick an attribute."
+      "unknownAttribute": "Pick an attribute.",
+      "advanced": "Advanced",
+      "name": "Goal name",
+      "nameInUse": "Another goal has this name.",
+      "nameTooLong": "At most {n} characters.",
+      "split": "Different importance below and above",
+      "below": "Below the range",
+      "above": "Above the range",
+      "splitSet": "Set below and above, under Advanced",
+      "guardRail": "Also keep each day in range",
+      "guardRailImportance": "Importance of each day",
+      "importanceInvalid": "An importance from {min} to {max}.",
+      "settingRefused": "Could not save this setting."
     }
   },
   "schedule": {

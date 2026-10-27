@@ -164,6 +164,37 @@
             "title": "Attribute Id",
             "type": "integer"
           },
+          "custom_name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Name"
+          },
+          "day_guard_rail": {
+            "default": true,
+            "title": "Day Guard Rail",
+            "type": "boolean"
+          },
+          "guard_rail_importance": {
+            "anyOf": [
+              {
+                "maximum": 5.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guard Rail Importance"
+          },
           "id": {
             "title": "Id",
             "type": "integer"
@@ -173,6 +204,32 @@
             "minimum": 1.0,
             "title": "Importance",
             "type": "integer"
+          },
+          "importance_above": {
+            "anyOf": [
+              {
+                "maximum": 5.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Importance Above"
+          },
+          "importance_below": {
+            "anyOf": [
+              {
+                "maximum": 5.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Importance Below"
           },
           "max": {
             "anyOf": [
@@ -228,7 +285,7 @@
         "type": "object"
       },
       "GoalFields": {
-        "description": "A goal: a bound on an attribute, per day or over the plan. At least\none of `min` and `max` is given. `importance` (1-5) is how much a Prefer\ngoal weighs; a Must goal keeps its own. `zero_reference` is given exactly\nwhen a bound is 0 and a soft penalty is made from it (the library's\nrule, `translate.needs_zero_reference`) and is dropped otherwise.",
+        "description": "A goal: a bound on an attribute, per day or over the plan. At least\none of `min` and `max` is given. `importance` (1-5) is how much a Prefer\ngoal weighs; a Must goal keeps its own. `zero_reference` is given exactly\nwhen a bound is 0 and a soft penalty is made from it (the library's\nrule, `translate.needs_zero_reference`) and is dropped otherwise.\n\nThe advanced settings: `custom_name` is the name the user typed, unique\namong the goals, None to follow the generated one. `importance_below`\nand `importance_above` weigh each side of a Prefer goal with both\nbounds (None: the goal's importance) and are dropped for other goals.\n`day_guard_rail` keeps each day of a daily average in range too, at\n`guard_rail_importance` (None: follows the goal's, `translate.constraint`);\nother goals keep it on, and without the guard-rail its importance is\ndropped.",
         "properties": {
           "applies_to": {
             "enum": [
@@ -242,6 +299,37 @@
           "attribute_id": {
             "title": "Attribute Id",
             "type": "integer"
+          },
+          "custom_name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Custom Name"
+          },
+          "day_guard_rail": {
+            "default": true,
+            "title": "Day Guard Rail",
+            "type": "boolean"
+          },
+          "guard_rail_importance": {
+            "anyOf": [
+              {
+                "maximum": 5.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guard Rail Importance"
           },
           "id": {
             "anyOf": [
@@ -259,6 +347,32 @@
             "minimum": 1.0,
             "title": "Importance",
             "type": "integer"
+          },
+          "importance_above": {
+            "anyOf": [
+              {
+                "maximum": 5.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Importance Above"
+          },
+          "importance_below": {
+            "anyOf": [
+              {
+                "maximum": 5.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Importance Below"
           },
           "max": {
             "anyOf": [

@@ -392,9 +392,10 @@ def test_a_generated_name_of_the_longest_attribute_fits_the_stored_name(client, 
              goals=[goal(energy, min="400", applies_to="daily_average")], solve_time_limit=10)
     full = f"{name}, daily average"
     assert [g["name"] for g in solve(client)["plan"]["goals"]] == [full]
-    # SQLite does not enforce lengths, Postgres does; with " (NN)" too.
+    # SQLite does not enforce lengths, Postgres does; with " (NNN)" too, as
+    # typed names can move a generated one's number past the goals'.
     for column in (models.Goal.name, models.PlanResultGoal.name):
-        assert column.type.length >= len(f"{full} (50)")
+        assert column.type.length >= len(f"{full} (100)")
 
 
 def test_misses_come_by_goal_then_the_whole_plan_before_the_days(client, catalog):
@@ -404,3 +405,14 @@ def test_misses_come_by_goal_then_the_whole_plan_before_the_days(client, catalog
     assert [(m["goal"], m["day"], m["side"]) for m in misses] == [
         (0, 0, "below"), (1, None, "below"), (1, 0, "below"),
     ]
+
+
+def test_a_goal_with_a_typed_name_and_its_own_importances_below_and_above_is_planned_by_its_name(client, catalog):
+    energy = one_meal_two_recipes(client, catalog)
+    # Below 250 weighs little, above 250 much: Light's 150 short beats Heavy's 50 over.
+    schedule(client, goals=[goal(energy, min="250", max="250", zero_reference=None, custom_name="Fuel",
+                                 importance_below=1, importance_above=5)])
+    plan = solve(client)["plan"]
+    assert plan["meals"][0][0]["recipe"] == "Light"
+    assert [g["name"] for g in plan["goals"]] == ["Fuel"]
+    assert [(m["goal"], m["side"], m["amount"]) for m in plan["misses"]] == [(0, "below", "150")]
