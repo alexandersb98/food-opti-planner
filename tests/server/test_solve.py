@@ -416,3 +416,33 @@ def test_a_goal_with_a_typed_name_and_its_own_importances_below_and_above_is_pla
     assert plan["meals"][0][0]["recipe"] == "Light"
     assert [g["name"] for g in plan["goals"]] == ["Fuel"]
     assert [(m["goal"], m["side"], m["amount"]) for m in plan["misses"]] == [(0, "below", "150")]
+
+
+def tagged_light_and_heavy(client, catalog) -> tuple[int, int]:
+    """Light and Heavy as `one_meal_two_recipes`, Heavy tagged "filling" by
+    hand, and a goal that prefers Heavy. Answers the tag and Energy."""
+    energy = catalog.attribute()
+    filling = catalog.tag("filling")
+    food = catalog.ingredient("Food", "g", "1", values={energy: "100"})
+    fixed_portion_recipe(catalog, "Light", {food: "1"}, "1")
+    fixed_portion_recipe(catalog, "Heavy", {food: "3"}, "1", extra_tag_ids=[filling])
+    schedule(client, start_date="2026-10-26", days=1, meals=[{"name": "Lunch"}], skips=[], minimums=[],
+             goals=[goal(energy, min="250")], solve_time_limit=10)
+    return filling, energy
+
+
+def test_a_plan_uses_only_the_recipes_the_filters_leave(client, catalog):
+    filling, _ = tagged_light_and_heavy(client, catalog)
+    assert chosen(client) == "Heavy"
+    schedule(client, tag_filters=[{"tag_id": filling, "mode": "never"}])
+    assert chosen(client) == "Light"
+
+
+def test_filters_that_leave_no_recipe_answer_why_and_store_nothing(client, catalog):
+    filling, _ = tagged_light_and_heavy(client, catalog)
+    kept = solve(client)["plan"]
+    quick = catalog.tag("quick")
+    # Heavy is filling but not quick.
+    schedule(client, tag_filters=[{"tag_id": filling, "mode": "only"}, {"tag_id": quick, "mode": "only"}])
+    assert solve(client) == {"plan": None, "failure": "no_usable_recipes"}
+    assert unsaved(client) == summary(kept)

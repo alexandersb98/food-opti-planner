@@ -67,6 +67,7 @@ export function plan(fields: Partial<Plan> = {}): Plan {
     skips: [],
     minimums: [],
     goals: [],
+    tag_filters: [],
     solve_time_limit: 30,
     ...fields,
   }

@@ -1,11 +1,10 @@
 """Stored data to library objects: the GUI's mapping rules, in one place.
 
 Pure functions of model objects, with no database or HTTP, so each rule has
-its own plain test. Later slices add recipe filters to the
-`PlanRequest`.
+its own plain test.
 """
 
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from decimal import Decimal
 
 from meal_planner import AttributeDef, Constraint, Day, Ingredient, IngredientAmount, PlanRequest, Recipe, Slot, TagDef
@@ -48,6 +47,27 @@ def recipe(row: models.Recipe) -> Recipe:
         hard_max_multiplier=row.hard_max_multiplier,
         serving_cap_weight=row.serving_cap_weight,
     )
+
+
+def usable_recipes(
+    recipes: Sequence[models.Recipe], tags: Sequence[models.Tag], only: Collection[str], never: Collection[str]
+) -> list[models.Recipe]:
+    """The recipes left after the filters, in order: those with every tag in
+    `only` and none in `never`, tags by name, derived ones too. The library's
+    `PlanRequest.eligible_recipes` rule, which needs a whole valid request."""
+    tag_defs = {row.name: tag(row) for row in tags}
+    only, never = frozenset(only), frozenset(never)
+    usable = []
+    for row in recipes:
+        names = recipe(row).tags(tag_defs)
+        if only <= names and not names & never:
+            usable.append(row)
+    return usable
+
+
+def filter_names(plan: models.Plan, mode: str) -> frozenset[str]:
+    """The names of the tags the plan's filters set to `mode`."""
+    return frozenset(f.tag.name for f in plan.tag_filters if f.mode == mode)
 
 
 def days(plan: models.Plan) -> tuple[Day, ...]:
@@ -194,13 +214,16 @@ def plan_request(
     tags: Sequence[models.Tag],
     recipes: Sequence[models.Recipe],
 ) -> PlanRequest:
-    """The whole catalog, the schedule and the goals, each keyed by its
-    place (`constraint_key`). No recipe filters yet."""
+    """The whole catalog, the schedule, the goals, each keyed by its place
+    (`constraint_key`), and the recipe filters, Only as `require_tags` and
+    Never as `exclude_tags`."""
     return PlanRequest(
         attributes=tuple(attribute(row) for row in attributes),
         tags=tuple(tag(row) for row in tags),
         recipes=tuple(recipe(row) for row in recipes),
         days=days(plan),
         constraints=tuple(constraint(goal, constraint_key(i)) for i, goal in enumerate(plan.goals)),
+        require_tags=filter_names(plan, "only"),
+        exclude_tags=filter_names(plan, "never"),
         solve_time_limit=plan.solve_time_limit,
     )

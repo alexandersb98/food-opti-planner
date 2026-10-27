@@ -279,6 +279,7 @@ test('Save sends the setup and returns to the Plan page', async () => {
         { day: 3, at_least: 0 },
       ],
       goals: [],
+      tag_filters: [],
       solve_time_limit: 30,
     },
   ])

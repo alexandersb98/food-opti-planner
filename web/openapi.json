@@ -746,6 +746,13 @@
             "format": "date",
             "title": "Start Date",
             "type": "string"
+          },
+          "tag_filters": {
+            "items": {
+              "$ref": "#/components/schemas/TagFilter"
+            },
+            "title": "Tag Filters",
+            "type": "array"
           }
         },
         "required": [
@@ -755,6 +762,7 @@
           "skips",
           "minimums",
           "goals",
+          "tag_filters",
           "solve_time_limit"
         ],
         "title": "Plan",
@@ -809,6 +817,13 @@
             "format": "date",
             "title": "Start Date",
             "type": "string"
+          },
+          "tag_filters": {
+            "items": {
+              "$ref": "#/components/schemas/TagFilter"
+            },
+            "title": "Tag Filters",
+            "type": "array"
           }
         },
         "required": [
@@ -818,6 +833,7 @@
           "skips",
           "minimums",
           "goals",
+          "tag_filters",
           "solve_time_limit"
         ],
         "title": "PlanFields",
@@ -1120,6 +1136,41 @@
           "totals"
         ],
         "title": "Recipe",
+        "type": "object"
+      },
+      "RecipeCount": {
+        "description": "How many recipes are left after the filters, out of all recipes.",
+        "properties": {
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "usable": {
+            "title": "Usable",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "usable",
+          "total"
+        ],
+        "title": "RecipeCount",
+        "type": "object"
+      },
+      "RecipeCountFields": {
+        "properties": {
+          "tag_filters": {
+            "items": {
+              "$ref": "#/components/schemas/TagFilter"
+            },
+            "title": "Tag Filters",
+            "type": "array"
+          }
+        },
+        "required": [
+          "tag_filters"
+        ],
+        "title": "RecipeCountFields",
         "type": "object"
       },
       "RecipeFields": {
@@ -1528,6 +1579,7 @@
               {
                 "enum": [
                   "no_recipes",
+                  "no_usable_recipes",
                   "too_large",
                   "infeasible",
                   "no_plan_in_time",
@@ -1625,6 +1677,29 @@
           "derive"
         ],
         "title": "TagFields",
+        "type": "object"
+      },
+      "TagFilter": {
+        "description": "A recipe filter: \"only\" keeps just the recipes with the tag, \"never\"\nthe recipes without it. A tag without one is Any.",
+        "properties": {
+          "mode": {
+            "enum": [
+              "only",
+              "never"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "tag_id": {
+            "title": "Tag Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "tag_id",
+          "mode"
+        ],
+        "title": "TagFilter",
         "type": "object"
       },
       "TodayPlan": {
@@ -2513,6 +2588,48 @@
         "summary": "Use Plan Result For Today",
         "tags": [
           "plan results"
+        ]
+      }
+    },
+    "/api/plan/recipe-count": {
+      "post": {
+        "description": "How many recipes the filters in `body` leave for a plan, by the\nplanner's rule (`translate.usable_recipes`). Nothing is saved.",
+        "operationId": "recipe_count_api_plan_recipe_count_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecipeCountFields"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecipeCount"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recipe Count",
+        "tags": [
+          "plan"
         ]
       }
     },

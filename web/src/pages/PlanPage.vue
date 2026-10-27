@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { api } from '../api/client'
-import type { Attribute, Goal, Plan, PlanResults, TodayPlan } from '../api/types'
+import type { Attribute, Goal, Plan, PlanResults, Tag, TodayPlan } from '../api/types'
 import GoalDialog from '../components/GoalDialog.vue'
 import GoalsCard from '../components/GoalsCard.vue'
 import LoadState from '../components/LoadState.vue'
 import MaxTimeDialog from '../components/MaxTimeDialog.vue'
+import RecipesCard from '../components/RecipesCard.vue'
 import SavedPlansCard from '../components/SavedPlansCard.vue'
 import ScheduleCard from '../components/ScheduleCard.vue'
 import SolveCard from '../components/SolveCard.vue'
@@ -22,12 +23,14 @@ const { data, loading, failed, load } = useLoad(
     loadAll({
       plan: api.GET('/api/plan'),
       attributes: api.GET('/api/attributes'),
+      tags: api.GET('/api/tags'),
       results: api.GET('/api/plan-results'),
       today: api.GET('/api/plan-results/today', { params: { query: { date: localDate() } } }),
     }),
   {
     plan: null as Plan | null,
     attributes: [] as Attribute[],
+    tags: [] as Tag[],
     results: { unsaved: null, saved: [] } as PlanResults,
     today: null as TodayPlan | null,
   },
@@ -111,6 +114,11 @@ function makePlan() {
           :attributes="data.attributes"
           @edit="editGoal"
           @add="editGoal(null)"
+        />
+
+        <RecipesCard
+          :filters="data.plan.tag_filters"
+          :tags="data.tags"
         />
 
         <q-list

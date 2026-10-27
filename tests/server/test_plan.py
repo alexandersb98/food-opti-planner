@@ -32,6 +32,7 @@ def test_the_first_read_creates_the_defaults(client):
         "skips": [],
         "minimums": [],
         "goals": [],
+        "tag_filters": [],
         "solve_time_limit": 30,
     }
     assert len(set(meal_ids)) == 3
@@ -41,7 +42,7 @@ def test_the_first_read_creates_the_defaults(client):
 def test_saving_before_the_first_read_creates_the_plan(client):
     response = client.put("/api/plan", json={
         "start_date": "2026-11-02", "days": 2, "meals": [{"name": "Lunch"}],
-        "skips": [], "minimums": [], "goals": [], "solve_time_limit": 10,
+        "skips": [], "minimums": [], "goals": [], "tag_filters": [], "solve_time_limit": 10,
     })
     assert response.status_code == 200, response.text
     assert read(client) == response.json()
@@ -68,6 +69,7 @@ def test_every_field_round_trips(client):
         "skips": [{"day": 0, "meal": 0}, {"day": 0, "meal": 2}, {"day": 2, "meal": 1}],
         "minimums": [{"day": 0, "at_least": 0}, {"day": 2, "at_least": 1}],
         "goals": [],
+        "tag_filters": [],
         "solve_time_limit": 120,
     }
     assert read(client) == saved
@@ -433,3 +435,112 @@ def test_at_most_50_goals(client, catalog):
     response = client.put("/api/plan", json={**read(client), "goals": [goal(energy)] * 51})
     assert response.status_code == 422
     assert response.json()["detail"][0]["loc"] == ["body", "goals"]
+
+
+def test_tag_filters_round_trip_in_tag_id_order(client, catalog):
+    vegan, nuts, quick = catalog.tag(), catalog.tag("contains-nuts"), catalog.tag("quick")
+    saved = put(client, tag_filters=[
+        {"tag_id": quick, "mode": "only"}, {"tag_id": vegan, "mode": "only"}, {"tag_id": nuts, "mode": "never"},
+    ])
+    assert saved["tag_filters"] == [
+        {"tag_id": vegan, "mode": "only"}, {"tag_id": nuts, "mode": "never"}, {"tag_id": quick, "mode": "only"},
+    ]
+    assert read(client) == saved
+
+
+def test_a_filter_left_out_goes_and_a_changed_one_changes(client, catalog):
+    vegan, nuts = catalog.tag(), catalog.tag("contains-nuts")
+    put(client, tag_filters=[{"tag_id": vegan, "mode": "only"}, {"tag_id": nuts, "mode": "never"}])
+    saved = put(client, tag_filters=[{"tag_id": vegan, "mode": "never"}])
+    assert saved["tag_filters"] == [{"tag_id": vegan, "mode": "never"}]
+    assert put(client, tag_filters=[])["tag_filters"] == []
+
+
+def test_a_filter_on_an_unknown_tag_or_given_twice_answers_422_and_changes_nothing(client, catalog):
+    vegan = catalog.tag()
+    before = put(client, tag_filters=[{"tag_id": vegan, "mode": "only"}])
+    filters = [{"tag_id": vegan, "mode": "only"}, {"tag_id": 999, "mode": "never"}, {"tag_id": vegan, "mode": "never"}]
+    response = client.put("/api/plan", json={**before, "tag_filters": filters})
+    assert response.status_code == 422
+    assert [(e["loc"], e["type"], e["msg"]) for e in response.json()["detail"]] == [
+        (["body", "tag_filters", 1, "tag_id"], "unknown_tag", "No such tag"),
+        (["body", "tag_filters", 2, "tag_id"], "duplicate", "This tag is given twice"),
+    ]
+    assert read(client) == before
+
+
+@pytest.mark.parametrize(
+    ("changes", "loc"),
+    [
+        ({"mode": "any"}, ["tag_filters", 0, "mode"]),
+        ({"tag_id": "vegan"}, ["tag_filters", 0, "tag_id"]),
+    ],
+)
+def test_an_invalid_filter_answers_422_on_its_field(client, catalog, changes, loc):
+    vegan = catalog.tag()
+    response = client.put("/api/plan", json={**read(client), "tag_filters": [{"tag_id": vegan, "mode": "only", **changes}]})
+    assert response.status_code == 422
+    assert [e["loc"] for e in response.json()["detail"]] == [["body", *loc]]
+
+
+def test_a_body_without_tag_filters_answers_422_rather_than_removing_them(client, catalog):
+    vegan = catalog.tag()
+    before = put(client, tag_filters=[{"tag_id": vegan, "mode": "only"}])
+    body = {field: value for field, value in before.items() if field != "tag_filters"}
+    response = client.put("/api/plan", json=body)
+    assert response.status_code == 422
+    assert [e["loc"] for e in response.json()["detail"]] == [["body", "tag_filters"]]
+    assert read(client) == before
+
+
+def count(client, *filters) -> dict:
+    response = client.post("/api/plan/recipe-count", json={"tag_filters": list(filters)})
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def vegan_and_nut_recipes(catalog) -> tuple[int, int]:
+    """Oat porridge (vegan by its ingredient), Nut porridge (vegan, with
+    nuts added by hand) and Milk porridge (not vegan). Answers the tags."""
+    vegan, nuts = catalog.tag(), catalog.tag("contains-nuts", "any")
+    oats = catalog.ingredient(tag_ids=[vegan])
+    milk = catalog.ingredient("Milk", "ml")
+    catalog.recipe("Oat porridge", {oats: "60"})
+    catalog.recipe("Nut porridge", {oats: "60"}, extra_tag_ids=[nuts])
+    catalog.recipe("Milk porridge", {oats: "60", milk: "200"})
+    return vegan, nuts
+
+
+def test_without_filters_every_recipe_can_be_used(client, catalog):
+    vegan_and_nut_recipes(catalog)
+    assert count(client) == {"usable": 3, "total": 3}
+
+
+def test_only_counts_the_recipes_with_the_tag_and_never_those_without(client, catalog):
+    vegan, nuts = vegan_and_nut_recipes(catalog)
+    assert count(client, {"tag_id": vegan, "mode": "only"}) == {"usable": 2, "total": 3}
+    assert count(client, {"tag_id": nuts, "mode": "never"}) == {"usable": 2, "total": 3}
+    both = count(client, {"tag_id": vegan, "mode": "only"}, {"tag_id": nuts, "mode": "never"})
+    assert both == {"usable": 1, "total": 3}
+
+
+def test_the_count_is_of_the_filters_sent_not_the_saved_ones(client, catalog):
+    vegan, _ = vegan_and_nut_recipes(catalog)
+    put(client, tag_filters=[{"tag_id": vegan, "mode": "never"}])
+    assert count(client) == {"usable": 3, "total": 3}
+
+
+def test_without_recipes_the_count_is_0_of_0(client, catalog):
+    vegan = catalog.tag()
+    assert count(client, {"tag_id": vegan, "mode": "only"}) == {"usable": 0, "total": 0}
+
+
+def test_a_count_with_a_filter_on_an_unknown_tag_or_given_twice_answers_422(client, catalog):
+    vegan = catalog.tag()
+    filters = [{"tag_id": vegan, "mode": "only"}, {"tag_id": 999, "mode": "never"}, {"tag_id": vegan, "mode": "never"}]
+    response = client.post("/api/plan/recipe-count", json={"tag_filters": filters})
+    assert response.status_code == 422
+    assert [(e["loc"], e["type"], e["msg"]) for e in response.json()["detail"]] == [
+        (["body", "tag_filters", 1, "tag_id"], "unknown_tag", "No such tag"),
+        (["body", "tag_filters", 2, "tag_id"], "duplicate", "This tag is given twice"),
+    ]

@@ -20,10 +20,10 @@ from .plan import stored
 
 router = APIRouter(prefix="/plan", tags=["plan"])
 
-# Why a solve made no plan: the catalog has no recipes; the numbers are too
-# large for the solver; no plan meets the setup; time ran out first; or it
-# was cancelled first.
-Failure = Literal["no_recipes", "too_large", "infeasible", "no_plan_in_time", "stopped"]
+# Why a solve made no plan: the catalog has no recipes; the recipe filters
+# leave none; the numbers are too large for the solver; no plan meets the
+# setup; time ran out first; or it was cancelled first.
+Failure = Literal["no_recipes", "no_usable_recipes", "too_large", "infeasible", "no_plan_in_time", "stopped"]
 FAILURES: dict[SolveStatus, Failure] = {
     SolveStatus.INFEASIBLE: "infeasible",
     SolveStatus.TIMEOUT_NO_SOLUTION: "no_plan_in_time",
@@ -139,17 +139,24 @@ class _Setup:
     goals: list[freeze.FrozenGoal]
 
 
-def _read(db: DbSession) -> _Setup | None:
-    """The setup and the whole catalog, or None when there are no recipes.
-    The read is ended, so no connection waits in a transaction while the
-    solve runs for minutes (Neon drops one idle for 5); as that expires the
-    rows, only the plain values are kept."""
+def _read(db: DbSession) -> _Setup | Failure:
+    """The setup and the whole catalog, or why there is nothing to plan
+    with: no recipes, or none the recipe filters leave. The read is ended,
+    so no connection waits in a transaction while the solve runs for
+    minutes (Neon drops one idle for 5); as that expires the rows, only the
+    plain values are kept."""
     plan = stored(db)
     attributes = db.scalars(select(models.Attribute).order_by(models.Attribute.id)).all()
     tags = db.scalars(select(models.Tag).order_by(models.Tag.id)).all()
     rows = db.scalars(recipes.loaded().order_by(models.Recipe.id)).all()
-    setup = None
-    if rows:
+    only, never = translate.filter_names(plan, "only"), translate.filter_names(plan, "never")
+    setup: _Setup | Failure
+    if not rows:
+        setup = "no_recipes"
+    elif not translate.usable_recipes(rows, tags, only, never):
+        # The library refuses such a request.
+        setup = "no_usable_recipes"
+    else:
         # Any PlanRequestError means the server let through what the library
         # refuses: a bug, so it is not caught.
         setup = _Setup(
@@ -168,8 +175,8 @@ def _read(db: DbSession) -> _Setup | None:
 
 def _solve(db: DbSession, stop: StopHandle) -> SolveOutcome:
     setup = _read(db)
-    if setup is None:
-        return SolveOutcome(plan=None, failure="no_recipes")
+    if isinstance(setup, str):
+        return SolveOutcome(plan=None, failure=setup)
     try:
         answer = solve_plan(setup.request, stop)
     except ModelTooLargeError:

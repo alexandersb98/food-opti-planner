@@ -9,7 +9,15 @@ afterEach(() => {
 
 test('the setup goes back as loaded, without the fields only answered', () => {
   const energy = goal({ id: 7, name: 'Energy per day', attribute_id: 1, zero_reference: '5' })
-  const loaded = plan({ skips: [{ day: 1, meal: 2 }], minimums: [{ day: 0, at_least: 2 }], goals: [energy] })
+  const loaded = plan({
+    skips: [{ day: 1, meal: 2 }],
+    minimums: [{ day: 0, at_least: 2 }],
+    goals: [energy],
+    tag_filters: [
+      { tag_id: 1, mode: 'only' },
+      { tag_id: 4, mode: 'never' },
+    ],
+  })
   expect(planFields(loaded)).toEqual({
     start_date: '2026-09-21',
     days: 7,
@@ -37,6 +45,10 @@ test('the setup goes back as loaded, without the fields only answered', () => {
         day_guard_rail: true,
         guard_rail_importance: null,
       },
+    ],
+    tag_filters: [
+      { tag_id: 1, mode: 'only' },
+      { tag_id: 4, mode: 'never' },
     ],
     solve_time_limit: 30,
   })

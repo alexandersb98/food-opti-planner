@@ -32,7 +32,7 @@ export function goalFields(goal: Goal): GoalFields {
 
 /** The setup as loaded, as the server takes it back. */
 export function planFields(plan: Plan): PlanFields {
-  const { start_date, days, meals, skips, minimums, goals, solve_time_limit } = plan
+  const { start_date, days, meals, skips, minimums, goals, tag_filters, solve_time_limit } = plan
   return {
     start_date,
     days,
@@ -40,6 +40,7 @@ export function planFields(plan: Plan): PlanFields {
     skips,
     minimums,
     goals: goals.map(goalFields),
+    tag_filters,
     solve_time_limit,
   }
 }

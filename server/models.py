@@ -17,6 +17,7 @@ MEAL_NAME_LENGTH = 40
 DERIVE_LENGTH = 3  # "all" or "any"
 APPLIES_TO_LENGTH = 13  # "daily_average"
 STATUS_LENGTH = 12  # "optimal", "time_ran_out", "stopped"
+FILTER_MODE_LENGTH = 5  # "only" or "never"
 # Numbers typed on forms (ingredient values, value bases, ...), stored
 # exactly as typed. 15 digits stay exact even in SQLite, which holds them as
 # floating point.
@@ -161,6 +162,10 @@ class Plan(Base):
     goals: Mapped[list["Goal"]] = relationship(
         cascade="all, delete-orphan", passive_deletes=True, order_by="Goal.position"
     )
+    # Only the tags set to Only or Never; the others are Any.
+    tag_filters: Mapped[list["PlanTagFilter"]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True, order_by="PlanTagFilter.tag_id"
+    )
 
 
 class PlanMeal(Base):
@@ -234,6 +239,18 @@ class Goal(Base):
     day_guard_rail: Mapped[bool] = mapped_column(default=True)
     guard_rail_importance: Mapped[int | None]
     attribute: Mapped[Attribute] = relationship()
+
+
+class PlanTagFilter(Base):
+    """A recipe filter on a tag: `mode` "only" keeps just the recipes with
+    the tag, "never" the recipes without it."""
+
+    __tablename__ = "plan_tag_filters"
+
+    plan_id: Mapped[int] = mapped_column(ForeignKey("plan.id", ondelete="CASCADE"), primary_key=True)
+    tag_id: Mapped[int] = mapped_column(ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True)
+    mode: Mapped[str] = mapped_column(String(FILTER_MODE_LENGTH))
+    tag: Mapped[Tag] = relationship()
 
 
 class PlanResult(Base):
@@ -403,6 +420,7 @@ __all__ = [
     "PlanResultMiss",
     "PlanResultTotal",
     "PlanSkip",
+    "PlanTagFilter",
     "Recipe",
     "RecipeItem",
     "Tag",

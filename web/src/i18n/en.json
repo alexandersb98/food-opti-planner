@@ -141,6 +141,11 @@
   "plan": {
     "loadFailed": "Could not load the plan.",
     "schedule": "Schedule",
+    "recipes": "Recipes",
+    "filterChip": {
+      "only": "Only: {tag}",
+      "never": "Never: {tag}"
+    },
     "edit": "Edit",
     "mealsADay": "no meals a day | 1 meal a day | {n} meals a day",
     "skipped": "nothing skipped | 1 skipped | {n} skipped",
@@ -158,6 +163,7 @@
       "no_plan_in_time": "No plan found within {n} s. Try a longer Max solving time.",
       "infeasible": "No plan possible with these settings.",
       "no_recipes": "There are no recipes to plan with yet. Add some on the Recipes page.",
+      "no_usable_recipes": "No recipe passes the recipe filters. Change them under Recipes.",
       "too_large": "This plan is too large to solve. Try fewer days or meals.",
       "stopped": "Stopped before any plan was found.",
       "busy": "A plan is already being made. Try again when it is done.",
@@ -262,6 +268,19 @@
     "mostMeals": "At most {max} meals a day.",
     "nameInUse": "Another meal has this name.",
     "nameTooLong": "Use at most {max} characters."
+  },
+  "recipeFilters": {
+    "title": "Recipe filters",
+    "count": "{usable} of {total} recipe can be used | {usable} of {total} recipes can be used",
+    "countFailed": "Could not count the recipes.",
+    "showRecipes": "Show recipes",
+    "filterOf": "Filter for {tag}",
+    "mode": {
+      "any": "Any",
+      "only": "Only",
+      "never": "Never"
+    },
+    "noTags": "No tags yet. Add them on the Tags page."
   },
   "results": {
     "loadFailed": "Could not load the plan.",

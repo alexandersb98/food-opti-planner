@@ -352,3 +352,84 @@ def plan_with(goals) -> models.Plan:
     result = plan()
     result.goals = goals
     return result
+
+
+# Recipe filters
+
+NUTS = models.Tag(id=2, name="contains-nuts", derive="any")
+QUICK = models.Tag(id=3, name="quick", derive="all")
+
+
+def filtered(only=(), never=()) -> models.Plan:
+    """A plan whose filters are `only` and `never`, tags in tag id order."""
+    result = plan()
+    modes = [(tag, "only") for tag in only] + [(tag, "never") for tag in never]
+    modes.sort(key=lambda m: m[0].id)
+    result.tag_filters = [models.PlanTagFilter(tag=tag, mode=mode) for tag, mode in modes]
+    return result
+
+
+def test_only_and_never_become_the_required_and_excluded_tags_by_name():
+    vegan_oats = models.RecipeItem(ingredient=oats(tags=[VEGAN]), amount=Decimal("60"))
+    recipes = [porridge(items=[vegan_oats], extra_tags=[QUICK])]
+    request = translate.plan_request(filtered(only=[VEGAN, QUICK], never=[NUTS]), [ENERGY], [VEGAN, NUTS, QUICK], recipes)
+    assert request.require_tags == frozenset({"vegan", "quick"})
+    assert request.exclude_tags == frozenset({"contains-nuts"})
+
+
+def recipes_to_filter() -> list[models.Recipe]:
+    """Vegan oats (vegan by its only ingredient, `all`), Oats with milk (not
+    vegan, as the milk is not), Nut oats (nuts by one ingredient, `any`) and
+    Quick oats (vegan, and quick by hand)."""
+    milk = models.Ingredient(name="Milk", unit="ml", basis=Decimal("100"), values=[], tags=[])
+    almonds = models.Ingredient(name="Almonds", unit="g", basis=Decimal("100"), values=[], tags=[VEGAN, NUTS])
+
+    def made_of(name, *ingredients, extra_tags=()):
+        items = [models.RecipeItem(ingredient=i, amount=Decimal("10")) for i in ingredients]
+        return porridge(name=name, items=items, extra_tags=list(extra_tags))
+
+    return [
+        made_of("Vegan oats", oats(tags=[VEGAN])),
+        made_of("Oats with milk", oats(tags=[VEGAN]), milk),
+        made_of("Nut oats", oats(tags=[VEGAN]), almonds),
+        made_of("Quick oats", oats(tags=[VEGAN]), extra_tags=[QUICK]),
+    ]
+
+
+def usable(only=(), never=()) -> list[str]:
+    rows = translate.usable_recipes(recipes_to_filter(), [VEGAN, NUTS, QUICK], only, never)
+    return [row.name for row in rows]
+
+
+def test_without_filters_every_recipe_is_usable():
+    assert usable() == ["Vegan oats", "Oats with milk", "Nut oats", "Quick oats"]
+
+
+def test_only_keeps_the_recipes_with_a_derived_tag_by_its_all_rule():
+    assert usable(only=["vegan"]) == ["Vegan oats", "Nut oats", "Quick oats"]
+
+
+def test_never_drops_the_recipes_with_a_derived_tag_by_its_any_rule():
+    assert usable(never=["contains-nuts"]) == ["Vegan oats", "Oats with milk", "Quick oats"]
+
+
+def test_only_keeps_the_recipes_with_a_tag_added_by_hand():
+    assert usable(only=["quick"]) == ["Quick oats"]
+
+
+def test_only_and_never_together_keep_the_recipes_with_every_only_tag_and_no_never_tag():
+    assert usable(only=["vegan"], never=["contains-nuts"]) == ["Vegan oats", "Quick oats"]
+    assert usable(only=["vegan", "quick"], never=["contains-nuts"]) == ["Quick oats"]
+    assert usable(only=["quick"], never=["vegan"]) == []
+
+
+@pytest.mark.parametrize(
+    ("only", "never"),
+    [((), ()), ((VEGAN,), ()), ((), (NUTS,)), ((QUICK,), ()), ((VEGAN,), (NUTS,)), ((VEGAN, QUICK), (NUTS,))],
+)
+def test_the_usable_recipes_are_the_librarys_eligible_ones(only, never):
+    tags = [VEGAN, NUTS, QUICK]
+    rows = recipes_to_filter()
+    request = translate.plan_request(filtered(only, never), [ENERGY], tags, rows)
+    usable = translate.usable_recipes(rows, tags, [t.name for t in only], [t.name for t in never])
+    assert [row.name for row in usable] == [recipe.name for recipe in request.eligible_recipes()]
