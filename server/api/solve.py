@@ -13,10 +13,9 @@ from sqlalchemy import delete, select
 from meal_planner import ModelTooLargeError, PlanRequest, SolveStatus, StopHandle
 from meal_planner import plan as solve_plan
 
-from .. import freeze, models, translate
+from .. import freeze, models, queries, translate
 from ..db import DbSession
-from . import plan_results, recipes
-from .plan import stored
+from . import results
 
 router = APIRouter(prefix="/plan", tags=["plan"])
 
@@ -100,7 +99,7 @@ Running = Annotated[RunningSolve, Depends(_running)]
 class SolveOutcome(BaseModel):
     """The new unsaved plan, or why there is none."""
 
-    plan: plan_results.PlanResult | None
+    plan: results.PlanResult | None
     failure: Failure | None
 
 
@@ -145,10 +144,10 @@ def _read(db: DbSession) -> _Setup | Failure:
     so no connection waits in a transaction while the solve runs for
     minutes (Neon drops one idle for 5); as that expires the rows, only the
     plain values are kept."""
-    plan = stored(db)
+    plan = queries.plan(db)
     attributes = db.scalars(select(models.Attribute).order_by(models.Attribute.id)).all()
     tags = db.scalars(select(models.Tag).order_by(models.Tag.id)).all()
-    rows = db.scalars(recipes.loaded().order_by(models.Recipe.id)).all()
+    rows = db.scalars(queries.recipes().order_by(models.Recipe.id)).all()
     only, never = translate.filter_names(plan, "only"), translate.filter_names(plan, "never")
     setup: _Setup | Failure
     if not rows:
@@ -189,9 +188,9 @@ def _solve(db: DbSession, stop: StopHandle) -> SolveOutcome:
     result = freeze.freeze(
         setup.request, answer, setup.start_date, setup.meal_names, setup.units, setup.goals, stopped=stop.stopped
     )
-    result.created_at = plan_results.now()
+    result.created_at = models.now()
     # The old unsaved plan goes first, as only one may exist.
     db.execute(delete(models.PlanResult).where(models.PlanResult.saved.is_(False)))
     db.add(result)
     db.commit()
-    return SolveOutcome(plan=plan_results.read(db, result.id), failure=None)
+    return SolveOutcome(plan=results.read(db, result.id), failure=None)

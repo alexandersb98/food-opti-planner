@@ -50,8 +50,8 @@ types in it), the checks Pydantic can't make (`plans.errors`,
 `server/api/plan.py` keeps the response models, the loading and the routes.
 The shared field types moved from `server/api/fields.py` to
 `server/fields.py`, so `plans` depends on nothing in `api`. **Still to do:**
-the orchestration of a solve in `server/api/solve.py` (`_read`, `_solve`),
-and the reads that are finding 2.
+the orchestration of a solve in `server/api/solve.py` (`_read`, `_solve`).
+The shared reads moved with finding 2.
 
 The finding as written:
 
@@ -67,7 +67,19 @@ and update of the plan setup to a module such as `server/plans.py` (or a
 `server/services/` package), taking plain values and returning
 `FieldError`s / rows, so it can be tested without HTTP.
 
-### 2. Route modules import each other
+### 2. ~~Route modules import each other~~ DONE
+
+**Done.** The shared reads moved to `server/queries.py`: `queries.plan`
+(was `plan.stored`, with the setup's defaults), `queries.recipes` (was
+`recipes.loaded`) and `queries.plan_result` (the loading `plan_results.read`
+did). `models.now` (was `plan_results.now`) gives the time stored. The
+plan-result response models (`PlanResult`, `PlanResultSummary`, …),
+`summary`, `response` and `read` moved to `server/api/results.py`, a shared
+module like `catalog` and `errors`, as a solve answers with the plan it
+made. No route module imports another now; `server/api/__init__.py` is the
+only one that imports them.
+
+The finding as written:
 
 - `server/api/solve.py:18-19` imports `plan_results`, `recipes` and
   `plan.stored`.

@@ -1,6 +1,6 @@
 """Database tables. Every model is imported here so migrations see it."""
 
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from sqlalchemy import Column, ForeignKey, Index, Numeric, String, Table, text
@@ -24,6 +24,11 @@ FILTER_MODE_LENGTH = 5  # "only" or "never"
 VALUE_DIGITS = 15
 VALUE_DECIMALS = 6
 EXACT_NUMBER = Numeric(VALUE_DIGITS, VALUE_DECIMALS)
+
+
+def now() -> datetime:
+    """The time stored: UTC, without a zone, as columns hold it everywhere."""
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class Attribute(Base):
