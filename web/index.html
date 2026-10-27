@@ -3,6 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Scope "/" keeps every page inside the home-screen app on iPhone;
+         without it iOS opened pages outside the saved one in a browser view. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#1976d2" />
     <title>Meal planner</title>
   </head>
   <body>
