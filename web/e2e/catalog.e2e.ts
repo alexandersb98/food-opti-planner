@@ -89,7 +89,7 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   // Make a plan: two days in the schedule, then the solve opens the result
   // with the recipe in every meal. Saving returns to the Plan page.
   await openPage(page, 'Plan')
-  await page.getByRole('link', { name: 'Edit' }).click()
+  await page.locator('a[href="/plan/schedule"]').click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Schedule')
   await page.getByLabel('Number of days').fill('2')
   await page.getByRole('button', { name: 'Save' }).click()
@@ -116,6 +116,22 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await goalDialog.getByRole('button', { name: 'Save' }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(page.locator('.goal-row')).toHaveText([/Energy floor\s*Energy · at least 100 kcal\s*Each day\s*Must/])
+
+  // Recipe filters: the Recipes card counts the recipes the filters leave.
+  // Never vegan leaves none, Only vegan leaves the one; Save shows the chip.
+  const recipesCard = page.locator('.recipes-card')
+  await expect(recipesCard).toContainText('1 of 1 recipe can be used')
+  await recipesCard.getByRole('link', { name: 'Edit' }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Recipe filters')
+  const veganFilter = page.getByLabel('Filter for vegan')
+  await veganFilter.getByRole('button', { name: 'Never' }).click()
+  await expect(page.locator('.count-line')).toHaveText('0 of 1 recipe can be used')
+  await veganFilter.getByRole('button', { name: 'Only' }).click()
+  await expect(page.locator('.count-line')).toHaveText('1 of 1 recipe can be used')
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Plan')
+  await expect(recipesCard.locator('.filter-chip')).toHaveText(['Only: vegan'])
+  await expect(recipesCard).toContainText('1 of 1 recipe can be used')
 
   await page.getByRole('button', { name: 'Make plan' }).click()
   await expect(page.getByText('Best possible plan')).toBeVisible({ timeout: 60_000 })
