@@ -27,6 +27,10 @@ and a `RecipesCard.vue` on the Plan page.
 (the "stack spec"); slice 10 in
 [`2026-10-22-gui-slices.md`](2026-10-22-gui-slices.md).
 
+**Status:** Built and committed task by task on branch
+`claude/gui-slice-10-recipe-filters`. Each task names its files and how it
+was checked; the code is in the commits.
+
 ## Global Constraints
 
 - `meal_planner/` is not changed.
@@ -126,6 +130,14 @@ and a tag given twice; a body without `tag_filters` is a 422. Deleting a
 tag removes its filter; the tags list counts filters (`filter_count`).
 Vitest: `planFields` sends `tag_filters` back.
 
+**Checked:** 586 Python tests pass on SQLite, the migration test and the
+API schema test among them; typecheck, lint and Vitest (252 tests) pass.
+The API schema was regenerated.
+
+Differences from the plan text: the tag's `filter_count` is tested in
+`test_delete_cascades.py` with the other counts, and `test_tags.py`
+needed no change.
+
 ### Task 2: Recipe count, translation and the solve
 
 **Files:** `server/translate.py` (`usable_recipes`, `plan_request`),
@@ -152,6 +164,14 @@ Only, with Never, unknown tag 422, no recipes (0 of 0). Solve: a plan
 with a Never filter uses only the other recipe; filters that leave none
 answer `no_usable_recipes` and store nothing.
 
+**Checked:** 605 Python tests pass on SQLite; typecheck, lint and Vitest
+(253 tests) pass. The API schema was regenerated.
+
+Differences from the plan text: the solve test "a plan uses only the
+recipes the filters leave" passed as soon as the translation was done, so
+it was never red by itself. The fixed-portion recipe helper in
+`tests/server/conftest.py` takes extra tag ids.
+
 ### Task 3: The Recipe filters page (A4)
 
 **Files:** `web/src/pages/RecipeFiltersPage.vue` and its test,
@@ -173,6 +193,12 @@ count and shows it; Save sends the other parts as loaded plus the new
 filters (Any sent as no filter) and goes to the Plan page; a refused
 save shows the error; 0 usable shows red; no tags shows the hint.
 
+**Checked:** typecheck, lint and Vitest (268 tests) pass.
+
+Differences from the plan text: a "Show recipes" button next to the
+count links to the Recipes page. A long tag name wraps instead of pushing
+the buttons sideways.
+
 ### Task 4: The Recipes card on the Plan page (A1)
 
 **Files:** `web/src/components/RecipesCard.vue` and its test,
@@ -186,6 +212,12 @@ filter in tag order with Only / Never; Edit links to `/plan/recipes`;
 no chips without filters; a failed count shows its message. The Plan
 page shows the card.
 
+**Checked:** typecheck, lint and Vitest (273 tests) pass.
+
+Differences from the plan text: the card asks for the count again only
+when the content of the filters changes, so saving a goal or the time
+does not.
+
 ### Task 5: End-to-end test and docs
 
 **Files:** `web/e2e/catalog.e2e.ts`, `README.md` (what the app does now),
@@ -196,6 +228,14 @@ this plan (status and how each task was checked), the slices plan.
 the count shows "0 of 1 recipe can be used"; set it to Only, "1 of 1";
 Save; the card shows the chip "Only: vegan". The plan is then made as
 before.
+
+**Checked:** the end-to-end test passes against uvicorn on an empty SQLite
+database with the built app. The Plan page and the Recipe filters page,
+with a tag named "contains-tree-nuts-and-peanuts-and-sesame", were looked
+at in a browser at 390 px: long names wrap and nothing scrolls sideways.
+
+Differences from the plan text: the Schedule card's Edit link is now
+found by its address, as the Recipes card has an Edit link too.
 
 ## Done when
 
