@@ -1,7 +1,6 @@
 """Deleting an attribute or a tag is allowed after a warning, and removes
 it from whatever uses it. Each list response counts those uses for the
-warning. Later slices add plan filters here. Deleting an
-ingredient a recipe uses is refused instead (test_recipes.py)."""
+warning. Deleting an ingredient a recipe uses is refused instead (test_recipes.py)."""
 
 
 def by_name(client, path, field):
@@ -84,3 +83,21 @@ def test_deleting_an_attribute_removes_its_goals(client, catalog):
     assert client.put("/api/plan", json=plan).status_code == 200
     assert client.delete(f"/api/attributes/{energy}").status_code == 204
     assert [g["attribute_id"] for g in client.get("/api/plan").json()["goals"]] == [protein]
+
+
+def test_a_tag_counts_the_plan_filters_on_it(client, catalog):
+    vegan, nuts = catalog.tag(), catalog.tag("contains-nuts")
+    catalog.tag("quick")
+    plan = client.get("/api/plan").json()
+    plan["tag_filters"] = [{"tag_id": vegan, "mode": "only"}, {"tag_id": nuts, "mode": "never"}]
+    assert client.put("/api/plan", json=plan).status_code == 200
+    assert by_name(client, "/api/tags", "filter_count") == {"vegan": 1, "contains-nuts": 1, "quick": 0}
+
+
+def test_deleting_a_tag_removes_its_plan_filter(client, catalog):
+    vegan, nuts = catalog.tag(), catalog.tag("contains-nuts")
+    plan = client.get("/api/plan").json()
+    plan["tag_filters"] = [{"tag_id": vegan, "mode": "only"}, {"tag_id": nuts, "mode": "never"}]
+    assert client.put("/api/plan", json=plan).status_code == 200
+    assert client.delete(f"/api/tags/{vegan}").status_code == 204
+    assert client.get("/api/plan").json()["tag_filters"] == [{"tag_id": nuts, "mode": "never"}]

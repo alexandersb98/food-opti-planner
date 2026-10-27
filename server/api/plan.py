@@ -6,7 +6,7 @@ from collections import Counter
 from collections.abc import Sequence
 from datetime import date
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field, StringConstraints
@@ -113,6 +113,17 @@ class Goal(GoalFields):
 GOAL_FIELDS = [field for field in GoalFields.model_fields if field not in ("id", "custom_name")]
 
 
+FilterMode = Literal["only", "never"]
+
+
+class TagFilter(BaseModel):
+    """A recipe filter: "only" keeps just the recipes with the tag, "never"
+    the recipes without it. A tag without one is Any."""
+
+    tag_id: int
+    mode: FilterMode
+
+
 class PlanFields(BaseModel):
     start_date: date
     days: Annotated[int, Field(ge=1, le=MAX_DAYS)]
@@ -123,6 +134,9 @@ class PlanFields(BaseModel):
     minimums: list[Minimum]
     # In the order the user keeps them in.
     goals: Annotated[list[GoalFields], Field(max_length=MAX_GOALS)]
+    # Required, so a body without them is refused rather than removing them.
+    # Answered in tag id order.
+    tag_filters: list[TagFilter]
     # Whole seconds.
     solve_time_limit: Annotated[int, Field(ge=1, le=MAX_SOLVE_TIME)]
 
@@ -138,6 +152,7 @@ def stored(db: Session) -> models.Plan:
         selectinload(models.Plan.meals).selectinload(models.PlanMeal.skips),
         selectinload(models.Plan.minimums),
         selectinload(models.Plan.goals).selectinload(models.Goal.attribute),
+        selectinload(models.Plan.tag_filters).selectinload(models.PlanTagFilter.tag),
     ]
     plan = db.get(models.Plan, PLAN_ID, options=loaded)
     if plan is None:
@@ -148,6 +163,7 @@ def stored(db: Session) -> models.Plan:
             meals=[models.PlanMeal(position=i, name=name) for i, name in enumerate(DEFAULT_MEALS)],
             minimums=[],
             goals=[],
+            tag_filters=[],
             solve_time_limit=DEFAULT_SOLVE_TIME,
         )
         db.add(plan)
@@ -174,11 +190,14 @@ def _response(plan: models.Plan) -> Plan:
             )
             for goal, name in translate.named_goals(plan.goals)
         ],
+        tag_filters=[TagFilter(tag_id=f.tag_id, mode=f.mode) for f in plan.tag_filters],
         solve_time_limit=plan.solve_time_limit,
     )
 
 
-def _errors(plan: models.Plan, body: PlanFields, attributes: dict[int, models.Attribute]) -> list[FieldError]:
+def _errors(
+    plan: models.Plan, body: PlanFields, attributes: dict[int, models.Attribute], tags: dict[int, models.Tag]
+) -> list[FieldError]:
     """What Pydantic can't check, section by section. Cells and minimums
     beyond the days are not checked, as they are dropped."""
     skipped, skip_errors = _skip_errors(body)
@@ -187,6 +206,7 @@ def _errors(plan: models.Plan, body: PlanFields, attributes: dict[int, models.At
         *skip_errors,
         *_minimum_errors(body, skipped),
         *_goal_errors(plan.goals, body.goals, attributes),
+        *filter_errors(body.tag_filters, tags),
     ]
 
 
@@ -302,6 +322,19 @@ def _one_goal_errors(
     return errors
 
 
+def filter_errors(filters: Sequence[TagFilter], tags: dict[int, models.Tag]) -> list[FieldError]:
+    """Filters on no tag, or on a tag given twice."""
+    errors = []
+    ids = set()
+    for i, tag_filter in enumerate(filters):
+        if tag_filter.tag_id not in tags:
+            errors.append(_error(["tag_filters", i, "tag_id"], "unknown_tag", "No such tag"))
+        elif tag_filter.tag_id in ids:
+            errors.append(_error(["tag_filters", i, "tag_id"], "duplicate", "This tag is given twice"))
+        ids.add(tag_filter.tag_id)
+    return errors
+
+
 def _decimals(number: Decimal) -> int:
     """The decimal places of `number` as typed, not counting trailing zeros."""
     return max(0, -number.normalize().as_tuple().exponent)
@@ -316,6 +349,7 @@ def _fill(plan: models.Plan, body: PlanFields) -> None:
     _fill_meals(plan, body)
     _fill_minimums(plan, body)
     _fill_goals(plan, body)
+    _fill_tag_filters(plan, body)
 
 
 def _fill_meals(plan: models.Plan, body: PlanFields) -> None:
@@ -347,6 +381,18 @@ def _fill_goals(plan: models.Plan, body: PlanFields) -> None:
     plan.goals = [
         _goal(by_id.get(fields.id), position, fields) for position, fields in enumerate(body.goals)
     ]
+
+
+def _fill_tag_filters(plan: models.Plan, body: PlanFields) -> None:
+    """In tag id order. A stored filter is changed rather than replaced, as
+    its primary key stays."""
+    kept = {f.tag_id: f for f in plan.tag_filters}
+    filters = []
+    for fields in sorted(body.tag_filters, key=lambda f: f.tag_id):
+        tag_filter = kept.get(fields.tag_id) or models.PlanTagFilter(tag_id=fields.tag_id)
+        tag_filter.mode = fields.mode
+        filters.append(tag_filter)
+    plan.tag_filters = filters
 
 
 def _minimum(stored: models.PlanDayMinimum | None, fields: Minimum) -> models.PlanDayMinimum:
@@ -391,7 +437,8 @@ def get_plan(db: DbSession) -> Plan:
 def update_plan(body: PlanFields, db: DbSession) -> Plan:
     plan = stored(db)
     attributes = {a.id: a for a in db.scalars(select(models.Attribute))}
-    errors = _errors(plan, body, attributes)
+    tags = {t.id: t for t in db.scalars(select(models.Tag))}
+    errors = _errors(plan, body, attributes, tags)
     if errors:
         raise invalid_fields(errors)
     _fill(plan, body)

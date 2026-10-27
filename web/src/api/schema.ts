@@ -670,6 +670,8 @@ export interface components {
              * Format: date
              */
             start_date: string;
+            /** Tag Filters */
+            tag_filters: components["schemas"]["TagFilter"][];
         };
         /** PlanFields */
         PlanFields: {
@@ -690,6 +692,8 @@ export interface components {
              * Format: date
              */
             start_date: string;
+            /** Tag Filters */
+            tag_filters: components["schemas"]["TagFilter"][];
         };
         /**
          * PlanResult
@@ -970,6 +974,20 @@ export interface components {
             derive: "all" | "any";
             /** Name */
             name: string;
+        };
+        /**
+         * TagFilter
+         * @description A recipe filter: "only" keeps just the recipes with the tag, "never"
+         *     the recipes without it. A tag without one is Any.
+         */
+        TagFilter: {
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "only" | "never";
+            /** Tag Id */
+            tag_id: number;
         };
         /**
          * TodayPlan
