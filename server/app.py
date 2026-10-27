@@ -8,7 +8,7 @@ from argon2.exceptions import InvalidHashError
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 
-from . import api
+from .api import routes, solve
 from .auth import Auth
 from .db import make_engine, migrate
 from .settings import Settings
@@ -28,8 +28,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="Meal planner", lifespan=lifespan)
     app.state.engine = make_engine(settings.database_url)
     app.state.auth = Auth(settings.password_hash, settings.session_key)
-    app.state.running_solve = api.solve.RunningSolve()
-    app.include_router(api.router)
+    app.state.running_solve = solve.RunningSolve()
+    app.include_router(routes.router)
     if settings.web_dist.is_dir():
         _serve_frontend(app, settings.web_dist)
     return app

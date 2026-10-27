@@ -40,7 +40,20 @@ point to the commit or plan that fixed it, as in
 
 Ordered by priority. 1 and 2 belong together and are the ones to do first.
 
-### 1. The server has no service layer
+### 1. ~~The server has no service layer~~ DONE
+
+Done for the plan setup: the request fields, the checks Pydantic can't make
+(`plans.errors`, `plans.filter_errors`) and the update of the stored rows
+(`plans.fill`) moved to `server/plans.py`, tested without HTTP in
+`tests/server/test_plans.py`; `server/api/plan.py` keeps the response
+models, the loading and the routes. So that `plans` can use
+`api/errors.py` and `api/fields.py` without an import cycle,
+`server/api/__init__.py` no longer loads the routes; they are put together
+in `server/api/routes.py`. The shared queries (`plan.stored`,
+`recipes.loaded`) are still in route modules: that is 2.
+
+The finding as written:
+
 
 Route modules mix HTTP schemas, validation, persistence and orchestration.
 `server/api/plan.py` (472 lines) holds the Pydantic models, about 150 lines
