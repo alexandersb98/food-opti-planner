@@ -2,25 +2,16 @@
 made with the defaults the first time it is read. What a valid setup is and
 how a save changes it are in `plans`; making a plan from it is in `solve`."""
 
-from datetime import date
-
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
-from sqlalchemy.orm import Session, selectinload
 
-from .. import models, plans, translate
+from .. import models, plans, queries, translate
 from ..db import DbSession
 from ..plans import GoalFields, MealFields, Minimum, PlanFields, Skip, TagFilter
-from . import recipes
 from .errors import FieldError, invalid_fields
 
 router = APIRouter(prefix="/plan", tags=["plan"])
-
-PLAN_ID = 1
-DEFAULT_DAYS = 7
-DEFAULT_MEALS = ("Breakfast", "Lunch", "Dinner")
-DEFAULT_SOLVE_TIME = 30
 
 
 class Meal(MealFields):
@@ -48,31 +39,6 @@ class RecipeCount(BaseModel):
 
     usable: int
     total: int
-
-
-def stored(db: Session) -> models.Plan:
-    """The plan, made with the defaults if there is none yet."""
-    loaded = [
-        selectinload(models.Plan.meals).selectinload(models.PlanMeal.skips),
-        selectinload(models.Plan.minimums),
-        selectinload(models.Plan.goals).selectinload(models.Goal.attribute),
-        selectinload(models.Plan.tag_filters).selectinload(models.PlanTagFilter.tag),
-    ]
-    plan = db.get(models.Plan, PLAN_ID, options=loaded)
-    if plan is None:
-        plan = models.Plan(
-            id=PLAN_ID,
-            start_date=date.today(),
-            days=DEFAULT_DAYS,
-            meals=[models.PlanMeal(position=i, name=name) for i, name in enumerate(DEFAULT_MEALS)],
-            minimums=[],
-            goals=[],
-            tag_filters=[],
-            solve_time_limit=DEFAULT_SOLVE_TIME,
-        )
-        db.add(plan)
-        db.commit()
-    return plan
 
 
 def _response(plan: models.Plan) -> Plan:
@@ -106,12 +72,12 @@ def _invalid(problems: list[plans.Problem]) -> HTTPException:
 
 @router.get("")
 def get_plan(db: DbSession) -> Plan:
-    return _response(stored(db))
+    return _response(queries.plan(db))
 
 
 @router.put("")
 def update_plan(body: PlanFields, db: DbSession) -> Plan:
-    plan = stored(db)
+    plan = queries.plan(db)
     attributes = {a.id: a for a in db.scalars(select(models.Attribute))}
     tags = {t.id: t for t in db.scalars(select(models.Tag))}
     errors = plans.errors(plan, body, attributes, tags)
@@ -130,7 +96,7 @@ def recipe_count(body: RecipeCountFields, db: DbSession) -> RecipeCount:
     errors = plans.filter_errors(body.tag_filters, tags)
     if errors:
         raise _invalid(errors)
-    rows = db.scalars(recipes.loaded()).all()
+    rows = db.scalars(queries.recipes()).all()
     only, never = ({tags[f.tag_id].name for f in body.tag_filters if f.mode == mode} for mode in ("only", "never"))
     usable = translate.usable_recipes(rows, list(tags.values()), only, never)
     return RecipeCount(usable=len(usable), total=len(rows))

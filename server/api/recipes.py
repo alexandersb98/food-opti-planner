@@ -8,9 +8,8 @@ from typing import Annotated
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 
-from .. import models, translate
+from .. import models, queries, translate
 from ..db import DbSession
 from ..fields import Multiplier, Name, Number, plain
 from .catalog import References, commit_named, get_or_404, in_list
@@ -59,16 +58,6 @@ class Recipe(RecipeFields):
 
 class Ingredients(BaseModel):
     ingredient_ids: Annotated[list[int], Field(min_length=1)]
-
-
-def loaded():
-    """Recipes with everything their responses and the planner need, in a few queries."""
-    ingredient = selectinload(models.Recipe.items).selectinload(models.RecipeItem.ingredient)
-    return select(models.Recipe).options(
-        ingredient.selectinload(models.Ingredient.values).selectinload(models.IngredientValue.attribute),
-        ingredient.selectinload(models.Ingredient.tags),
-        selectinload(models.Recipe.extra_tags),
-    )
 
 
 class _Responses:
@@ -184,7 +173,7 @@ def _item(stored: models.RecipeItem | None, fields: RecipeItem, position: int) -
 
 def _read(db: DbSession, recipe_id: int) -> Recipe:
     """The response for one recipe, or a 404."""
-    recipe = db.scalars(loaded().where(models.Recipe.id == recipe_id)).one_or_none()
+    recipe = db.scalars(queries.recipes().where(models.Recipe.id == recipe_id)).one_or_none()
     if recipe is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such recipe")
     return _Responses(db).response(recipe)
@@ -193,7 +182,7 @@ def _read(db: DbSession, recipe_id: int) -> Recipe:
 @router.get("")
 def list_recipes(db: DbSession) -> list[Recipe]:
     responses = _Responses(db)
-    return [responses.response(recipe) for recipe in db.scalars(loaded().order_by(models.Recipe.id))]
+    return [responses.response(recipe) for recipe in db.scalars(queries.recipes().order_by(models.Recipe.id))]
 
 
 @router.post("/derived-tags")
