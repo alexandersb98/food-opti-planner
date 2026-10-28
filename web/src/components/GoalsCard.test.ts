@@ -72,3 +72,16 @@ test('a goal with importance below and above shows both as dots, below / above',
   expect(row.get('.goal-chip').text()).toMatch(/^Prefer\s*\/$/)
   expect(row.get('.importance-split').attributes('aria-label')).toBe('Importance 2 of 5 below the range, 4 of 5 above')
 })
+
+test('a goal in the clash is marked red with an error icon', () => {
+  const wrapper = mountCard({
+    attributes,
+    goals: [goal({ id: 1, attribute_id: 1 }), goal({ id: 2, attribute_id: 2, must: true })],
+    clashing: [2],
+  })
+  const rows = wrapper.findAll('.goal-row')
+  expect(rows.map((row) => row.classes('clashing'))).toEqual([false, true])
+  expect(rows[1]!.get('.text-negative .goal-name').text()).toBe('Protein')
+  expect(rows[1]!.get('.screen-reader').text()).toBe('In the clash:')
+  expect(rows[0]!.find('.text-negative').exists()).toBe(false)
+})

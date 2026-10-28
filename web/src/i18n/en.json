@@ -138,6 +138,23 @@
     "nameInUse": "A recipe with this name already exists.",
     "allIngredientsIn": "Every ingredient is in the recipe already."
   },
+  "clash": {
+    "title": "No plan possible",
+    "intro": "These rules can't all be met:",
+    "onDays": "Clashes on {days}",
+    "wholePlan": "Clashes over the whole plan",
+    "meals": "Meals on {day}",
+    "allPlanned": "All planned meals are served",
+    "atLeast": "At least {n} meal is served | At least {n} meals are served",
+    "editSchedule": "Edit schedule",
+    "makePrefer": "Make Prefer",
+    "keepMust": "Keep Must",
+    "willBePrefer": "Will be Prefer",
+    "more": "Fixing these may show another clash.",
+    "notMinimal": "Stopped early: some of these may not take part.",
+    "tryAgain": "Try again",
+    "inClash": "In the clash"
+  },
   "plan": {
     "loadFailed": "Could not load the plan.",
     "schedule": "Schedule",

@@ -72,6 +72,73 @@
         "title": "AttributeFields",
         "type": "object"
       },
+      "ClashMember": {
+        "description": "A rule in the clash: a Must goal, by its id and its name at the solve,\nor a day's meals that must be served (its \"At least\", or all planned).\n`day` (from 0) and its `date` are null for a goal over the whole plan.",
+        "properties": {
+          "date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "day": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Day"
+          },
+          "goal_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal Id"
+          },
+          "kind": {
+            "enum": [
+              "goal",
+              "day_minimum"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "required": [
+          "kind",
+          "goal_id",
+          "name",
+          "day",
+          "date"
+        ],
+        "title": "ClashMember",
+        "type": "object"
+      },
       "Counts": {
         "properties": {
           "attributes": {
@@ -1572,8 +1639,33 @@
         "type": "object"
       },
       "SolveOutcome": {
-        "description": "The new unsaved plan, or why there is none.",
+        "description": "The new unsaved plan, or why there is none. With `failure`\n\"infeasible\", `clash` is a set of rules that can't all hold (empty when\nthe solver named none), trimmed by the library until dropping any would\nleave a plan possible. A Cancel cuts the trim short: `clash_minimal` is\nthen false, as the set may hold more than it needs (also, harmlessly,\nfor a Cancel just after a trim that finished).",
         "properties": {
+          "clash": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ClashMember"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clash"
+          },
+          "clash_minimal": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clash Minimal"
+          },
           "failure": {
             "anyOf": [
               {

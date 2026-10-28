@@ -3,14 +3,14 @@
 
 import threading
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 
-from meal_planner import ModelTooLargeError, PlanRequest, SolveStatus, StopHandle
+from meal_planner import ConflictReport, ModelTooLargeError, PlanRequest, SolveStatus, StopHandle
 from meal_planner import plan as solve_plan
 
 from .. import freeze, models, queries, translate
@@ -23,10 +23,6 @@ router = APIRouter(prefix="/plan", tags=["plan"])
 # leave none; the numbers are too large for the solver; no plan meets the
 # setup; time ran out first; or it was cancelled first.
 Failure = Literal["no_recipes", "no_usable_recipes", "too_large", "infeasible", "no_plan_in_time", "stopped"]
-FAILURES: dict[SolveStatus, Failure] = {
-    SolveStatus.INFEASIBLE: "infeasible",
-    SolveStatus.TIMEOUT_NO_SOLUTION: "no_plan_in_time",
-}
 
 BUSY = {409: {"description": "A plan is already being made"}}
 
@@ -96,11 +92,30 @@ def _running(request: Request) -> RunningSolve:
 Running = Annotated[RunningSolve, Depends(_running)]
 
 
+class ClashMember(BaseModel):
+    """A rule in the clash: a Must goal, by its id and its name at the solve,
+    or a day's meals that must be served (its "At least", or all planned).
+    `day` (from 0) and its `date` are null for a goal over the whole plan."""
+
+    kind: Literal["goal", "day_minimum"]
+    goal_id: int | None
+    name: str | None
+    day: int | None
+    date: date | None
+
+
 class SolveOutcome(BaseModel):
-    """The new unsaved plan, or why there is none."""
+    """The new unsaved plan, or why there is none. With `failure`
+    "infeasible", `clash` is a set of rules that can't all hold (empty when
+    the solver named none), trimmed by the library until dropping any would
+    leave a plan possible. A Cancel cuts the trim short: `clash_minimal` is
+    then false, as the set may hold more than it needs (also, harmlessly,
+    for a Cancel just after a trim that finished)."""
 
     plan: results.PlanResult | None
     failure: Failure | None
+    clash: list[ClashMember] | None = None
+    clash_minimal: bool | None = None
 
 
 @router.post("/solve", responses=BUSY)
@@ -136,6 +151,8 @@ class _Setup:
     meal_names: list[str]
     units: dict[str, str]
     goals: list[freeze.FrozenGoal]
+    # Each goal's id, in goal order, to lead a clash back to its goal.
+    goal_ids: list[int]
 
 
 def _read(db: DbSession) -> _Setup | Failure:
@@ -167,6 +184,7 @@ def _read(db: DbSession) -> _Setup | Failure:
                 freeze.FrozenGoal(translate.constraint_key(i), name, goal.applies_to, goal.must, goal.min, goal.max)
                 for i, (goal, name) in enumerate(translate.named_goals(plan.goals))
             ],
+            goal_ids=[goal.id for goal in plan.goals],
         )
     db.commit()
     return setup
@@ -182,8 +200,11 @@ def _solve(db: DbSession, stop: StopHandle) -> SolveOutcome:
         return SolveOutcome(plan=None, failure="too_large")
     if answer.solve_status is SolveStatus.TIMEOUT_NO_SOLUTION and stop.stopped:
         return SolveOutcome(plan=None, failure="stopped")
-    if answer.solve_status in FAILURES:
-        return SolveOutcome(plan=None, failure=FAILURES[answer.solve_status])
+    if answer.solve_status is SolveStatus.INFEASIBLE:
+        clash = _clash(answer.conflicts or ConflictReport(()), setup)
+        return SolveOutcome(plan=None, failure="infeasible", clash=clash, clash_minimal=not stop.stopped)
+    if answer.solve_status is SolveStatus.TIMEOUT_NO_SOLUTION:
+        return SolveOutcome(plan=None, failure="no_plan_in_time")
 
     result = freeze.freeze(
         setup.request, answer, setup.start_date, setup.meal_names, setup.units, setup.goals, stopped=stop.stopped
@@ -194,3 +215,24 @@ def _solve(db: DbSession, stop: StopHandle) -> SolveOutcome:
     db.add(result)
     db.commit()
     return SolveOutcome(plan=results.read(db, result.id), failure=None)
+
+
+def _clash(report: ConflictReport, setup: _Setup) -> list[ClashMember]:
+    """The report's members in the GUI's terms: goals in goal order, each by
+    day (the whole plan first), then the days' meals by day. A name the
+    server doesn't know is a bug, so it is not caught."""
+    goals, days = [], []
+    for member in report.members:
+        when = None if member.day is None else setup.start_date + timedelta(days=member.day)
+        position = translate.goal_position(member.constraint)
+        if position is not None:
+            goal = setup.goals[position]
+            item = ClashMember(kind="goal", goal_id=setup.goal_ids[position], name=goal.name, day=member.day, date=when)
+            goals.append(((position, -1 if member.day is None else member.day), item))
+        elif member.constraint == translate.DAY_MINIMUM:
+            days.append((member.day, ClashMember(kind="day_minimum", goal_id=None, name=None, day=member.day, date=when)))
+        else:
+            raise ValueError(f"unknown rule in a clash: {member.constraint}")
+    return [item for _, item in sorted(goals, key=lambda pair: pair[0])] + [
+        item for _, item in sorted(days, key=lambda pair: pair[0])
+    ]

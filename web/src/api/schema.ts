@@ -470,6 +470,27 @@ export interface components {
             /** Unit */
             unit: string;
         };
+        /**
+         * ClashMember
+         * @description A rule in the clash: a Must goal, by its id and its name at the solve,
+         *     or a day's meals that must be served (its "At least", or all planned).
+         *     `day` (from 0) and its `date` are null for a goal over the whole plan.
+         */
+        ClashMember: {
+            /** Date */
+            date: string | null;
+            /** Day */
+            day: number | null;
+            /** Goal Id */
+            goal_id: number | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "goal" | "day_minimum";
+            /** Name */
+            name: string | null;
+        };
         /** Counts */
         Counts: {
             /** Attributes */
@@ -976,9 +997,18 @@ export interface components {
         };
         /**
          * SolveOutcome
-         * @description The new unsaved plan, or why there is none.
+         * @description The new unsaved plan, or why there is none. With `failure`
+         *     "infeasible", `clash` is a set of rules that can't all hold (empty when
+         *     the solver named none), trimmed by the library until dropping any would
+         *     leave a plan possible. A Cancel cuts the trim short: `clash_minimal` is
+         *     then false, as the set may hold more than it needs (also, harmlessly,
+         *     for a Cancel just after a trim that finished).
          */
         SolveOutcome: {
+            /** Clash */
+            clash?: components["schemas"]["ClashMember"][] | null;
+            /** Clash Minimal */
+            clash_minimal?: boolean | null;
             /** Failure */
             failure: ("no_recipes" | "no_usable_recipes" | "too_large" | "infeasible" | "no_plan_in_time" | "stopped") | null;
             plan: components["schemas"]["PlanResult"] | null;

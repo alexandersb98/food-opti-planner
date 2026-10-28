@@ -105,6 +105,26 @@ test('a failure is kept until dismissed or another solve starts', async () => {
   expect(solve.failure.value).toBeNull()
 })
 
+test('a clash is kept with its failure until dismissed or the next solve', async () => {
+  const clash = [{ kind: 'goal' as const, goal_id: 3, name: 'Energy per day', day: 0, date: '2026-10-26' }]
+  fakeServer({
+    'GET /api/session': 204,
+    'POST /api/plan/solve': { body: { plan: null, failure: 'infeasible', clash, clash_minimal: false } },
+  })
+  const { solve } = await store('/')
+  await solve.start(30)
+  expect(solve.failure.value).toBe('infeasible')
+  expect(solve.clash.value).toEqual(clash)
+  expect(solve.clashMinimal.value).toBe(false)
+  solve.dismiss()
+  expect(solve.clash.value).toBeNull()
+
+  await solve.start(30)
+  fakeServer({ 'POST /api/plan/solve': () => new Promise<FakeReply>(() => {}) })
+  void solve.start(30)
+  expect(solve.clash.value).toBeNull()
+})
+
 test('a solve the server fails, or that cannot reach it, is a failure too', async () => {
   fakeServer({ 'GET /api/session': 204, 'POST /api/plan/solve': 500 })
   const { solve } = await store('/')

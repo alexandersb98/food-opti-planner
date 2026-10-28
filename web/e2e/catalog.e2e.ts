@@ -1,7 +1,8 @@
 import { expect, test, type Page } from '@playwright/test'
 
 // One flow through the app, growing with each slice that changes it:
-// log in, build a small catalog and a recipe from it, then make a plan.
+// log in, build a small catalog and a recipe from it, then make a plan,
+// then one that clashes and is fixed.
 
 const password = process.env.E2E_PASSWORD
 if (!password) throw new Error('Set E2E_PASSWORD to the login password')
@@ -147,6 +148,35 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Plan')
   await expect(page.locator('.saved-plan')).toHaveCount(1)
   await expect(page.locator('.new-plan-card')).toHaveCount(0)
+
+  // A Must goal no meal can meet: at most 10 kcal each day. No plan is
+  // possible; the card names the goal and marks it red in the Goals card.
+  // Made Prefer, Try again makes the plan.
+  await page.getByRole('button', { name: '+ Add goal' }).click()
+  await goalDialog.getByLabel('What to track').click()
+  await page.getByRole('option', { name: 'Energy' }).click()
+  await goalDialog.getByLabel('Max').fill('10')
+  await goalDialog.getByRole('button', { name: 'Each day' }).click()
+  await goalDialog.getByRole('button', { name: 'Must', exact: true }).click()
+  await goalDialog.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Make plan' }).click()
+  const clashCard = page.locator('.clash-card')
+  await expect(clashCard).toContainText('No plan possible', { timeout: 60_000 })
+  const clashing = clashCard.locator('.clash-goal', { hasText: 'Energy per day' })
+  await expect(clashing).toContainText(/Clashes on \w{3} \d+/)
+  await expect(clashing.getByLabel('Max')).toHaveValue('10')
+  await expect(page.locator('.goal-row.clashing')).toContainText(['Energy'])
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false)
+  await clashing.getByRole('button', { name: 'Make Prefer' }).click()
+  await expect(clashing).toContainText('Will be Prefer')
+  await clashCard.getByRole('button', { name: 'Try again' }).click()
+  await expect(page.getByText('Best possible plan')).toBeVisible({ timeout: 60_000 })
+  await page.getByRole('link', { name: 'Back' }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Plan')
+  await expect(page.locator('.clash-card')).toHaveCount(0)
+  await expect(page.locator('.goal-row.clashing')).toHaveCount(0)
+  await expect(page.locator('.goal-row').nth(1)).toContainText(/at most 10 kcal\s*Each day\s*Prefer/)
 
   // Designed at phone width: nothing scrolls sideways.
   const scrolls = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)
