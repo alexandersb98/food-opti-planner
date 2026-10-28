@@ -7,7 +7,8 @@ from typing import Mapping
 
 
 class SolveStatus(Enum):
-    """Decision #24. TIMEOUT_NO_SOLUTION: the time limit hit before any plan."""
+    """Decision #24. TIMEOUT_NO_SOLUTION: the time limit hit, or the solve
+    was stopped, before any plan."""
 
     OPTIMAL = "OPTIMAL"
     FEASIBLE = "FEASIBLE"

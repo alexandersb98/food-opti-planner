@@ -121,7 +121,15 @@ one backend. **Proposal, when a second backend appears:** a `Backend`
 protocol with `solve(model, time_limit, assumed, optimize, stop)`, passed to
 `plan()` with CP-SAT as the default.
 
-### 5. Small leaks between modules
+### 5. ~~Small leaks between modules~~ DONE
+
+Done in commit 2c682d3. `StopHandle.attach` / `detach` are public,
+documented as for backends only. `SolveOutcome.status` is a `SolveStatus`:
+the backend maps CP-SAT's codes straight to it (`UNKNOWN` to
+`TIMEOUT_NO_SOLUTION`), so `planner.py` has no `_STATUS` remapping and
+`decode` reads the status from the outcome.
+
+The finding as written:
 
 - **Private API across modules.** `meal_planner/backends/cpsat.py:61` and
   `:68` call `StopHandle._attach` / `_detach`

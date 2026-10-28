@@ -7,20 +7,13 @@ from .request import PlanRequest
 from .result import ConflictMember, ConflictReport, Plan, SolveStatus
 from .stopping import StopHandle
 
-_STATUS = {
-    "OPTIMAL": SolveStatus.OPTIMAL,
-    "FEASIBLE": SolveStatus.FEASIBLE,
-    "INFEASIBLE": SolveStatus.INFEASIBLE,
-    "UNKNOWN": SolveStatus.TIMEOUT_NO_SOLUTION,
-}
-
 
 def plan(request: PlanRequest, stop: StopHandle | None = None) -> Plan:
     """``stop``, when stopped, ends the solve early with what it has (see
     ``StopHandle``)."""
     built = build(request)
     outcome = cpsat.solve(built.model, request.solve_time_limit, stop=stop)
-    status = _STATUS[outcome.status]
+    status = outcome.status
     if status is SolveStatus.INFEASIBLE:
         core = minimize_core(built, outcome.core, request.solve_time_limit, stop)
         guards = built.model.guards
@@ -28,7 +21,7 @@ def plan(request: PlanRequest, stop: StopHandle | None = None) -> Plan:
         return Plan(status, conflicts=ConflictReport(members))
     if status is SolveStatus.TIMEOUT_NO_SOLUTION:
         return Plan(status)
-    return decode(request, built, outcome, status)
+    return decode(request, built, outcome)
 
 
 def minimize_core(built: BuiltModel, core, time_limit: float,
@@ -45,6 +38,6 @@ def minimize_core(built: BuiltModel, core, time_limit: float,
         trial = [g for g in members if g != guard]
         outcome = cpsat.solve(built.model, time_limit, assumed=trial, optimize=False,
                               stop=stop)
-        if outcome.status == "INFEASIBLE":
+        if outcome.status is SolveStatus.INFEASIBLE:
             members = trial
     return tuple(members)

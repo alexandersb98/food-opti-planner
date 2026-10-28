@@ -29,15 +29,16 @@ class StopHandle:
         if search is not None:
             search.stop_search()
 
-    def _attach(self, search) -> bool:
-        """Make ``search`` the one ``stop()`` stops; False if already stopped,
-        and then the search should not start."""
+    def attach(self, search) -> bool:
+        """For backends only. Make ``search`` the one ``stop()`` stops; False
+        if already stopped, and then the search should not start."""
         with self._lock:
             if self._stopped:
                 return False
             self._search = search
             return True
 
-    def _detach(self) -> None:
+    def detach(self) -> None:
+        """For backends only: the search has ended."""
         with self._lock:
             self._search = None

@@ -9,27 +9,28 @@ from dataclasses import dataclass
 from ortools.sat.python import cp_model
 
 from ..ir import LinConstraint, LinExpr, Model
+from ..result import SolveStatus
 from ..stopping import StopHandle
 
 SEED = 20251013
 
 _STATUS = {
-    cp_model.OPTIMAL: "OPTIMAL",
-    cp_model.FEASIBLE: "FEASIBLE",
-    cp_model.INFEASIBLE: "INFEASIBLE",
-    cp_model.UNKNOWN: "UNKNOWN",
+    cp_model.OPTIMAL: SolveStatus.OPTIMAL,
+    cp_model.FEASIBLE: SolveStatus.FEASIBLE,
+    cp_model.INFEASIBLE: SolveStatus.INFEASIBLE,
+    cp_model.UNKNOWN: SolveStatus.TIMEOUT_NO_SOLUTION,
 }
 
 
 @dataclass(frozen=True)
 class SolveOutcome:
-    """``status`` is OPTIMAL, FEASIBLE, INFEASIBLE or UNKNOWN (time ran out
-    before anything was found). ``values`` is indexed like
-    ``Model.variables`` and is empty without a solution. ``core`` holds
-    indices into ``Model.guards`` whose switches explain an INFEASIBLE
-    result; it is not necessarily minimal."""
+    """``status`` is OPTIMAL, FEASIBLE, INFEASIBLE or TIMEOUT_NO_SOLUTION
+    (time ran out, or the search was stopped, before anything was found).
+    ``values`` is indexed like ``Model.variables`` and is empty without a
+    solution. ``core`` holds indices into ``Model.guards`` whose switches
+    explain an INFEASIBLE result; it is not necessarily minimal."""
 
-    status: str
+    status: SolveStatus
     values: tuple[int, ...] = ()
     objective: int | None = None
     core: tuple[int, ...] = ()
@@ -46,7 +47,7 @@ def solve(model: Model, time_limit: float, assumed=None,
     would.
     """
     if stop is not None and stop.stopped:
-        return SolveOutcome("UNKNOWN")
+        return SolveOutcome(SolveStatus.TIMEOUT_NO_SOLUTION)
     cp = cp_model.CpModel()
     cp_vars = [cp.new_int_var(v.lb, v.ub, v.name) for v in model.variables]
     for c in model.constraints:
@@ -58,18 +59,18 @@ def solve(model: Model, time_limit: float, assumed=None,
     solver = _solver(time_limit)
     if stop is None:
         code = solver.solve(cp)
-    elif not stop._attach(solver):
-        return SolveOutcome("UNKNOWN")
+    elif not stop.attach(solver):
+        return SolveOutcome(SolveStatus.TIMEOUT_NO_SOLUTION)
     else:
         _stop_on_first_log(solver, stop)
         try:
             code = solver.solve(cp)
         finally:
-            stop._detach()
+            stop.detach()
     if code == cp_model.MODEL_INVALID:
         raise RuntimeError(f"CP-SAT rejected the model: {cp.validate()}")
     status = _STATUS[code]
-    if status in ("OPTIMAL", "FEASIBLE"):
+    if status in (SolveStatus.OPTIMAL, SolveStatus.FEASIBLE):
         values = tuple(solver.value(v) for v in cp_vars)
         objective = None
         if optimize:
@@ -77,7 +78,7 @@ def solve(model: Model, time_limit: float, assumed=None,
                 c * values[i] for i, c in model.objective.terms.items()
             )
         return SolveOutcome(status, values, objective)
-    if status == "INFEASIBLE":
+    if status is SolveStatus.INFEASIBLE:
         core = sorted(
             literal_to_guard[i]
             for i in solver.sufficient_assumptions_for_infeasibility()

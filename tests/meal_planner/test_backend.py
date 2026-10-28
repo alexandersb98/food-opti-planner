@@ -1,3 +1,4 @@
+from meal_planner import SolveStatus
 from meal_planner.backends.cpsat import solve
 from meal_planner.ir import LinExpr, Model
 
@@ -9,7 +10,7 @@ def test_minimizes_a_tiny_model():
     m.add(LinExpr().add(x, 1), ub=3)  # x <= 3
     m.objective.add(x, 1).add(y, 2)  # cheapest: x=3, y=4
     out = solve(m, time_limit=5)
-    assert out.status == "OPTIMAL"
+    assert out.status is SolveStatus.OPTIMAL
     assert (out.values[x.index], out.values[y.index]) == (3, 4)
     assert out.objective == 11
 
@@ -23,7 +24,7 @@ def test_guarded_constraints_and_core():
     m.add(LinExpr().add(x, 1), lb=8, enforced_by=low)
     m.add(LinExpr().add(x, 1), ub=3, enforced_by=high)
     out = solve(m, time_limit=5)
-    assert out.status == "INFEASIBLE"
+    assert out.status is SolveStatus.INFEASIBLE
     assert {0, 1} <= set(out.core)  # may also hold the irrelevant guard 2
 
 
@@ -35,7 +36,7 @@ def test_unassumed_guards_switch_their_constraint_off():
     m.add(LinExpr().add(x, 1), ub=3, enforced_by=high)
     m.objective.add(x, 1)
     out = solve(m, time_limit=5, assumed=[0])
-    assert out.status == "OPTIMAL"
+    assert out.status is SolveStatus.OPTIMAL
     assert out.values[x.index] == 8
 
 
@@ -44,7 +45,7 @@ def test_feasibility_only_skips_objective():
     x = m.new_var("x", 0, 10)
     m.objective.add(x, 1)
     out = solve(m, time_limit=5, optimize=False)
-    assert out.status in ("OPTIMAL", "FEASIBLE")
+    assert out.status in (SolveStatus.OPTIMAL, SolveStatus.FEASIBLE)
     assert out.objective is None
 
 
@@ -55,13 +56,13 @@ def test_term_less_constraints_are_decided_in_python():
     m.add(LinExpr({}, 3), lb=1, enforced_by=ok)   # 3 >= 1 holds
     m.add(LinExpr({}, 0), lb=1, enforced_by=bad)  # 0 >= 1 fails
     out = solve(m, 5.0)
-    assert out.status == "INFEASIBLE" and out.core == (1,)
+    assert out.status is SolveStatus.INFEASIBLE and out.core == (1,)
     out = solve(m, 5.0, assumed=[0])
-    assert out.status == "OPTIMAL"
+    assert out.status is SolveStatus.OPTIMAL
 
 
 def test_unenforced_violated_term_less_constraint_is_infeasible():
     m = Model()
     m.new_var("x", 0, 5)
     m.add(LinExpr({}, 0), ub=-1)
-    assert solve(m, 5.0).status == "INFEASIBLE"
+    assert solve(m, 5.0).status is SolveStatus.INFEASIBLE
