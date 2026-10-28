@@ -49,14 +49,14 @@ def stopped_after(seconds: float, model: Model) -> tuple[cpsat.SolveOutcome, flo
 
 def test_stopping_a_long_search_keeps_the_best_solution_so_far():
     outcome, elapsed = stopped_after(0.5, subset_sum(exact=False))
-    assert outcome.status == "FEASIBLE"
+    assert outcome.status is SolveStatus.FEASIBLE
     assert outcome.values and outcome.objective is not None
     assert elapsed < 10
 
 
 def test_stopping_a_search_that_found_nothing_returns_nothing():
     outcome, elapsed = stopped_after(0.5, subset_sum(exact=True))
-    assert outcome == cpsat.SolveOutcome("UNKNOWN")
+    assert outcome == cpsat.SolveOutcome(SolveStatus.TIMEOUT_NO_SOLUTION)
     assert elapsed < 10
 
 
@@ -64,30 +64,30 @@ def test_a_stopped_handle_skips_the_solve():
     stop = StopHandle()
     stop.stop()
     start = time.perf_counter()
-    assert cpsat.solve(subset_sum(exact=False), time_limit=60, stop=stop).status == "UNKNOWN"
+    assert cpsat.solve(subset_sum(exact=False), time_limit=60, stop=stop).status is SolveStatus.TIMEOUT_NO_SOLUTION
     assert time.perf_counter() - start < 1
 
 
 def test_a_stop_that_lands_before_the_search_starts_is_not_lost(monkeypatch):
     """CP-SAT ignores stop_search() just before its search starts. Stand in
     for a stop() landing then: the flag is set, the call to the solver lost."""
-    attach = StopHandle._attach
+    attach = StopHandle.attach
 
     def attach_then_stop_unseen(self, search):
         attached = attach(self, search)
         self._stopped = True
         return attached
 
-    monkeypatch.setattr(StopHandle, "_attach", attach_then_stop_unseen)
+    monkeypatch.setattr(StopHandle, "attach", attach_then_stop_unseen)
     start = time.perf_counter()
-    assert cpsat.solve(subset_sum(exact=True), time_limit=60, stop=StopHandle()).status == "UNKNOWN"
+    assert cpsat.solve(subset_sum(exact=True), time_limit=60, stop=StopHandle()).status is SolveStatus.TIMEOUT_NO_SOLUTION
     assert time.perf_counter() - start < 10
 
 
 def test_stop_can_be_called_again_and_after_the_solve():
     stop = StopHandle()
     assert not stop.stopped
-    assert cpsat.solve(subset_sum(exact=False), time_limit=0.2, stop=stop).status == "FEASIBLE"
+    assert cpsat.solve(subset_sum(exact=False), time_limit=0.2, stop=stop).status is SolveStatus.FEASIBLE
     stop.stop()
     stop.stop()
     assert stop.stopped
@@ -135,7 +135,7 @@ def test_stopping_during_the_clash_search_skips_its_solves(monkeypatch):
     p = plan(request, stop)
     assert p.solve_status is SolveStatus.INFEASIBLE
     first, *extra = outcomes
-    assert first == "INFEASIBLE" and extra and set(extra) == {"UNKNOWN"}
+    assert first is SolveStatus.INFEASIBLE and extra and set(extra) == {SolveStatus.TIMEOUT_NO_SOLUTION}
     # Nothing was dropped: the members are the first solve's core.
     assert len(p.conflicts.members) == len(extra)
     assert {ConflictMember("energy", 0), ConflictMember("budget", 0)} <= set(p.conflicts.members)

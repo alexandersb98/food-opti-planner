@@ -5,13 +5,12 @@ from decimal import Decimal
 from .backends.cpsat import SolveOutcome
 from .builder import OBJECTIVE_SCALE, BuiltModel
 from .request import PlanRequest
-from .result import Plan, SlotAssignment, SolveStatus, ViolationReport
+from .result import Plan, SlotAssignment, ViolationReport
 from .scaling import MULTIPLIER_PRECISION, from_int
 from .violations import violations
 
 
-def decode(request: PlanRequest, built: BuiltModel, outcome: SolveOutcome,
-           status: SolveStatus) -> Plan:
+def decode(request: PlanRequest, built: BuiltModel, outcome: SolveOutcome) -> Plan:
     chosen = _chosen(built, outcome.values)
     zero = {a: Decimal(0) for a in built.precision}
     slots, day_totals = [], []
@@ -34,7 +33,7 @@ def decode(request: PlanRequest, built: BuiltModel, outcome: SolveOutcome,
     horizon = {a: sum((t[a] for t in day_totals), Decimal(0)) for a in built.precision}
     report = ViolationReport(tuple(violations(request, slots, day_totals, horizon)))
     objective = Decimal(outcome.objective) / OBJECTIVE_SCALE
-    return Plan(status, objective, tuple(slots), tuple(day_totals), horizon, report)
+    return Plan(outcome.status, objective, tuple(slots), tuple(day_totals), horizon, report)
 
 
 def _chosen(built: BuiltModel, values) -> dict[tuple[int, int], tuple[str, int]]:
