@@ -281,6 +281,15 @@ def test_constraint_keys_count_the_goals_from_1():
     assert [translate.constraint_key(position) for position in range(3)] == ["goal 1", "goal 2", "goal 3"]
 
 
+def test_goal_position_undoes_constraint_key():
+    assert [translate.goal_position(translate.constraint_key(position)) for position in range(12)] == list(range(12))
+
+
+@pytest.mark.parametrize("name", ["min_meals_per_day", "goal", "goal ", "goal 0", "goal 01", "goal x", "goal 1 (day guard-rail)"])
+def test_goal_position_of_another_name_is_none(name):
+    assert translate.goal_position(name) is None
+
+
 def test_goal_names_say_the_scope():
     goals = [goal(PROTEIN), goal(PROTEIN, "plan_total"), goal(PROTEIN, "daily_average")]
     assert translate.goal_names(goals) == ["Protein per day", "Protein, plan total", "Protein, daily average"]

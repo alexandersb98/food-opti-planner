@@ -10,7 +10,7 @@ from datetime import datetime
 import pytest
 
 import meal_planner
-from meal_planner import ConflictReport, ModelTooLargeError, Plan, PlanRequestError, SolveStatus
+from meal_planner import ConflictMember, ConflictReport, ModelTooLargeError, Plan, PlanRequestError, SolveStatus
 from server import models
 from server.api import solve as solve_api
 
@@ -21,6 +21,11 @@ def solve(client, solve_id: str = "s1") -> dict:
     response = client.post("/api/plan/solve", json={"solve_id": solve_id})
     assert response.status_code == 200, response.text
     return response.json()
+
+
+def no_plan(failure: str, clash: list | None = None, clash_minimal: bool | None = None) -> dict:
+    """A solve's answer without a plan."""
+    return {"plan": None, "failure": failure, "clash": clash, "clash_minimal": clash_minimal}
 
 
 def unsaved(client) -> dict | None:
@@ -131,7 +136,7 @@ def test_no_connection_is_held_while_solving(client, porridge, monkeypatch):
 
 def test_without_recipes_there_is_no_plan(client, catalog):
     catalog.attribute()
-    assert solve(client) == {"plan": None, "failure": "no_recipes"}
+    assert solve(client) == no_plan("no_recipes")
     assert unsaved(client) is None
 
 
@@ -145,7 +150,8 @@ def test_without_recipes_there_is_no_plan(client, catalog):
 def test_no_plan_answers_why_and_keeps_the_unsaved_plan(client, porridge, monkeypatch, answer, failure):
     kept = solve(client)["plan"]
     monkeypatch.setattr(solve_api, "solve_plan", lambda request, stop: answer)
-    assert solve(client) == {"plan": None, "failure": failure}
+    clash = {"clash": [], "clash_minimal": True} if failure == "infeasible" else {}
+    assert solve(client) == no_plan(failure, **clash)
     assert unsaved(client) == summary(kept)
 
 
@@ -158,7 +164,7 @@ def test_a_model_too_large_for_the_solver_answers_why(client, porridge, monkeypa
         raise ModelTooLargeError("scaled model reaches 10**21")
 
     monkeypatch.setattr(solve_api, "solve_plan", too_large)
-    assert solve(client) == {"plan": None, "failure": "too_large"}
+    assert solve(client) == no_plan("too_large")
     assert unsaved(client) == summary(kept)
 
 
@@ -244,7 +250,7 @@ def test_cancel_before_any_plan_answers_stopped_and_keeps_the_unsaved_plan(clien
     kept = solve(client)["plan"]
     answer = solving(client, monkeypatch, UntilCancelled(found=False))
     cancel(client, "s1")
-    assert answer.result(10).json() == {"plan": None, "failure": "stopped"}
+    assert answer.result(10).json() == no_plan("stopped")
     assert unsaved(client) == summary(kept)
 
 
@@ -254,7 +260,8 @@ def test_a_cancelled_infeasible_solve_is_still_infeasible(client, porridge, monk
         return Plan(SolveStatus.INFEASIBLE, conflicts=ConflictReport(()))
 
     monkeypatch.setattr(solve_api, "solve_plan", infeasible)
-    assert solve(client) == {"plan": None, "failure": "infeasible"}
+    # Stopped while the library trimmed the clash, so it may hold more.
+    assert solve(client) == no_plan("infeasible", clash=[], clash_minimal=False)
 
 
 def test_a_second_solve_while_one_runs_is_refused(client, porridge, monkeypatch):
@@ -287,7 +294,7 @@ def test_a_cancel_that_arrives_before_its_solve_stops_it_as_it_starts(client, po
     """Cancel can beat Make plan to the server, as the card's Cancel is
     there from the click. The solve is stopped as soon as it starts."""
     cancel(client, "s1")
-    assert solve(client, "s1") == {"plan": None, "failure": "stopped"}
+    assert solve(client, "s1") == no_plan("stopped")
     # Only that one solve: the next one is not stopped by the same Cancel.
     assert solve(client, "s2")["plan"]["status"] == "optimal"
 
@@ -317,7 +324,7 @@ def test_a_real_solve_can_be_cancelled(client, porridge, monkeypatch):
         return meal_planner.plan(request, stop)
 
     monkeypatch.setattr(solve_api, "solve_plan", stopped_first)
-    assert solve(client) == {"plan": None, "failure": "stopped"}
+    assert solve(client) == no_plan("stopped")
     assert stops[0].stopped
 
 
@@ -353,8 +360,97 @@ def test_a_prefer_goal_decides_between_recipes_that_are_otherwise_equal(client, 
 
 def test_a_must_goal_the_catalog_cannot_meet_is_infeasible(client, catalog):
     energy = one_meal_two_recipes(client, catalog)
-    schedule(client, goals=[goal(energy, min="1000", must=True)])
-    assert solve(client) == {"plan": None, "failure": "infeasible"}
+    goal_id = schedule(client, goals=[goal(energy, min="1000", must=True)])["goals"][0]["id"]
+    clash = [{"kind": "goal", "goal_id": goal_id, "name": "Energy per day", "day": 0, "date": "2026-10-26"}]
+    assert solve(client) == no_plan("infeasible", clash=clash, clash_minimal=True)
+
+
+def clash_member(kind="goal", goal_id=None, name=None, day=None, date=None) -> dict:
+    return {"kind": kind, "goal_id": goal_id, "name": name, "day": day, "date": date}
+
+
+def day_date(day: int) -> str:
+    return f"2026-10-{26 + day}"
+
+
+def test_a_clash_names_one_of_the_days_a_goal_cannot_be_met_on(client, catalog):
+    """Each day alone is a clash, and the library trims the report to one;
+    which day is its choice."""
+    energy = one_meal_two_recipes(client, catalog)
+    goals = schedule(
+        client, days=3, goals=[goal(energy, max="1000"), goal(energy, min="1000", must=True, custom_name="Big lunch")]
+    )["goals"]
+    [member] = solve(client)["clash"]
+    assert member == clash_member(goal_id=goals[1]["id"], name="Big lunch", day=member["day"], date=day_date(member["day"]))
+
+
+def test_a_whole_plan_goal_clashes_with_no_day(client, catalog):
+    energy = one_meal_two_recipes(client, catalog)
+    goal_id = schedule(client, goals=[goal(energy, min="1000", must=True, applies_to="plan_total")])["goals"][0]["id"]
+    assert solve(client)["clash"] == [clash_member(goal_id=goal_id, name="Energy, plan total")]
+
+
+@pytest.mark.parametrize("minimums", [[], [{"day": 0, "at_least": 1}, {"day": 1, "at_least": 1}]])
+def test_a_maximum_below_every_meal_clashes_with_that_days_meals(client, catalog, minimums):
+    """A day serves its meals, all planned or its "At least", which the
+    library keeps as a rule of its own (`translate.DAY_MINIMUM`), so it is in
+    the clash; after the goal."""
+    energy = one_meal_two_recipes(client, catalog)
+    goal_id = schedule(client, days=2, minimums=minimums, goals=[goal(energy, max="50", must=True)])["goals"][0]["id"]
+    clash = solve(client)["clash"]
+    day = clash[0]["day"]
+    assert clash == [
+        clash_member(goal_id=goal_id, name="Energy per day", day=day, date=day_date(day)),
+        clash_member("day_minimum", day=day, date=day_date(day)),
+    ]
+
+
+def test_a_goal_can_clash_on_several_days_together(client, catalog):
+    """A plan total of at most 350 kcal over two one-meal days, and a Must
+    of at least 200 kcal each day: neither day alone clashes with the total,
+    both together do. The days may serve no meal, so their meals are not in
+    the clash."""
+    energy = one_meal_two_recipes(client, catalog)
+    total, daily = schedule(
+        client,
+        days=2,
+        minimums=[{"day": 0, "at_least": 0}, {"day": 1, "at_least": 0}],
+        goals=[goal(energy, max="350", must=True, applies_to="plan_total"), goal(energy, min="200", must=True)],
+    )["goals"]
+    assert solve(client)["clash"] == [
+        clash_member(goal_id=total["id"], name="Energy, plan total"),
+        clash_member(goal_id=daily["id"], name="Energy per day", day=0, date=day_date(0)),
+        clash_member(goal_id=daily["id"], name="Energy per day", day=1, date=day_date(1)),
+    ]
+
+
+def test_a_clash_is_in_goal_order_then_day_order(client, catalog, monkeypatch):
+    energy = one_meal_two_recipes(client, catalog)
+    goals = schedule(client, days=2, goals=[goal(energy, min="1", must=True), goal(energy, min="2", must=True)])["goals"]
+    report = ConflictReport((
+        ConflictMember("min_meals_per_day", 1),
+        ConflictMember("goal 2", None),
+        ConflictMember("goal 1", 1),
+        ConflictMember("min_meals_per_day", 0),
+        ConflictMember("goal 1", 0),
+    ))
+    monkeypatch.setattr(solve_api, "solve_plan", lambda request, stop: Plan(SolveStatus.INFEASIBLE, conflicts=report))
+    first, second = goals[0]["id"], goals[1]["id"]
+    assert solve(client)["clash"] == [
+        clash_member(goal_id=first, name="Energy per day", day=0, date="2026-10-26"),
+        clash_member(goal_id=first, name="Energy per day", day=1, date="2026-10-27"),
+        clash_member(goal_id=second, name="Energy per day (2)"),
+        clash_member("day_minimum", day=0, date="2026-10-26"),
+        clash_member("day_minimum", day=1, date="2026-10-27"),
+    ]
+
+
+def test_a_rule_in_a_clash_the_server_does_not_know_is_a_bug(client, catalog, monkeypatch):
+    one_meal_two_recipes(client, catalog)
+    report = ConflictReport((ConflictMember("serving cap: Light", 0),))
+    monkeypatch.setattr(solve_api, "solve_plan", lambda request, stop: Plan(SolveStatus.INFEASIBLE, conflicts=report))
+    with pytest.raises(ValueError):
+        client.post("/api/plan/solve", json={"solve_id": "s1"})
 
 
 def test_a_must_goal_the_catalog_can_meet_is_kept(client, catalog):
@@ -444,5 +540,5 @@ def test_filters_that_leave_no_recipe_answer_why_and_store_nothing(client, catal
     quick = catalog.tag("quick")
     # Heavy is filling but not quick.
     schedule(client, tag_filters=[{"tag_id": filling, "mode": "only"}, {"tag_id": quick, "mode": "only"}])
-    assert solve(client) == {"plan": None, "failure": "no_usable_recipes"}
+    assert solve(client) == no_plan("no_usable_recipes")
     assert unsaved(client) == summary(kept)

@@ -24,5 +24,6 @@ export type ResultMiss = Schemas['ResultMiss']
 export type TodayPlan = Schemas['TodayPlan']
 export type SolveOutcome = Schemas['SolveOutcome']
 export type SolveFailure = NonNullable<SolveOutcome['failure']>
+export type ClashMember = Schemas['ClashMember']
 export type TagFilter = Schemas['TagFilter']
 export type RecipeCount = Schemas['RecipeCount']

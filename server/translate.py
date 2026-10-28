@@ -159,6 +159,20 @@ def constraint_key(position: int) -> str:
     return f"goal {position + 1}"
 
 
+def goal_position(key: str) -> int | None:
+    """The place (from 0) of the goal `key` names (`constraint_key`), or None
+    for a name that is not a goal's."""
+    number = key.removeprefix("goal ")
+    if number == key or not number.isdigit() or number.startswith("0"):
+        return None
+    return int(number) - 1
+
+
+# The library's name for a day's meals that must be served, its "At least"
+# or all planned meals (`Day.min_meals_per_day`), in a conflict report.
+DAY_MINIMUM = "min_meals_per_day"
+
+
 def guard_rail_importance(goal: models.Goal) -> int:
     """A daily average's day guard-rail importance: its own, or else one step
     below the goal's (the higher side's, with importance below and above),
