@@ -1,5 +1,7 @@
 import { flushPromises } from '@vue/test-utils'
-import { afterEach, expect, test, vi } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
+import type { PlanFields } from '../api/types'
+import { goalFields } from '../plan'
 import { resetSolve } from '../solve'
 import { button, click, dialog, fakeServer, mountApp, texts, type FakeReply, type FakeServer } from '../test-app'
 import { attribute, goal, plan, planResult, planSummary, resultMeal, tag } from '../test-data'
@@ -412,4 +414,134 @@ test('saved plans are listed newest first with when they were saved, and the Tod
   await click(wrapper.findAll('.saved-plan')[1]!)
   expect(router.currentRoute.value.fullPath).toBe('/plans/3')
   wrapper.unmount()
+})
+
+describe('the No plan possible card', () => {
+  const energy = attribute({ id: 1, name: 'Energy', unit: 'kcal' })
+  const daily = goal({ id: 7, attribute_id: 1, name: 'Energy per day', min: null, max: '50', must: true })
+  const other = goal({ id: 8, attribute_id: 1, name: 'Energy, plan total', min: '10', applies_to: 'plan_total' })
+  const setup = plan({ goals: [other, daily], minimums: [{ day: 1, at_least: 2 }] })
+  const clash = [
+    { kind: 'goal', goal_id: 7, name: 'Energy per day', day: 1, date: '2026-09-22' },
+    { kind: 'day_minimum', goal_id: null, name: null, day: 1, date: '2026-09-22' },
+  ]
+  const infeasible = { body: { plan: null, failure: 'infeasible', clash, clash_minimal: true } }
+
+  async function showClash(server: FakeServer = {}) {
+    const page = await mountPage({
+      'GET /api/plan': { body: setup },
+      'GET /api/attributes': { body: [energy] },
+      'POST /api/plan/solve': infeasible,
+      ...server,
+    })
+    await click(makePlanButton(page.wrapper))
+    return page
+  }
+
+  function maxInput(wrapper: Wrapper) {
+    return wrapper.get<HTMLInputElement>('.clash-goal input[aria-label="Max"]')
+  }
+
+  test('shows each clashing goal and day of meals, and marks the goal red', async () => {
+    const { wrapper } = await showClash()
+    expect(wrapper.find('.solve-failed').exists()).toBe(false)
+    const card = wrapper.get('.clash-card')
+    expect(card.text()).toContain('No plan possible')
+    expect(card.text()).toContain('Fixing these may show another clash.')
+    expect(texts(wrapper, '.clash-goal .clash-where')).toEqual(['Clashes on Tue 22'])
+    expect(maxInput(wrapper).element.value).toBe('50')
+    expect(wrapper.find('.clash-goal input[aria-label="Min"]').exists()).toBe(false)
+    expect(texts(wrapper, '.clash-meals')).toEqual([expect.stringMatching(/^Meals on Tue 22\s*At least 2 meals are served\s*Edit schedule$/)])
+    expect(wrapper.findAll('.goal-row').map((row) => row.classes('clashing'))).toEqual([false, true])
+    await click(button(wrapper, 'Dismiss'))
+    expect(wrapper.find('.clash-card').exists()).toBe(false)
+    expect(wrapper.findAll('.goal-row.clashing')).toHaveLength(0)
+    wrapper.unmount()
+  })
+
+  test('a clash cut short by Cancel says it may hold more', async () => {
+    const { wrapper } = await showClash({
+      'POST /api/plan/solve': { body: { ...infeasible.body, clash_minimal: false } },
+    })
+    expect(wrapper.get('.clash-card').text()).toContain('Stopped early: some of these may not take part.')
+    wrapper.unmount()
+  })
+
+  test('Try again with nothing changed only makes the plan', async () => {
+    const { wrapper, calls } = await showClash()
+    await click(button(wrapper, 'Try again'))
+    expect(calls.filter((call) => call === 'POST /api/plan/solve')).toHaveLength(2)
+    expect(calls).not.toContain('PUT /api/plan')
+    wrapper.unmount()
+  })
+
+  test('Try again saves a looser bound and Make Prefer, then makes the plan', async () => {
+    let sent: PlanFields | null = null
+    const { wrapper, calls } = await showClash({
+      'PUT /api/plan': (body) => {
+        sent = body as PlanFields
+        return { body: plan({ ...setup, goals: [other, { ...daily, max: '500', must: false }] }) }
+      },
+    })
+    await maxInput(wrapper).setValue('500')
+    await click(button(wrapper, 'Make Prefer'))
+    expect(wrapper.get('.clash-goal').text()).toContain('Will be Prefer')
+    await click(button(wrapper, 'Keep Must'))
+    expect(wrapper.get('.clash-goal').text()).not.toContain('Will be Prefer')
+    await click(button(wrapper, 'Make Prefer'))
+    await click(button(wrapper, 'Try again'))
+    expect(sent!.goals).toEqual([goalFields(other), { ...goalFields(daily), max: '500', must: false }])
+    expect(calls.indexOf('PUT /api/plan')).toBeLessThan(calls.lastIndexOf('POST /api/plan/solve'))
+    expect(calls.filter((call) => call === 'POST /api/plan/solve')).toHaveLength(2)
+    wrapper.unmount()
+  })
+
+  test('a bound that is no number, or one the server refuses, is marked and nothing is made', async () => {
+    const { wrapper, calls } = await showClash({
+      'PUT /api/plan': { status: 422, body: { detail: [{ loc: ['body', 'goals', 1, 'max'], type: 'too_many_decimals', msg: '' }] } },
+    })
+    await maxInput(wrapper).setValue('lots')
+    await click(button(wrapper, 'Try again'))
+    expect(wrapper.get('.clash-goal').text()).toContain('A number, such as 120 or 1.5.')
+    expect(calls).not.toContain('PUT /api/plan')
+
+    await maxInput(wrapper).setValue('50.5')
+    await click(button(wrapper, 'Try again'))
+    expect(wrapper.get('.clash-goal').text()).toContain('At most 0 decimals for Energy.')
+    expect(calls.filter((call) => call === 'POST /api/plan/solve')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  test('a save that fails otherwise says so', async () => {
+    const { wrapper } = await showClash({ 'PUT /api/plan': 500 })
+    await maxInput(wrapper).setValue('80')
+    await click(button(wrapper, 'Try again'))
+    expect(wrapper.get('.clash-card .save-failed').text()).toBe('Could not save. Try again.')
+    wrapper.unmount()
+  })
+
+  test('Make Prefer on a bound of 0 asks for the zero-bound field', async () => {
+    const zero = { ...daily, max: '0' }
+    const { wrapper, calls } = await showClash({ 'GET /api/plan': { body: plan({ ...setup, goals: [other, zero] }) } })
+    expect(wrapper.find('.clash-goal .zero-reference').exists()).toBe(false)
+    await click(button(wrapper, 'Make Prefer'))
+    expect(wrapper.find('.clash-goal .zero-reference').exists()).toBe(true)
+    await click(button(wrapper, 'Try again'))
+    expect(wrapper.get('.clash-goal').text()).toContain('A number above 0.')
+    expect(calls).not.toContain('PUT /api/plan')
+    wrapper.unmount()
+  })
+
+  test('Edit schedule opens the Schedule page', async () => {
+    const { wrapper, router } = await showClash()
+    await click(wrapper.get('.clash-meals a'))
+    expect(router.currentRoute.value.name).toBe('schedule')
+    wrapper.unmount()
+  })
+
+  test('with none of its rules left (goal gone, day past the schedule), the card says no plan is possible', async () => {
+    const { wrapper } = await showClash({ 'GET /api/plan': { body: plan({ days: 1, goals: [other] }) } })
+    expect(wrapper.get('.clash-card').text()).toContain('No plan possible with these settings.')
+    wrapper.unmount()
+  })
 })

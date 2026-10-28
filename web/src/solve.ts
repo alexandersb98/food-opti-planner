@@ -1,7 +1,7 @@
 import { reactive, readonly, toRefs } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from './api/client'
-import type { SolveFailure } from './api/types'
+import type { ClashMember, SolveFailure } from './api/types'
 
 // The running solve (Make plan), kept outside any page so the Plan page's
 // Making plan… card survives moving between pages. The server says nothing
@@ -18,6 +18,10 @@ const state = reactive({
   startedAt: null as number | null, // Date.now() when the running solve started
   seconds: 0, // Max solving time of the running or last solve
   failure: null as Failure | null,
+  // With failure 'infeasible': the rules that can't all hold, and whether
+  // the server trimmed them to a minimal set (a Cancel cuts that short).
+  clash: null as ClashMember[] | null,
+  clashMinimal: true,
 })
 // Counts solves, so one forgotten by resetSolve can't change the state.
 let solves = 0
@@ -32,22 +36,28 @@ export function useSolve() {
 
   /** Make a plan, unless one is being made. A plan opens the results if the
    * user is still on the Plan page; elsewhere the Plan page's New plan card
-   * shows it. No plan: the reason is kept until dismissed. */
+   * shows it. No plan: the reason, and the clash with it, is kept until
+   * dismissed. */
   async function start(seconds: number) {
     if (state.running) return
     const solve = ++solves
     runningId = crypto.randomUUID()
-    Object.assign(state, { running: true, cancelling: false, startedAt: Date.now(), seconds, failure: null })
+    Object.assign(state, { running: true, cancelling: false, startedAt: Date.now(), seconds, failure: null, clash: null })
     let failure: Failure | null = 'error'
+    let clash: ClashMember[] | null = null
+    let clashMinimal = true
     try {
       const { data, response } = await api.POST('/api/plan/solve', { body: { solve_id: runningId } })
-      if (data) failure = data.plan ? null : (data.failure ?? 'error')
-      else if (response.status === 409) failure = 'busy'
+      if (data) {
+        failure = data.plan ? null : (data.failure ?? 'error')
+        clash = data.clash ?? null
+        clashMinimal = data.clash_minimal ?? true
+      } else if (response.status === 409) failure = 'busy'
     } catch {
       // failure stays 'error'
     }
     if (solve !== solves) return
-    Object.assign(state, { running: false, cancelling: false, startedAt: null, failure })
+    Object.assign(state, { running: false, cancelling: false, startedAt: null, failure, clash, clashMinimal })
     if (failure === null && router.currentRoute.value.name === 'plan') await router.push({ name: 'new-plan' })
   }
 
@@ -68,7 +78,7 @@ export function useSolve() {
   }
 
   function dismiss() {
-    state.failure = null
+    Object.assign(state, { failure: null, clash: null })
   }
 
   return { ...toRefs(readonly(state)), start, cancel, dismiss }
@@ -77,5 +87,13 @@ export function useSolve() {
 /** Forget any solve, for tests. */
 export function resetSolve() {
   solves++
-  Object.assign(state, { running: false, cancelling: false, startedAt: null, seconds: 0, failure: null })
+  Object.assign(state, {
+    running: false,
+    cancelling: false,
+    startedAt: null,
+    seconds: 0,
+    failure: null,
+    clash: null,
+    clashMinimal: true,
+  })
 }

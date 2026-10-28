@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { api } from '../api/client'
 import type { Attribute, Goal, Plan, PlanResults, Tag, TodayPlan } from '../api/types'
+import ClashCard from '../components/ClashCard.vue'
 import GoalDialog from '../components/GoalDialog.vue'
 import GoalsCard from '../components/GoalsCard.vue'
 import LoadState from '../components/LoadState.vue'
@@ -11,13 +12,15 @@ import SavedPlansCard from '../components/SavedPlansCard.vue'
 import ScheduleCard from '../components/ScheduleCard.vue'
 import SolveCard from '../components/SolveCard.vue'
 import TodayCard from '../components/TodayCard.vue'
+import { clashingGoalIds } from '../clash'
 import { loadAll, useLoad } from '../composables/useLoad'
 import { dateRange, localDate } from '../dates'
 import { useSolve } from '../solve'
 
 // The Plan page (A1): the plan setup as cards, each opening its editor, and
 // the plans made from it: the running solve, the unsaved plan, today's
-// meals and the saved plans. Make plan stays at the bottom.
+// meals and the saved plans. Make plan stays at the bottom. A solve with no
+// plan possible shows its clash (A5) at the top instead of the failure.
 const { data, loading, failed, load } = useLoad(
   () =>
     loadAll({
@@ -39,6 +42,8 @@ const maxTimeOpen = ref(false)
 const goalOpen = ref(false)
 const editedGoal = ref<Goal | null>(null)
 const solve = useSolve()
+// The clash of the last solve, when it had one to show.
+const clash = computed(() => (solve.failure.value === 'infeasible' && solve.clash.value?.length ? solve.clash.value : null))
 
 function editGoal(goal: Goal | null) {
   editedGoal.value = goal
@@ -71,8 +76,19 @@ function makePlan() {
           :cancelling="solve.cancelling.value"
           :started-at="solve.startedAt.value"
           :seconds="solve.seconds.value"
-          :failure="solve.failure.value"
+          :failure="clash ? null : solve.failure.value"
           @cancel="solve.cancel"
+          @dismiss="solve.dismiss"
+        />
+
+        <ClashCard
+          v-if="clash && !solve.running.value"
+          :plan="data.plan"
+          :attributes="data.attributes"
+          :clash="clash"
+          :minimal="solve.clashMinimal.value"
+          @saved="data.plan = $event"
+          @retry="makePlan"
           @dismiss="solve.dismiss"
         />
 
@@ -112,6 +128,7 @@ function makePlan() {
         <GoalsCard
           :goals="data.plan.goals"
           :attributes="data.attributes"
+          :clashing="clashingGoalIds(clash)"
           @edit="editGoal"
           @add="editGoal(null)"
         />

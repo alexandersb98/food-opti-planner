@@ -7,8 +7,11 @@ import { IMPORTANCE, rangeText, scopeText } from '../goals'
 // scope and a chip, "Must" or "Prefer" with its importance as dots (or its
 // importance below / above), each row opening the goal editor, and "+ Add
 // goal" at the end. A goal with a typed name has it as the row's title, the
-// attribute then leading the range.
-const props = defineProps<{ goals: Goal[]; attributes: Attribute[] }>()
+// attribute then leading the range. Goals in the clash of the last solve
+// (`clashing`, by id) are marked red.
+const props = withDefaults(defineProps<{ goals: Goal[]; attributes: Attribute[]; clashing?: number[] }>(), {
+  clashing: () => [],
+})
 defineEmits<{ edit: [goal: Goal]; add: [] }>()
 
 const { t } = useI18n()
@@ -47,10 +50,18 @@ function split(goal: Goal): [number, number] | null {
         v-ripple
         clickable
         class="goal-row"
+        :class="{ clashing: clashing.includes(goal.id) }"
         @click="$emit('edit', goal)"
       >
         <q-item-section>
-          <q-item-label>{{ goal.custom_name ?? attributeOf(goal)?.name }}</q-item-label>
+          <q-item-label :class="{ 'text-negative': clashing.includes(goal.id) }">
+            <q-icon
+              v-if="clashing.includes(goal.id)"
+              name="error"
+              class="q-mr-xs"
+              :aria-label="$t('clash.inClash')"
+            />{{ goal.custom_name ?? attributeOf(goal)?.name }}
+          </q-item-label>
           <q-item-label
             caption
             class="goal-range"

@@ -163,7 +163,7 @@ def goal_position(key: str) -> int | None:
     """The place (from 0) of the goal `key` names (`constraint_key`), or None
     for a name that is not a goal's."""
     number = key.removeprefix("goal ")
-    if number == key or not number.isdigit() or number.startswith("0"):
+    if number == key or not number.isdecimal() or number.startswith("0"):
         return None
     return int(number) - 1
 

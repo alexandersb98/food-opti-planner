@@ -1639,7 +1639,7 @@
         "type": "object"
       },
       "SolveOutcome": {
-        "description": "The new unsaved plan, or why there is none. With `failure`\n\"infeasible\", `clash` is a set of rules that can't all hold (empty when\nthe solver named none), trimmed by the library until dropping any would\nleave a plan possible. A Cancel cuts the trim short: `clash_minimal` is\nthen false, as the set may hold more than it needs.",
+        "description": "The new unsaved plan, or why there is none. With `failure`\n\"infeasible\", `clash` is a set of rules that can't all hold (empty when\nthe solver named none), trimmed by the library until dropping any would\nleave a plan possible. A Cancel cuts the trim short: `clash_minimal` is\nthen false, as the set may hold more than it needs (also, harmlessly,\nfor a Cancel just after a trim that finished).",
         "properties": {
           "clash": {
             "anyOf": [

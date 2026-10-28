@@ -109,7 +109,8 @@ class SolveOutcome(BaseModel):
     "infeasible", `clash` is a set of rules that can't all hold (empty when
     the solver named none), trimmed by the library until dropping any would
     leave a plan possible. A Cancel cuts the trim short: `clash_minimal` is
-    then false, as the set may hold more than it needs."""
+    then false, as the set may hold more than it needs (also, harmlessly,
+    for a Cancel just after a trim that finished)."""
 
     plan: results.PlanResult | None
     failure: Failure | None

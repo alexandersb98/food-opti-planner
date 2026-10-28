@@ -260,7 +260,7 @@ def test_a_cancelled_infeasible_solve_is_still_infeasible(client, porridge, monk
         return Plan(SolveStatus.INFEASIBLE, conflicts=ConflictReport(()))
 
     monkeypatch.setattr(solve_api, "solve_plan", infeasible)
-    # Stopped while the library trimmed the clash, so it may hold more.
+    # Stopped during the solve, so the clash may hold more than it needs.
     assert solve(client) == no_plan("infeasible", clash=[], clash_minimal=False)
 
 
