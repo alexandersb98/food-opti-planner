@@ -6,7 +6,7 @@ import { typedNumber } from './numbers'
 // and the day guard-rail's importance apply, and what a refused bound says.
 
 type AppliesTo = Goal['applies_to']
-type Translate = (key: string, named: Record<string, unknown>) => string
+export type Translate = (key: string, named: Record<string, unknown>) => string
 
 /** The importance a Prefer goal can have; a new goal starts on the default. */
 export const IMPORTANCE = { min: 1, max: 5, default: 3 }

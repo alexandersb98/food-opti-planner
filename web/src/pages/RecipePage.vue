@@ -1,60 +1,42 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '../api/client'
-import { fieldErrors } from '../api/errors'
-import type { Attribute, Ingredient, Recipe, RecipeFields as Fields, Tag } from '../api/types'
+import type { Attribute, Ingredient, Recipe, Tag } from '../api/types'
 import ConfirmDelete from '../components/ConfirmDelete.vue'
 import EditorHeader from '../components/EditorHeader.vue'
 import IngredientPicker from '../components/IngredientPicker.vue'
 import LoadState from '../components/LoadState.vue'
 import { loadAll, useLoad } from '../composables/useLoad'
+import { useRecipeDraft } from '../composables/useRecipeDraft'
 import { valueText } from '../format'
 import { byId } from '../lists'
 import { typedNumber } from '../numbers'
 import { portionTotals } from '../totals'
 
-const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 
 // The editor for a new recipe (/recipes/new) or an existing one.
 const id = route.params.id === undefined ? null : Number(route.params.id)
 
-// The fields as typed. Amounts are per portion, in each ingredient's unit.
-const draft = reactive({
-  name: '',
-  items: [] as { ingredientId: number; amount: string }[],
-  extraTagIds: new Set<number>(),
-  min: '0.5',
-  max: '2',
-  inSteps: false,
-  step: '0.5',
-  hardMax: '', // empty: 3 times max, the library's default
-  penalty: '1',
-})
-const errors = reactive({
-  name: '',
-  items: '',
-  amounts: {} as Partial<Record<number, string>>, // by ingredient id
-  min: '',
-  max: '',
-  step: '',
-  hardMax: '',
-  penalty: '',
-  save: '',
-})
-const saving = ref(false)
+const {
+  draft,
+  errors,
+  saving,
+  advancedOpen,
+  derivedTagIds,
+  defaultHardMax,
+  fillDraft,
+  addIngredient,
+  removeIngredient,
+  hasTag,
+  toggleTag,
+  save: saveDraft,
+  remove,
+} = useRecipeDraft(id)
 const deleteOpen = ref(false)
 const pickerOpen = ref(false)
-// Open when it holds something other than the defaults, or a mistake.
-const advancedOpen = ref(false)
-// The tags the ingredients give the recipe, asked of the server, which
-// knows each tag's rule.
-const derivedTagIds = ref<number[]>([])
-// The stored recipe's ingredient ids, joined, and the tags they give it.
-let stored = { ids: '', tagIds: [] as number[] }
 
 const { data, loading, failed, load } = useLoad(
   async () => {
@@ -78,55 +60,8 @@ const { data, loading, failed, load } = useLoad(
   },
 )
 
-function fillDraft(recipe: Recipe) {
-  draft.name = recipe.name
-  draft.items = recipe.items.map(({ ingredient_id, amount }) => ({ ingredientId: ingredient_id, amount }))
-  draft.extraTagIds = new Set(recipe.extra_tag_ids)
-  draft.min = recipe.min_multiplier
-  draft.max = recipe.max_multiplier
-  draft.inSteps = recipe.step !== null
-  draft.step = recipe.step ?? draft.step
-  draft.hardMax = recipe.hard_max_multiplier ?? ''
-  draft.penalty = recipe.serving_cap_weight
-  advancedOpen.value = draft.hardMax !== '' || draft.penalty !== '1'
-  stored = { ids: recipe.items.map((item) => item.ingredient_id).join(','), tagIds: recipe.derived_tag_ids }
-  derivedTagIds.value = recipe.derived_tag_ids
-}
-
 const ingredients = computed(() => byId(data.value.ingredients))
 const inRecipe = computed(() => new Set(draft.items.map((item) => item.ingredientId)))
-
-function addIngredient(ingredient: Ingredient) {
-  draft.items.push({ ingredientId: ingredient.id, amount: '' })
-  errors.items = ''
-}
-
-function removeIngredient(index: number) {
-  draft.items.splice(index, 1)
-}
-
-// Asked again whenever the ingredients change; an answer to an older
-// question is dropped. The stored recipe's ingredients come with their tags.
-let asked = 0
-watch(
-  () => draft.items.map((item) => item.ingredientId).join(','),
-  async (ids) => {
-    const question = ++asked
-    if (ids === stored.ids || ids === '') {
-      derivedTagIds.value = ids === '' ? [] : stored.tagIds
-      return
-    }
-    const ingredientIds = ids.split(',').map(Number)
-    try {
-      const { data: tagIds } = await api.POST('/api/recipes/derived-tags', {
-        body: { ingredient_ids: ingredientIds },
-      })
-      if (question === asked) derivedTagIds.value = tagIds ?? []
-    } catch {
-      if (question === asked) derivedTagIds.value = []
-    }
-  },
-)
 
 /** Live totals for one portion, by attribute; an amount not yet a number counts as 0. */
 const totals = computed(() => {
@@ -138,153 +73,14 @@ const totals = computed(() => {
   return portionTotals(amounts, data.value.attributes)
 })
 
-function hasTag(tag: Tag) {
-  return draft.extraTagIds.has(tag.id) || derivedTagIds.value.includes(tag.id)
-}
-
-/** A tag added by hand, on or off; the ingredients' tags stay on. */
-function toggleTag(tag: Tag) {
-  const tags = new Set(draft.extraTagIds)
-  if (tags.has(tag.id)) tags.delete(tag.id)
-  else tags.add(tag.id)
-  draft.extraTagIds = tags
-}
-
-/** The hard upper limit when none is typed: 3 times the largest portion. */
-const defaultHardMax = computed(() => {
-  const max = multiplier(draft.max)
-  return max === null ? '' : String((3 * max) / 1000)
-})
-
-/** A multiplier as typed, in whole thousandths as the planner holds it
- * (0.5 is 500), or null unless it is above 0 with at most 3 decimals and
- * 9 digits before the point. */
-function multiplier(text: string): number | null {
-  const number = typedNumber(text)
-  if (number === null || !/^\d{1,9}(\.\d{0,3})?$|^\.\d{1,3}$/.test(number)) return null
-  const thousandths = Math.round(Number(number) * 1000)
-  return thousandths > 0 ? thousandths : null
-}
-
-/** The fields to send, or null after marking what is wrong. */
-function checked(): Fields | null {
-  const fields: Fields = {
-    name: draft.name.trim(),
-    items: [],
-    extra_tag_ids: data.value.tags.filter((tag) => draft.extraTagIds.has(tag.id)).map((tag) => tag.id),
-    min_multiplier: typedNumber(draft.min) ?? '',
-    max_multiplier: typedNumber(draft.max) ?? '',
-    step: draft.inSteps ? (typedNumber(draft.step) ?? '') : null,
-    hard_max_multiplier: draft.hardMax.trim() === '' ? null : (typedNumber(draft.hardMax) ?? ''),
-    serving_cap_weight: typedNumber(draft.penalty) ?? '',
-  }
-  errors.name = fields.name ? '' : t('common.nameRequired')
-  errors.items = draft.items.length > 0 ? '' : t('recipes.noItems')
-  errors.amounts = {}
-  for (const { ingredientId, amount } of draft.items) {
-    const number = typedNumber(amount)
-    if (number === null || Number(number) <= 0) errors.amounts[ingredientId] = t('recipes.amountInvalid')
-    else fields.items.push({ ingredient_id: ingredientId, amount: number })
-  }
-
-  const [min, max, step] = [multiplier(draft.min), multiplier(draft.max), multiplier(draft.step)]
-  const noHardMax = fields.hard_max_multiplier === null
-  const hardMax = noHardMax ? null : multiplier(draft.hardMax)
-  const invalid = t('recipes.multiplierInvalid')
-  errors.min = min === null ? invalid : ''
-  errors.max = max === null ? invalid : ''
-  errors.step = draft.inSteps && step === null ? invalid : ''
-  errors.hardMax = !noHardMax && hardMax === null ? invalid : ''
-  // The library's rules across fields, which the server checks too.
-  if (min !== null && max !== null && max < min) errors.max = t('recipes.belowMin')
-  if (max !== null && hardMax !== null && hardMax < max) errors.hardMax = t('recipes.belowMax')
-  if (draft.inSteps && min !== null && step !== null && min % step !== 0) errors.min = t('recipes.notInSteps')
-  const penalty = typedNumber(draft.penalty)
-  errors.penalty = penalty !== null && Number(penalty) >= 0 ? '' : t('recipes.penaltyInvalid')
-
-  if (errors.hardMax || errors.penalty) advancedOpen.value = true
-
-  const wrong =
-    errors.name ||
-    errors.items ||
-    Object.keys(errors.amounts).length > 0 ||
-    errors.min ||
-    errors.max ||
-    errors.step ||
-    errors.hardMax ||
-    errors.penalty
-  return wrong ? null : fields
-}
-
-async function save() {
-  errors.save = ''
-  const fields = checked()
-  if (!fields) return
-  saving.value = true
-  try {
-    const { data: saved, error } =
-      id === null
-        ? await api.POST('/api/recipes', { body: fields })
-        : await api.PUT('/api/recipes/{recipe_id}', { params: { path: { recipe_id: id } }, body: fields })
-    if (saved) {
-      await router.push('/recipes')
-      return
-    }
-    showServerErrors(fieldErrors(error), fields)
-  } catch {
-    errors.save = t('common.saveFailed')
-  } finally {
-    saving.value = false
-  }
-}
-
-/** A name in use, or a number the server can't take, on its field;
- * anything else just failed. */
-function showServerErrors(byField: Partial<Record<string, string>>, fields: Fields) {
-  const messages: Partial<Record<string, string>> = {
-    below_min: t('recipes.belowMin'),
-    below_max: t('recipes.belowMax'),
-    not_in_steps: t('recipes.notInSteps'),
-  }
-  let shown = false
-  function show(field: string, set: (message: string) => void, otherwise: string) {
-    const type = byField[field]
-    if (!type) return
-    set(messages[type] ?? otherwise)
-    shown = true
-  }
-  if (byField.name === 'name_in_use') {
-    errors.name = t('recipes.nameInUse')
-    shown = true
-  }
-  const tooLong = t('recipes.multiplierTooLong')
-  show('min_multiplier', (m) => (errors.min = m), tooLong)
-  show('max_multiplier', (m) => (errors.max = m), tooLong)
-  show('step', (m) => (errors.step = m), tooLong)
-  show('hard_max_multiplier', (m) => (errors.hardMax = m), tooLong)
-  show('serving_cap_weight', (m) => (errors.penalty = m), t('ingredients.numberTooLong'))
-  if (errors.hardMax || errors.penalty) advancedOpen.value = true
-  fields.items.forEach(({ ingredient_id }, i) =>
-    show(`items.${i}.amount`, (m) => (errors.amounts[ingredient_id] = m), t('ingredients.numberTooLong')),
-  )
-  if (!shown) errors.save = t('common.saveFailed')
+function save() {
+  return saveDraft(data.value.tags, () => router.push('/recipes'))
 }
 
 async function confirmDelete() {
-  if (id === null) return
-  errors.save = ''
-  try {
-    const { response } = await api.DELETE('/api/recipes/{recipe_id}', { params: { path: { recipe_id: id } } })
-    if (response.ok) {
-      deleteOpen.value = false
-      await router.push('/recipes')
-      return
-    }
-    errors.save = t('common.deleteFailed')
-  } catch {
-    errors.save = t('common.deleteFailed')
-  }
+  const deleted = await remove()
   deleteOpen.value = false
+  if (deleted) await router.push('/recipes')
 }
 </script>
 

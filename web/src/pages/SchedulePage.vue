@@ -1,214 +1,25 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-import { api } from '../api/client'
-import type { Plan, PlanFields as Fields } from '../api/types'
 import EditorHeader from '../components/EditorHeader.vue'
 import LoadState from '../components/LoadState.vue'
-import MealNamesDialog, { type MealName } from '../components/MealNamesDialog.vue'
-import { useLoad } from '../composables/useLoad'
-import { dateRange, dayLabel } from '../dates'
-import { planFields, useSavePlan } from '../plan'
+import MealNamesDialog from '../components/MealNamesDialog.vue'
+import { DAYS, useScheduleDraft } from '../composables/useScheduleDraft'
 
 const { t } = useI18n()
 const router = useRouter()
 
-// The server's limits on the number of days and a meal's name.
-const DAYS = { min: 1, max: 31 }
-const MEAL_NAME_LENGTH = 40
-
-// The schedule as edited. Meals have a key, which stays when they are
-// renamed or moved, so a skipped cell ("day:key") keeps its meal. Cells
-// and minimums of days beyond the number of days are kept while editing,
-// so lowering the number and raising it again loses nothing, but they are
-// not sent.
-const draft = reactive({
-  start: '',
-  daysText: '',
-  meals: [] as { key: number; id: number | null; name: string }[],
-  skipped: new Set<string>(),
-  minimums: [] as (number | null)[], // by day; null is "all"
-})
-// The days shown: the last valid number of days, and start date for labels.
-const days = ref(DAYS.min)
-const labelStart = ref('')
-const errors = reactive({
-  start: '',
-  days: '',
-  meals: {} as Partial<Record<number, string>>, // by meal key
-  minimums: {} as Partial<Record<number, string>>, // by day
-  save: '',
-})
-const { saving, savePlan } = useSavePlan()
+const { draft, days, errors, rows, range, loading, failed, load, saving, step, toggle, choose, setMeals, save } =
+  useScheduleDraft()
 const mealsOpen = ref(false)
-let nextKey = 0
-
-// The setup as loaded: the parts this page doesn't edit are sent back as they were.
-const { data: loaded, loading, failed, load } = useLoad(async () => {
-  const answer = await api.GET('/api/plan')
-  if (answer.data) fillDraft(answer.data)
-  return answer
-}, null as Plan | null)
-
-function fillDraft(plan: Plan) {
-  draft.start = labelStart.value = plan.start_date
-  draft.daysText = String(plan.days)
-  days.value = plan.days
-  draft.meals = plan.meals.map(({ id, name }) => ({ key: nextKey++, id, name }))
-  draft.skipped = new Set(plan.skips.map(({ day, meal }) => cellKey(day, draft.meals[meal]!.key)))
-  draft.minimums = Array.from({ length: DAYS.max }, () => null)
-  for (const { day, at_least } of plan.minimums) draft.minimums[day] = at_least
-}
-
-function cellKey(day: number, mealKey: number) {
-  return `${day}:${mealKey}`
-}
-
-/** The date typed, if it is one: "YYYY-MM-DD", a real day. */
-function validDate(text: string): string | null {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return null
-  const [year, month, day] = text.split('-').map(Number)
-  const date = new Date(Date.UTC(year!, month! - 1, day!))
-  return date.getUTCMonth() === month! - 1 && date.getUTCDate() === day ? text : null
-}
-
-/** The number of days typed, if a whole number within the limits. */
-function validDays(text: string): number | null {
-  const typed = text.trim()
-  const number = Number(typed)
-  return /^\d+$/.test(typed) && number >= DAYS.min && number <= DAYS.max ? number : null
-}
-
-watch(
-  () => draft.start,
-  (start) => {
-    if (validDate(start)) labelStart.value = start
-  },
-)
-watch(
-  () => draft.daysText,
-  (text) => {
-    const number = validDays(text)
-    if (number !== null) days.value = number
-  },
-)
-
-function step(by: -1 | 1) {
-  const number = Math.min(DAYS.max, Math.max(DAYS.min, days.value + by))
-  days.value = number
-  draft.daysText = String(number)
-  errors.days = ''
-}
-
-const range = computed(() => (labelStart.value ? dateRange(labelStart.value, days.value) : ''))
-
-const rows = computed(() =>
-  Array.from({ length: labelStart.value ? days.value : 0 }, (_, day) => {
-    const label = dayLabel(labelStart.value, day)
-    const cells = draft.meals.map((meal) => ({ meal, planned: !draft.skipped.has(cellKey(day, meal.key)) }))
-    const planned = cells.filter((cell) => cell.planned).length
-    // "all", then from one fewer than the planned meals down to none.
-    const choices = [null, ...Array.from({ length: planned }, (_, i) => planned - 1 - i)]
-    return { day, label, cells, planned, choices }
-  }),
-)
-
-// A minimum of every planned meal, or more, is "all".
-watch(
-  () => rows.value.map((row) => row.planned),
-  (planned) =>
-    planned.forEach((count, day) => {
-      const minimum = draft.minimums[day]
-      if (minimum != null && minimum >= count) draft.minimums[day] = null
-    }),
-)
 
 function minimumText(minimum: number | null | undefined) {
   return minimum == null ? t('schedule.all') : String(minimum)
 }
 
-function toggle(day: number, mealKey: number) {
-  const key = cellKey(day, mealKey)
-  if (!draft.skipped.delete(key)) draft.skipped.add(key)
-}
-
-function choose(day: number, minimum: number | null) {
-  draft.minimums[day] = minimum
-  delete errors.minimums[day]
-}
-
-/** The names from the meal names dialog; a meal left out goes, with its cells. */
-function setMeals(meals: MealName[]) {
-  const byKey = new Map(draft.meals.map((meal) => [meal.key, meal]))
-  draft.meals = meals.map(({ key, name }) => ({ key: key ?? nextKey++, id: key === null ? null : byKey.get(key)!.id, name }))
-  const keys = new Set(draft.meals.map((meal) => String(meal.key)))
-  draft.skipped = new Set([...draft.skipped].filter((cell) => keys.has(cell.split(':')[1]!)))
-  errors.meals = {}
-}
-
-/** The fields to send, or null after marking what is wrong. */
-function checked(): Fields | null {
-  const start = validDate(draft.start)
-  const count = validDays(draft.daysText)
-  errors.start = start ? '' : t('schedule.startInvalid')
-  errors.days = count === null ? t('schedule.daysRange', DAYS) : ''
-  if (!start || count === null || !loaded.value) return null
-  const visible = rows.value.slice(0, count)
-  return {
-    ...planFields(loaded.value),
-    start_date: start,
-    days: count,
-    meals: draft.meals.map(({ id, name }) => ({ id, name })),
-    skips: visible.flatMap(({ day, cells }) =>
-      cells.flatMap(({ planned }, meal) => (planned ? [] : [{ day, meal }])),
-    ),
-    minimums: visible.flatMap(({ day }) => {
-      const atLeast = draft.minimums[day]
-      return atLeast == null ? [] : [{ day, at_least: atLeast }]
-    }),
-  }
-}
-
-async function save() {
-  // The server's marks from an earlier save go; checked() redoes the rest.
-  errors.meals = {}
-  errors.minimums = {}
-  errors.save = ''
-  const fields = checked()
-  if (!fields) return
-  const saved = await savePlan(fields)
-  if (saved.plan) await router.push('/')
-  else showServerErrors(saved.errors, fields)
-}
-
-/** A field the server refuses, on its field; anything else just failed. */
-function showServerErrors(byField: Partial<Record<string, string>>, fields: Fields) {
-  let shown = false
-  if (byField.start_date) {
-    errors.start = t('schedule.startInvalid')
-    shown = true
-  }
-  if (byField.days) {
-    errors.days = t('schedule.daysRange', DAYS)
-    shown = true
-  }
-  const nameMessages: Partial<Record<string, string>> = {
-    duplicate: t('schedule.nameInUse'),
-    string_too_long: t('schedule.nameTooLong', { max: MEAL_NAME_LENGTH }),
-  }
-  draft.meals.forEach((meal, i) => {
-    const type = byField[`meals.${i}.name`]
-    if (!type) return
-    errors.meals[meal.key] = nameMessages[type] ?? t('common.nameRequired')
-    shown = true
-  })
-  fields.minimums.forEach(({ day }, i) => {
-    if (!byField[`minimums.${i}.at_least`]) return
-    errors.minimums[day] = t('schedule.abovePlanned')
-    shown = true
-  })
-  if (!shown) errors.save = t('common.saveFailed')
+async function submit() {
+  if (await save()) await router.push('/')
 }
 
 const mealsWrong = computed(() => Object.keys(errors.meals).length > 0)
@@ -230,7 +41,7 @@ const columns = computed(() => `4.2em repeat(${draft.meals.length}, minmax(0, 1f
     >
       <q-form
         class="q-gutter-y-md"
-        @submit="save"
+        @submit="submit"
       >
         <q-input
           v-model="draft.start"
