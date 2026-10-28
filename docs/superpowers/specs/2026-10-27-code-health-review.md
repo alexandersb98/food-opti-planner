@@ -140,7 +140,17 @@ The finding as written:
   **Proposal:** use `SolveStatus` (or a small backend enum) end to end and
   drop the `_STATUS` remapping.
 
-### 6. Large Vue pages
+### 6. ~~Large Vue pages~~ DONE
+
+Done in commit 51d4c68. The draft, its checks and the mapping of the
+server's refusals moved into `web/src/composables/useRecipeDraft.ts`,
+`useScheduleDraft.ts` and `useGoalDraft.ts`, each with its pure parts
+exported and tested apart (`useRecipeDraft.test.ts`, …). The pages keep the
+rendering, the loading and the navigation: `RecipePage.vue` is now 372
+lines, `SchedulePage.vue` 326 and `GoalDialog.vue` 315, almost all
+template and styles. `goals.ts` exports the `Translate` type they share.
+
+The finding as written:
 
 `web/src/pages/RecipePage.vue` (576 lines), `web/src/pages/SchedulePage.vue`
 (515) and `web/src/components/GoalDialog.vue` (475) each mix draft state,

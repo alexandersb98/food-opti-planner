@@ -364,6 +364,40 @@ test('delete asks first, then deletes and returns to the list', async () => {
   wrapper.unmount()
 })
 
+test('the advanced settings open on a mistake in them, found here or by the server', async () => {
+  const advancedOpen = (wrapper: Wrapper) => wrapper.get('.q-expansion-item').classes('q-expansion-item--expanded')
+  const { wrapper, calls } = await mountPage('/recipes/7', {
+    'PUT /api/recipes/7': {
+      status: 422,
+      body: { detail: [{ loc: ['body', 'serving_cap_weight'], type: 'decimal_max_digits', msg: 'long' }] },
+    },
+  })
+  expect(advancedOpen(wrapper)).toBe(false)
+  await labelled(wrapper, 'Never more than').find('input').setValue('1')
+  await click(button(wrapper, 'Save'))
+  expect(advancedOpen(wrapper)).toBe(true)
+  expect(calls).not.toContain('PUT /api/recipes/7')
+
+  await labelled(wrapper, 'Never more than').find('input').setValue('')
+  await click(wrapper.get('.q-expansion-item .q-item'))
+  expect(advancedOpen(wrapper)).toBe(false)
+  await click(button(wrapper, 'Save'))
+  expect(calls).toContain('PUT /api/recipes/7')
+  expect(advancedOpen(wrapper)).toBe(true)
+  expect(labelled(wrapper, 'Over-size penalty').text()).toContain('Use at most 9 digits before the point and 6 after.')
+  wrapper.unmount()
+})
+
+test('a failed delete says so and closes the dialog', async () => {
+  const { wrapper, router } = await mountPage('/recipes/7', { 'DELETE /api/recipes/7': 500 })
+  await click(button(wrapper, 'Delete'))
+  await dialog().click('Delete')
+  expect(wrapper.get('[role="alert"]').text()).toBe('Could not delete. Try again.')
+  expect(document.querySelector('.q-dialog button')).toBeNull()
+  expect(router.currentRoute.value.fullPath).toBe('/recipes/7')
+  wrapper.unmount()
+})
+
 test('an unknown recipe fails to load', async () => {
   const { wrapper } = await mountPage('/recipes/7', { 'GET /api/recipes/7': 404 })
   expect(wrapper.text()).toContain('Could not load the recipe.')

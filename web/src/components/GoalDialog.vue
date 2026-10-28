@@ -1,78 +1,45 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { Attribute, Goal, GoalFields, Plan } from '../api/types'
-import { boundError, goalNames, guardRailImportance, IMPORTANCE, NAME_LENGTH, needsZeroReference } from '../goals'
-import { typedNumber } from '../numbers'
-import { goalFields, planFields, useSavePlan } from '../plan'
+import type { Attribute, Goal, Plan } from '../api/types'
+import { useGoalDraft } from '../composables/useGoalDraft'
+import { IMPORTANCE, NAME_LENGTH } from '../goals'
 
 // The goal editor on the Plan page (A3), a bottom sheet: a goal's main form
 // and its Advanced section (A3b), opened for a new goal or to change or delete
 // `goal`. Saved by sending the whole setup with the goal added, changed or
-// removed, as Max solving time does.
+// removed, as Max solving time does. Its draft and rules are `useGoalDraft`'s.
 const open = defineModel<boolean>({ required: true })
 const props = defineProps<{ plan: Plan; attributes: Attribute[]; goal: Goal | null }>()
 const emit = defineEmits<{ saved: [plan: Plan] }>()
 
 const { t } = useI18n()
-
-// The fields as typed: the bounds, the reference and the name stay text.
-// Settings the form hides keep their value here and are sent as defaults.
-const draft = reactive({
-  attribute_id: 0,
-  min: '',
-  max: '',
-  applies_to: 'day' as Goal['applies_to'],
-  must: false,
-  importance: IMPORTANCE.default,
-  zero_reference: '',
-  // The typed name; empty while the name follows the generated one.
-  name: '',
-  split: false,
-  importance_below: IMPORTANCE.default,
-  importance_above: IMPORTANCE.default,
-  day_guard_rail: true,
-  // null while it follows the goal's importance (`guardRailImportance`).
-  guard_rail_importance: null as number | null,
-})
-const noErrors = { attribute: '', min: '', max: '', reference: '', name: '', below: '', above: '', guardRail: '', save: '' }
-const errors = reactive({ ...noErrors })
-const { saving, savePlan } = useSavePlan()
-const advanced = ref(false)
-// Whether the name field shows the generated name: until the user types in
-// it, and again once it is left empty.
-const nameFollows = ref(true)
+const {
+  draft,
+  errors,
+  saving,
+  advanced,
+  nameFollows,
+  fill,
+  unit,
+  reference,
+  showReference,
+  generatedName,
+  nameShown,
+  typeName,
+  leaveName,
+  showSplit,
+  split,
+  setSplit,
+  showGuardRail,
+  guardRailShown,
+  save: saveGoal,
+  remove: removeGoal,
+} = useGoalDraft(props)
 
 watch(open, (isOpen) => {
-  if (!isOpen) return
-  const { goal } = props
-  Object.assign(draft, {
-    attribute_id: goal?.attribute_id ?? props.attributes[0]?.id ?? 0,
-    min: goal?.min ?? '',
-    max: goal?.max ?? '',
-    applies_to: goal?.applies_to ?? 'day',
-    must: goal?.must ?? false,
-    importance: goal?.importance ?? IMPORTANCE.default,
-    zero_reference: goal?.zero_reference ?? '',
-    name: goal?.custom_name ?? '',
-    split: goal?.importance_below != null || goal?.importance_above != null,
-    importance_below: goal?.importance_below ?? goal?.importance ?? IMPORTANCE.default,
-    importance_above: goal?.importance_above ?? goal?.importance ?? IMPORTANCE.default,
-    day_guard_rail: goal?.day_guard_rail ?? true,
-    guard_rail_importance: goal?.guard_rail_importance ?? null,
-  })
-  nameFollows.value = !goal?.custom_name
-  // Open for a goal with advanced settings (the server keeps only those that apply).
-  advanced.value = !!goal && (draft.name !== '' || draft.split || !draft.day_guard_rail || draft.guard_rail_importance !== null)
-  clearErrors()
+  if (isOpen) fill()
 })
-
-function clearErrors() {
-  Object.assign(errors, noErrors)
-}
-
-const attribute = computed(() => props.attributes.find(({ id }) => id === draft.attribute_id))
-const unit = computed(() => attribute.value?.unit ?? '')
 
 const appliesToOptions = (['day', 'plan_total', 'daily_average'] as const).map((value) => ({
   value,
@@ -82,68 +49,6 @@ const strictnessOptions = [
   { value: true, label: t('goals.must') },
   { value: false, label: t('goals.prefer') },
 ]
-
-/** A bound as typed, for the rule on the zero-bound field: null if empty. */
-function bound(text: string) {
-  return text.trim() === '' ? null : text
-}
-
-const showReference = computed(() =>
-  needsZeroReference({ ...draft, min: bound(draft.min), max: bound(draft.max) }),
-)
-
-/** The name the goal gets while it follows: generated, numbered among the
- * plan's goals with this one in its place, or last when new. */
-const generatedName = computed(() => {
-  const goals = props.plan.goals.map(({ attribute_id, applies_to, custom_name }) => ({ attribute_id, applies_to, custom_name }))
-  const own = { attribute_id: draft.attribute_id, applies_to: draft.applies_to, custom_name: null }
-  if (props.goal) goals[index.value] = own
-  else goals.push(own)
-  return goalNames(goals, props.attributes)[index.value]
-})
-
-const nameShown = computed(() => (nameFollows.value ? generatedName.value : draft.name))
-
-/** The typed name, trimmed, or null while the name follows. */
-const customName = computed(() => (nameFollows.value || draft.name.trim() === '' ? null : draft.name.trim()))
-
-function typeName(text: string | number | null) {
-  draft.name = String(text ?? '')
-  nameFollows.value = false
-}
-
-/** Leaving the name empty goes back to the generated one. */
-function leaveName() {
-  if (draft.name.trim() === '') nameFollows.value = true
-}
-
-/** Importance below and above: for a Prefer goal with both bounds. */
-const showSplit = computed(() => !draft.must && bound(draft.min) !== null && bound(draft.max) !== null)
-const split = computed(() => showSplit.value && draft.split)
-
-/** Turned on, both sides start at the goal's importance. */
-function setSplit(on: boolean) {
-  draft.split = on
-  if (on) Object.assign(draft, { importance_below: draft.importance, importance_above: draft.importance })
-}
-
-/** The day guard-rail: for a daily average. */
-const showGuardRail = computed(() => draft.applies_to === 'daily_average')
-const guardRail = computed(() => !showGuardRail.value || draft.day_guard_rail)
-
-const guardRailShown = computed(() =>
-  guardRailImportance({
-    ...draft,
-    importance_below: split.value ? draft.importance_below : null,
-    importance_above: split.value ? draft.importance_above : null,
-  }),
-)
-
-/** The reference typed, if a number above 0. */
-const reference = computed(() => {
-  const number = typedNumber(draft.zero_reference)
-  return number !== null && Number(number) > 0 ? number : null
-})
 
 /** "With 25 g, missing by 5 g counts as 20%." (a fifth of the reference). */
 const example = computed(() => {
@@ -157,84 +62,19 @@ const example = computed(() => {
   })
 })
 
-/** The goal's fields as the server takes them, or null with the errors marked. */
-function fields(): GoalFields | null {
-  const min = typedNumber(draft.min)
-  const max = typedNumber(draft.max)
-  clearErrors()
-  errors.min = bound(draft.min) !== null && min === null ? t('goals.editor.notNumber') : ''
-  errors.max = bound(draft.max) !== null && max === null ? t('goals.editor.notNumber') : ''
-  if (!errors.min && !errors.max && min === null && max === null) errors.min = t('goals.editor.needBound')
-  if (showReference.value && reference.value === null) errors.reference = t('goals.editor.referenceNeeded')
-  if (errors.min || errors.max || errors.reference) return null
-  return {
-    id: props.goal?.id ?? null,
-    attribute_id: draft.attribute_id,
-    min,
-    max,
-    applies_to: draft.applies_to,
-    must: draft.must,
-    importance: draft.importance,
-    zero_reference: showReference.value ? reference.value : null,
-    custom_name: customName.value,
-    importance_below: split.value ? draft.importance_below : null,
-    importance_above: split.value ? draft.importance_above : null,
-    day_guard_rail: guardRail.value,
-    guard_rail_importance: showGuardRail.value && guardRail.value ? draft.guard_rail_importance : null,
-  }
+/** Saved, the editor closes and hands on the saved setup. */
+function close(saved: Plan | null) {
+  if (!saved) return
+  emit('saved', saved)
+  open.value = false
 }
-
-/** `index` is where the goal is among `goals`, or null when none is to be marked. */
-async function send(goals: GoalFields[], index: number | null) {
-  const saved = await savePlan({ ...planFields(props.plan), goals })
-  if (saved.plan) {
-    emit('saved', saved.plan)
-    open.value = false
-  } else if (index === null) errors.save = t('common.saveFailed')
-  else markServerErrors(saved.errors, index)
-}
-
-/** Mark what the server refused on the goal at `index` of the goals sent. */
-function markServerErrors(found: Partial<Record<string, string>>, index: number) {
-  const at = (field: string) => found[`goals.${index}.${field}`]
-  errors.attribute = at('attribute_id') ? t('goals.editor.unknownAttribute') : ''
-  errors.min = boundError(at('min'), attribute.value, t)
-  errors.max = boundError(at('max'), attribute.value, t)
-  errors.reference = at('zero_reference') ? t('goals.editor.referenceNeeded') : ''
-  errors.name =
-    at('custom_name') === 'duplicate'
-      ? t('goals.editor.nameInUse')
-      : at('custom_name')
-        ? t('goals.editor.nameTooLong', { n: NAME_LENGTH })
-        : ''
-  const importance = (field: string) => (at(field) ? t('goals.editor.importanceInvalid', IMPORTANCE) : '')
-  errors.below = importance('importance_below')
-  errors.above = importance('importance_above')
-  errors.guardRail = at('day_guard_rail') ? t('goals.editor.settingRefused') : importance('guard_rail_importance')
-  const advancedMarked = errors.name || errors.below || errors.above || errors.guardRail
-  if (advancedMarked) advanced.value = true
-  const marked = errors.attribute || errors.min || errors.max || errors.reference || advancedMarked
-  errors.save = marked ? '' : t('common.saveFailed')
-}
-
-/** Where the goal is among the goals sent: its place, or last when new. */
-const index = computed(() => {
-  const place = props.plan.goals.findIndex(({ id }) => id === props.goal?.id)
-  return place < 0 ? props.plan.goals.length : place
-})
 
 async function save() {
-  const goal = fields()
-  if (!goal) return
-  const goals = props.plan.goals.map(goalFields)
-  if (props.goal) goals[index.value] = goal
-  else goals.push(goal)
-  await send(goals, index.value)
+  close(await saveGoal())
 }
 
 async function remove() {
-  errors.save = ''
-  await send(props.plan.goals.filter(({ id }) => id !== props.goal?.id).map(goalFields), null)
+  close(await removeGoal())
 }
 </script>
 
