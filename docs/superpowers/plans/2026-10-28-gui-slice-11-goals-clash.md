@@ -29,8 +29,10 @@ Make Prefer) and what it sends live in `web/src/clash.ts`, tested apart.
 interpretation 3 (the day floor can be in a conflict) in
 [`2026-10-13-meal-planner-core.md`](2026-10-13-meal-planner-core.md).
 
-**Status:** Planned. Built task by task on branch
-`claude/adoring-mayer-xajr91`.
+**Status:** Built and committed task by task on branch
+`claude/adoring-mayer-xajr91`. Each task names its files and how it was
+checked; the code is in the commits. The plan and each task were reviewed
+by a subagent, and the findings fixed.
 
 ## Global Constraints
 
@@ -53,8 +55,8 @@ interpretation 3 (the day floor can be in a conflict) in
    set minimum (only when the day has a meal to serve). So a Must maximum
    the meals can't stay under clashes with the day's meals, not only with
    other goals. The card shows such a member as its own row: "Meals on
-   Wed 23: all planned" or "Meals on Wed 23: at least 2", the number from
-   the schedule as it is now, with **Edit schedule**, which opens the
+   Wed 23", then "All planned meals are served" or "At least 2 meals are
+   served", the number from the schedule as it is now, with **Edit schedule**, which opens the
    Schedule page (A2) (what was typed on the card is not kept). It has no
    bound field and no Make Prefer: a day minimum is not a goal. A row
    for a day the schedule no longer has drops out.
@@ -112,8 +114,9 @@ interpretation 3 (the day floor can be in a conflict) in
    (`serverErrors`); a failure with no field marked says "Could not save.
    Try again." on the card; nothing is solved then. **Dismiss** closes
    the card as for other failures.
-9. **Goals card.** Goals in the clash get the `clashing` class: their
-   name in red and an error icon, until the card goes.
+9. **Goals card.** Goals the card shows get the `clashing` class: their
+   name in red, an error icon and "In the clash" for screen readers,
+   until the card goes.
 10. **Card place and title.** At the top of the Plan page, where the
     Couldn't make a plan card is (the Making plan… card still shows
     while a solve runs): red border, title "No plan possible", then
@@ -144,6 +147,16 @@ interpretation 2; an unknown name raises; an empty report answers
 `clash: []`; a solve stopped while trimming answers `clash_minimal:
 false`; other failures answer `clash: null`.
 
+**Checked:** 627 Python tests pass on SQLite, the API schema test among
+them; typecheck, lint and Vitest pass. The API schema was regenerated.
+
+Differences from the plan text: the plan review showed the library trims
+a clash to a minimal set, so interpretation 3 (one clash at a time) and
+the tests were rewritten before the code: real-solve tests read the day
+back instead of fixing it, and a test with a whole-plan total and a daily
+minimum shows a goal on two days. The review of the task added
+`isdecimal` in `goal_position` and a note on `clash_minimal`.
+
 ### Task 2: The No plan possible card and the red goals
 
 **Files:** `web/src/solve.ts` (keeps `clash`), `web/src/clash.ts` and its
@@ -163,14 +176,38 @@ Make Prefer toggles, Try again saves then solves, with no change only
 solves, a refusal marks the field and does not solve; Edit schedule
 links to the Schedule page; Dismiss. Goals card: the clashing class.
 
+**Checked:** typecheck, lint and Vitest (347 tests) pass.
+
+Differences from the plan text: the card's tests are on the Plan page
+(`PlanPage.test.ts`), which shows it, rather than in a test of its own.
+The review of the task found three bugs, fixed: an error on a field the
+row doesn't show (Min of a goal with only a Max, or a field only the goal
+editor has) left Try again silent, so errors now land on a shown field or
+say the save failed; the icon's label was hidden from screen readers
+with the icon, so a hidden text says "In the clash"; and any save of the
+setup reset what was typed on the card, so it now starts over only when
+the clash or a goal it shows changes (`rowsKey`). The red goals follow
+the card's rows, and only the card's title and intro are the alert.
+
 ### Task 3: End-to-end test and docs
 
 **Files:** `web/e2e/catalog.e2e.ts`, `README.md`, this plan (status and
-how each task was checked), the slices plan.
+how each task was checked).
 
 **Test:** after the first plan: add a Must goal "Energy at most 10 kcal
 per day"; Make plan; the No plan possible card names it and the day's
 meals; Make Prefer; Try again; the plan is made.
+
+**Checked:** the end-to-end test passes against uvicorn on an empty SQLite
+database with the built app. The Plan page with a clash of a daily
+minimum and a plan total was looked at in a browser at 390 px: nothing
+scrolls sideways.
+
+Differences from the plan text: the clashing goal here is "at most 10
+kcal each day", which clashes with the first goal (at least 100) or the
+day's meals; the test asserts only the new goal's row, as the solver
+picks the set. After Try again the test goes back to the Plan page: the
+card is gone and the goal is Prefer.
 
 ## Done when
 

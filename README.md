@@ -17,7 +17,9 @@ the results page, today's meals and saved plans, goals (added and edited
 on the Plan page, with their own names, importance below and above and a
 day guard-rail under Advanced, and missed goals on the results page),
 recipe filters (tags set to Only or Never, with a count of the recipes
-left), and a deploy to Cloud Run.
+left), a No plan possible card when Must goals clash (the clashing goals
+and days, fixed in place: a looser bound or Make Prefer, then Try again),
+and a deploy to Cloud Run.
 
 Run the Python tests with `python3 -m pip install -e '.[server,dev]'` and
 then `python3 -m pytest`. Server tests use SQLite; set
