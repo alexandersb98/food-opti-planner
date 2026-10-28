@@ -7,7 +7,9 @@ its own plain test.
 from collections.abc import Collection, Sequence
 from decimal import Decimal
 
-from meal_planner import AttributeDef, Constraint, Day, Ingredient, IngredientAmount, PlanRequest, Recipe, Slot, TagDef
+from meal_planner import (
+    AttributeDef, Constraint, Day, Ingredient, IngredientAmount, PlanRequest, Recipe, Slot, TagDef, recipe_passes,
+)
 
 from . import models
 
@@ -54,15 +56,11 @@ def usable_recipes(
 ) -> list[models.Recipe]:
     """The recipes left after the filters, in order: those with every tag in
     `only` and none in `never`, tags by name, derived ones too. The library's
-    `PlanRequest.eligible_recipes` rule, which needs a whole valid request."""
+    rule (`recipe_passes`), without the whole valid request
+    `PlanRequest.eligible_recipes` needs."""
     tag_defs = {row.name: tag(row) for row in tags}
     only, never = frozenset(only), frozenset(never)
-    usable = []
-    for row in recipes:
-        names = recipe(row).tags(tag_defs)
-        if only <= names and not names & never:
-            usable.append(row)
-    return usable
+    return [row for row in recipes if recipe_passes(recipe(row).tags(tag_defs), only, never)]
 
 
 def filter_names(plan: models.Plan, mode: str) -> frozenset[str]:
