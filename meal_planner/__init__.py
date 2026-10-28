@@ -5,7 +5,7 @@ from .constraint import Constraint
 from .domain import AttributeDef, Ingredient, IngredientAmount, TagDef
 from .planner import plan
 from .recipe import Recipe
-from .request import PlanRequest
+from .request import PlanRequest, recipe_passes
 from .result import (
     ConflictMember,
     ConflictReport,
@@ -23,5 +23,5 @@ __all__ = [
     "AttributeDef", "ConflictMember", "ConflictReport", "Constraint", "Day",
     "Ingredient", "IngredientAmount", "ModelTooLargeError", "Plan", "PlanRequest",
     "PlanRequestError", "Recipe", "SlotAssignment", "Slot", "SolveStatus", "StopHandle", "TagDef",
-    "Violation", "ViolationReport", "plan",
+    "Violation", "ViolationReport", "plan", "recipe_passes",
 ]

@@ -96,7 +96,11 @@ import (the same move as 1).
 
 ### 3. Rules written twice
 
-- **Recipe filter rule.** `server/translate.py:52` (`usable_recipes`) repeats
+- ~~**Recipe filter rule.**~~ **Done** in commit 4ba15f4: the library exports
+  `recipe_passes(tags, require, exclude)` (`meal_planner/request.py`), and
+  both `PlanRequest.eligible_recipes` and `server/translate.py`
+  (`usable_recipes`) call it. The finding as written:
+  `server/translate.py:52` (`usable_recipes`) repeats
   `PlanRequest.eligible_recipes` (`meal_planner/request.py:60`), because the
   library's version needs a whole valid request. **Proposal:** expose a small
   public function in the library (e.g. `recipe_passes(tags, require,

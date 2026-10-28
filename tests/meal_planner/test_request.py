@@ -4,7 +4,7 @@ import pytest
 
 from meal_planner import (
     AttributeDef, Constraint, Day, Ingredient, IngredientAmount, PlanRequest,
-    PlanRequestError, Recipe, Slot, TagDef,
+    PlanRequestError, Recipe, Slot, TagDef, recipe_passes,
 )
 
 KCAL = AttributeDef("kcal", precision=0)
@@ -40,6 +40,14 @@ def test_exclude_tags_removes_recipes_with_any_excluded_tag():
 def test_require_tags_keeps_recipes_with_every_required_tag():
     names = [r.name for r in make(require_tags={"vegan"}).eligible_recipes()]
     assert names == ["salad", "vegan pesto"]
+
+
+def test_recipe_passes_with_every_required_tag_and_no_excluded_one():
+    tags = frozenset({"vegan", "quick"})
+    assert recipe_passes(tags, frozenset(), frozenset())
+    assert recipe_passes(tags, frozenset({"vegan", "quick"}), frozenset({"contains-nuts"}))
+    assert not recipe_passes(tags, frozenset({"vegan", "contains-nuts"}), frozenset())
+    assert not recipe_passes(tags, frozenset(), frozenset({"quick"}))
 
 
 def test_no_recipe_left_after_filters():

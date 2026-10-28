@@ -1,5 +1,6 @@
 """The planning request, and the checks that span its parts."""
 
+from collections.abc import Set
 from dataclasses import dataclass
 
 from .constraint import Constraint
@@ -10,6 +11,12 @@ from .schedule import Day
 from .validation import duplicate_problems, number_problem, raise_if
 
 TAG_FILTERS = ("exclude_tags", "require_tags")
+
+
+def recipe_passes(tags: Set[str], require: Set[str], exclude: Set[str]) -> bool:
+    """Whether a recipe with these tags (derived ones too) passes the tag
+    filters: it has every tag in `require` and none in `exclude` (#37)."""
+    return require <= tags and not tags & exclude
 
 
 @dataclass(frozen=True)
@@ -60,13 +67,10 @@ class PlanRequest:
     def eligible_recipes(self) -> tuple[Recipe, ...]:
         """Recipes with no excluded tag and every required tag (#37)."""
         defs = self.tag_defs()
-        kept = []
-        for recipe in self.recipes:
-            tags = recipe.tags(defs)
-            if tags & self.exclude_tags or not self.require_tags <= tags:
-                continue
-            kept.append(recipe)
-        return tuple(kept)
+        return tuple(
+            recipe for recipe in self.recipes
+            if recipe_passes(recipe.tags(defs), self.require_tags, self.exclude_tags)
+        )
 
 
 def _duplicate_names(r: PlanRequest) -> list[str]:
