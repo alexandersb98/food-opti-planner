@@ -12,7 +12,7 @@ import SavedPlansCard from '../components/SavedPlansCard.vue'
 import ScheduleCard from '../components/ScheduleCard.vue'
 import SolveCard from '../components/SolveCard.vue'
 import TodayCard from '../components/TodayCard.vue'
-import { clashingGoalIds } from '../clash'
+import { clashingGoalIds, clashRows } from '../clash'
 import { loadAll, useLoad } from '../composables/useLoad'
 import { dateRange, localDate } from '../dates'
 import { useSolve } from '../solve'
@@ -44,6 +44,8 @@ const editedGoal = ref<Goal | null>(null)
 const solve = useSolve()
 // The clash of the last solve, when it had one to show.
 const clash = computed(() => (solve.failure.value === 'infeasible' && solve.clash.value?.length ? solve.clash.value : null))
+// The goals the clash card shows, marked red on the Goals card.
+const clashing = computed(() => (clash.value && data.value.plan ? clashingGoalIds(clashRows(clash.value, data.value.plan)) : []))
 
 function editGoal(goal: Goal | null) {
   editedGoal.value = goal
@@ -128,7 +130,7 @@ function makePlan() {
         <GoalsCard
           :goals="data.plan.goals"
           :attributes="data.attributes"
-          :clashing="clashingGoalIds(clash)"
+          :clashing="clashing"
           @edit="editGoal"
           @add="editGoal(null)"
         />

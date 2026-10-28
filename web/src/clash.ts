@@ -40,9 +40,30 @@ export function clashRows(clash: readonly ClashMember[], plan: Plan): ClashRow[]
   return rows
 }
 
-/** The ids of the goals in the clash, for the Goals card. */
-export function clashingGoalIds(clash: readonly ClashMember[] | null): number[] {
-  return (clash ?? []).flatMap(({ goal_id }) => (goal_id == null ? [] : [goal_id]))
+/** The ids of the goals the rows show, for the Goals card. */
+export function clashingGoalIds(rows: ClashRow[]): number[] {
+  return rows.flatMap((row) => (row.kind === 'goal' ? [row.goal.id] : []))
+}
+
+/** What the card marks on a goal's row: its bounds and reference. */
+export type ClashMarks = Pick<GoalErrors, 'min' | 'max' | 'reference'>
+
+/** `errors` on the fields the row shows: a goal's bound fields are the ones
+ * it has, so an error on a bound it lacks (the editor puts "give a bound" on
+ * Min) goes to the other. Null when nothing is marked. */
+function shown(goal: Goal, errors: ClashMarks): ClashMarks | null {
+  const marks = { ...errors }
+  if (goal.min == null && marks.min) [marks.min, marks.max] = ['', marks.max || marks.min]
+  if (goal.max == null && marks.max) [marks.min, marks.max] = [marks.min || marks.max, '']
+  return marks.min || marks.max || marks.reference ? marks : null
+}
+
+/** A key that changes when a goal the rows show changes as stored, so the
+ * card starts its drafts over then and not on any other save of the setup. */
+export function rowsKey(rows: ClashRow[]): string {
+  return JSON.stringify(
+    rows.map((row) => (row.kind === 'goal' ? [row.goal.id, row.goal.min, row.goal.max, row.goal.zero_reference] : row.day)),
+  )
 }
 
 /** A draft per goal row, by goal id, as the goal is stored. */
@@ -68,13 +89,13 @@ export function clashErrors(
   goals: Goal[],
   drafts: Record<number, GoalDraft>,
   t: Translate,
-): Record<number, Pick<GoalErrors, 'min' | 'max' | 'reference'>> {
-  const found: Record<number, Pick<GoalErrors, 'min' | 'max' | 'reference'>> = {}
+): Record<number, ClashMarks> {
+  const found: Record<number, ClashMarks> = {}
   for (const goal of goals) {
     const draft = drafts[goal.id]
     if (!draft || !changed(goal, draft)) continue
-    const errors = draftErrors(draft, t)
-    if (errors.min || errors.max || errors.reference) found[goal.id] = errors
+    const marks = shown(goal, draftErrors(draft, t))
+    if (marks) found[goal.id] = marks
   }
   return found
 }
@@ -92,22 +113,23 @@ export function clashFields(plan: Plan, drafts: Record<number, GoalDraft>): Plan
   }
 }
 
-/** What the server refused, by goal id, for the goals the card shows, as the
- * goal editor marks it. A refusal with no field marked on these goals gives
- * an empty record. */
+/** What the server refused, by goal id, on the fields the card shows, as the
+ * goal editor marks it. A refusal on no such field (or on another goal, or a
+ * field only the goal editor shows) gives an empty record. */
 export function clashServerErrors(
   found: Partial<Record<string, string>>,
   plan: Plan,
   attributes: Attribute[],
   goalIds: number[],
   t: Translate,
-): Record<number, GoalErrors> {
-  const marked: Record<number, GoalErrors> = {}
+): Record<number, ClashMarks> {
+  const marked: Record<number, ClashMarks> = {}
   plan.goals.forEach((goal, index) => {
     if (!goalIds.includes(goal.id)) return
     const attribute = attributes.find(({ id }) => id === goal.attribute_id)
-    const errors = serverErrors(found, index, attribute, t)
-    if (!errors.save) marked[goal.id] = errors
+    const { min, max, reference } = serverErrors(found, index, attribute, t)
+    const marks = shown(goal, { min, max, reference })
+    if (marks) marked[goal.id] = marks
   })
   return marked
 }

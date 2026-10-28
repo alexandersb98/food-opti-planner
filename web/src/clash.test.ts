@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import type { ClashMember } from './api/types'
-import { changed, clashDrafts, clashErrors, clashFields, clashingGoalIds, clashRows, clashServerErrors } from './clash'
+import { changed, clashDrafts, clashErrors, clashFields, clashingGoalIds, clashRows, clashServerErrors, rowsKey } from './clash'
 import { makeI18n } from './i18n'
 import { goalFields, planFields } from './plan'
 import { attribute, goal, plan } from './test-data'
@@ -45,9 +45,16 @@ test('a goal deleted or made Prefer since, and a day the schedule no longer has,
   ])
 })
 
-test('the clashing goal ids leave the days of meals out', () => {
-  expect(clashingGoalIds([member({ goal_id: 7 }), member({ kind: 'day_minimum', day: 0 })])).toEqual([7])
-  expect(clashingGoalIds(null)).toEqual([])
+test('the clashing goal ids are the goal rows, without the days of meals', () => {
+  const rows = clashRows([member({ goal_id: 7 }), member({ goal_id: 4 }), member({ kind: 'day_minimum', day: 0, date: '2026-09-21' })], plan({ goals: [energy] }))
+  expect(clashingGoalIds(rows)).toEqual([7])
+})
+
+test('the rows key changes with a shown goal as stored, not with the rest of the setup', () => {
+  const clash = [member({ goal_id: 7 })]
+  const key = rowsKey(clashRows(clash, plan({ goals: [energy] })))
+  expect(rowsKey(clashRows(clash, plan({ goals: [prefer, { ...energy }], days: 3 })))).toBe(key)
+  expect(rowsKey(clashRows(clash, plan({ goals: [{ ...energy, max: '60' }] })))).not.toBe(key)
 })
 
 test('a draft starts as the goal is stored, and is changed by its bounds, Must or reference', () => {
@@ -88,7 +95,8 @@ test('a changed goal is checked as the goal editor checks it; an unchanged one i
   drafts[5]!.must = false
   expect(clashErrors([energy, total, zero], drafts, t)).toEqual({
     7: { min: '', max: t('goals.editor.notNumber'), reference: '' },
-    8: { min: t('goals.editor.needBound'), max: '', reference: '' },
+    // On Max, the only bound the row shows.
+    8: { min: '', max: t('goals.editor.needBound'), reference: '' },
     // Made Prefer at 0, it needs the zero-bound field.
     5: { min: '', max: '', reference: t('goals.editor.referenceNeeded') },
   })
@@ -103,4 +111,9 @@ test("the server's refusals are marked on the card's goals; one elsewhere marks 
     7: expect.objectContaining({ max: 'At most 0 decimals for Energy.' }),
   })
   expect(clashServerErrors({ 'goals.0.min': 'no_bound' }, setup, attributes, [7], t)).toEqual({})
+  // The card shows no name field, nor Min for this goal.
+  expect(clashServerErrors({ 'goals.1.custom_name': 'duplicate' }, setup, attributes, [7], t)).toEqual({})
+  expect(clashServerErrors({ 'goals.1.min': 'no_bound' }, setup, attributes, [7], t)).toEqual({
+    7: { min: '', max: t('goals.editor.needBound'), reference: '' },
+  })
 })

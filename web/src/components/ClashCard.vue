@@ -2,7 +2,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Attribute, ClashMember, Goal, Plan } from '../api/types'
-import { clashDrafts, clashErrors, clashFields, clashRows, clashServerErrors } from '../clash'
+import { clashDrafts, clashErrors, clashFields, clashRows, clashServerErrors, rowsKey, type ClashMarks } from '../clash'
 import type { GoalDraft } from '../composables/useGoalDraft'
 import { showsReference } from '../composables/useGoalDraft'
 import { dayLabel } from '../dates'
@@ -20,13 +20,13 @@ const { saving, savePlan } = useSavePlan()
 
 const rows = computed(() => clashRows(props.clash, props.plan))
 const drafts = reactive<Record<number, GoalDraft>>({})
-type Marked = { min: string; max: string; reference: string }
-const errors = ref<Record<number, Marked>>({})
+const errors = ref<Record<number, ClashMarks>>({})
 const saveFailed = ref(false)
 
-// Starts over from the goals as stored when the clash or the goals change.
+// Starts over from the goals as stored when the clash, or a goal it shows,
+// changes; another save of the setup keeps what was typed.
 watch(
-  [() => props.clash, () => props.plan.goals],
+  [() => props.clash, () => rowsKey(rows.value)],
   () => {
     for (const id of Object.keys(drafts)) delete drafts[Number(id)]
     Object.assign(drafts, clashDrafts(rows.value))
@@ -70,9 +70,11 @@ async function tryAgain() {
     flat
     bordered
     class="clash-card"
-    role="alert"
   >
-    <q-card-section class="q-pb-none">
+    <q-card-section
+      class="q-pb-none"
+      role="alert"
+    >
       <h2 class="text-subtitle1 text-negative q-my-none">
         {{ $t('clash.title') }}
       </h2>

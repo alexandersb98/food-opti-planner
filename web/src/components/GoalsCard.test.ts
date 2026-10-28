@@ -81,6 +81,7 @@ test('a goal in the clash is marked red with an error icon', () => {
   })
   const rows = wrapper.findAll('.goal-row')
   expect(rows.map((row) => row.classes('clashing'))).toEqual([false, true])
-  expect(rows[1]!.get('.text-negative').text()).toBe('errorProtein')
+  expect(rows[1]!.get('.text-negative .goal-name').text()).toBe('Protein')
+  expect(rows[1]!.get('.screen-reader').text()).toBe('In the clash:')
   expect(rows[0]!.find('.text-negative').exists()).toBe(false)
 })

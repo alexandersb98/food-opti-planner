@@ -512,6 +512,27 @@ describe('the No plan possible card', () => {
     wrapper.unmount()
   })
 
+  test('a goal with only a Max, cleared, is marked on Max', async () => {
+    const { wrapper, calls } = await showClash()
+    await maxInput(wrapper).setValue('')
+    await click(button(wrapper, 'Try again'))
+    expect(wrapper.get('.clash-goal').text()).toContain('Give a minimum, a maximum or both.')
+    expect(calls).not.toContain('PUT /api/plan')
+    wrapper.unmount()
+  })
+
+  test('what was typed stays when another part of the setup is saved', async () => {
+    const { wrapper } = await showClash({
+      'PUT /api/plan': (body) => ({ body: { ...setup, ...(body as PlanFields), goals: setup.goals } }),
+    })
+    await maxInput(wrapper).setValue('80')
+    await click(wrapper.get('.max-time'))
+    await typeMaxTime('60')
+    await dialog().click('Save')
+    expect(maxInput(wrapper).element.value).toBe('80')
+    wrapper.unmount()
+  })
+
   test('a save that fails otherwise says so', async () => {
     const { wrapper } = await showClash({ 'PUT /api/plan': 500 })
     await maxInput(wrapper).setValue('80')

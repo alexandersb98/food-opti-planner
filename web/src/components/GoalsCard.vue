@@ -55,12 +55,14 @@ function split(goal: Goal): [number, number] | null {
       >
         <q-item-section>
           <q-item-label :class="{ 'text-negative': clashing.includes(goal.id) }">
-            <q-icon
-              v-if="clashing.includes(goal.id)"
-              name="error"
-              class="q-mr-xs"
-              :aria-label="$t('clash.inClash')"
-            />{{ goal.custom_name ?? attributeOf(goal)?.name }}
+            <template v-if="clashing.includes(goal.id)">
+              <q-icon
+                name="error"
+                class="q-mr-xs"
+              />
+              <span class="screen-reader">{{ $t('clash.inClash') }}: </span>
+            </template>
+            <span class="goal-name">{{ goal.custom_name ?? attributeOf(goal)?.name }}</span>
           </q-item-label>
           <q-item-label
             caption
@@ -152,6 +154,14 @@ function split(goal: Goal): [number, number] | null {
 </template>
 
 <style scoped>
+.screen-reader {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 .importance,
 .importance-split {
   display: inline-flex;
