@@ -1,6 +1,6 @@
 # Units and Unit Conversion
 
-**Status:** Agreed with the user in brainstorming; awaiting spec review.
+**Status:** Approved by the user.
 
 **Path:** Architectural (a unit catalogue shared by the server and the
 app, a new table, a new page, conversions on save).

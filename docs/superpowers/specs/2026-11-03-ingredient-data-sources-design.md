@@ -1,8 +1,8 @@
 # Ingredients from External Data Sources
 
-**Status:** Decisions 1–14 and the data model were agreed with the user
-in brainstorming. The sections marked *(proposed)* were written for
-this spec and not yet discussed. Awaiting spec review.
+**Status:** Approved by the user. Decisions 1–14 and the data model
+were agreed in brainstorming; the sections marked *(proposed)* were
+written for this spec and approved in its review.
 
 **Path:** Architectural (new tables, a data file and its import, new
 screens, tag groups, a change to how tags reach the library).
