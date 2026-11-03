@@ -18,7 +18,21 @@ after design review — see decisions #1 and #22 in
 - **External nutrition/price data import.** v1 uses a user-maintained
   local ingredient database only (decision #8). An importer from a public
   dataset (USDA FoodData Central, Open Food Facts, etc.) is a clean
-  later addition.
+  later addition. Ingredients from Livsmedelsverket are now designed in
+  [`2026-11-03-ingredient-data-sources-design.md`](2026-11-03-ingredient-data-sources-design.md);
+  recipes and prices from outside sources follow as their own specs.
+- **Show and type every amount in the preferred unit (user request).**
+  [`2026-11-03-units-design.md`](2026-11-03-units-design.md) uses the
+  preferred unit per category only as the default for new things. A
+  later version would show every amount (recipe amounts, values, goals)
+  in the preferred unit and convert what is typed back.
+- **Mass ↔ volume per ingredient (user request).** Converting g of
+  oats to dl needs the ingredient's density, so the units spec converts
+  within a category only. A density per ingredient (possibly from a
+  data source) would allow it.
+- **Scheduled update of data source files.** A GitHub Action that runs
+  an import script on a schedule and opens the pull request with the
+  new data file, instead of running it by hand.
 - **UI.** Web, desktop, or mobile front end. None planned for v1.
 - **Persistence.** Database, saved plans, user accounts. None planned
   for v1.
