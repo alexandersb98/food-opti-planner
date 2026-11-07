@@ -56,7 +56,9 @@ after design review — see decisions #1 and #22 in
 - **GUI: recipes that serve several portions.** The library has no
   "serves N" field, so the GUI enters a recipe for one portion. A
   "serves [4]" field that divides the amounts would make typing in
-  cookbook recipes easier.
+  cookbook recipes easier. **Designed** in
+  [`2026-11-07-recipe-import-design.md`](2026-11-07-recipe-import-design.md)
+  (decision 9 there).
 - **Clashing Must goals: suggest a bound that works (user request).**
   When STRICT mode finds no plan, the GUI shows the clashing hard
   constraints with their bounds editable, but the library only says
@@ -157,6 +159,42 @@ after design review — see decisions #1 and #22 in
   - **Open point:** squared penalties are harder to read in the
     violation report; report the miss and its percent as now, plus the
     penalty it cost.
+
+## Deferred from the recipe import design
+
+Left out of
+[`2026-11-07-recipe-import-design.md`](2026-11-07-recipe-import-design.md)
+on purpose (user decisions, 2026-11-04 to 2026-11-07).
+
+- **Recipe lists (user request).** Named subsets of the recipe
+  catalog, like playlists. On the Plan page the user picks a list, and
+  only its recipes reach the solver; the tag filters (slice 10) narrow
+  it further, and the recipe count reflects both. The library does not
+  change: the server passes only the list's recipes. Worth building
+  once the catalog has several hundred recipes. Sub-project 2 of the
+  recipe import work; needs its own spec.
+- **New ingredients suggested from Livsmedelsverket (user request).**
+  When an imported line matches none of the user's ingredients, look
+  the food up in Livsmedelsverket's open food database and propose a
+  new ingredient with the user's attributes filled in, for the user to
+  confirm. Needs a one-time mapping from the user's attribute names to
+  Livsmedelsverket's nutrients (e.g. `protein` = Protein, g per
+  100 g); attributes with no counterpart, like price, stay empty. USDA
+  FoodData Central and Open Food Facts are alternatives.
+- **Import from a photo.** A cookbook page or handwritten recipe,
+  through a model that reads images, into the same draft and review.
+- **Reusable sub-recipes.** A recipe used inside another ("1 batch
+  guacamole" in a burrito), expanded into ingredients when a plan is
+  made. Open: amounts of a component (batches or grams), nesting,
+  refusing loops, whether a component can be a meal on its own, and
+  recognizing an existing component on import. A section could later
+  become "use my guacamole recipe here".
+- **Per-section instructions.** Instructions are one text per recipe;
+  split them by section if that turns out to be missed.
+- **Bulk import.** Feeding many recipes through the same pipeline from
+  a dataset or by scraping whole sites. Check each source's terms and
+  copyright first: ingredient lists are mostly facts, instruction text
+  is not.
 
 ## Alternative optimization approaches considered (not chosen for v1)
 
