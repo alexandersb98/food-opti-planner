@@ -1,0 +1,73 @@
+{
+  "ok": {
+    "id": "chatcmpl-example",
+    "object": "chat.completion",
+    "model": "example-model",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\n  \"name\": \"Enkla pannkakor\",\n  \"servings\": 4,\n  \"instructions\": \"Blanda mjöl och salt i en stor bunke. Vispa ner hälften av mjölken och rör till en slät smet utan klumpar.\\nVispa i resten av mjölken och sedan äggen ett i taget. Låt smeten vila i tio minuter.\\nHetta upp en stekpanna på medelvärme och smält en liten klick smör. Häll i en slev smet och vrid pannan så att den breder ut sig.\\nStek ungefär en minut på varje sida tills pannkakan har fått fin färg. Lägg på ett fat och fortsätt med resten av smeten.\\nServera varma med sylt och vispad grädde.\",\n  \"sections\": [\n    {\n      \"name\": \"\",\n      \"lines\": [\n        {\n          \"original_text\": \"3 dl vetemjöl\",\n          \"amount\": 3,\n          \"unit\": \"dl\",\n          \"food\": \"vetemjöl\",\n          \"match\": \"Vetemjöl\",\n          \"not_an_ingredient\": false\n        },\n        {\n          \"original_text\": \"1 krm salt\",\n          \"amount\": 1,\n          \"unit\": \"krm\",\n          \"food\": \"salt\",\n          \"match\": \"Salt\",\n          \"not_an_ingredient\": false\n        },\n        {\n          \"original_text\": \"6 dl mjölk\",\n          \"amount\": 6,\n          \"unit\": \"dl\",\n          \"food\": \"mjölk\",\n          \"match\": \"Mjölk\",\n          \"not_an_ingredient\": false\n        },\n        {\n          \"original_text\": \"3 ägg\",\n          \"amount\": 3,\n          \"unit\": \"\",\n          \"food\": \"ägg\",\n          \"match\": \"Ägg\",\n          \"not_an_ingredient\": false\n        },\n        {\n          \"original_text\": \"2 msk smör till stekning\",\n          \"amount\": 2,\n          \"unit\": \"msk\",\n          \"food\": \"smör\",\n          \"match\": \"Smör\",\n          \"not_an_ingredient\": false\n        }\n      ]\n    }\n  ]\n}",
+          "refusal": null
+        },
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 1500,
+      "completion_tokens": 420,
+      "total_tokens": 1920
+    }
+  },
+  "ok_fenced": {
+    "id": "chatcmpl-example",
+    "object": "chat.completion",
+    "model": "example-model",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "```json\n{\n  \"name\": \"Enkla pannkakor\",\n  \"servings\": 4,\n  \"instructions\": \"Blanda mjöl och salt i en stor bunke. Vispa ner hälften av mjölken och rör till en slät smet utan klumpar.\\nVispa i resten av mjölken och sedan äggen ett i taget. Låt smeten vila i tio minuter.\\nHetta upp en stekpanna på medelvärme och smält en liten klick smör. Häll i en slev smet och vrid pannan så att den breder ut sig.\\nStek ungefär en minut på varje sida tills pannkakan har fått fin färg. Lägg på ett fat och fortsätt med resten av smeten.\\nServera varma med sylt och vispad grädde.\",\n  \"sections\": [\n    {\n      \"name\": \"\",\n      \"lines\": [\n        {\n          \"original_text\": \"3 dl vetemjöl\",\n          \"amount\": 3,\n          \"unit\": \"dl\",\n          \"food\": \"vetemjöl\",\n          \"match\": \"Vetemjöl\",\n          \"not_an_ingredient\": false\n        },\n        {\n          \"original_text\": \"1 krm salt\",\n          \"amount\": 1,\n          \"unit\": \"krm\",\n          \"food\": \"salt\",\n          \"match\": \"Salt\",\n          \"not_an_ingredient\": false\n        },\n        {\n          \"original_text\": \"6 dl mjölk\",\n          \"amount\": 6,\n          \"unit\": \"dl\",\n          \"food\": \"mjölk\",\n          \"match\": \"Mjölk\",\n          \"not_an_ingredient\": false\n        },\n        {\n          \"original_text\": \"3 ägg\",\n          \"amount\": 3,\n          \"unit\": \"\",\n          \"food\": \"ägg\",\n          \"match\": \"Ägg\",\n          \"not_an_ingredient\": false\n        },\n        {\n          \"original_text\": \"2 msk smör till stekning\",\n          \"amount\": 2,\n          \"unit\": \"msk\",\n          \"food\": \"smör\",\n          \"match\": \"Smör\",\n          \"not_an_ingredient\": false\n        }\n      ]\n    }\n  ]\n}\n```",
+          "refusal": null
+        },
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 1500,
+      "completion_tokens": 420,
+      "total_tokens": 1920
+    }
+  },
+  "empty": {
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": null,
+          "refusal": "I can't help with that."
+        },
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 1500,
+      "completion_tokens": 10,
+      "total_tokens": 1510
+    }
+  },
+  "error": {
+    "status": 429,
+    "body": {
+      "error": {
+        "message": "Rate limit reached for requests",
+        "type": "requests",
+        "param": null,
+        "code": "rate_limit_exceeded"
+      }
+    }
+  }
+}
