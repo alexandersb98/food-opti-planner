@@ -3,7 +3,9 @@
     {
       "aliases": [
         "ug",
-        "mcg"
+        "mcg",
+        "mikrog",
+        "mikrogram"
       ],
       "case_sensitive_aliases": [],
       "category": "mass",

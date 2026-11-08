@@ -32,7 +32,7 @@ ALIASES = [
     ("tsk", "tsk"), ("tbsp", "msk"), ("tablespoon", "msk"), ("matsked", "msk"), ("msk", "msk"),
     ("kryddmått", "krm"), ("US fl oz", "fl oz"), ("gram", "g"), ("grams", "g"),
     ("litre", "l"), ("liter", "l"), ("litres", "l"), ("liters", "l"), ("L", "l"),
-    ("ug", "µg"), ("mcg", "µg"), ("Kcal", "kcal"), ("Cal", "kcal"),
+    ("ug", "µg"), ("mcg", "µg"), ("mikrog", "µg"), ("Mikrogram", "µg"), ("Kcal", "kcal"), ("Cal", "kcal"),
 ]
 
 PIECE_SPELLINGS = ["st", "st.", "stycken", "styck", "pcs", "piece", "pieces", "ST"]
@@ -52,7 +52,7 @@ def test_aliases_parse_to_their_unit(alias, symbol):
 
 def test_both_mu_characters_and_ug_are_one_unit():
     micro, greek = "µg", "μg"
-    assert parse(micro) is parse(greek) is parse("ug")
+    assert parse(micro) is parse(greek) is parse("ug") is parse("mcg") is parse("mikrog")
     assert parse(greek).symbol == micro
 
 

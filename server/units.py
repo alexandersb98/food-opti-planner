@@ -47,7 +47,7 @@ PREFIXABLE = (
 EXTRA_ALIASES = {
     "g": ("gram", "grams"),
     "l": ("litre", "liter", "litres", "liters"),
-    "µg": ("ug", "mcg"),
+    "µg": ("ug", "mcg", "mikrog", "mikrogram"),
 }
 CASE_SENSITIVE_ALIASES = {"kcal": ("Cal",)}
 
