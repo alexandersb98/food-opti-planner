@@ -1435,14 +1435,12 @@ export interface operations {
                     "application/json": components["schemas"]["FieldErrors"];
                 };
             };
-            /** @description Validation Error */
+            /** @description An energy unit, or an unknown attribute or tag */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
+                content?: never;
             };
         };
     };
@@ -1524,14 +1522,12 @@ export interface operations {
                     "application/json": components["schemas"]["FieldErrors"];
                 };
             };
-            /** @description Validation Error */
+            /** @description An energy unit, or an unknown attribute or tag */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
+                content?: never;
             };
         };
     };

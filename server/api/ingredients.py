@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, StringConstraints
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from .. import models
+from .. import models, units
 from ..db import DbSession
 from ..fields import Name, Number
 from .catalog import References, commit_named, count_by, get_or_404, in_list
@@ -16,6 +16,8 @@ from .errors import NAME_IN_USE
 router = APIRouter(prefix="/ingredients", tags=["ingredients"])
 
 NOT_FOUND = {404: {"description": "No such ingredient"}}
+UNPROCESSABLE = {422: {"description": "An energy unit, or an unknown attribute or tag"}}
+UNIT_NOT_FOR_INGREDIENT = "An ingredient is measured in an amount of food, such as g, dl or pieces."
 IN_USE = {409: {"description": "Recipes use the ingredient, so it can't be deleted"}}
 
 
@@ -60,12 +62,15 @@ def _response(ingredient: models.Ingredient, recipe_counts: dict[int, int]) -> I
 
 
 def _fill(ingredient: models.Ingredient, body: IngredientFields, db: DbSession) -> None:
-    """Set the ingredient's fields from `body`, answering 422 for attributes
-    given twice and for attribute or tag ids that name nothing."""
+    """Set the ingredient's fields from `body`, answering 422 for an energy
+    unit, attributes given twice and attribute or tag ids that name nothing."""
     refs = References(db)
     attribute_ids = [v.attribute_id for v in body.values]
     refs.rows(models.Attribute, in_list("values", attribute_ids, "attribute_id"), "attribute", unique=True)
     tags = refs.rows(models.Tag, in_list("tag_ids", body.tag_ids), "tag")
+    parsed = units.parse(body.unit)
+    if parsed is not None and parsed.category == "energy":
+        refs.error(["unit"], "unit_not_for_ingredient", UNIT_NOT_FOR_INGREDIENT)
     refs.check()
 
     # Loading the old values and tags must not save the new name early, or a
@@ -102,7 +107,7 @@ def get_ingredient(ingredient_id: int, db: DbSession) -> Ingredient:
     return _response(get_or_404(db, models.Ingredient, ingredient_id, "ingredient"), _recipe_counts(db))
 
 
-@router.post("", status_code=status.HTTP_201_CREATED, responses=NAME_IN_USE)
+@router.post("", status_code=status.HTTP_201_CREATED, responses={**NAME_IN_USE, **UNPROCESSABLE})
 def create_ingredient(body: IngredientFields, db: DbSession) -> Ingredient:
     ingredient = models.Ingredient()
     _fill(ingredient, body, db)
@@ -111,7 +116,7 @@ def create_ingredient(body: IngredientFields, db: DbSession) -> Ingredient:
     return _response(ingredient, _recipe_counts(db))
 
 
-@router.put("/{ingredient_id}", responses={**NOT_FOUND, **NAME_IN_USE})
+@router.put("/{ingredient_id}", responses={**NOT_FOUND, **NAME_IN_USE, **UNPROCESSABLE})
 def update_ingredient(ingredient_id: int, body: IngredientFields, db: DbSession) -> Ingredient:
     ingredient = get_or_404(db, models.Ingredient, ingredient_id, "ingredient")
     _fill(ingredient, body, db)

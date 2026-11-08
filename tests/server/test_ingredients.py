@@ -240,3 +240,44 @@ def test_counts_for_the_menu(client):
     create(client)
     create(client, name="Milk")
     assert client.get("/api/counts").json() == {"recipes": 0, "ingredients": 2, "attributes": 0, "tags": 0}
+
+
+UNIT_REFUSAL = {
+    "loc": ["body", "unit"],
+    "type": "unit_not_for_ingredient",
+    "msg": "An ingredient is measured in an amount of food, such as g, dl or pieces.",
+}
+
+
+@pytest.mark.parametrize("unit", ["kcal", "kJ", "Kcal", "Cal", "cal", "mcal"])
+def test_an_energy_unit_on_an_ingredient_answers_422_on_unit(client, unit):
+    response = client.post("/api/ingredients", json={**OATS, "unit": unit})
+    assert response.status_code == 422
+    assert response.json() == {"detail": [UNIT_REFUSAL]}
+    assert client.get("/api/ingredients").json() == []
+
+
+def test_an_update_to_an_energy_unit_answers_422_and_changes_nothing(client):
+    created = create(client)
+    response = client.put(f"/api/ingredients/{created['id']}", json={**OATS, "unit": "kcal"})
+    assert response.status_code == 422
+    assert response.json() == {"detail": [UNIT_REFUSAL]}
+    assert client.get(f"/api/ingredients/{created['id']}").json() == created
+
+
+@pytest.mark.parametrize(
+    "unit", ["g", "kg", "µg", "dl", "msk", "US cup", "st", "pcs", "gram", "pinch", "cg", "piece", "cup"]
+)
+def test_units_other_than_energy_are_accepted_on_an_ingredient(client, unit):
+    created = create(client, unit=f"  {unit} ")
+    assert created["unit"] == unit
+    assert client.get(f"/api/ingredients/{created['id']}").json()["unit"] == unit
+
+
+def test_the_unit_refusal_comes_with_other_field_errors(client):
+    response = client.post("/api/ingredients", json={**OATS, "unit": "kcal", "tag_ids": [999]})
+    assert response.status_code == 422
+    assert [(e["loc"], e["type"]) for e in response.json()["detail"]] == [
+        (["body", "tag_ids", 0], "unknown_tag"),
+        (["body", "unit"], "unit_not_for_ingredient"),
+    ]

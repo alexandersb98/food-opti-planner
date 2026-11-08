@@ -143,3 +143,8 @@ def test_counts_for_the_menu(client):
     create(client)
     create(client, name="Fat")
     assert client.get("/api/counts").json()["attributes"] == 2
+
+
+@pytest.mark.parametrize("unit", ["kcal", "g", "dl", "IU"])
+def test_attributes_still_accept_every_unit(client, unit):
+    assert create(client, unit=unit)["unit"] == unit

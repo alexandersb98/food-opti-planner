@@ -2315,14 +2315,7 @@
             "description": "The name is already in use"
           },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "An energy unit, or an unknown attribute or tag"
           }
         },
         "summary": "Create Ingredient",
@@ -2462,14 +2455,7 @@
             "description": "The name is already in use"
           },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "An energy unit, or an unknown attribute or tag"
           }
         },
         "summary": "Update Ingredient",
