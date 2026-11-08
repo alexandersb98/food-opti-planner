@@ -356,5 +356,42 @@
     "worstDay": "worst {day}: {actual} of {bound} {unit} {percent}",
     "worstPlan": "{actual} of {bound} {unit} {percent}",
     "dayValue": "{name} {actual} / {bound} {unit}"
+  },
+  "unitChange": {
+    "convertTitle": "Convert {name}'s numbers?",
+    "changeTitle": "Change unit?",
+    "convertBody": "{name}: {counts} will be converted from {from} to {to} (× {factor}).",
+    "noConvertBody": "{name}: {counts} keep their numbers.",
+    "nothingToConvert": "Nothing stored in {from} needs converting.",
+    "nothingToKeep": "Nothing is stored in {from}; only the unit changes.",
+    "rounded": "no values will be rounded | 1 value will be rounded. | {n} values will be rounded.",
+    "and": " and ",
+    "convert": "Convert",
+    "changeUnit": "Change unit",
+    "counts": {
+      "ingredient_values": "no ingredient values | 1 ingredient value | {n} ingredient values",
+      "goals": "no goals | 1 goal | {n} goals",
+      "basis": "the basis",
+      "recipe_amounts": "no recipe amounts | 1 recipe amount | {n} recipe amounts"
+    },
+    "fields": {
+      "min": "minimum",
+      "max": "maximum",
+      "zero_reference": "zero reference",
+      "value": "value"
+    },
+    "subject": {
+      "goal": "The goal {name}'s {field}",
+      "ingredient_value": "The {attribute} value of {name}",
+      "basis": "The basis of {name}",
+      "recipe_amount": "The amount in {name}",
+      "other": "{name}"
+    },
+    "refusal": {
+      "conversion_needs_decimals": "{subject} ({number} {from}) would need {decimals} decimals as {to}. Raise {attribute}'s decimals first.",
+      "conversion_needs_decimals_inexact": "{subject} ({number} {from}) can't be written exactly in {to}.",
+      "conversion_too_large": "{subject} ({number} {from}) would be {converted} {to}, which is too large.",
+      "conversion_rounds_to_zero": "{subject} ({number} {from}) would round to 0 in {to}. Use a smaller unit."
+    }
   }
 }

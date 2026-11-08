@@ -1,4 +1,4 @@
-import type { Attribute, Goal, Ingredient, Plan, PlanResult, PlanResultSummary, Preferences, Recipe, ResultGoal, ResultMeal, ResultMiss, Tag, UnitCatalogue } from './api/types'
+import type { Attribute, Goal, Ingredient, Plan, PlanResult, PlanResultSummary, Preferences, Recipe, ResultGoal, ResultMeal, ResultMiss, Tag, UnitCatalogue, UnitChange, UnitChangeRefusal } from './api/types'
 import unitFixture from './test-units.json'
 
 // Rows as the server answers them, for tests: give what the test is about,
@@ -130,4 +130,21 @@ export function unitCatalogue(): UnitCatalogue {
 /** The preferences as a fresh database answers them. */
 export function preferences(fields: Partial<Preferences> = {}): Preferences {
   return { 'unit.mass': 'g', 'unit.volume': 'dl', 'unit.energy': 'kcal', ...fields }
+}
+
+/** A unit-change preview as the server answers: converting, 12 values and 2 goals. */
+export function unitChange(fields: Partial<UnitChange> = {}): UnitChange {
+  return {
+    kind: 'convert',
+    factor: '1000',
+    counts: { ingredient_values: 12, goals: 2 },
+    rounded: 0,
+    refusal: null,
+    ...fields,
+  }
+}
+
+/** A refusal inside a preview, as the server answers. */
+export function unitChangeRefusal(fields: Given<UnitChangeRefusal, 'type'>): UnitChangeRefusal {
+  return { msg: 'refused', kind: null, name: null, field: null, number: null, converted: null, decimals_needed: null, ...fields }
 }
