@@ -199,3 +199,28 @@ def test_parser_reads_exactly_the_schema_keys():
 
 def test_parse_json_object_returns_dict():
     assert parse_json_object('{"a": 1.5}') == {"a": Decimal("1.5")}
+
+
+def test_huge_numbers_are_refused_quickly():
+    # these used to hang in int(Decimal(...)) or flow on as absurd amounts
+    with pytest.raises(BadAnswerError, match=r"\$\.servings"):
+        parse_draft('{"name":"","servings":1E+9999999,"instructions":"","sections":[]}')
+    with pytest.raises(BadAnswerError, match=r"\$\.servings"):
+        parse_draft('{"name":"","servings":1001,"instructions":"","sections":[]}')
+    big_line = (
+        '{"name":"","servings":1,"instructions":"","sections":[{"name":"","lines":'
+        '[{"original_text":"x","amount":%s,"unit":"","food":"","match":null,'
+        '"not_an_ingredient":false}]}]}'
+    )
+    for amount in ("1E+999999", '"1e999999"'):
+        with pytest.raises(BadAnswerError, match="amount"):
+            parse_draft(big_line % amount)
+    with pytest.raises(BadAnswerError, match=r"\$\.factor"):
+        parse_factor('{"factor": 1E+999999}')
+    with pytest.raises(BadAnswerError):
+        parse_factor('{"factor": "NaN"}')
+
+
+def test_deeply_nested_json_is_a_bad_answer():
+    with pytest.raises(BadAnswerError):
+        parse_draft("[" * 200000)

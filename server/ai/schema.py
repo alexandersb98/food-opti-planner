@@ -72,7 +72,7 @@ def parse_json_object(text: str) -> dict[str, Any]:
     for candidate in candidates:
         try:
             value = json.loads(candidate, parse_float=Decimal)
-        except ValueError:
+        except (ValueError, RecursionError):
             continue
         if isinstance(value, dict):
             return value
@@ -92,19 +92,31 @@ def _string(value: Any, path: str) -> str:
     return value
 
 
+MAX_DIGITS = 12  # a number with a larger exponent is not a sensible amount
+MAX_SERVINGS = 1000
+
+
+def _sane(number: Decimal, path: str) -> Decimal:
+    """Refuse NaN, infinity and huge exponents before any arithmetic on them."""
+    if not number.is_finite() or number.adjusted() > MAX_DIGITS:
+        raise BadAnswerError(f"{path}: number out of range")
+    return number
+
+
 def _number(value: Any, path: str) -> Decimal:
     """A JSON number, or a numeric string with . or , (not a fraction)."""
     if isinstance(value, bool):
         raise BadAnswerError(f"{path}: must be a number, not a boolean")
-    if isinstance(value, (int, Decimal)):
-        return Decimal(value)
+    if isinstance(value, Decimal):
+        return _sane(value, path)
+    if isinstance(value, int):
+        return _sane(Decimal(value), path)
     if isinstance(value, str):
         try:
             number = Decimal(value.strip().replace(",", "."))
         except InvalidOperation:
             raise BadAnswerError(f"{path}: not a number: {value!r}") from None
-        if number.is_finite():
-            return number
+        return _sane(number, path)
     raise BadAnswerError(f"{path}: must be a number")
 
 
@@ -148,11 +160,12 @@ def parse_draft(text: str) -> Draft:
     raw_servings = _get(root, "servings", "$")
     if isinstance(raw_servings, bool) or not isinstance(raw_servings, (int, Decimal)):
         raise BadAnswerError("$.servings: must be an integer")
-    if raw_servings != int(raw_servings):
+    number = _sane(Decimal(raw_servings), "$.servings")
+    if number != number.to_integral_value():
         raise BadAnswerError("$.servings: must be an integer")
-    servings = int(raw_servings)
-    if servings < 1:
-        raise BadAnswerError("$.servings: must be at least 1")
+    servings = int(number)
+    if not 1 <= servings <= MAX_SERVINGS:
+        raise BadAnswerError(f"$.servings: must be between 1 and {MAX_SERVINGS}")
     raw_sections = _get(root, "sections", "$")
     if not isinstance(raw_sections, list):
         raise BadAnswerError("$.sections: must be an array")

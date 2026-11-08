@@ -58,13 +58,25 @@ class HttpxTransport:
     """The real Transport, over httpx."""
 
     def __init__(self, timeout: float = 60.0, client: httpx.Client | None = None):
+        self.timeout = timeout
         self.client = client or httpx.Client(timeout=timeout)
+
+    def close(self) -> None:
+        self.client.close()
+
+    def __enter__(self) -> "HttpxTransport":
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self.close()
 
     def post_json(
         self, url: str, headers: Mapping[str, str], body: Mapping[str, Any]
     ) -> Mapping[str, Any]:
         try:
-            response = self.client.post(url, headers=dict(headers), json=body)
+            response = self.client.post(
+                url, headers=dict(headers), json=body, timeout=self.timeout
+            )
         except httpx.TimeoutException:
             raise AIServiceError(None, "the provider did not answer in time") from None
         except httpx.HTTPError as exc:
@@ -94,3 +106,24 @@ def _error_text(response: httpx.Response) -> str:
         if isinstance(data.get("message"), str):
             return data["message"]
     return response.text[:200]
+
+
+class KeyScrubbingTransport:
+    """Wraps a Transport and removes the API key from any error text, in case
+    a provider echoes it in an error body."""
+
+    def __init__(self, inner: Transport, secret: str):
+        self.inner = inner
+        self.secret = secret
+
+    def post_json(
+        self, url: str, headers: Mapping[str, str], body: Mapping[str, Any]
+    ) -> Mapping[str, Any]:
+        try:
+            return self.inner.post_json(url, headers, body)
+        except AIServiceError as exc:
+            if self.secret and self.secret in exc.message:
+                raise AIServiceError(
+                    exc.status, exc.message.replace(self.secret, "[key removed]")
+                ) from None
+            raise

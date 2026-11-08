@@ -22,3 +22,7 @@ class BadAnswerError(AIError):
 
 class NoRecipeFound(AIError):
     """The text holds no recipe (the answer has no lines)."""
+
+
+class UnknownProviderError(AIError, ValueError):
+    """A provider name no adapter exists for."""

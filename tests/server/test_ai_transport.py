@@ -74,3 +74,18 @@ def test_key_never_in_error_text():
     with pytest.raises(AIServiceError) as caught:
         t.post_json("https://example.test/x", HEADERS, {})
     assert KEY not in str(caught.value)
+
+
+def test_timeout_is_passed_per_request_and_close_closes():
+    seen = {}
+
+    def handler(request):
+        seen["timeout"] = request.extensions["timeout"]
+        return httpx.Response(200, json={})
+
+    t = HttpxTransport(timeout=7.0, client=httpx.Client(transport=httpx.MockTransport(handler)))
+    t.post_json("https://example.test/x", HEADERS, {})
+    assert seen["timeout"]["read"] == 7.0
+    with t:
+        pass
+    assert t.client.is_closed

@@ -1,6 +1,7 @@
 """One adapter per provider; `build_chat` picks one by name."""
 
-from server.ai.chat import ChatProvider, Transport
+from server.ai.chat import ChatProvider, HttpxTransport, KeyScrubbingTransport, Transport
+from server.ai.errors import UnknownProviderError
 from server.ai.providers.anthropic_messages import AnthropicChat
 from server.ai.providers.gemini_generate import GeminiChat
 from server.ai.providers.mistral_chat import MistralChat
@@ -28,5 +29,5 @@ def build_chat(
         adapter = ADAPTERS[provider]
     except KeyError:
         known = ", ".join(sorted(ADAPTERS))
-        raise ValueError(f"unknown provider {provider!r}; known providers: {known}") from None
-    return adapter(model, api_key, transport)
+        raise UnknownProviderError(f"unknown provider {provider!r}; known providers: {known}") from None
+    return adapter(model, api_key, KeyScrubbingTransport(transport or HttpxTransport(), api_key))

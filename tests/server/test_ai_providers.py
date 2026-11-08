@@ -8,7 +8,7 @@ import pytest
 from server.ai.chat import HttpxTransport
 from server.ai.converter import ProviderRecipeConverter
 from server.ai.draft import CatalogEntry, Draft
-from server.ai.errors import AIServiceError, BadAnswerError
+from server.ai.errors import AIError, AIServiceError, BadAnswerError
 from server.ai.providers import ADAPTERS, KEY_ENV, build_chat
 
 DATA = Path(__file__).parents[1] / "data" / "ai_responses"
@@ -170,3 +170,21 @@ def test_build_chat_returns_the_adapter_and_refuses_unknown():
 def test_module_docstring_says_not_verified(module):
     mod = importlib.import_module(f"server.ai.providers.{module}")
     assert "not verified" in mod.__doc__
+
+
+def test_unknown_provider_is_an_ai_error():
+    with pytest.raises(AIError):
+        build_chat("nope", "m", KEY)
+
+
+def test_key_echoed_in_provider_error_is_scrubbed():
+    client = httpx.Client(
+        transport=httpx.MockTransport(
+            lambda r: httpx.Response(401, json={"error": {"message": f"bad key {KEY}"}})
+        )
+    )
+    chat = build_chat("openai", "m", KEY, HttpxTransport(client=client))
+    with pytest.raises(AIServiceError) as caught:
+        chat.complete(SYSTEM, USER, max_tokens=5)
+    assert KEY not in str(caught.value) and KEY not in caught.value.message
+    assert "bad key" in caught.value.message

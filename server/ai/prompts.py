@@ -1,6 +1,7 @@
 """The prompts: instructions, the schema shown to the model, user messages."""
 
 import json
+import re
 from collections.abc import Sequence
 
 from server.ai.draft import CatalogEntry
@@ -8,6 +9,7 @@ from server.ai.schema import DRAFT_SCHEMA, FACTOR_SCHEMA
 
 MAX_TEXT_CHARS = 20000  # about 5 000 tokens; longer source text is cut
 _CLOSING_TAG = "</recipe_text>"
+_TAG = re.compile(r"<\s*/?\s*recipe_text\s*>", re.IGNORECASE)
 
 CONVERT_SYSTEM = (
     """You turn the text of a recipe into a JSON draft for a meal-planning app.
@@ -71,7 +73,9 @@ def convert_user(text: str, catalog: Sequence[CatalogEntry]) -> str:
     for entry in catalog:
         conversions = ", ".join(entry.conversion_units)
         lines.append(f"{entry.name} | {entry.unit} | conversions: {conversions}")
-    body = text.replace(_CLOSING_TAG, "")[:MAX_TEXT_CHARS].replace(_CLOSING_TAG, "")
+    body = text[:MAX_TEXT_CHARS]
+    while _TAG.search(body):  # nested tags ("</rec</recipe_text>ipe_text>") reappear
+        body = _TAG.sub("", body)
     return (
         "Catalog (name | unit | conversions):\n"
         + "\n".join(lines)
