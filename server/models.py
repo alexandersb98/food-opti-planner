@@ -13,6 +13,10 @@ NAME_LENGTH = 100
 # as names typed for other goals can move its number past the goals'.
 GOAL_NAME_LENGTH = 130
 UNIT_LENGTH = 20
+# A preference's key ("unit.mass") and value (a unit, later also a data
+# source key such as the last one used).
+PREFERENCE_KEY_LENGTH = 50
+PREFERENCE_VALUE_LENGTH = 100
 MEAL_NAME_LENGTH = 40
 DERIVE_LENGTH = 3  # "all" or "any"
 APPLIES_TO_LENGTH = 13  # "daily_average"
@@ -432,3 +436,12 @@ __all__ = [
     "ingredient_tags",
     "recipe_extra_tags",
 ]
+
+
+class Preference(Base):
+    """One row per preference that was ever set; unset ones have defaults."""
+
+    __tablename__ = "preferences"
+
+    key: Mapped[str] = mapped_column(String(PREFERENCE_KEY_LENGTH), primary_key=True)
+    value: Mapped[str] = mapped_column(String(PREFERENCE_VALUE_LENGTH))
