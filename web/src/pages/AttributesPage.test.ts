@@ -13,7 +13,7 @@ import {
   unitRoutes,
   type FakeServer,
 } from '../test-app'
-import { attribute } from '../test-data'
+import { attribute, unitChange, unitChangeRefusal } from '../test-data'
 import { resetUnits } from '../units'
 
 const energy = attribute({ id: 1, name: 'Energy', unit: 'kcal' })
@@ -113,13 +113,15 @@ test('an empty name or decimals outside 0 to 6 are not sent', async () => {
   wrapper.unmount()
 })
 
-test('opening another row saves the open one first', async () => {
+test('opening another row saves the open one first (the unit change confirmed)', async () => {
   const { wrapper, calls } = await mountPage({
+    'POST /api/attributes/1/unit-change': { body: unitChange({ kind: 'no_convert', factor: null }) },
     'PUT /api/attributes/1': (body) => ({ body: { ...energy, ...(body as object) } }),
   })
   await click(wrapper.findAll('.attribute-row')[0]!.get('.q-item'))
   await field(wrapper, 'Unit').setValue('IU')
   await click(wrapper.findAll('.attribute-row')[1]!.get('.q-item'))
+  await dialog().click('Change unit')
   expect(calls).toContain('PUT /api/attributes/1')
   expect(rows(wrapper)[0]).toMatch(/Energy\s*\(IU\)/)
   expect(field(wrapper, 'Name').element.value).toBe('Protein')
@@ -200,9 +202,10 @@ test('the open row has the unit list with mass, volume and energy, and its help 
   wrapper.unmount()
 })
 
-test('a unit chosen from the list is sent as its symbol, typed text as typed', async () => {
+test('a unit chosen from the list is sent as its symbol, typed text as typed (unit changes confirmed)', async () => {
   const saved: unknown[] = []
   const { wrapper } = await mountPage({
+    'POST /api/attributes/1/unit-change': { body: unitChange({ kind: 'no_convert', factor: null }) },
     'PUT /api/attributes/1': (body) => {
       saved.push(body)
       return { body: { ...energy, ...(body as object) } }
@@ -211,9 +214,11 @@ test('a unit chosen from the list is sent as its symbol, typed text as typed', a
   await click(wrapper.findAll('.attribute-row')[0]!.get('.q-item'))
   await chooseUnit(wrapper, 'Unit', 'kJ (kilojoule)')
   await click(button(wrapper, 'Done'))
+  await dialog().click('Change unit')
   await click(wrapper.findAll('.attribute-row')[0]!.get('.q-item'))
   await field(wrapper, 'Unit').setValue('gram')
   await click(button(wrapper, 'Done'))
+  await dialog().click('Change unit')
   expect(saved).toEqual([
     { name: 'Energy', unit: 'kJ', decimals: 0 },
     { name: 'Energy', unit: 'gram', decimals: 0 },
@@ -234,5 +239,151 @@ test('a new attribute opens with an empty unit and saves with it empty', async (
   await field(wrapper, 'Name').setValue('Score')
   await click(button(wrapper, 'Done'))
   expect(created).toEqual({ name: 'Score', unit: '', decimals: 3 })
+  wrapper.unmount()
+})
+
+// Changing the unit of a saved attribute: the preview, then the dialog.
+
+async function openEnergy(server: FakeServer = {}) {
+  const sent: unknown[] = []
+  const previews: unknown[] = []
+  const page = await mountPage({
+    'POST /api/attributes/1/unit-change': (body) => {
+      previews.push(body)
+      return { body: unitChange({ counts: { ingredient_values: 12, goals: 2 } }) }
+    },
+    'PUT /api/attributes/1': (body) => {
+      sent.push(body)
+      return { body: { ...energy, ...(body as object) } }
+    },
+    ...server,
+  })
+  await click(page.wrapper.findAll('.attribute-row')[0]!.get('.q-item'))
+  return { ...page, sent, previews }
+}
+
+test('a unit change asks first, and Convert saves it', async () => {
+  const { wrapper, sent, previews } = await openEnergy()
+  await field(wrapper, 'Unit').setValue('kJ')
+  await click(button(wrapper, 'Done'))
+  expect(previews).toEqual([{ unit: 'kJ', decimals: 0 }])
+  expect(sent).toEqual([])
+  expect(dialog().text).toContain("Convert Energy's numbers?")
+  expect(dialog().text).toContain('Energy: 12 ingredient values and 2 goals will be converted from kcal to kJ (× 1000).')
+  await dialog().click('Convert')
+  expect(sent).toEqual([{ name: 'Energy', unit: 'kJ', decimals: 0 }])
+  expect(wrapper.find('input[aria-label="Name"]').exists()).toBe(false)
+  expect(rows(wrapper)[0]).toMatch(/Energy\s*\(kJ\)/)
+  wrapper.unmount()
+})
+
+test('Cancel saves nothing and keeps the row open with the typed unit', async () => {
+  const { wrapper, sent } = await openEnergy()
+  await field(wrapper, 'Unit').setValue('kJ')
+  await click(button(wrapper, 'Done'))
+  await dialog().click('Cancel')
+  expect(sent).toEqual([])
+  expect(field(wrapper, 'Unit').element.value).toBe('kJ')
+  wrapper.unmount()
+})
+
+test('another category says the numbers keep their value, then saves', async () => {
+  const { wrapper, sent } = await openEnergy({
+    'POST /api/attributes/1/unit-change': { body: unitChange({ kind: 'no_convert', factor: null }) },
+  })
+  await field(wrapper, 'Unit').setValue('IU')
+  await click(button(wrapper, 'Done'))
+  expect(dialog().text).toContain('Energy: 12 ingredient values and 2 goals keep their numbers.')
+  await dialog().click('Change unit')
+  expect(sent).toEqual([{ name: 'Energy', unit: 'IU', decimals: 0 }])
+  wrapper.unmount()
+})
+
+test('another spelling of the same unit saves with no dialog', async () => {
+  const { wrapper, sent } = await openEnergy({
+    'POST /api/attributes/1/unit-change': { body: unitChange({ kind: 'same', factor: null }) },
+  })
+  await field(wrapper, 'Unit').setValue('Kcal')
+  await click(button(wrapper, 'Done'))
+  expect(sent).toEqual([{ name: 'Energy', unit: 'Kcal', decimals: 0 }])
+  expect(document.querySelector('.q-dialog')).toBeNull()
+  wrapper.unmount()
+})
+
+test('a refusal shows under the unit field, and asking again uses the raised decimals', async () => {
+  const previews: unknown[] = []
+  const refusal = unitChangeRefusal({
+    type: 'conversion_needs_decimals', kind: 'goal', name: 'Energy per day', field: 'min',
+    number: '0.5', converted: '0.0005', decimals_needed: 4,
+  })
+  const { wrapper, sent } = await openEnergy({
+    'POST /api/attributes/1/unit-change': (body) => {
+      previews.push(body)
+      return { body: unitChange({ refusal: (body as { decimals: number }).decimals < 4 ? refusal : null }) }
+    },
+  })
+  await field(wrapper, 'Unit').setValue('kJ')
+  await click(button(wrapper, 'Done'))
+  expect(wrapper.text()).toContain("The goal Energy per day's minimum (0.5 kcal) would need 4 decimals as kJ. Raise Energy's decimals first.")
+  expect(document.querySelector('.q-dialog')).toBeNull()
+  expect(sent).toEqual([])
+  expect(field(wrapper, 'Unit').element.value).toBe('kJ')
+  await field(wrapper, 'Decimals').setValue('4')
+  await click(button(wrapper, 'Done'))
+  expect(previews).toEqual([{ unit: 'kJ', decimals: 0 }, { unit: 'kJ', decimals: 4 }])
+  expect(wrapper.text()).not.toContain('would need')
+  await dialog().click('Convert')
+  expect(sent).toEqual([{ name: 'Energy', unit: 'kJ', decimals: 4 }])
+  wrapper.unmount()
+})
+
+test('editing the unit clears a refusal', async () => {
+  const { wrapper } = await openEnergy({
+    'POST /api/attributes/1/unit-change': {
+      body: unitChange({ refusal: unitChangeRefusal({ type: 'conversion_too_large', kind: 'goal', name: 'Energy per day', field: 'max', number: '1', converted: '9', decimals_needed: null }) }),
+    },
+  })
+  await field(wrapper, 'Unit').setValue('kJ')
+  await click(button(wrapper, 'Done'))
+  expect(wrapper.text()).toContain('which is too large')
+  await field(wrapper, 'Unit').setValue('J')
+  expect(wrapper.text()).not.toContain('which is too large')
+  wrapper.unmount()
+})
+
+test('a preview that fails saves nothing and says so', async () => {
+  const { wrapper, sent } = await openEnergy({ 'POST /api/attributes/1/unit-change': 500 })
+  await field(wrapper, 'Unit').setValue('kJ')
+  await click(button(wrapper, 'Done'))
+  expect(wrapper.text()).toContain('Could not save')
+  expect(sent).toEqual([])
+  expect(document.querySelector('.q-dialog')).toBeNull()
+  wrapper.unmount()
+})
+
+test("a save refused after the preview shows the server's sentence under the unit", async () => {
+  const { wrapper } = await openEnergy({
+    'PUT /api/attributes/1': {
+      status: 422,
+      body: { detail: [{ loc: ['body', 'unit'], type: 'conversion_needs_decimals', msg: 'Energy per day, min: 0.5 would need 4 decimals' }] },
+    },
+  })
+  await field(wrapper, 'Unit').setValue('kJ')
+  await click(button(wrapper, 'Done'))
+  await dialog().click('Convert')
+  expect(wrapper.text()).toContain('Energy per day, min: 0.5 would need 4 decimals')
+  expect(field(wrapper, 'Unit').element.value).toBe('kJ')
+  wrapper.unmount()
+})
+
+test('a new attribute and an unchanged unit never ask', async () => {
+  const { wrapper, calls } = await openEnergy()
+  await field(wrapper, 'Name').setValue('Energy total')
+  await click(button(wrapper, 'Done'))
+  await click(button(wrapper, '+ New attribute'))
+  await field(wrapper, 'Name').setValue('Score')
+  await field(wrapper, 'Unit').setValue('pts')
+  await click(button(wrapper, 'Done'))
+  expect(calls.filter((call) => call.includes('unit-change'))).toEqual([])
   wrapper.unmount()
 })
