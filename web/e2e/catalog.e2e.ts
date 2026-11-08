@@ -20,6 +20,15 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await page.getByRole('button', { name: 'Log in' }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Plan')
 
+  // A preferred unit saves on change and reads back after a reload.
+  await openPage(page, 'Settings')
+  await expect(page.locator('.unit-volume')).toContainText('dl')
+  await page.getByLabel('Volume').click()
+  await page.getByRole('option', { name: 'ml', exact: true }).click()
+  await expect(page.locator('.unit-volume')).toContainText('ml')
+  await page.reload()
+  await expect(page.locator('.unit-volume')).toContainText('ml')
+
   await openPage(page, 'Attributes')
   await page.getByText('+ New attribute').click()
   await page.getByLabel('Name').fill('Energy')
