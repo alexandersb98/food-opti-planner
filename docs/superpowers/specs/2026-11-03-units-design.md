@@ -75,14 +75,15 @@ preferred unit; mass ↔ volume per ingredient from its density.
 |---|---|---|---|
 | oz | mass | 28.349523125 g | ounce |
 | lb | mass | 453.59237 g | pound |
-| tsp | volume | 5 ml | tsk, teaspoon |
-| tbsp | volume | 15 ml | msk, tablespoon |
+| tsk | volume | 5 ml | tsp, teaspoon, tesked |
+| msk | volume | 15 ml | tbsp, tablespoon, matsked |
 | krm | volume | 1 ml | kryddmått |
 | US cup | volume | 236.5882365 ml | |
 | metric cup | volume | 250 ml | |
 | fl oz | volume | 29.5735295625 ml | US fl oz |
 
-tbsp and tsp are the metric ones (15 and 5 ml); the US tablespoon is
+`tsk` and `msk` are the stored spellings (Swedish first); tsp and tbsp
+are the metric ones (5 and 15 ml) and aliases. The US tablespoon is
 not listed. A bare "cup" is not known, as it means different amounts in
 different countries; it stays free text.
 
@@ -91,14 +92,29 @@ liter, L for l; µg also as ug and mcg; Kcal, kcal and Cal for kcal.
 
 **Reading a unit.** `parse(text) -> Unit | None` trims spaces and
 compares case-insensitively (safe, as no supported prefix differs from
-another by case only). It returns the category and the factor to the
-base, or None for free text. `factor(a, b)` gives the multiplier from
+another by case only, with one exception: `Cal` exactly is kcal, any
+other case of "cal" is the small calorie, 4.184 J, understood but not
+offered). Text is also normalised by NFKC (the micro sign and the Greek
+mu are the same), inner runs of spaces collapse ("US  cup" is "US cup")
+and one trailing period is dropped ("msk." is msk). It returns the
+category and the factor to the base, or None for free text.
+**Known free-text units** exist: `st` (aliases stycken, styck, pcs,
+piece, pieces) parses to a unit with no category and no factor; `parse`
+returns None only for text the catalogue does not know at all (IU,
+pinch, a bare cup). `factor(a, b)` gives the multiplier from
 `a` to `b`, or None when they don't convert.
 
 **Display names.** The catalogue names each unit for the drop-downs:
 common prefixed units (µg, mg, g, kg; ml, cl, dl, l; kJ, kcal) and the
 listed ones. Other prefixed units (cg of mass, kl) are understood but
-not offered.
+not offered. The names are English words (microgram, milligram, gram,
+kilogram, ounce, pound; millilitre, centilitre, decilitre, litre,
+kryddmått, teaspoon, tablespoon, fluid ounce, US cup, metric cup;
+kilojoule, kilocalorie; piece for `st`) and the drop-down shows `kg
+(kilogram)`. Offered order: mass µg, mg, g, kg, oz, lb; volume ml, cl,
+dl, l, krm, tsk, msk, fl oz, US cup, metric cup; energy kJ, kcal.
+`GET /api/units` sends every understood unit (offered or not) with its
+aliases and an `offered` flag.
 
 ## Preferred units
 
@@ -106,6 +122,13 @@ A new table `preferences` (key, value), one row per preference. The data
 source spec adds its own keys (the last data source chosen). Keys here:
 `unit.mass`, `unit.volume`, `unit.energy`; values are unit symbols from
 the catalogue. Unset keys mean g, dl and kcal.
+
+**API.** `GET /api/preferences` answers all three keys (defaults where
+unset). `PUT /api/preferences` takes any subset, saves nothing if
+anything is refused and answers all three. A unit is accepted in any
+spelling if it is offered for that key's category and is saved as the
+catalogue spelling ("gram" is saved as `g`); anything else is 422
+`invalid_unit` on that key, an unknown key 422 `extra_forbidden`.
 
 **Settings page (S1),** a sixth menu entry, last. Its first card is
 **Preferred units**: one drop-down per category, offering that

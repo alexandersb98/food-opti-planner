@@ -135,7 +135,8 @@ dimension with no stored conversion: g/kg; ml/cl/dl/l; and the Swedish
 spoon measures krm (1 ml), tsk (5 ml), msk (15 ml) as volumes. A stored
 conversion for a unit wins over a built-in step. Unit names are
 normalized when read ("matsked", "msk." → `msk`; "gram" → `g`;
-"stycken", "st." → `st`).
+"stycken", "st." → `st`), by the unit catalogue (`server/units.py`),
+the one place these rules live.
 
 ### Migration of existing data
 

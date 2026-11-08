@@ -19,7 +19,9 @@ day guard-rail under Advanced, and missed goals on the results page),
 recipe filters (tags set to Only or Never, with a count of the recipes
 left), a No plan possible card when Must goals clash (the clashing goals
 and days, fixed in place: a looser bound or Make Prefer, then Try again),
-and a deploy to Cloud Run.
+a Settings page with preferred units for mass, volume and energy (on a
+unit catalogue in `server/units.py` that later slices build on), and a
+deploy to Cloud Run.
 
 Run the Python tests with `python3 -m pip install -e '.[server,dev]'` and
 then `python3 -m pytest`. Server tests use SQLite; set
@@ -46,8 +48,9 @@ Cloud Run once the owner has done the one-time setup in
 
 Frontend checks: `npm run lint`, `npm run typecheck`, `npm test` in
 `web/`. After changing the API, run `npm run gen:api` in `web/` to
-update `web/openapi.json` and `web/src/api/schema.ts`; tests fail
-until they are up to date.
+update `web/openapi.json` and `web/src/api/schema.ts`, and
+`web/src/test-units.json` (the unit catalogue the app's tests use); tests
+fail until they are up to date.
 
 End-to-end tests (Playwright, in `web/e2e/`) drive the built app in a
 phone-sized browser. They expect a running app with an empty database

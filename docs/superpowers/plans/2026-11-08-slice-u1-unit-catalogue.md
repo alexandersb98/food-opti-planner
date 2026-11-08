@@ -41,8 +41,9 @@ lines on `unit`, "Normalized, e.g. `dl`, `st`, `msk`", "matsked", "msk."
 `preferences` ([`2026-11-03-ingredient-data-sources-design.md`](../specs/2026-11-03-ingredient-data-sources-design.md),
 "Settings and the data source page", `GET/PUT /api/preferences`).
 
-**Status:** Planned; to be built task by task on branch
-`claude/implement-remaining-slices-qwrp83`.
+**Status:** Built and committed task by task on branch
+`claude/implement-remaining-slices-qwrp83`, and reviewed task by task on
+it. Each task says how it was checked and what differs from the text.
 
 ## Global Constraints
 
@@ -155,6 +156,14 @@ lines on `unit`, "Normalized, e.g. `dl`, `st`, `msk`", "matsked", "msk."
     one list of spellings and expected symbols (the fixture) so the two
     can't drift unseen.
 
+11. **`preferences.refusals` answers a dict, not `FieldError`s.**
+    `server/api/errors.py` imports FastAPI, and `server/api/__init__.py`
+    imports the preferences route, so a `FieldError` import in
+    `server/preferences.py` made a circular import and broke "no FastAPI
+    import". `refusals(changes)` answers `{key: reason}`; the route wraps
+    each as a `FieldError` of type `invalid_unit`. `canonical(changes)`
+    (new) gives the catalogue spellings to save.
+
 ## Tasks
 
 ### Task 1: `server/units.py`, the catalogue
@@ -257,6 +266,13 @@ slice that adds an alias cannot silently steal one.
 **Verify:** `python3 -m pytest tests/server/test_units.py -q`, then the
 whole suite.
 
+**Checked:** `python3 -m pytest tests/server/test_units.py -q` (118 tests) and the
+whole suite (745 tests).
+
+Differences from the plan text: none. `_build_lookups(table)` is the
+function that raises on a clashing spelling, and the test hands it a
+clashing table.
+
 ### Task 2: The `preferences` table and `server/preferences.py`
 
 **Files:** `server/models.py` (`Preference`), create
@@ -296,6 +312,14 @@ and covers the table; add no second copy of that.
 
 **Verify:** `python3 -m pytest tests/server -q` (the migration test
 included).
+
+**Checked:** `python3 -m pytest tests/server -q` (554 tests with the
+migration test comparing the models to the migrated schema); the new store
+tests cover defaults, a saved key, saving twice, an unknown stored key,
+`preferred_unit` and the defaults being offered units.
+
+Differences from the plan text: none. The default check at module load is
+an `assert` in `server/preferences.py`.
 
 ### Task 3: The API: `GET /api/units`, `GET/PUT /api/preferences`
 
@@ -377,6 +401,13 @@ runs it after the OpenAPI export.
 `git diff --stat` shows `openapi.json`, `schema.ts` and `test-units.json`
 changed, `npm run typecheck` and `npm test` (the schema test) pass.
 
+**Checked:** 776 Python tests pass on SQLite, the OpenAPI test and the
+new fixture test among them; `npm run gen:api` changed `openapi.json`,
+`schema.ts` and `test-units.json`; lint, typecheck and Vitest pass.
+
+Differences from the plan text: interpretation 11. The fixture is written
+with `ensure_ascii=False`, so the micro sign reads as itself.
+
 ### Task 4: The app's unit and preference modules
 
 **Files:** create `web/src/units.ts`, `web/src/units.test.ts`,
@@ -446,6 +477,14 @@ refusal or a network error. It never throws.
 
 **Verify:** `npm test`, `npm run lint`, `npm run typecheck` in `web/`.
 
+**Checked:** `npm test`, `npm run lint`, `npm run typecheck` in `web/`
+(28 new tests in `units.test.ts` and `preferences.test.ts`).
+
+Differences from the plan text: both modules guard against a `reset…()`
+during a request in flight (a generation counter, as `solve.ts` does with
+its solve count), and a call to `load()` while one is running shares that
+request.
+
 ### Task 5: The Settings page and the menu
 
 **Files:** create `web/src/pages/SettingsPage.vue`,
@@ -508,6 +547,15 @@ entry), `web/src/layouts/MainLayout.test.ts`, `web/src/i18n/en.json`.
 at the page in a browser at 390 px wide (build, start the server as the
 e2e does) and check nothing scrolls sideways.
 
+**Checked:** lint, typecheck and Vitest (383 tests, 8 new for the page,
+the menu test changed to six pages). The page was opened in Chromium at
+390 px wide, also with a drop-down open: the page is 390 px wide, nothing
+scrolls sideways.
+
+Differences from the plan text: `web/src/test-setup.ts` stubs
+`Element.prototype.scrollTo`, which jsdom lacks and Quasar's drop-down
+menus call.
+
 ### Task 6: End-to-end step
 
 **Files:** `web/e2e/catalog.e2e.ts`.
@@ -526,6 +574,11 @@ set a preferred unit, build ...").
 build`; start uvicorn on an empty SQLite file in the scratchpad with
 `PASSWORD_HASH` and `SESSION_KEY`; `E2E_PASSWORD=... E2E_BASE_URL=
 http://localhost:8000 npm run e2e -- --trace off`; kill the server.
+
+**Checked:** `npx vite build`, uvicorn on an empty SQLite file, `npm run
+e2e -- --trace off`: the one flow passes with the new step.
+
+Differences from the plan text: none.
 
 ### Task 7: Docs
 
@@ -560,6 +613,13 @@ this plan.
 
 **Verify:** the full checks (both test suites, lint, typecheck) once more
 and the e2e run of Task 6 if nothing in Tasks 1-6 changed since.
+
+**Checked:** both test suites, lint and typecheck once more at the end
+(see the report of the slice for the counts); the e2e run of Task 6 was
+not repeated as Tasks 1-6 did not change after it.
+
+Differences from the plan text: none; the import spec's line about
+normalisation now points to `server/units.py`.
 
 ## Done when
 

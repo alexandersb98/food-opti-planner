@@ -70,6 +70,8 @@ match in its pending review.
 
 ## Overview
 
+U1 done: see `2026-11-08-slice-u1-unit-catalogue.md`.
+
 | # | Slice | Screens | Usable result after merge |
 |---|---|---|---|
 | U1 | Unit catalogue and Settings | S1 | Known units understood; preferred units chosen |
