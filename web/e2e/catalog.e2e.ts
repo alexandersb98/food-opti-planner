@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test'
 
 // One flow through the app, growing with each slice that changes it:
-// log in, set a preferred unit, build a small catalog and a recipe from it, then make a plan,
-// then one that clashes and is fixed.
+// log in, set a preferred unit, build a small catalog and a recipe from it (the unit fields are
+// combo boxes over the unit catalogue), then make a plan, then one that clashes and is fixed.
 
 const password = process.env.E2E_PASSWORD
 if (!password) throw new Error('Set E2E_PASSWORD to the login password')
@@ -40,7 +40,14 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await openPage(page, 'Attributes')
   await page.getByText('+ New attribute').click()
   await page.getByLabel('Name').fill('Energy')
-  await page.getByLabel('Unit').fill('kcal')
+  // The unit list: mass, volume and energy, not the piece unit; a chosen
+  // unit is stored in its catalogue spelling.
+  await page.getByLabel('Unit').click()
+  const list = page.getByRole('listbox')
+  for (const group of ['Mass', 'Volume', 'Energy']) await expect(list.getByText(group, { exact: true })).toBeVisible()
+  await expect(page.getByRole('option', { name: 'st (piece)' })).toHaveCount(0)
+  await page.getByRole('option', { name: 'kcal (kilocalorie)' }).click()
+  await expect(page.getByText("The amount per the ingredient's basis, e.g. g or kcal.")).toBeVisible()
   await page.getByLabel('Decimals').fill('0')
   await page.getByRole('button', { name: 'Done' }).click()
   await expect(page.locator('.attribute-row')).toHaveText([/Energy\s*\(kcal\)/])
@@ -55,7 +62,14 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await expect(page.getByText('No ingredients yet.')).toBeVisible()
   await page.getByRole('link', { name: 'New ingredient' }).click()
   await page.getByLabel('Name').fill('Oats')
+  // A new ingredient starts in the preferred mass unit; the list offers
+  // pieces but no energy unit.
+  await expect(page.getByLabel('Measured in')).toHaveValue('g')
   await expect(page.getByLabel('Value basis')).toHaveValue('100')
+  await page.getByLabel('Measured in').click()
+  await expect(page.getByRole('option', { name: 'st (piece)' })).toBeVisible()
+  await expect(page.getByRole('option', { name: 'kcal (kilocalorie)' })).toHaveCount(0)
+  await page.keyboard.press('Escape')
   await page.getByLabel('Energy').fill('389')
   await page.getByRole('button', { name: 'vegan' }).click()
   await page.getByRole('button', { name: 'Save' }).click()
