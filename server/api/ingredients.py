@@ -7,16 +7,24 @@ from pydantic import BaseModel, Field, StringConstraints
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from .. import models, units
+from .. import models, unit_change, units
 from ..db import DbSession
 from ..fields import Name, Number
 from .catalog import References, commit_named, count_by, get_or_404, in_list
 from .errors import NAME_IN_USE
+from .unit_changes import UNIT_CHANGE_REFUSED, UnitChange, UnitChangeRefusal, answer, refuse
 
 router = APIRouter(prefix="/ingredients", tags=["ingredients"])
 
 NOT_FOUND = {404: {"description": "No such ingredient"}}
 UNPROCESSABLE = {422: {"description": "An energy unit, or an unknown attribute or tag"}}
+UPDATE_UNPROCESSABLE = {
+    422: {
+        **UNIT_CHANGE_REFUSED[422],
+        "description": "An energy unit, an unknown attribute or tag, or a conversion that would "
+        "lose precision or a number's range",
+    }
+}
 UNIT_NOT_FOR_INGREDIENT = "An ingredient is measured in an amount of food, such as g, dl or pieces."
 IN_USE = {409: {"description": "Recipes use the ingredient, so it can't be deleted"}}
 
@@ -37,6 +45,14 @@ class IngredientFields(BaseModel):
     # attribute counts as 0.
     values: list[IngredientValue]
     tag_ids: list[int]
+
+
+class IngredientUnitChange(BaseModel):
+    unit: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=models.UNIT_LENGTH)
+    ]
+    # What the form is about to save too; the stored basis if left out.
+    basis: Annotated[Number, Field(gt=0)] | None = None
 
 
 class Ingredient(IngredientFields):
@@ -116,10 +132,30 @@ def create_ingredient(body: IngredientFields, db: DbSession) -> Ingredient:
     return _response(ingredient, _recipe_counts(db))
 
 
-@router.put("/{ingredient_id}", responses={**NOT_FOUND, **NAME_IN_USE, **UNPROCESSABLE})
+@router.post("/{ingredient_id}/unit-change", responses=NOT_FOUND)
+def preview_unit_change(ingredient_id: int, body: IngredientUnitChange, db: DbSession) -> UnitChange:
+    """What changing the unit does to the basis and the recipe amounts. Writes nothing."""
+    ingredient = get_or_404(db, models.Ingredient, ingredient_id, "ingredient")
+    basis = ingredient.basis if body.basis is None else body.basis
+    converters = unit_change.ingredient_converters(ingredient, basis)
+    preview = answer(unit_change.plan(db, ingredient.unit, body.unit, converters))
+    parsed = units.parse(body.unit)
+    if parsed is not None and parsed.category == "energy":
+        preview.refusal = UnitChangeRefusal(type="unit_not_for_ingredient", msg=UNIT_NOT_FOR_INGREDIENT)
+    return preview
+
+
+@router.put("/{ingredient_id}", responses={**NOT_FOUND, **NAME_IN_USE, **UPDATE_UNPROCESSABLE})
 def update_ingredient(ingredient_id: int, body: IngredientFields, db: DbSession) -> Ingredient:
     ingredient = get_or_404(db, models.Ingredient, ingredient_id, "ingredient")
-    _fill(ingredient, body, db)
+    # Planned before anything changes (the plan reads the database, and the
+    # new fields must not be flushed first). The basis converted is the
+    # body's, as typed in the old unit.
+    converters = unit_change.ingredient_converters(ingredient, body.basis)
+    change = unit_change.plan(db, ingredient.unit, body.unit, converters)
+    _fill(ingredient, body, db)  # its own 422s win over a refused conversion
+    refuse(change)
+    change.apply()
     commit_named(db, ingredient, "An ingredient")
     return _response(ingredient, _recipe_counts(db))
 

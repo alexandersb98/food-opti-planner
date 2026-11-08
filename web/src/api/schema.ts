@@ -40,6 +40,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/attributes/{attribute_id}/unit-change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Unit Change
+         * @description What changing the unit does to the numbers stored in it. Writes nothing.
+         */
+        post: operations["preview_unit_change_api_attributes__attribute_id__unit_change_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/counts": {
         parameters: {
             query?: never;
@@ -106,6 +126,26 @@ export interface paths {
         post?: never;
         /** Delete Ingredient */
         delete: operations["delete_ingredient_api_ingredients__ingredient_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ingredients/{ingredient_id}/unit-change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Unit Change
+         * @description What changing the unit does to the basis and the recipe amounts. Writes nothing.
+         */
+        post: operations["preview_unit_change_api_ingredients__ingredient_id__unit_change_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -505,6 +545,13 @@ export interface components {
             /** Unit */
             unit: string;
         };
+        /** AttributeUnitChange */
+        AttributeUnitChange: {
+            /** Decimals */
+            decimals?: number | null;
+            /** Unit */
+            unit: string;
+        };
         /** CatalogueUnit */
         CatalogueUnit: {
             /**
@@ -710,6 +757,13 @@ export interface components {
             unit: string;
             /** Values */
             values: components["schemas"]["IngredientValue-Input"][];
+        };
+        /** IngredientUnitChange */
+        IngredientUnitChange: {
+            /** Basis */
+            basis?: number | string | null;
+            /** Unit */
+            unit: string;
         };
         /** IngredientValue */
         "IngredientValue-Input": {
@@ -1173,6 +1227,45 @@ export interface components {
             /** Units */
             units: components["schemas"]["CatalogueUnit"][];
         };
+        /** UnitChange */
+        UnitChange: {
+            /** Counts */
+            counts: {
+                [key: string]: number;
+            };
+            /** Factor */
+            factor: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "same" | "convert" | "no_convert";
+            refusal: components["schemas"]["UnitChangeRefusal"] | null;
+            /** Rounded */
+            rounded: number;
+        };
+        /** UnitChangeRefusal */
+        UnitChangeRefusal: {
+            /** Converted */
+            converted?: string | null;
+            /** Decimals Needed */
+            decimals_needed?: number | null;
+            /** Field */
+            field?: string | null;
+            /** Kind */
+            kind?: string | null;
+            /** Msg */
+            msg: string;
+            /** Name */
+            name?: string | null;
+            /** Number */
+            number?: string | null;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "conversion_needs_decimals" | "conversion_too_large" | "conversion_rounds_to_zero" | "unit_not_for_ingredient";
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -1297,13 +1390,13 @@ export interface operations {
                     "application/json": components["schemas"]["FieldErrors"];
                 };
             };
-            /** @description Validation Error */
+            /** @description The conversion would lose precision or a number's range */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["FieldErrors"];
                 };
             };
         };
@@ -1325,6 +1418,48 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description No such attribute */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_unit_change_api_attributes__attribute_id__unit_change_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attribute_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AttributeUnitChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnitChange"];
+                };
             };
             /** @description No such attribute */
             404: {
@@ -1522,12 +1657,14 @@ export interface operations {
                     "application/json": components["schemas"]["FieldErrors"];
                 };
             };
-            /** @description An energy unit, or an unknown attribute or tag */
+            /** @description An energy unit, an unknown attribute or tag, or a conversion that would lose precision or a number's range */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
             };
         };
     };
@@ -1558,6 +1695,48 @@ export interface operations {
             };
             /** @description Recipes use the ingredient, so it can't be deleted */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_unit_change_api_ingredients__ingredient_id__unit_change_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ingredient_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IngredientUnitChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnitChange"];
+                };
+            };
+            /** @description No such ingredient */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

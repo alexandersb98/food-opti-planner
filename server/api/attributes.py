@@ -8,11 +8,12 @@ from sqlalchemy import select
 
 from meal_planner.domain import MAX_PRECISION, MIN_PRECISION
 
-from .. import models
+from .. import models, unit_change
 from ..db import DbSession
 from ..fields import Name
 from .catalog import commit_named, count_by, get_or_404
 from .errors import NAME_IN_USE
+from .unit_changes import UNIT_CHANGE_REFUSED, UnitChange, answer, refuse
 
 router = APIRouter(prefix="/attributes", tags=["attributes"])
 
@@ -23,6 +24,12 @@ class AttributeFields(BaseModel):
     name: Name
     unit: Annotated[str, StringConstraints(strip_whitespace=True, max_length=models.UNIT_LENGTH)]
     decimals: Annotated[int, Field(ge=MIN_PRECISION, le=MAX_PRECISION)]
+
+
+class AttributeUnitChange(BaseModel):
+    unit: Annotated[str, StringConstraints(strip_whitespace=True, max_length=models.UNIT_LENGTH)]
+    # What the form is about to save too; the stored decimals if left out.
+    decimals: Annotated[int, Field(ge=MIN_PRECISION, le=MAX_PRECISION)] | None = None
 
 
 class Attribute(AttributeFields):
@@ -65,11 +72,26 @@ def create_attribute(body: AttributeFields, db: DbSession) -> Attribute:
     return _response(attribute, _counts(db))
 
 
-@router.put("/{attribute_id}", responses={**NOT_FOUND, **NAME_IN_USE})
+@router.post("/{attribute_id}/unit-change", responses=NOT_FOUND)
+def preview_unit_change(attribute_id: int, body: AttributeUnitChange, db: DbSession) -> UnitChange:
+    """What changing the unit does to the numbers stored in it. Writes nothing."""
+    attribute = get_or_404(db, models.Attribute, attribute_id, "attribute")
+    decimals = attribute.decimals if body.decimals is None else body.decimals
+    converters = unit_change.attribute_converters(attribute, decimals)
+    return answer(unit_change.plan(db, attribute.unit, body.unit, converters))
+
+
+@router.put("/{attribute_id}", responses={**NOT_FOUND, **NAME_IN_USE, **UNIT_CHANGE_REFUSED})
 def update_attribute(attribute_id: int, body: AttributeFields, db: DbSession) -> Attribute:
     attribute = get_or_404(db, models.Attribute, attribute_id, "attribute")
+    # A unit in the same category converts the numbers stored in it, with the
+    # refusals of the preview; planned before anything is changed.
+    converters = unit_change.attribute_converters(attribute, body.decimals)
+    change = unit_change.plan(db, attribute.unit, body.unit, converters)
+    refuse(change)
     for field, value in body.model_dump().items():
         setattr(attribute, field, value)
+    change.apply()
     commit_named(db, attribute, "An attribute")
     return _response(attribute, _counts(db))
 

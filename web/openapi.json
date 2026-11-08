@@ -72,6 +72,33 @@
         "title": "AttributeFields",
         "type": "object"
       },
+      "AttributeUnitChange": {
+        "properties": {
+          "decimals": {
+            "anyOf": [
+              {
+                "maximum": 6.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decimals"
+          },
+          "unit": {
+            "maxLength": 20,
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "unit"
+        ],
+        "title": "AttributeUnitChange",
+        "type": "object"
+      },
       "CatalogueUnit": {
         "properties": {
           "aliases": {
@@ -697,6 +724,35 @@
           "tag_ids"
         ],
         "title": "IngredientFields",
+        "type": "object"
+      },
+      "IngredientUnitChange": {
+        "properties": {
+          "basis": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Basis"
+          },
+          "unit": {
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "unit"
+        ],
+        "title": "IngredientUnitChange",
         "type": "object"
       },
       "IngredientValue-Input": {
@@ -1998,6 +2054,150 @@
         "title": "UnitCatalogue",
         "type": "object"
       },
+      "UnitChange": {
+        "properties": {
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Counts",
+            "type": "object"
+          },
+          "factor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Factor"
+          },
+          "kind": {
+            "enum": [
+              "same",
+              "convert",
+              "no_convert"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "refusal": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UnitChangeRefusal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rounded": {
+            "title": "Rounded",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "factor",
+          "counts",
+          "rounded",
+          "refusal"
+        ],
+        "title": "UnitChange",
+        "type": "object"
+      },
+      "UnitChangeRefusal": {
+        "properties": {
+          "converted": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Converted"
+          },
+          "decimals_needed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decimals Needed"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "msg": {
+            "title": "Msg",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number"
+          },
+          "type": {
+            "enum": [
+              "conversion_needs_decimals",
+              "conversion_too_large",
+              "conversion_rounds_to_zero",
+              "unit_not_for_ingredient"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "msg"
+        ],
+        "title": "UnitChangeRefusal",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -2208,6 +2408,62 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "The conversion would lose precision or a number's range"
+          }
+        },
+        "summary": "Update Attribute",
+        "tags": [
+          "attributes"
+        ]
+      }
+    },
+    "/api/attributes/{attribute_id}/unit-change": {
+      "post": {
+        "description": "What changing the unit does to the numbers stored in it. Writes nothing.",
+        "operationId": "preview_unit_change_api_attributes__attribute_id__unit_change_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attribute_id",
+            "required": true,
+            "schema": {
+              "title": "Attribute Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttributeUnitChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnitChange"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such attribute"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
@@ -2215,7 +2471,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Update Attribute",
+        "summary": "Preview Unit Change",
         "tags": [
           "attributes"
         ]
@@ -2455,10 +2711,73 @@
             "description": "The name is already in use"
           },
           "422": {
-            "description": "An energy unit, or an unknown attribute or tag"
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "An energy unit, an unknown attribute or tag, or a conversion that would lose precision or a number's range"
           }
         },
         "summary": "Update Ingredient",
+        "tags": [
+          "ingredients"
+        ]
+      }
+    },
+    "/api/ingredients/{ingredient_id}/unit-change": {
+      "post": {
+        "description": "What changing the unit does to the basis and the recipe amounts. Writes nothing.",
+        "operationId": "preview_unit_change_api_ingredients__ingredient_id__unit_change_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ingredient_id",
+            "required": true,
+            "schema": {
+              "title": "Ingredient Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngredientUnitChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnitChange"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such ingredient"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Unit Change",
         "tags": [
           "ingredients"
         ]
