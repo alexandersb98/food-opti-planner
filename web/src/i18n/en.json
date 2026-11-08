@@ -9,7 +9,18 @@
     "recipes": "Recipes",
     "ingredients": "Ingredients",
     "attributes": "Attributes",
-    "tags": "Tags"
+    "tags": "Tags",
+    "settings": "Settings"
+  },
+  "settings": {
+    "loadFailed": "Could not load the settings.",
+    "preferredUnits": {
+      "title": "Preferred units",
+      "intro": "Used for new ingredients and attributes, and for values copied from data sources. Changing it converts nothing already saved.",
+      "mass": "Mass",
+      "volume": "Volume",
+      "energy": "Energy"
+    }
   },
   "login": {
     "title": "Log in",
