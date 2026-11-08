@@ -361,7 +361,7 @@
     "convertTitle": "Convert {name}'s numbers?",
     "changeTitle": "Change unit?",
     "convertBody": "{name}: {counts} will be converted from {from} to {to} (× {factor}).",
-    "noConvertBody": "{name}: {counts} keep their numbers.",
+    "noConvertBody": "Values are not converted. {name}: {counts} keep their numbers.",
     "nothingToConvert": "Nothing stored in {from} needs converting.",
     "nothingToKeep": "Nothing is stored in {from}; only the unit changes.",
     "rounded": "no values will be rounded | 1 value will be rounded. | {n} values will be rounded.",

@@ -2,6 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { Quasar } from 'quasar'
 import { afterEach, expect, test, vi } from 'vitest'
 import { useUnitChange } from '../composables/useUnitChange'
+import en from '../i18n/en.json'
 import { makeI18n } from '../i18n'
 import { dialog } from '../test-app'
 import { unitChange } from '../test-data'
@@ -52,7 +53,7 @@ test('digits lost are said when there are any', async () => {
 test('numbers that keep their value say so, and the button changes the unit', async () => {
   await ask(unitChange({ kind: 'no_convert', factor: null }), 'Iron', 'mg', 'dl')
   expect(dialog().text).toContain('Change unit?')
-  expect(dialog().text).toContain('Iron: 12 ingredient values and 2 goals keep their numbers.')
+  expect(dialog().text).toContain('Values are not converted. Iron: 12 ingredient values and 2 goals keep their numbers.')
   await expect(dialog().click('Change unit')).resolves.toBeUndefined()
 })
 
@@ -64,11 +65,17 @@ test('with nothing stored in the unit the dialog still asks', async () => {
   expect(dialog().text).toContain('Nothing is stored in mg; only the unit changes.')
 })
 
-test('a count without text of its own is skipped, never shown raw', async () => {
+test('a count without text of its own still shows, by its key', async () => {
   await ask(unitChange({ counts: { ingredient_values: 3, source_values: 5 } }))
-  expect(dialog().text).toContain('Iron: 3 ingredient values will be converted')
-  expect(dialog().text).not.toContain('source_values')
+  expect(dialog().text).toContain('Iron: 3 ingredient values and 5 source_values will be converted')
   expect(dialog().text).not.toContain('unitChange')
+})
+
+test('every count key the server sends has text of its own', () => {
+  // The keys of the converters in server/unit_change.py; a slice that adds one adds it here too.
+  for (const key of ['ingredient_values', 'goals', 'basis', 'recipe_amounts']) {
+    expect(Object.keys(en.unitChange.counts)).toContain(key)
+  }
 })
 
 test('Convert answers true and Cancel answers false', async () => {

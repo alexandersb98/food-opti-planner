@@ -15,13 +15,14 @@ onUnmounted(() => answer(false))
 const request = computed(() => state.value?.request ?? null)
 const converts = computed(() => request.value?.change.kind === 'convert')
 
-// "12 ingredient values and 2 goals": a count with no text of its own (a
-// later slice's) or of 0 is left out.
+// "12 ingredient values and 2 goals": a count of 0 is left out. A count with
+// no text of its own (a later slice's forgotten one) shows as "5 key", never
+// hidden, as the numbers are converted all the same.
 const counts = computed(() => {
   const given = request.value?.change.counts ?? {}
   const parts = Object.entries(given)
-    .filter(([key, n]) => n > 0 && te(`unitChange.counts.${key}`))
-    .map(([key, n]) => t(`unitChange.counts.${key}`, { n }, n))
+    .filter(([, n]) => n > 0)
+    .map(([key, n]) => (te(`unitChange.counts.${key}`) ? t(`unitChange.counts.${key}`, { n }, n) : `${n} ${key}`))
   return parts.length < 2 ? parts.join('') : `${parts.slice(0, -1).join(', ')}${t('unitChange.and')}${parts.at(-1)}`
 })
 

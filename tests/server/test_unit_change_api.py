@@ -79,7 +79,7 @@ def test_the_preview_says_what_put_does(client, catalog):
     assert client.get("/api/attributes").json()[0]["unit"] == "mg"
 
 
-@pytest.mark.parametrize(("to", "decimals"), [("g", 4), ("g", 7 - 1), ("kg", 6), ("oz", 6), ("dl", 4), ("mg", 4), ("µg", 4)])
+@pytest.mark.parametrize(("to", "decimals"), [("g", 4), ("g", 6), ("kg", 6), ("oz", 6), ("dl", 4), ("mg", 4), ("µg", 4)])
 def test_preview_and_put_agree(client, catalog, to, decimals):
     iron, zinc, *_ = iron_world(client, catalog)
     before = iron_numbers(client, iron, zinc)
@@ -272,3 +272,8 @@ def test_the_previews_404_and_write_nothing(client, catalog):
 def test_the_preview_of_a_first_plan_does_not_create_it(client, catalog):
     iron = catalog.attribute("Iron", "mg", 4)
     assert preview_attribute(client, iron, "g")["counts"] == {"ingredient_values": 0, "goals": 0}
+
+
+def test_the_previews_need_a_session(anonymous_client):
+    for path in ("/api/attributes/1/unit-change", "/api/ingredients/1/unit-change"):
+        assert anonymous_client.post(path, json={"unit": "g"}).status_code == 401
