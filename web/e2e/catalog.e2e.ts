@@ -2,7 +2,8 @@ import { expect, test, type Page } from '@playwright/test'
 
 // One flow through the app, growing with each slice that changes it:
 // log in, set a preferred unit, build a small catalog and a recipe from it (the unit fields are
-// combo boxes over the unit catalogue), then make a plan, then one that clashes and is fixed.
+// combo boxes over the unit catalogue), change the unit of an ingredient in use (its basis and
+// recipe amount convert after a dialog), then make a plan, then one that clashes and is fixed.
 
 const password = process.env.E2E_PASSWORD
 if (!password) throw new Error('Set E2E_PASSWORD to the login password')
@@ -106,6 +107,27 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await page.getByRole('button', { name: 'Show' }).click()
   await page.getByRole('link', { name: 'Porridge' }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Edit recipe')
+  await page.getByRole('link', { name: 'Back' }).click()
+
+  // Changing the unit converts what is stored in it, after a dialog: Cancel
+  // changes nothing, Convert changes the unit, the basis and the recipe's
+  // amount together, so the recipe's total stays the same.
+  await openPage(page, 'Ingredients')
+  await page.locator('.ingredient-row').click()
+  await page.getByLabel('Measured in').click()
+  await page.getByRole('option', { name: 'kg (kilogram)' }).click()
+  await page.getByRole('button', { name: 'Save' }).click()
+  const unitDialog = page.getByRole('dialog')
+  await expect(unitDialog).toContainText('Oats: the basis and 1 recipe amount will be converted from g to kg (× 0.001).')
+  await unitDialog.getByRole('button', { name: 'Cancel' }).click()
+  await expect(page.getByLabel('Measured in')).toHaveValue('kg')
+  await page.getByRole('button', { name: 'Save' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Convert' }).click()
+  await expect(page.locator('.ingredient-row')).toHaveText([/Oats\s*per 0\.1 kg · Energy 389 kcal/])
+  await openPage(page, 'Recipes')
+  await page.locator('.recipe-row').click()
+  await expect(page.getByLabel('Amount of Oats')).toHaveValue('0.06')
+  await expect(page.locator('.portion-total')).toHaveText(['Energy 233 kcal'])
   await page.getByRole('link', { name: 'Back' }).click()
 
   // The tag is no longer "added by hand", and deleting the attribute warns
