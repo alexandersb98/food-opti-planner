@@ -2,6 +2,7 @@
 Postgres database, which CI sets for its second run."""
 
 import os
+from contextlib import contextmanager
 from dataclasses import replace
 
 import pytest
@@ -50,20 +51,31 @@ def web_dist(tmp_path):
     return dist
 
 
-@pytest.fixture
-def anonymous_client(database_url, web_dist):
-    """A client without a session. HTTPS, because the session cookie is Secure."""
-    app = create_app(settings_with(database_url=database_url, web_dist=web_dist))
+@contextmanager
+def logged_in_client(database_url, web_dist, *, log_in=True, **settings):
+    """A client of a fresh app on `database_url`, logged in unless `log_in` is
+    false. `settings` override the test settings. HTTPS, because the session
+    cookie is Secure."""
+    app = create_app(settings_with(database_url=database_url, web_dist=web_dist, **settings))
     with TestClient(app, base_url="https://testserver") as client:
+        if log_in:
+            response = client.post("/api/login", json={"password": PASSWORD})
+            assert response.status_code == 204
         yield client
 
 
 @pytest.fixture
-def client(anonymous_client):
+def anonymous_client(database_url, web_dist):
+    """A client without a session."""
+    with logged_in_client(database_url, web_dist, log_in=False) as client:
+        yield client
+
+
+@pytest.fixture
+def client(database_url, web_dist):
     """A logged-in client; most API tests use this one."""
-    response = anonymous_client.post("/api/login", json={"password": PASSWORD})
-    assert response.status_code == 204
-    return anonymous_client
+    with logged_in_client(database_url, web_dist) as client:
+        yield client
 
 
 # A recipe's fields besides its name, items and added tags: the portion
@@ -75,6 +87,19 @@ RECIPE = {
     "hard_max_multiplier": None,
     "serving_cap_weight": "1",
 }
+
+
+def recipe_body(name="Porridge", items=None, extra_tag_ids=(), **changes) -> dict:
+    """A recipe's request body. `items` maps ingredient ids to amounts, or is
+    a list of (ingredient id, amount) pairs when an ingredient repeats."""
+    pairs = items.items() if isinstance(items, dict) else (items or ())
+    return {
+        **RECIPE,
+        "name": name,
+        "items": [{"ingredient_id": i, "amount": a} for i, a in pairs],
+        "extra_tag_ids": list(extra_tag_ids),
+        **changes,
+    }
 
 
 class Catalog:
@@ -103,8 +128,7 @@ class Catalog:
 
     def recipe(self, name="Porridge", items=None, extra_tag_ids=()) -> int:
         """`items` maps ingredient ids to amounts per portion: {oats: "60"}."""
-        items = [{"ingredient_id": i, "amount": a} for i, a in (items or {self.ingredient(): "60"}).items()]
-        return self._create("/api/recipes", {**RECIPE, "name": name, "items": items, "extra_tag_ids": list(extra_tag_ids)})
+        return self._create("/api/recipes", recipe_body(name, items or {self.ingredient(): "60"}, extra_tag_ids))
 
 
 @pytest.fixture
@@ -121,11 +145,8 @@ def schedule(client, **changes) -> dict:
 
 def fixed_portion_recipe(catalog: Catalog, name: str, items: dict, portion: str, extra_tag_ids=()) -> int:
     """A recipe always eaten at `portion`, so a solve's choice is known."""
-    items = [{"ingredient_id": i, "amount": a} for i, a in items.items()]
-    fields = {**RECIPE, "min_multiplier": portion, "max_multiplier": portion}
-    return catalog._create(
-        "/api/recipes", {**fields, "name": name, "items": items, "extra_tag_ids": list(extra_tag_ids)}
-    )
+    body = recipe_body(name, items, extra_tag_ids, min_multiplier=portion, max_multiplier=portion)
+    return catalog._create("/api/recipes", body)
 
 
 @pytest.fixture

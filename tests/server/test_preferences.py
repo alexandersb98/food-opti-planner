@@ -1,9 +1,6 @@
 import pytest
-from fastapi.testclient import TestClient
 
-from server.app import create_app
-
-from .conftest import PASSWORD, settings_with
+from .conftest import logged_in_client
 
 DEFAULTS = {"unit.mass": "g", "unit.volume": "dl", "unit.energy": "kcal"}
 
@@ -83,7 +80,5 @@ def test_a_number_is_refused(client):
 
 def test_preferences_survive_a_restart(client, database_url, web_dist):
     put(client, {"unit.energy": "kJ"})
-    app = create_app(settings_with(database_url=database_url, web_dist=web_dist))
-    with TestClient(app, base_url="https://testserver") as again:
-        assert again.post("/api/login", json={"password": PASSWORD}).status_code == 204
+    with logged_in_client(database_url, web_dist) as again:
         assert again.get("/api/preferences").json()["unit.energy"] == "kJ"
