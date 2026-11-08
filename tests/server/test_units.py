@@ -1,9 +1,10 @@
 from decimal import Context, Decimal
+from fractions import Fraction
 
 import pytest
 
 from server import units
-from server.units import Unit, factor, normalise, parse
+from server.units import Unit, factor, normalise, parse, ratio
 
 D = Decimal
 
@@ -173,3 +174,36 @@ def test_milli_is_lower_case_m_only(text, symbol):
 def test_capital_m_is_mega_which_is_not_known(text):
     assert parse(text) is None
     assert factor(text, "J") is None
+
+
+@pytest.mark.parametrize(
+    ("a", "b", "expected"),
+    [
+        ("g", "kg", Fraction(1, 1000)), ("lb", "oz", Fraction(16)), ("fl oz", "US cup", Fraction(1, 8)),
+        ("oz", "g", Fraction("28.349523125")), ("tsk", "msk", Fraction(1, 3)),
+        ("g", "gram", 1), ("pinch", "Pinch", 1), ("st", "pcs", 1),
+    ],
+)
+def test_ratio_is_exact(a, b, expected):
+    assert ratio(a, b) == expected
+
+
+def test_ratio_that_has_no_decimal_is_still_exact():
+    assert ratio("msk", "US cup") == Fraction("0.015") / Fraction("0.2365882365")
+    assert ratio("msk", "US cup") * ratio("US cup", "msk") == 1
+
+
+@pytest.mark.parametrize(("a", "b"), [("g", "ml"), ("g", "kcal"), ("pinch", "g"), ("g", "pinch"), ("st", "g"), ("pinch", "dash"), ("", "")])
+def test_no_ratio(a, b):
+    assert ratio(a, b) is None
+
+
+@pytest.mark.parametrize(
+    ("a", "b"),
+    [("g", "kg"), ("kg", "g"), ("ml", "dl"), ("oz", "lb"), ("tsk", "msk"), ("g", "g"), ("pinch", "pinch"), ("g", "ml"), ("kcal", "kJ")],
+)
+def test_ratio_agrees_with_factor(a, b):
+    f, r = factor(a, b), ratio(a, b)
+    assert (f is None) == (r is None)
+    if f is not None:
+        assert abs(Fraction(f) - r) < Fraction(1, 10**30)

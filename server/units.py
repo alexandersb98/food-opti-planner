@@ -5,6 +5,7 @@ import re
 import unicodedata
 from dataclasses import dataclass
 from decimal import Context, Decimal
+from fractions import Fraction
 from typing import Literal
 
 Category = Literal["mass", "volume", "energy"]
@@ -181,3 +182,19 @@ def factor(a: str, b: str) -> Decimal | None:
     if unit_a.category is None or unit_a.category != unit_b.category:
         return None
     return _CONTEXT.divide(unit_a.factor, unit_b.factor)
+
+
+def ratio(a: str, b: str) -> Fraction | None:
+    """Exactly what `factor` gives, as a Fraction: the unit factors are exact
+    decimals, so the ratio of two is exact even where no decimal fits."""
+    unit_a, unit_b = parse(a), parse(b)
+    if unit_a is None and unit_b is None:
+        key = _clean(a).lower()
+        return Fraction(1) if key and key == _clean(b).lower() else None
+    if unit_a is None or unit_b is None:
+        return None
+    if unit_a is unit_b:
+        return Fraction(1)
+    if unit_a.category is None or unit_a.category != unit_b.category:
+        return None
+    return Fraction(unit_a.factor) / Fraction(unit_b.factor)
