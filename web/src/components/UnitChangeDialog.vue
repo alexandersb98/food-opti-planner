@@ -2,12 +2,15 @@
 // The question before a unit change converts what is stored in the unit
 // (C4, C5): what will be converted, or that the numbers stay. Mount it once
 // per page; `useUnitChange().ask` opens it.
-import { computed } from 'vue'
+import { computed, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useUnitChange } from '../composables/useUnitChange'
 
 const { t, te } = useI18n()
 const { state, answer } = useUnitChange()
+
+// A page left with the question open does not go on with the change.
+onUnmounted(() => answer(false))
 
 const request = computed(() => state.value?.request ?? null)
 const converts = computed(() => request.value?.change.kind === 'convert')

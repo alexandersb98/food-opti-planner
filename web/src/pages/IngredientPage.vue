@@ -3,19 +3,22 @@ import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '../api/client'
-import { fieldErrors } from '../api/errors'
+import { conversionRefusal, fieldErrors } from '../api/errors'
 import type { Attribute, Ingredient, IngredientFields as Fields, Recipe, Tag } from '../api/types'
 import ConfirmDelete from '../components/ConfirmDelete.vue'
 import EditorHeader from '../components/EditorHeader.vue'
 import LoadState from '../components/LoadState.vue'
+import UnitChangeDialog from '../components/UnitChangeDialog.vue'
 import UnitField from '../components/UnitField.vue'
 import { loadAll, useLoad } from '../composables/useLoad'
+import { refusalText, useUnitChange } from '../composables/useUnitChange'
 import { searchByName } from '../lists'
 import { typedNumber } from '../numbers'
 import { usePreferences } from '../preferences'
 import { useUnits } from '../units'
 
 const { t } = useI18n()
+const unitChange = useUnitChange()
 const route = useRoute()
 const router = useRouter()
 
@@ -144,6 +147,8 @@ async function save() {
   errors.save = ''
   const fields = checked()
   if (!fields) return
+  const stored = data.value.ingredient
+  if (id !== null && stored && fields.unit !== stored.unit && !(await confirmUnitChange(id, stored, fields))) return
   saving.value = true
   try {
     const { data: saved, error } =
@@ -157,7 +162,7 @@ async function save() {
       await router.push('/ingredients')
       return
     }
-    showServerErrors(fieldErrors(error), fields)
+    showServerErrors(fieldErrors(error), fields, conversionRefusal(error))
   } catch {
     errors.save = t('common.saveFailed')
   } finally {
@@ -165,8 +170,40 @@ async function save() {
   }
 }
 
-/** A name in use, an energy unit, or a number with too many digits; anything else just failed. */
-function showServerErrors(byField: Partial<Record<string, string>>, fields: Fields) {
+/** Ask the server what the unit change does to the basis and the recipe
+ * amounts and, if it converts or keeps them, ask the user. False stops the
+ * save: a refusal shows under the unit field, a failed preview as a failed
+ * save. The basis sent is the one typed, in the old unit, as the save
+ * converts it. */
+async function confirmUnitChange(ingredientId: number, stored: Ingredient, fields: Fields): Promise<boolean> {
+  saving.value = true
+  let change
+  try {
+    const { data: previewed } = await api.POST('/api/ingredients/{ingredient_id}/unit-change', {
+      params: { path: { ingredient_id: ingredientId } },
+      body: { unit: fields.unit, basis: fields.basis },
+    })
+    change = previewed
+  } catch {
+    change = undefined
+  } finally {
+    saving.value = false
+  }
+  if (!change) {
+    errors.save = t('common.saveFailed')
+    return false
+  }
+  const names = { from: stored.unit, to: fields.unit }
+  if (change.refusal) {
+    errors.unit = refusalText(t, change.refusal, names)
+    return false
+  }
+  if (change.kind === 'same') return true
+  return unitChange.ask({ name: fields.name, ...names, change })
+}
+
+/** A name in use, an energy unit, a unit change that loses precision, or a number with too many digits; anything else just failed. */
+function showServerErrors(byField: Partial<Record<string, string>>, fields: Fields, refusal: string | null) {
   let shown = false
   if (byField.name === 'name_in_use') {
     errors.name = t('ingredients.nameInUse')
@@ -174,6 +211,10 @@ function showServerErrors(byField: Partial<Record<string, string>>, fields: Fiel
   }
   if (byField.unit === 'unit_not_for_ingredient') {
     errors.unit = t('ingredients.unitNotForIngredient')
+    shown = true
+  }
+  if (refusal) {
+    errors.unit = refusal
     shown = true
   }
   if (byField.basis) {
@@ -401,6 +442,7 @@ async function confirmDelete() {
       </q-form>
     </LoadState>
 
+    <UnitChangeDialog />
     <ConfirmDelete
       v-model="deleteOpen"
       :name="data.ingredient?.name ?? ''"

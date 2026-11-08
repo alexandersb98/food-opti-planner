@@ -13,7 +13,7 @@ import {
   unitRoutes,
   type FakeServer,
 } from '../test-app'
-import { attribute, ingredient, recipe, tag } from '../test-data'
+import { attribute, ingredient, recipe, tag, unitChange, unitChangeRefusal } from '../test-data'
 import { resetUnits } from '../units'
 
 const energy = attribute({ id: 1, name: 'Energy', unit: 'kcal', ingredient_count: 1 })
@@ -170,15 +170,22 @@ test('without the preferences a new ingredient starts in grams and the page stil
   wrapper.unmount()
 })
 
-test('a unit chosen from the list is sent as its symbol, typed text as typed', async () => {
+test('a unit chosen from the list is sent as its symbol, typed text as typed (unit changes confirmed)', async () => {
   const { sent, handler } = recorder(200, (body) => ({ ...oats, ...body }))
-  const { wrapper } = await mountPage('/ingredients/7', { 'PUT /api/ingredients/7': handler })
+  const { wrapper } = await mountPage('/ingredients/7', {
+    'POST /api/ingredients/7/unit-change': { body: unitChange({ factor: '0.001', counts: { basis: 1, recipe_amounts: 0 } }) },
+    'PUT /api/ingredients/7': handler,
+  })
   await chooseUnit(wrapper, 'Measured in', 'kg (kilogram)')
   await click(button(wrapper, 'Save'))
+  await dialog().click('Convert')
   expect((sent[0] as { unit: string }).unit).toBe('kg')
   wrapper.unmount()
 
-  const second = await mountPage('/ingredients/7', { 'PUT /api/ingredients/7': handler })
+  const second = await mountPage('/ingredients/7', {
+    'POST /api/ingredients/7/unit-change': { body: unitChange({ kind: 'same', factor: null }) },
+    'PUT /api/ingredients/7': handler,
+  })
   await field(second.wrapper, 'Measured in').setValue('gram')
   await click(button(second.wrapper, 'Save'))
   expect((sent[1] as { unit: string }).unit).toBe('gram')
@@ -346,5 +353,179 @@ test('the back button returns to the list without saving', async () => {
   await click(wrapper.get('[aria-label="Back"]'))
   expect(router.currentRoute.value.fullPath).toBe('/ingredients')
   expect(calls).not.toContain('PUT /api/ingredients/7')
+  wrapper.unmount()
+})
+
+// Changing the unit of a saved ingredient: the preview, then the dialog.
+
+const basisChange = unitChange({ factor: '0.001', counts: { basis: 1, recipe_amounts: 4 } })
+
+async function openOats(server: FakeServer = {}) {
+  const previews: unknown[] = []
+  const { sent, handler } = recorder(200, (body) => ({ ...oats, ...body }))
+  const page = await mountPage('/ingredients/7', {
+    'POST /api/ingredients/7/unit-change': (body) => {
+      previews.push(body)
+      return { body: basisChange }
+    },
+    'PUT /api/ingredients/7': handler,
+    ...server,
+  })
+  return { ...page, sent, previews }
+}
+
+test('a unit change asks first, and Convert saves the basis as typed', async () => {
+  const { wrapper, router, sent, previews } = await openOats()
+  await chooseUnit(wrapper, 'Measured in', 'kg (kilogram)')
+  await click(button(wrapper, 'Save'))
+  expect(previews).toEqual([{ unit: 'kg', basis: '100' }])
+  expect(sent).toEqual([])
+  expect(dialog().text).toContain("Convert Oats's numbers?")
+  expect(dialog().text).toContain('Oats: the basis and 4 recipe amounts will be converted from g to kg (× 0.001).')
+  await dialog().click('Convert')
+  expect(sent).toEqual([expect.objectContaining({ unit: 'kg', basis: '100' })])
+  expect(router.currentRoute.value.fullPath).toBe('/ingredients')
+  wrapper.unmount()
+})
+
+test('Cancel sends nothing and keeps the form with the typed unit', async () => {
+  const { wrapper, router, sent } = await openOats()
+  await chooseUnit(wrapper, 'Measured in', 'kg (kilogram)')
+  await click(button(wrapper, 'Save'))
+  await dialog().click('Cancel')
+  expect(sent).toEqual([])
+  expect(value(wrapper, 'Measured in')).toBe('kg')
+  expect(router.currentRoute.value.fullPath).toBe('/ingredients/7')
+  wrapper.unmount()
+})
+
+test('a basis edited by hand is sent as typed in the preview and the save', async () => {
+  const { wrapper, sent, previews } = await openOats()
+  await field(wrapper, 'Value basis').setValue('50')
+  await chooseUnit(wrapper, 'Measured in', 'kg (kilogram)')
+  await click(button(wrapper, 'Save'))
+  await dialog().click('Convert')
+  expect(previews).toEqual([{ unit: 'kg', basis: '50' }])
+  expect(sent).toEqual([expect.objectContaining({ unit: 'kg', basis: '50' })])
+  wrapper.unmount()
+})
+
+test('pieces keep the numbers after a dialog that says so, with the basis of 1', async () => {
+  const { wrapper, sent, previews } = await openOats({
+    'POST /api/ingredients/7/unit-change': (body) => {
+      previews.push(body)
+      return { body: unitChange({ kind: 'no_convert', factor: null, counts: { basis: 1, recipe_amounts: 4 } }) }
+    },
+  })
+  await chooseUnit(wrapper, 'Measured in', 'st (piece)')
+  expect(value(wrapper, 'Value basis')).toBe('1')
+  await click(button(wrapper, 'Save'))
+  expect(dialog().text).toContain('Oats: the basis and 4 recipe amounts keep their numbers.')
+  await dialog().click('Change unit')
+  expect(sent).toEqual([expect.objectContaining({ unit: 'st', basis: '1' })])
+  expect(previews).toEqual([{ unit: 'st', basis: '1' }])
+  wrapper.unmount()
+})
+
+test('another spelling of the same unit saves with no dialog', async () => {
+  const { wrapper, sent } = await openOats({
+    'POST /api/ingredients/7/unit-change': { body: unitChange({ kind: 'same', factor: null }) },
+  })
+  await field(wrapper, 'Measured in').setValue('gram')
+  await click(button(wrapper, 'Save'))
+  expect(sent).toEqual([expect.objectContaining({ unit: 'gram', basis: '100' })])
+  expect(document.querySelector('.q-dialog')).toBeNull()
+  wrapper.unmount()
+})
+
+test('a refusal shows under the unit field with no dialog and no save', async () => {
+  const refusal = unitChangeRefusal({
+    type: 'conversion_rounds_to_zero', kind: 'recipe_amount', name: 'Porridge', field: 'amount',
+    number: '0.0004', converted: '0',
+  })
+  const { wrapper, sent, router } = await openOats({
+    'POST /api/ingredients/7/unit-change': { body: unitChange({ refusal }) },
+  })
+  await chooseUnit(wrapper, 'Measured in', 'kg (kilogram)')
+  await click(button(wrapper, 'Save'))
+  expect(wrapper.text()).toContain('The amount in Porridge (0.0004 g) would round to 0 in kg. Use a smaller unit.')
+  expect(document.querySelector('.q-dialog')).toBeNull()
+  expect(sent).toEqual([])
+  expect(router.currentRoute.value.fullPath).toBe('/ingredients/7')
+  wrapper.unmount()
+})
+
+test('an energy unit is refused by the preview with the form text, before any save', async () => {
+  const { wrapper, sent } = await openOats({
+    'POST /api/ingredients/7/unit-change': {
+      body: unitChange({ kind: 'no_convert', factor: null, refusal: unitChangeRefusal({ type: 'unit_not_for_ingredient' }) }),
+    },
+  })
+  await field(wrapper, 'Measured in').setValue('kcal')
+  await click(button(wrapper, 'Save'))
+  expect(wrapper.text()).toContain('An ingredient is measured in an amount of food, such as g, dl or pieces.')
+  expect(sent).toEqual([])
+  wrapper.unmount()
+})
+
+test('a save refused after the preview shows the same text for an energy unit, or the server sentence', async () => {
+  const { wrapper } = await openOats({
+    'POST /api/ingredients/7/unit-change': { body: unitChange({ kind: 'no_convert', factor: null }) },
+    'PUT /api/ingredients/7': {
+      status: 422,
+      body: { detail: [{ loc: ['body', 'unit'], type: 'unit_not_for_ingredient', msg: 'x' }] },
+    },
+  })
+  await field(wrapper, 'Measured in').setValue('kcal')
+  await click(button(wrapper, 'Save'))
+  await dialog().click('Change unit')
+  expect(wrapper.text()).toContain('An ingredient is measured in an amount of food, such as g, dl or pieces.')
+  wrapper.unmount()
+
+  const second = await openOats({
+    'PUT /api/ingredients/7': {
+      status: 422,
+      body: { detail: [{ loc: ['body', 'unit'], type: 'conversion_too_large', msg: 'Oats, basis: too large' }] },
+    },
+  })
+  await chooseUnit(second.wrapper, 'Measured in', 'kg (kilogram)')
+  await click(button(second.wrapper, 'Save'))
+  await dialog().click('Convert')
+  expect(second.wrapper.text()).toContain('Oats, basis: too large')
+  second.wrapper.unmount()
+})
+
+test('digits that will be rounded are said in the dialog', async () => {
+  const { wrapper } = await openOats({
+    'POST /api/ingredients/7/unit-change': { body: unitChange({ ...basisChange, rounded: 2 }) },
+  })
+  await chooseUnit(wrapper, 'Measured in', 'kg (kilogram)')
+  await click(button(wrapper, 'Save'))
+  expect(dialog().text).toContain('2 values will be rounded.')
+  wrapper.unmount()
+})
+
+test('a preview that fails saves nothing and says so', async () => {
+  const { wrapper, sent } = await openOats({ 'POST /api/ingredients/7/unit-change': 500 })
+  await chooseUnit(wrapper, 'Measured in', 'kg (kilogram)')
+  await click(button(wrapper, 'Save'))
+  expect(wrapper.text()).toContain('Could not save')
+  expect(sent).toEqual([])
+  wrapper.unmount()
+})
+
+test('a new ingredient and an unchanged unit never ask', async () => {
+  const created = recorder(201, (body) => ({ ...body, id: 8, recipe_count: 0 }))
+  const fresh = await mountPage('/ingredients/new', { 'POST /api/ingredients': created.handler })
+  await field(fresh.wrapper, 'Name').setValue('Egg')
+  await field(fresh.wrapper, 'Measured in').setValue('st')
+  await click(button(fresh.wrapper, 'Save'))
+  expect(fresh.calls.filter((call) => call.includes('unit-change'))).toEqual([])
+  fresh.wrapper.unmount()
+
+  const { wrapper, calls } = await openOats()
+  await field(wrapper, 'Name').setValue('Rolled oats')
+  await click(button(wrapper, 'Save'))
+  expect(calls.filter((call) => call.includes('unit-change'))).toEqual([])
   wrapper.unmount()
 })
