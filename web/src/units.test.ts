@@ -1,0 +1,91 @@
+import { afterEach, expect, test, vi } from 'vitest'
+import { fakeServer } from './test-app'
+import { unitCatalogue } from './test-data'
+import { resetUnits, useUnits } from './units'
+
+afterEach(() => {
+  resetUnits()
+  vi.unstubAllGlobals()
+})
+
+async function loaded() {
+  const calls = fakeServer({ 'GET /api/units': { body: unitCatalogue() } })
+  const units = useUnits()
+  await units.load()
+  return { units, calls }
+}
+
+const symbols = (list: { symbol: string }[]) => list.map((u) => u.symbol)
+
+test('load fetches once for two calls', async () => {
+  const { units, calls } = await loaded()
+  await units.load()
+  expect(calls).toEqual(['GET /api/units'])
+  expect(units.units.value).toHaveLength(33)
+})
+
+test('a failed load sets failed and the next load tries again', async () => {
+  let reply: number | { body: unknown } = 500
+  const calls = fakeServer({ 'GET /api/units': () => (typeof reply === 'number' ? { status: reply } : reply) })
+  const units = useUnits()
+  await units.load()
+  expect(units.failed.value).toBe(true)
+  expect(units.units.value).toEqual([])
+  reply = { body: unitCatalogue() }
+  await units.load()
+  expect(units.failed.value).toBe(false)
+  expect(units.loading.value).toBe(false)
+  expect(units.units.value).toHaveLength(33)
+  expect(calls).toHaveLength(2)
+})
+
+test('a thrown fetch is a failed load', async () => {
+  vi.stubGlobal('fetch', () => Promise.reject(new Error('offline')))
+  const units = useUnits()
+  await units.load()
+  expect(units.failed.value).toBe(true)
+})
+
+test('offered lists each category in the server order', async () => {
+  const { units } = await loaded()
+  expect(symbols(units.offered('mass'))).toEqual(['µg', 'mg', 'g', 'kg', 'oz', 'lb'])
+  expect(symbols(units.offered('volume'))).toEqual(['ml', 'cl', 'dl', 'l', 'krm', 'tsk', 'msk', 'fl oz', 'US cup', 'metric cup'])
+  expect(symbols(units.offered('energy'))).toEqual(['kJ', 'kcal'])
+})
+
+test('findUnit finds every spelling in the fixture as its own unit', async () => {
+  const { units } = await loaded()
+  for (const unit of units.units.value) {
+    for (const spelling of [unit.symbol, ...unit.aliases, ...unit.case_sensitive_aliases]) {
+      expect(units.findUnit(spelling)?.symbol, spelling).toBe(unit.symbol)
+    }
+  }
+})
+
+test.each([
+  ['gram', 'g'],
+  ['MSK.', 'msk'],
+  ['US  cup', 'US cup'],
+  ['matsked', 'msk'],
+  ['μg', 'µg'],
+  ['ug', 'µg'],
+  ['Cal', 'kcal'],
+  ['cal', 'cal'],
+  ['CAL', 'cal'],
+  ['pcs', 'st'],
+  ['  KG ', 'kg'],
+])('findUnit reads %j as %j', async (text, symbol) => {
+  const { units } = await loaded()
+  expect(units.findUnit(text)?.symbol).toBe(symbol)
+})
+
+test.each(['cup', '', '  ', '.', 'kgs'])('findUnit does not know %j', async (text) => {
+  const { units } = await loaded()
+  expect(units.findUnit(text)).toBeUndefined()
+})
+
+test('label shows the symbol and the name', async () => {
+  const { units } = await loaded()
+  expect(units.label(units.findUnit('kg')!)).toBe('kg (kilogram)')
+  expect(units.label(units.findUnit('msk')!)).toBe('msk (tablespoon)')
+})

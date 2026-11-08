@@ -1,4 +1,5 @@
-import type { Attribute, Goal, Ingredient, Plan, PlanResult, PlanResultSummary, Recipe, ResultGoal, ResultMeal, ResultMiss, Tag } from './api/types'
+import type { Attribute, Goal, Ingredient, Plan, PlanResult, PlanResultSummary, Preferences, Recipe, ResultGoal, ResultMeal, ResultMiss, Tag, UnitCatalogue } from './api/types'
+import unitFixture from './test-units.json'
 
 // Rows as the server answers them, for tests: give what the test is about,
 // the rest gets a plain default. Typed, so a change to the API shows up
@@ -118,4 +119,15 @@ export function planResult(fields: Given<PlanResult, 'id'>): PlanResult {
     misses: [],
     ...fields,
   }
+}
+
+/** The unit catalogue as the server sends it: the committed fixture, which a
+ * server test keeps equal to the real answer. */
+export function unitCatalogue(): UnitCatalogue {
+  return structuredClone(unitFixture) as UnitCatalogue
+}
+
+/** The preferences as a fresh database answers them. */
+export function preferences(fields: Partial<Preferences> = {}): Preferences {
+  return { 'unit.mass': 'g', 'unit.volume': 'dl', 'unit.energy': 'kcal', ...fields }
 }
