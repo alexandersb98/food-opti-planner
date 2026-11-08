@@ -4,6 +4,7 @@ Postgres database, which CI sets for its second run."""
 import os
 from contextlib import contextmanager
 from dataclasses import replace
+from pathlib import Path
 
 import pytest
 from argon2 import PasswordHasher
@@ -19,7 +20,13 @@ PASSWORD_HASH = PasswordHasher().hash(PASSWORD)
 
 def settings_with(**changes) -> Settings:
     """Settings with the test password and a session key."""
-    settings = Settings(password_hash=PASSWORD_HASH, session_key="test session key")
+    # The data directory does not exist, so that a real data file, once
+    # committed, is never loaded by an ordinary test.
+    settings = Settings(
+        password_hash=PASSWORD_HASH,
+        session_key="test session key",
+        data_sources_dir=Path(__file__).parent / "no_data_sources",
+    )
     return replace(settings, **changes)
 
 

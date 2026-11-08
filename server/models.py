@@ -3,7 +3,18 @@
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Column, ForeignKey, Index, Numeric, String, Table, text
+from sqlalchemy import (
+    Column,
+    ForeignKey,
+    Index,
+    Numeric,
+    String,
+    Table,
+    Text,
+    UniqueConstraint,
+    false,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
@@ -17,6 +28,13 @@ UNIT_LENGTH = 20
 # source key such as the last one used).
 PREFERENCE_KEY_LENGTH = 50
 PREFERENCE_VALUE_LENGTH = 100
+SOURCE_KEY_LENGTH = 50  # a data source's key ("livsmedelsverket")
+SOURCE_VERSION_LENGTH = 50
+COLOUR_LENGTH = 7  # "#rrggbb"
+# A source's column and food keys are the file's own codes; their names are
+# the file's, longer than an ingredient's (D4 shortens when it copies).
+SOURCE_ITEM_KEY_LENGTH = 100
+SOURCE_ITEM_NAME_LENGTH = 200
 MEAL_NAME_LENGTH = 40
 DERIVE_LENGTH = 3  # "all" or "any"
 APPLIES_TO_LENGTH = 13  # "daily_average"
@@ -46,14 +64,36 @@ class Attribute(Base):
     decimals: Mapped[int]
 
 
+class DataSource(Base):
+    """A read-only reference copy of an ingredient data file (S1, S2), loaded
+    at startup from `server/data_sources/`. `colour` is "#rrggbb", the only
+    thing the user edits. `attribution` is the text the source asks to be
+    shown. The file's `version` decides whether a load replaces the copy."""
+
+    __tablename__ = "data_sources"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    key: Mapped[str] = mapped_column(String(SOURCE_KEY_LENGTH), unique=True)
+    name: Mapped[str] = mapped_column(String(NAME_LENGTH))
+    colour: Mapped[str] = mapped_column(String(COLOUR_LENGTH))
+    version: Mapped[str] = mapped_column(String(SOURCE_VERSION_LENGTH))
+    attribution: Mapped[str | None] = mapped_column(Text)
+    imported_at: Mapped[datetime]
+
+
 class Tag(Base):
-    """A yes/no label (C6). `derive` is the library's rule for recipes, "all" or "any"."""
+    """A yes/no label (C6). `derive` is the library's rule for recipes, "all" or
+    "any". `source_id` set means a source tag, made from a food group of that
+    data source (decision 12): its rule can change, its name can't, and it
+    can't be deleted."""
 
     __tablename__ = "tags"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(NAME_LENGTH), unique=True)
     derive: Mapped[str] = mapped_column(String(DERIVE_LENGTH))
+    source_id: Mapped[int | None] = mapped_column(ForeignKey("data_sources.id"))
+    source: Mapped[DataSource | None] = relationship()
 
 
 ingredient_tags = Table(
@@ -412,6 +452,58 @@ class PlanResultMiss(Base):
     percent: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
 
 
+class SourceColumn(Base):
+    """A column of a data source (a nutrient), by the file's own key. One the
+    file no longer has is `withdrawn`, never deleted."""
+
+    __tablename__ = "source_columns"
+    __table_args__ = (UniqueConstraint("source_id", "key", name="uq_source_columns_source_id_key"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source_id: Mapped[int] = mapped_column(ForeignKey("data_sources.id", ondelete="CASCADE"))
+    key: Mapped[str] = mapped_column(String(SOURCE_ITEM_KEY_LENGTH))
+    name: Mapped[str] = mapped_column(String(SOURCE_ITEM_NAME_LENGTH))
+    unit: Mapped[str] = mapped_column(String(UNIT_LENGTH))
+    withdrawn: Mapped[bool] = mapped_column(default=False, server_default=false())
+
+
+class SourceFood(Base):
+    """A food of a data source, by the file's own key. One the file no longer
+    has is `withdrawn`, never deleted, and keeps its values and tags."""
+
+    __tablename__ = "source_foods"
+    __table_args__ = (UniqueConstraint("source_id", "key", name="uq_source_foods_source_id_key"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source_id: Mapped[int] = mapped_column(ForeignKey("data_sources.id", ondelete="CASCADE"))
+    key: Mapped[str] = mapped_column(String(SOURCE_ITEM_KEY_LENGTH))
+    name: Mapped[str] = mapped_column(String(SOURCE_ITEM_NAME_LENGTH))
+    withdrawn: Mapped[bool] = mapped_column(default=False, server_default=false())
+
+
+class SourceFoodValue(Base):
+    """A food's value for one column, per 100 g or as the file gives it. A
+    column the food has no value for has no row: missing is not 0."""
+
+    __tablename__ = "source_food_values"
+
+    food_id: Mapped[int] = mapped_column(
+        ForeignKey("source_foods.id", ondelete="CASCADE"), primary_key=True
+    )
+    column_id: Mapped[int] = mapped_column(
+        ForeignKey("source_columns.id", ondelete="CASCADE"), primary_key=True
+    )
+    value: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
+
+
+source_food_tags = Table(
+    "source_food_tags",
+    Base.metadata,
+    Column("food_id", ForeignKey("source_foods.id", ondelete="CASCADE"), primary_key=True),
+    Column("tag_id", ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True),
+)
+
+
 class Preference(Base):
     """One row per preference that was ever set; unset ones have defaults."""
 
@@ -424,6 +516,7 @@ class Preference(Base):
 __all__ = [
     "Attribute",
     "Base",
+    "DataSource",
     "Goal",
     "Ingredient",
     "IngredientValue",
@@ -442,7 +535,11 @@ __all__ = [
     "Preference",
     "Recipe",
     "RecipeItem",
+    "SourceColumn",
+    "SourceFood",
+    "SourceFoodValue",
     "Tag",
     "ingredient_tags",
     "recipe_extra_tags",
+    "source_food_tags",
 ]
