@@ -113,7 +113,9 @@ export async function settleMenu() {
  * virtual list a moment after it opens. */
 export async function openUnitList(wrapper: VueWrapper, label: string) {
   const input = field(wrapper, label)
-  await input.element.closest('.q-field__control')!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+  if (input.attributes('aria-expanded') !== 'true') {
+    await input.element.closest('.q-field__control')!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+  }
   await settleMenu()
   const menu = [...document.querySelectorAll('.q-menu')].at(-1)
   return [...(menu?.querySelectorAll<HTMLElement>('.q-item, .q-item__label--header') ?? [])].map((row) =>

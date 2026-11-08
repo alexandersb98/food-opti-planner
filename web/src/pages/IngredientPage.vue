@@ -22,7 +22,7 @@ const router = useRouter()
 // The editor for a new ingredient (/ingredients/new) or an existing one.
 const id = route.params.id === undefined ? null : Number(route.params.id)
 
-const { basisFor } = useUnits()
+const units = useUnits()
 const preferences = usePreferences()
 
 // The fields as typed; values by attribute id, empty if not typed.
@@ -78,8 +78,15 @@ function fillDraft(ingredient: Ingredient) {
   draft.tagIds = new Set(ingredient.tag_ids)
 }
 
+/** The default basis of a unit; without the catalogue only g is known. */
+function basisFor(unit: string) {
+  if (units.units.value.length > 0) return units.basisFor(unit)
+  return unit.trim() === 'g' ? '100' : '1'
+}
+
 /** The basis follows the unit (100 g, 1 st) unless it was changed by hand. */
 function setUnit(unit: string) {
+  errors.unit = ''
   if (draft.basis.trim() === basisFor(draft.unit)) draft.basis = basisFor(unit)
   draft.unit = unit
 }

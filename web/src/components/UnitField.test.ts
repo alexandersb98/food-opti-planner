@@ -155,13 +155,23 @@ test('typing a part of a name keeps the entry', async () => {
   wrapper.unmount()
 })
 
-test('a header cannot be chosen', async () => {
+test('a header is not an option and cannot be chosen', async () => {
   const wrapper = await mountField()
   await open(wrapper)
   const header = document.querySelector<HTMLElement>('.q-menu .q-item__label--header')!
+  expect(header.getAttribute('role')).not.toBe('option')
+  expect(document.querySelectorAll('.q-menu [role="option"]').length).toBe(listed().filter((r) => !r.startsWith('#')).length)
   header.click()
-  await flushPromises()
+  await settleMenu()
   expect(emitted(wrapper)).toEqual([])
+  wrapper.unmount()
+})
+
+test('typing into a focused field whose list is closed filters the list when it opens', async () => {
+  const wrapper = await mountField()
+  await type(wrapper, 'tbs')
+  expect(emitted(wrapper)).toEqual(['tbs'])
+  expect(listed().filter((row) => !row.startsWith('#'))).toEqual(['msk (tablespoon)'])
   wrapper.unmount()
 })
 

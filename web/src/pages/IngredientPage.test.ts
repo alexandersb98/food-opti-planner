@@ -136,6 +136,8 @@ test('a new ingredient starts in grams per 100, and the basis follows the unit',
   expect(value(wrapper, 'Value basis')).toBe('100')
   await field(wrapper, 'Measured in').setValue('msk')
   expect(value(wrapper, 'Value basis')).toBe('100')
+  await field(wrapper, 'Measured in').setValue('st')
+  expect(value(wrapper, 'Value basis')).toBe('1')
 
   await field(wrapper, 'Name').setValue('Egg')
   await chooseUnit(wrapper, 'Measured in', 'st (piece)')
@@ -204,6 +206,15 @@ test('an energy unit the server refuses is shown under the field', async () => {
   expect(wrapper.text()).toContain('An ingredient is measured in an amount of food, such as g, dl or pieces.')
   expect(wrapper.text()).not.toContain('Could not save')
   expect(router.currentRoute.value.fullPath).toBe('/ingredients/new')
+  await field(wrapper, 'Measured in').setValue('g')
+  expect(wrapper.text()).not.toContain('An ingredient is measured in an amount')
+  wrapper.unmount()
+})
+
+test('without the catalogue the basis still follows g', async () => {
+  const { wrapper } = await mountPage('/ingredients/new', { 'GET /api/units': 500 })
+  await field(wrapper, 'Measured in').setValue('st')
+  expect(value(wrapper, 'Value basis')).toBe('1')
   wrapper.unmount()
 })
 

@@ -96,7 +96,7 @@ function optionText(option: Option | string): string {
   return option.kind === 'unit' ? option.unit.symbol : ''
 }
 
-function onShow() {
+function onHide() {
   needle.value = null
 }
 </script>
@@ -112,6 +112,7 @@ function onShow() {
     :error-message="errorMessage"
     :hide-bottom-space="hideBottomSpace"
     :dense="dense"
+    behavior="menu"
     outlined
     use-input
     hide-selected
@@ -121,7 +122,7 @@ function onShow() {
     @filter="onFilter"
     @input-value="onInput"
     @update:model-value="onChoose"
-    @popup-show="onShow"
+    @popup-hide="onHide"
   >
     <template #option="{ opt, itemProps }">
       <q-item-label
