@@ -1,6 +1,6 @@
 import pytest
 
-from .conftest import RECIPE
+from .conftest import recipe_body
 
 
 @pytest.fixture
@@ -15,13 +15,7 @@ def milk(catalog):
 
 def fields(*items, **changes):
     """A porridge recipe of (ingredient id, amount) pairs."""
-    return {
-        **RECIPE,
-        "name": "Porridge",
-        "items": [{"ingredient_id": i, "amount": a} for i, a in items],
-        "extra_tag_ids": [],
-        **changes,
-    }
+    return {**recipe_body(items=items), **changes}
 
 
 def create(client, *items, **changes):
