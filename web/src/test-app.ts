@@ -94,3 +94,38 @@ export function dialog() {
     },
   }
 }
+
+/** Wait for Quasar to fill a menu's virtual list, which it does a moment
+ * after the menu opens or its options change: until a row shows, or 300 ms
+ * (an empty list shows none). */
+export async function settleMenu() {
+  const start = Date.now()
+  do {
+    await new Promise((resolve) => setTimeout(resolve, 30))
+    await flushPromises()
+  } while (Date.now() - start < 300 && !document.querySelector('.q-menu .q-item'))
+  await new Promise((resolve) => setTimeout(resolve, 30))
+  await flushPromises()
+}
+
+/** Open the unit list of the field labelled `label` and answer its rows:
+ * group headers as "# Mass", units as "kg (kilogram)". Quasar fills a menu's
+ * virtual list a moment after it opens. */
+export async function openUnitList(wrapper: VueWrapper, label: string) {
+  const input = field(wrapper, label)
+  await input.element.closest('.q-field__control')!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+  await settleMenu()
+  const menu = [...document.querySelectorAll('.q-menu')].at(-1)
+  return [...(menu?.querySelectorAll<HTMLElement>('.q-item, .q-item__label--header') ?? [])].map((row) =>
+    row.classList.contains('q-item__label--header') ? `# ${row.textContent?.trim()}` : (row.textContent?.trim() ?? ''),
+  )
+}
+
+/** Open the unit list of the field labelled `label` and choose the row `option`. */
+export async function chooseUnit(wrapper: VueWrapper, label: string, option: string) {
+  await openUnitList(wrapper, label)
+  const row = [...document.querySelectorAll<HTMLElement>('.q-menu .q-item')].find((r) => r.textContent?.trim() === option)
+  expect(row, `unit ${option}`).toBeDefined()
+  row!.click()
+  await settleMenu()
+}

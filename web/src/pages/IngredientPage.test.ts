@@ -1,6 +1,20 @@
 import { afterEach, expect, test, vi } from 'vitest'
-import { button, click, dialog, fakeServer, field, mountApp, texts, type FakeServer } from '../test-app'
+import { resetPreferences } from '../preferences'
+import {
+  button,
+  chooseUnit,
+  click,
+  dialog,
+  fakeServer,
+  field,
+  mountApp,
+  openUnitList,
+  texts,
+  unitRoutes,
+  type FakeServer,
+} from '../test-app'
 import { attribute, ingredient, recipe, tag } from '../test-data'
+import { resetUnits } from '../units'
 
 const energy = attribute({ id: 1, name: 'Energy', unit: 'kcal', ingredient_count: 1 })
 const protein = attribute({ id: 2, name: 'Protein', unit: 'g', decimals: 1, ingredient_count: 1 })
@@ -18,6 +32,8 @@ const oats = ingredient({
 })
 
 afterEach(() => {
+  resetUnits()
+  resetPreferences()
   vi.unstubAllGlobals()
   document.body.innerHTML = ''
 })
@@ -25,6 +41,7 @@ afterEach(() => {
 async function mountPage(path: string, server: FakeServer = {}) {
   const calls = fakeServer({
     'GET /api/session': 204,
+    ...unitRoutes(),
     'GET /api/attributes': { body: [energy, protein, fat] },
     'GET /api/tags': { body: [vegan, nuts] },
     'GET /api/ingredients/7': { body: oats },
@@ -113,28 +130,87 @@ test('a new ingredient starts in grams per 100, and the basis follows the unit',
   expect(wrapper.text()).not.toContain('Delete')
   expect(wrapper.text()).not.toContain('Used in')
 
-  await click(button(wrapper, 'pcs'))
-  expect([value(wrapper, 'Measured in'), value(wrapper, 'Value basis')]).toEqual(['pcs', '1'])
-  await click(button(wrapper, 'ml'))
+  await field(wrapper, 'Measured in').setValue('st')
+  expect([value(wrapper, 'Measured in'), value(wrapper, 'Value basis')]).toEqual(['st', '1'])
+  await field(wrapper, 'Measured in').setValue('ml')
   expect(value(wrapper, 'Value basis')).toBe('100')
-  await field(wrapper, 'Measured in').setValue('tbsp')
-  expect(value(wrapper, 'Value basis')).toBe('1')
+  await field(wrapper, 'Measured in').setValue('msk')
+  expect(value(wrapper, 'Value basis')).toBe('100')
 
   await field(wrapper, 'Name').setValue('Egg')
-  await field(wrapper, 'Measured in').setValue('pcs')
+  await chooseUnit(wrapper, 'Measured in', 'st (piece)')
+  expect([value(wrapper, 'Measured in'), value(wrapper, 'Value basis')]).toEqual(['st', '1'])
   await field(wrapper, 'Protein').setValue('6.3')
   await click(button(wrapper, 'Save'))
   expect(sent).toEqual([
-    { name: 'Egg', unit: 'pcs', basis: '1', values: [{ attribute_id: 2, value: '6.3' }], tag_ids: [] },
+    { name: 'Egg', unit: 'st', basis: '1', values: [{ attribute_id: 2, value: '6.3' }], tag_ids: [] },
   ])
   expect(router.currentRoute.value.fullPath).toBe('/ingredients')
+  wrapper.unmount()
+})
+
+test('a new ingredient starts in the preferred mass unit', async () => {
+  const { wrapper } = await mountPage('/ingredients/new', unitRoutes({ 'unit.mass': 'kg' }))
+  expect([value(wrapper, 'Measured in'), value(wrapper, 'Value basis')]).toEqual(['kg', '100'])
+  wrapper.unmount()
+})
+
+test('without the preferences a new ingredient starts in grams and the page still saves', async () => {
+  const { sent, handler } = recorder(201, (body) => ({ ...body, id: 8, recipe_count: 0 }))
+  const { wrapper } = await mountPage('/ingredients/new', {
+    'GET /api/preferences': 500,
+    'POST /api/ingredients': handler,
+  })
+  expect([value(wrapper, 'Measured in'), value(wrapper, 'Value basis')]).toEqual(['g', '100'])
+  await field(wrapper, 'Name').setValue('Egg')
+  await click(button(wrapper, 'Save'))
+  expect(sent).toEqual([{ name: 'Egg', unit: 'g', basis: '100', values: [], tag_ids: [] }])
+  wrapper.unmount()
+})
+
+test('a unit chosen from the list is sent as its symbol, typed text as typed', async () => {
+  const { sent, handler } = recorder(200, (body) => ({ ...oats, ...body }))
+  const { wrapper } = await mountPage('/ingredients/7', { 'PUT /api/ingredients/7': handler })
+  await chooseUnit(wrapper, 'Measured in', 'kg (kilogram)')
+  await click(button(wrapper, 'Save'))
+  expect((sent[0] as { unit: string }).unit).toBe('kg')
+  wrapper.unmount()
+
+  const second = await mountPage('/ingredients/7', { 'PUT /api/ingredients/7': handler })
+  await field(second.wrapper, 'Measured in').setValue('gram')
+  await click(button(second.wrapper, 'Save'))
+  expect((sent[1] as { unit: string }).unit).toBe('gram')
+  second.wrapper.unmount()
+})
+
+test('the unit list offers mass, volume and pieces, not energy', async () => {
+  const { wrapper } = await mountPage('/ingredients/new')
+  const rows = await openUnitList(wrapper, 'Measured in')
+  expect(rows.filter((row) => row.startsWith('#'))).toEqual(['# Mass', '# Volume', '# Other'])
+  expect(rows).toContain('st (piece)')
+  expect(rows).not.toContain('kcal (kilocalorie)')
+  wrapper.unmount()
+})
+
+test('an energy unit the server refuses is shown under the field', async () => {
+  const refusal = {
+    status: 422,
+    body: { detail: [{ loc: ['body', 'unit'], type: 'unit_not_for_ingredient', msg: 'x' }] },
+  }
+  const { wrapper, router } = await mountPage('/ingredients/new', { 'POST /api/ingredients': refusal })
+  await field(wrapper, 'Name').setValue('Oil')
+  await field(wrapper, 'Measured in').setValue('kcal')
+  await click(button(wrapper, 'Save'))
+  expect(wrapper.text()).toContain('An ingredient is measured in an amount of food, such as g, dl or pieces.')
+  expect(wrapper.text()).not.toContain('Could not save')
+  expect(router.currentRoute.value.fullPath).toBe('/ingredients/new')
   wrapper.unmount()
 })
 
 test('a basis changed by hand stays when the unit changes', async () => {
   const { wrapper } = await mountPage('/ingredients/new')
   await field(wrapper, 'Value basis').setValue('50')
-  await click(button(wrapper, 'pcs'))
+  await chooseUnit(wrapper, 'Measured in', 'st (piece)')
   expect(value(wrapper, 'Value basis')).toBe('50')
   wrapper.unmount()
 })

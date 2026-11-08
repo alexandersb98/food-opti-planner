@@ -3,7 +3,7 @@ import { Quasar } from 'quasar'
 import { afterEach, expect, test, vi } from 'vitest'
 import { makeI18n } from '../i18n'
 import { resetPreferences } from '../preferences'
-import { fakeServer, field, unitRoutes, type FakeServer } from '../test-app'
+import { fakeServer, field, settleMenu, unitRoutes, type FakeServer } from '../test-app'
 import { resetUnits } from '../units'
 import UnitField from './UnitField.vue'
 
@@ -44,15 +44,9 @@ type Wrapper = Awaited<ReturnType<typeof mountField>>
 
 const input = (wrapper: Wrapper) => field(wrapper, 'Unit')
 
-/** Quasar fills a menu's virtual list a moment after it opens. */
-async function settle() {
-  await new Promise((resolve) => setTimeout(resolve, 60))
-  await flushPromises()
-}
-
 async function open(wrapper: Wrapper) {
   await wrapper.get('.q-field__control').trigger('click')
-  await settle()
+  await settleMenu()
   return listed()
 }
 
@@ -67,14 +61,14 @@ function listed() {
 
 async function type(wrapper: Wrapper, text: string) {
   await input(wrapper).setValue(text)
-  await settle()
+  await settleMenu()
 }
 
 async function choose(label: string) {
   const row = [...document.querySelectorAll<HTMLElement>('.q-menu .q-item')].find((r) => r.textContent?.trim() === label)
   expect(row, `option ${label}`).toBeDefined()
   row!.click()
-  await settle()
+  await settleMenu()
 }
 
 /** What the field sent through update:modelValue (the wrapper's own record also holds Quasar's inner events). */

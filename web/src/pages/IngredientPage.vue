@@ -8,9 +8,12 @@ import type { Attribute, Ingredient, IngredientFields as Fields, Recipe, Tag } f
 import ConfirmDelete from '../components/ConfirmDelete.vue'
 import EditorHeader from '../components/EditorHeader.vue'
 import LoadState from '../components/LoadState.vue'
+import UnitField from '../components/UnitField.vue'
 import { loadAll, useLoad } from '../composables/useLoad'
 import { searchByName } from '../lists'
 import { typedNumber } from '../numbers'
+import { usePreferences } from '../preferences'
+import { useUnits } from '../units'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -19,12 +22,8 @@ const router = useRouter()
 // The editor for a new ingredient (/ingredients/new) or an existing one.
 const id = route.params.id === undefined ? null : Number(route.params.id)
 
-const UNITS = ['g', 'ml', 'pcs']
-
-/** Values are typed per 100 g or ml, and per 1 of anything else. */
-function defaultBasis(unit: string) {
-  return ['g', 'ml'].includes(unit.trim()) ? '100' : '1'
-}
+const { basisFor } = useUnits()
+const preferences = usePreferences()
 
 // The fields as typed; values by attribute id, empty if not typed.
 const draft = reactive({
@@ -46,19 +45,30 @@ const deleteOpen = ref(false)
 
 const { data, loading, failed, load } = useLoad(
   async () => {
-    const loaded = await loadAll({
-      attributes: api.GET('/api/attributes'),
-      tags: api.GET('/api/tags'),
-      ingredient:
-        id === null
-          ? Promise.resolve({ data: null })
-          : api.GET('/api/ingredients/{ingredient_id}', { params: { path: { ingredient_id: id } } }),
-    })
+    // A new ingredient starts in the preferred mass unit, so the preferences
+    // come first; without them (a failed load) it starts in grams.
+    const [loaded] = await Promise.all([
+      loadAll({
+        attributes: api.GET('/api/attributes'),
+        tags: api.GET('/api/tags'),
+        ingredient:
+          id === null
+            ? Promise.resolve({ data: null })
+            : api.GET('/api/ingredients/{ingredient_id}', { params: { path: { ingredient_id: id } } }),
+      }),
+      preferences.load(),
+    ])
     if (loaded.data?.ingredient) fillDraft(loaded.data.ingredient)
+    else if (id === null) startDraft()
     return loaded
   },
   { attributes: [] as Attribute[], tags: [] as Tag[], ingredient: null as Ingredient | null },
 )
+
+function startDraft() {
+  draft.unit = preferences.preferences.value?.['unit.mass'] ?? 'g'
+  draft.basis = '100' // a mass unit
+}
 
 function fillDraft(ingredient: Ingredient) {
   draft.name = ingredient.name
@@ -68,9 +78,9 @@ function fillDraft(ingredient: Ingredient) {
   draft.tagIds = new Set(ingredient.tag_ids)
 }
 
-/** The basis follows the unit (100 g, 1 pcs) unless it was changed by hand. */
+/** The basis follows the unit (100 g, 1 st) unless it was changed by hand. */
 function setUnit(unit: string) {
-  if (draft.basis.trim() === defaultBasis(draft.unit)) draft.basis = defaultBasis(unit)
+  if (draft.basis.trim() === basisFor(draft.unit)) draft.basis = basisFor(unit)
   draft.unit = unit
 }
 
@@ -148,11 +158,15 @@ async function save() {
   }
 }
 
-/** A name in use, or a number with too many digits; anything else just failed. */
+/** A name in use, an energy unit, or a number with too many digits; anything else just failed. */
 function showServerErrors(byField: Partial<Record<string, string>>, fields: Fields) {
   let shown = false
   if (byField.name === 'name_in_use') {
     errors.name = t('ingredients.nameInUse')
+    shown = true
+  }
+  if (byField.unit === 'unit_not_for_ingredient') {
+    errors.unit = t('ingredients.unitNotForIngredient')
     shown = true
   }
   if (byField.basis) {
@@ -215,32 +229,15 @@ async function confirmDelete() {
           hide-bottom-space
         />
 
-        <div>
-          <q-input
-            :model-value="draft.unit"
-            outlined
-            :label="$t('ingredients.measuredIn')"
-            :error="!!errors.unit"
-            :error-message="errors.unit"
-            hide-bottom-space
-            @update:model-value="setUnit(String($event ?? ''))"
-          />
-          <div class="q-mt-xs q-gutter-x-sm">
-            <q-btn
-              v-for="unit in UNITS"
-              :key="unit"
-              class="unit-choice"
-              size="sm"
-              no-caps
-              :outline="draft.unit.trim() !== unit"
-              :unelevated="draft.unit.trim() === unit"
-              color="primary"
-              :label="unit"
-              :aria-pressed="draft.unit.trim() === unit"
-              @click="setUnit(unit)"
-            />
-          </div>
-        </div>
+        <UnitField
+          :model-value="draft.unit"
+          :categories="['mass', 'volume', 'piece']"
+          :label="$t('ingredients.measuredIn')"
+          :error="!!errors.unit"
+          :error-message="errors.unit"
+          hide-bottom-space
+          @update:model-value="setUnit"
+        />
 
         <q-card
           flat
