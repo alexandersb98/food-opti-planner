@@ -18,6 +18,8 @@ DERIVE_LENGTH = 3  # "all" or "any"
 APPLIES_TO_LENGTH = 13  # "daily_average"
 STATUS_LENGTH = 12  # "optimal", "time_ran_out", "stopped"
 FILTER_MODE_LENGTH = 5  # "only" or "never"
+PREFERENCE_KEY_LENGTH = 50  # "unit.mass"
+PREFERENCE_VALUE_LENGTH = 100
 # Numbers typed on forms (ingredient values, value bases, ...), stored
 # exactly as typed. 15 digits stay exact even in SQLite, which holds them as
 # floating point.
@@ -408,6 +410,16 @@ class PlanResultMiss(Base):
     percent: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
 
 
+class Preference(Base):
+    """One of the user's preferences (S1), such as `unit.mass`. A key without
+    a row has its default, which `server/api/preferences.py` holds."""
+
+    __tablename__ = "preferences"
+
+    key: Mapped[str] = mapped_column(String(PREFERENCE_KEY_LENGTH), primary_key=True)
+    value: Mapped[str] = mapped_column(String(PREFERENCE_VALUE_LENGTH))
+
+
 __all__ = [
     "Attribute",
     "Base",
@@ -426,9 +438,11 @@ __all__ = [
     "PlanResultTotal",
     "PlanSkip",
     "PlanTagFilter",
+    "Preference",
     "Recipe",
     "RecipeItem",
     "Tag",
     "ingredient_tags",
     "recipe_extra_tags",
 ]
+

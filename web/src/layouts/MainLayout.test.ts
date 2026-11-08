@@ -11,7 +11,7 @@ afterEach(() => {
   document.body.innerHTML = ''
 })
 
-test('the menu lists the five pages in order, then Log out', async () => {
+test('the menu lists the six pages in order, then Log out', async () => {
   const { wrapper } = await mountApp('/')
   await wrapper.get('button[aria-label="Menu"]').trigger('click')
   const labels = wrapper.findAll('.q-drawer .q-item__section--main').map((label) => label.text())
@@ -21,6 +21,7 @@ test('the menu lists the five pages in order, then Log out', async () => {
     'Ingredients',
     'Attributes',
     'Tags',
+    'Settings',
     'Log out',
   ])
   wrapper.unmount()

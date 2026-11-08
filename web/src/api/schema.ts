@@ -328,6 +328,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Preferences */
+        get: operations["get_preferences_api_preferences_get"];
+        /** Update Preferences */
+        put: operations["update_preferences_api_preferences_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/recipes": {
         parameters: {
             query?: never;
@@ -437,6 +455,27 @@ export interface paths {
         post?: never;
         /** Delete Tag */
         delete: operations["delete_tag_api_tags__tag_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/units": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Units
+         * @description The units offered: per category (mass, volume, energy) from small to
+         *     large, then the known free-text units.
+         */
+        get: operations["list_units_api_units_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -816,6 +855,27 @@ export interface components {
             saved: components["schemas"]["PlanResultSummary"][];
             unsaved: components["schemas"]["PlanResultSummary"] | null;
         };
+        /** Preferences */
+        Preferences: {
+            /** Unit.Energy */
+            "unit.energy": string;
+            /** Unit.Mass */
+            "unit.mass": string;
+            /** Unit.Volume */
+            "unit.volume": string;
+        };
+        /**
+         * PreferencesUpdate
+         * @description The keys to change; the others keep their value.
+         */
+        PreferencesUpdate: {
+            /** Unit.Energy */
+            "unit.energy"?: string;
+            /** Unit.Mass */
+            "unit.mass"?: string;
+            /** Unit.Volume */
+            "unit.volume"?: string;
+        };
         /** Recipe */
         Recipe: {
             /** Derived Tag Ids */
@@ -1078,6 +1138,15 @@ export interface components {
             attribute_id: number;
             /** Value */
             value: string;
+        };
+        /** UnitInfo */
+        UnitInfo: {
+            /** Aliases */
+            aliases: string[];
+            /** Category */
+            category: ("mass" | "volume" | "energy") | null;
+            /** Symbol */
+            symbol: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -1912,6 +1981,59 @@ export interface operations {
             };
         };
     };
+    get_preferences_api_preferences_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Preferences"];
+                };
+            };
+        };
+    };
+    update_preferences_api_preferences_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreferencesUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Preferences"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_recipes_api_recipes_get: {
         parameters: {
             query?: never;
@@ -2295,6 +2417,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_units_api_units_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnitInfo"][];
                 };
             };
         };

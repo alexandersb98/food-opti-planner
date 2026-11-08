@@ -9,7 +9,8 @@
     "recipes": "Recipes",
     "ingredients": "Ingredients",
     "attributes": "Attributes",
-    "tags": "Tags"
+    "tags": "Tags",
+    "settings": "Settings"
   },
   "login": {
     "title": "Log in",
@@ -335,5 +336,15 @@
     "worstDay": "worst {day}: {actual} of {bound} {unit} {percent}",
     "worstPlan": "{actual} of {bound} {unit} {percent}",
     "dayValue": "{name} {actual} / {bound} {unit}"
+  },
+  "settings": {
+    "loadFailed": "Could not load the settings.",
+    "units": {
+      "title": "Preferred units",
+      "help": "Used for new ingredients and attributes, and for values copied from data sources. Changing it converts nothing already saved.",
+      "mass": "Mass",
+      "volume": "Volume",
+      "energy": "Energy"
+    }
   }
 }
