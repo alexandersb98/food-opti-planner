@@ -45,8 +45,10 @@ the units spec for the catalogue spellings; the API research of this slice
 (`.superpowers/sdd/2026-11-08-units-sources-import-slices/d1-api-research.md`,
 facts from web search only, **not verified against the live API**).
 
-**Status:** Planned; to be built task by task on branch
-`claude/implement-remaining-slices-qwrp83`.
+**Status:** Built, and reviewed task by task, on branch
+`claude/implement-remaining-slices-qwrp83`. The real data file is not
+generated (the API is unreachable from the session); the owner runs the
+script (README).
 
 ## Global Constraints
 
@@ -185,6 +187,11 @@ facts from web search only, **not verified against the live API**).
     changing the tests' mechanics (the assertions that depend on the made-up
     foods would then be updated by whoever replaces it).
 
+14. **Where the plan and the code differed** (recorded under each task):
+    the spec's "kg CO2e" → "kg" example is dropped in favour of "unknown units
+    stay as written" (the plan's rule); the e2e and full checks were run once
+    before the first commit and were green after U3's last fix.
+
 ## Tasks
 
 ### Task 1: Swedish micro spellings in the unit catalogue
@@ -201,6 +208,10 @@ alias list in `test_units.py` (the parametrised table that holds `("ug",
 "µg")`) and a line in the mu test that U+03BC `μg`, U+00B5 `µg`, `ug`,
 `mcg`, `mikrog` all parse to the same `Unit` object. Run: they fail before the
 alias is added.
+
+**Checked:** `tests/server/test_units.py` (the new rows failed before the alias
+was added), `tests/server/test_units_api.py`, `npm test` (447 passed) after
+regenerating `web/src/test-units.json`. Differences: none.
 
 **Verify:** `python3 -m pytest tests/server/test_units.py tests/server/test_units_api.py -q`;
 regenerate the fixture with `python3 -m server.export_units
@@ -244,6 +255,10 @@ the request-key layout; how to replace it with a real capture
 (`python3 scripts/import_livsmedelsverket.py --limit-foods 3 --out /tmp/x.json.gz
 --min-foods 0 --record tests/scripts/fixtures/livsmedelsverket/responses.json`
 and then update the assertions that name the made-up foods).
+
+**Checked:** valid JSON; used by every test of Tasks 3 and 4. Differences:
+committed together with Task 3; the `_note` key and the made-up names are as
+planned; food 10 has VITB12 in `mikrog` as listed.
 
 **Tests:** none of its own (Task 3's tests use it). Check it is valid JSON
 (`python3 -c "import json; json.load(open(...))"`).
@@ -381,6 +396,16 @@ all; any unrecognised shape. Output dict is exactly:
   `server.units` and that `build_data_file`'s unit for a hand-made
   `"Mikrog"` entry equals `server.units.normalise("Mikrog")`.
 
+**Checked:** `python3 -m pytest tests/scripts -q` (the file's tests were written
+first and failed on the missing script), then the whole suite. Differences: a
+column is only created from an entry that has a number (a nutrient with no
+number anywhere makes no column); a key with several units whose names already
+differ keeps its names (the unit is appended only when names clash);
+`ReplayFetcher` exposes the recorded dict as `.responses`; `Report` fields are
+`foods`, `columns`, `foods_without_group`, `skipped_missing`,
+`skipped_non_numeric`, `skipped_examples`, `classification_types`, `units`;
+`RecordingFetcher.save` writes one key per line.
+
 **Verify:** `python3 -m pytest tests/scripts -q`, then the whole suite
 `python3 -m pytest -q`.
 
@@ -442,6 +467,14 @@ all; any unrecognised shape. Output dict is exactly:
   `limit`, `offset` query and the `User-Agent`. No other network is touched
   (the base URL is always the local one).
 
+**Checked:** tests as planned, the dry run on the fixture (output eyeballed with
+`gzip -dc`, exit 0), `--help`, and `git status` shows no `server/data_sources/`.
+Differences: the `Retry-After` test uses 3 seconds so it differs from the
+default first delay of 1; a refused connection is also tested (retried, then
+`ImportError_`); `--record` saves what was seen even when the run fails, so a
+failed trial still shows the shapes; `--limit-foods` below 1 and `--page-size`
+or `--workers` below 1 are argparse errors; the summary goes to stderr.
+
 **Verify:** `python3 -m pytest tests/scripts -q`; `python3
 scripts/import_livsmedelsverket.py --help` prints the options; the whole suite
 `python3 -m pytest -q`. A manual dry run on the fixture:
@@ -497,6 +530,10 @@ the units spec (one line), this plan.
 - **Units spec:** the alias list for `µg` gains `mikrog` and `mikrogram`.
 - **This plan:** set Status to "Built" and add under each task how it was
   checked and the differences from this text, as the earlier slice plans do.
+
+**Checked:** the whole suite, `git status`, no `server/data_sources/`.
+Differences: the spec's example "kg CO2e" → "kg" is replaced by "ug" → "µg",
+as unknown units stay as written (the catalogue has no CO2e unit).
 
 **Verify:** the whole suite once more, `git status` clean apart from the
 plan's own files, and that no file under `server/data_sources/` exists.

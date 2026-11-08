@@ -88,7 +88,7 @@ not listed. A bare "cup" is not known, as it means different amounts in
 different countries; it stays free text.
 
 **Aliases for base and prefixed units:** gram, grams for g; litre,
-liter, L for l; µg also as ug and mcg; Kcal, kcal and Cal for kcal.
+liter, L for l; µg also as ug, mcg, mikrog and mikrogram; Kcal, kcal and Cal for kcal.
 
 **Reading a unit.** `parse(text) -> Unit | None` trims spaces and
 compares case-insensitively (safe, as no supported prefix differs from

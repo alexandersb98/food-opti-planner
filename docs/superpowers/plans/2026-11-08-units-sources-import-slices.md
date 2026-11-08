@@ -91,6 +91,8 @@ match in its pending review.
 U1 done: see `2026-11-08-slice-u1-unit-catalogue.md`.
 U2 done: see `2026-11-08-slice-u2-unit-fields.md`.
 U3 done: see `2026-11-08-slice-u3-unit-change-converts.md`.
+D1 script done: see `2026-11-08-slice-d1-livsmedelsverket-data-file.md`.
+The data file itself is generated and committed by the owner (README).
 R1 built, run pending the owner: see `2026-11-08-slice-r1-model-comparison.md`.
 
 **Dependencies:**
@@ -174,6 +176,9 @@ converted.
   `units.py`, decimal strings, write
   `server/data_sources/livsmedelsverket.json.gz`. Never touches a
   database.
+- Outcome of the first task: the API could not be reached, so the
+  findings are recorded as unverified and the food groups are treated
+  as a flat list (the extraction is isolated for a later tree).
 - The script is run by hand and the data file committed in this slice.
   If the session's network can't reach the API, the owner runs it and
   commits the file.

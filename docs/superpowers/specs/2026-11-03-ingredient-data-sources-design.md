@@ -106,17 +106,27 @@ the source's API and writes
   "key": "livsmedelsverket",
   "name": "Livsmedelsverket",
   "version": "2024-05-29",
-  "licence": "…",
-  "columns": [{"key": "…", "name": "Protein", "unit": "g"}],
+  "licence": "CC BY 4.0",
+  "attribution": "Source: Livsmedelsverket, …",
+  "columns": [{"key": "PROT", "name": "Protein", "unit": "g"}],
   "foods": [{"key": "1", "name": "Havregryn", "groups": ["Gryn"],
-             "values": {"…": "13.5"}}]
+             "values": {"PROT": "13.5"}}]
 }
 ```
+
+- A column is a nutrient as the source defines it. Its key is the
+  source's EuroFIR code, or its name when there is none. If one key
+  appears with several units in the download (energy is expected in kJ
+  and kcal), each of those columns gets the key `<key>:<unit>`
+  (`ENERC:kJ`, `ENERC:kcal`) and a name made distinct by the unit.
+- `attribution` is the credit line S2 shows; the loader treats it as
+  optional text.
 
 - `version` is the source's own version, or the download date when it
   has none.
 - Units are normalised to the catalogue's spelling where the source
-  writes them otherwise (e.g. "kg CO2e" → "kg"); other units stay as
+  writes them otherwise (e.g. "ug" → "µg"); other units, such as
+  "kg CO2e", stay as
   written.
 - Values are written as decimal strings, never floats.
 - The script never touches a database.
@@ -142,6 +152,49 @@ free 0.5 GB.
 licence and attribution terms, the shape of its food groups (one level
 or a tree), and its units. A web check found the API and a 2024-05-29
 version, but not these details.
+
+### API check findings (D1)
+
+*2026-11-08. The dataportal host could not be reached from the session
+(DNS failure, then the proxy's 403), so everything below comes from web
+search summaries and third-party client code and is **unverified**.
+The script and its readers are built so that each item can be corrected
+from the command line or in one place.*
+
+- **Base URL and endpoints:** `https://dataportal.livsmedelsverket.se/livsmedel/api/v1`;
+  `GET /livsmedel` (the list of foods), `GET /livsmedel/{nummer}/naringsvarden`
+  (nutrient values), `GET /livsmedel/{nummer}/klassificeringar`
+  (classifications). Swagger UI at `/livsmedel/swagger/index.html`.
+- **Field names:** food `nummer`, `namn`; nutrient `euroFIRkod`, `namn`,
+  `varde`, `enhet`, `viktGram`. The readers also accept a few other
+  spellings and either a bare list or an object holding the list.
+- **Per 100 g:** `viktGram` is always 100 according to the documentation;
+  the script scales a value if it ever differs.
+- **Licence:** CC BY 4.0, Livsmedelsverket must be credited. The file
+  carries the credit line "Source: Livsmedelsverket, Livsmedelsdatabasen
+  (open API, dataportal.livsmedelsverket.se), licence CC BY 4.0." in
+  `attribution`, which S2 shows.
+- **Units** come per nutrient (`enhet`); energy is expected as two rows
+  of the same code, kJ and kcal.
+- **Vitamin D changed in 2025** (two values, with and without 25-OH-D3):
+  a missing value is not zero, so the script leaves it out.
+
+**Open points (unverified), to close on the first real run:**
+
+1. *Food groups.* Treated as a flat list, one group name per food, taken
+   from the classification whose type matches "livsmedelsgrupp" (or the
+   type given with `--group-type`). Whether the API exposes a tree
+   (LanguaL or FoodEx2 hierarchy, parent links) is not known; if it
+   does, the change is confined to `extract_groups` in the script and
+   the tag mapping in D2.
+2. *Paging and language.* `offset` and `limit` for paging and `sprak`
+   (1 = Swedish) for the language are guesses; all are options of the
+   script.
+3. *Unit strings as the source writes them* (the micro spelling) and the
+   codes of the two energy rows. The summary of the run lists every unit
+   as read and as written.
+4. *The exact attribution wording* Livsmedelsverket requires.
+5. *Whether a source version exists.* The file uses the download date.
 
 ## Settings and the data source page *(proposed)*
 
@@ -285,7 +338,9 @@ responses gain `source` and `group` (member ids).
 ## Testing *(proposed)*
 
 - **Import script:** run on a recorded API response (a few foods) in
-  `tests/`; no network in tests. Checks the file's shape, decimal
+  `tests/`; no network in tests. Until a real capture replaces it, the
+  recorded response is hand-made from the documentation (foods named
+  `TEST ...`, made-up numbers). Checks the file's shape, decimal
   strings and unit normalisation.
 - **Loading:** a small fixture data file; first load; a new version
   adds, updates and withdraws by key; a group's tag survives its group

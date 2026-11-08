@@ -31,6 +31,10 @@ deploy to Cloud Run. The AI layer of the planned recipe import is built in
 `server/ai/` (interfaces, prompt and schema, adapters for four providers)
 with a comparison script, `scripts/compare_models.py`, that the owner runs
 by hand to choose a model; the import itself is not available yet.
+A script to build the Livsmedelsverket data file,
+`scripts/import_livsmedelsverket.py`, exists and is tested on a hand-made
+recorded response; the data file itself has not been generated yet (see
+"Refreshing the Livsmedelsverket data file").
 
 Run the Python tests with `python3 -m pip install -e '.[server,dev]'` and
 then `python3 -m pytest`. Server tests use SQLite; set
@@ -56,6 +60,33 @@ out every session.
 Deploying: every push to `main` that passes CI is deployed to Google
 Cloud Run once the owner has done the one-time setup in
 [`docs/deploy.md`](docs/deploy.md); until then the deploy job is skipped.
+
+Refreshing the Livsmedelsverket data file. The script needs network access to
+`dataportal.livsmedelsverket.se` and is never run by the tests or the app.
+The app works without the file (the data source is simply not loaded).
+The first run is a trial, because the script's guesses about the API (paging,
+language parameter, food groups, unit spellings) are not yet checked against
+the live API:
+
+```
+python3 scripts/import_livsmedelsverket.py --limit-foods 5 \
+    --out /tmp/lv-trial.json.gz --min-foods 0 --record /tmp/lv-trial.json
+```
+
+Check the summary: the classification types seen (and `--group-type` if the
+food groups are under another type), the units written, that the foods got
+groups, and that no skipped value looks like data. Send `/tmp/lv-trial.json`
+back to replace the test fixture with a real capture. Then the real run (a few
+minutes):
+
+```
+python3 scripts/import_livsmedelsverket.py
+```
+
+Check the summary again, then `git add server/data_sources/livsmedelsverket.json.gz`,
+commit it as `data: Livsmedelsverket <version>` and open a pull request. The
+licence credit line (CC BY 4.0, in the file's `attribution`) must stay visible
+in the app (screen S2).
 
 Frontend checks: `npm run lint`, `npm run typecheck`, `npm test` in
 `web/`. After changing the API, run `npm run gen:api` in `web/` to
