@@ -12,8 +12,6 @@ router = APIRouter(tags=["preferences"])
 
 
 class Preferences(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
-
     unit_mass: str = Field(alias="unit.mass")
     unit_volume: str = Field(alias="unit.volume")
     unit_energy: str = Field(alias="unit.energy")
@@ -23,7 +21,7 @@ class PreferenceChanges(BaseModel):
     """Any subset of the preferences. A unit may be typed in any spelling and
     is saved as the catalogue's."""
 
-    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+    model_config = ConfigDict(extra="forbid")
 
     unit_mass: str | None = Field(None, alias="unit.mass")
     unit_volume: str | None = Field(None, alias="unit.volume")

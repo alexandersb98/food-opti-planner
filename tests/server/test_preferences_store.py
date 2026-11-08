@@ -42,3 +42,10 @@ def test_preferred_unit_for_each_category(db):
 def test_defaults_are_offered_units_of_their_categories():
     for key, category in preferences.UNIT_KEYS.items():
         assert preferences.DEFAULTS[key] in [u.symbol for u in units.offered(category)]
+
+
+def test_canonical_spells_units_and_refuses_what_refusals_would():
+    assert preferences.canonical({"unit.mass": "gram"}) == {"unit.mass": "g"}
+    for changes in ({"unit.mass": "dl"}, {"unit.mass": None}, {"unit.other": "g"}):
+        with pytest.raises(ValueError):
+            preferences.canonical(changes)

@@ -15,7 +15,8 @@ DEFAULTS: dict[str, str] = {"unit.mass": "g", "unit.volume": "dl", "unit.energy"
 
 for _key, _category in UNIT_KEYS.items():
     _default = units.parse(DEFAULTS[_key])
-    assert _default is not None and _default.offered and _default.category == _category, _key
+    if _default is None or not _default.offered or _default.category != _category:
+        raise RuntimeError(f"the default for {_key} is not an offered {_category} unit")
 
 
 def read(db: Session) -> dict[str, str]:
@@ -59,5 +60,12 @@ def refusals(changes: dict[str, object]) -> dict[str, str]:
 
 
 def canonical(changes: dict[str, str]) -> dict[str, str]:
-    """The changes with each unit as the catalogue spells it."""
-    return {key: _offered_unit(key, value).symbol for key, value in changes.items()}
+    """The changes with each unit as the catalogue spells it. Raises
+    ValueError for a change `refusals` would refuse."""
+    spelled = {}
+    for key, value in changes.items():
+        unit = _offered_unit(key, value) if key in UNIT_KEYS else None
+        if unit is None:
+            raise ValueError(f"{value!r} is not a valid value for {key!r}")
+        spelled[key] = unit.symbol
+    return spelled

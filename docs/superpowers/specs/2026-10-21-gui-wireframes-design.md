@@ -23,6 +23,7 @@ owner). Screen ids below (A1, C2, ...) match the canvas.
    screens get the same layout, centred.
 2. **Navigation: a hamburger menu** with five pages: Plan, Recipes,
    Ingredients, Attributes, Tags (C0). Each entry shows a count.
+   (The units spec adds a sixth, Settings, last, with no count.)
 3. **Plan setup is one overview screen with an editor per part**
    (A1), not a step-by-step wizard. The wizard was considered and
    dropped: plans are usually re-run after changing one goal, and the

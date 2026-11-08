@@ -412,6 +412,15 @@ class PlanResultMiss(Base):
     percent: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
 
 
+class Preference(Base):
+    """One row per preference that was ever set; unset ones have defaults."""
+
+    __tablename__ = "preferences"
+
+    key: Mapped[str] = mapped_column(String(PREFERENCE_KEY_LENGTH), primary_key=True)
+    value: Mapped[str] = mapped_column(String(PREFERENCE_VALUE_LENGTH))
+
+
 __all__ = [
     "Attribute",
     "Base",
@@ -430,18 +439,10 @@ __all__ = [
     "PlanResultTotal",
     "PlanSkip",
     "PlanTagFilter",
+    "Preference",
     "Recipe",
     "RecipeItem",
     "Tag",
     "ingredient_tags",
     "recipe_extra_tags",
 ]
-
-
-class Preference(Base):
-    """One row per preference that was ever set; unset ones have defaults."""
-
-    __tablename__ = "preferences"
-
-    key: Mapped[str] = mapped_column(String(PREFERENCE_KEY_LENGTH), primary_key=True)
-    value: Mapped[str] = mapped_column(String(PREFERENCE_VALUE_LENGTH))

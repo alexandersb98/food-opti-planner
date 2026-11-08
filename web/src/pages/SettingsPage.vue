@@ -15,7 +15,7 @@ const selects = [
   { key: 'unit.energy', category: 'energy' },
 ] as const satisfies readonly { key: keyof Preferences; category: Category }[]
 
-const saving = ref<keyof Preferences | null>(null)
+const saving = ref<Partial<Record<keyof Preferences, number>>>({}) // saves running, by key
 const saveFailed = ref(false)
 
 const ready = computed(() => store.preferences.value !== null && units.units.value.length > 0)
@@ -31,9 +31,9 @@ async function load() {
 }
 
 async function choose(key: keyof Preferences, unit: string) {
-  saving.value = key
+  saving.value[key] = (saving.value[key] ?? 0) + 1
   saveFailed.value = !(await store.set(key, unit))
-  saving.value = null
+  saving.value[key]! -= 1
 }
 
 onMounted(load)
@@ -72,7 +72,7 @@ onMounted(load)
             map-options
             :options="options(select.category)"
             :label="$t(`settings.preferredUnits.${select.category}`)"
-            :loading="saving === select.key"
+            :loading="!!saving[select.key]"
             @update:model-value="choose(select.key, $event)"
           />
         </q-card-section>

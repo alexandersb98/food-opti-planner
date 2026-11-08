@@ -173,3 +173,47 @@ test('a second visit reads the changed value without asking again', async () => 
   expect(calls.filter((c) => c === 'GET /api/units')).toHaveLength(1)
   second.unmount()
 })
+
+test('Volume and Energy offer their own units in order', async () => {
+  server()
+  const wrapper = await mountPage()
+  const text = (items: HTMLElement[]) => items.map((i) => i.textContent?.trim())
+  expect(text(await open(wrapper, 'Volume'))).toEqual([
+    'ml (millilitre)',
+    'cl (centilitre)',
+    'dl (decilitre)',
+    'l (litre)',
+    'krm (kryddmått)',
+    'tsk (teaspoon)',
+    'msk (tablespoon)',
+    'fl oz (fluid ounce)',
+    'US cup (US cup)',
+    'metric cup (metric cup)',
+  ])
+  expect(text(await open(wrapper, 'Energy'))).toEqual(['kJ (kilojoule)', 'kcal (kilocalorie)'])
+  wrapper.unmount()
+})
+
+test('a failed units load alone shows the message, and Try again loads', async () => {
+  let status = 500
+  server({ 'GET /api/units': () => ({ status, body: unitCatalogue() }) })
+  const wrapper = await mountPage()
+  expect(wrapper.text()).toContain('Could not load the settings.')
+  status = 200
+  await click(button(wrapper, 'Try again'))
+  expect(shown(wrapper, 'Energy')).toBe('kcal (kilocalorie)')
+  wrapper.unmount()
+})
+
+test('two quick changes in different selects both save, in order', async () => {
+  const { puts } = server()
+  const wrapper = await mountPage()
+  const first = open(wrapper, 'Mass').then((items) => items.find((i) => i.textContent?.trim() === 'kg (kilogram)')!.click())
+  await first
+  await choose(wrapper, 'Energy', 'kJ (kilojoule)')
+  await flushPromises()
+  expect(puts).toEqual([{ 'unit.mass': 'kg' }, { 'unit.energy': 'kJ' }])
+  expect(shown(wrapper, 'Mass')).toBe('kg (kilogram)')
+  expect(shown(wrapper, 'Energy')).toBe('kJ (kilojoule)')
+  wrapper.unmount()
+})

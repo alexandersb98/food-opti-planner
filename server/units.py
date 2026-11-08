@@ -129,6 +129,9 @@ def _build_lookups(table) -> tuple[dict[str, Unit], dict[str, Unit]]:
 
 _CATALOGUE = tuple(_build())
 _LOWER, _EXACT = _build_lookups(_CATALOGUE)
+# Milli prefixes: "m" is milli, but "M" would be mega, which the catalogue
+# does not have, so "MJ" is not read as millijoule.
+_MILLI = {u.symbol for u in _CATALOGUE if u.symbol[:1] == "m" and u.symbol[1:] in {b[0] for b in PREFIXABLE}}
 
 
 def catalogue() -> tuple[Unit, ...]:
@@ -149,7 +152,10 @@ def parse(text: str) -> Unit | None:
     cleaned = _clean(text)
     if not cleaned:
         return None
-    return _EXACT.get(cleaned) or _LOWER.get(cleaned.lower())
+    unit = _EXACT.get(cleaned) or _LOWER.get(cleaned.lower())
+    if unit is not None and unit.symbol in _MILLI and cleaned[0] == "M":
+        return None  # "MJ", "Ml": mega, not milli
+    return unit
 
 
 def normalise(text: str) -> str:

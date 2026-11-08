@@ -11,6 +11,8 @@ const state = reactive({
   failed: false,
 })
 let pending: Promise<void> | null = null
+// Saves run one after the other, so answers can't arrive out of order.
+let saves: Promise<unknown> = Promise.resolve()
 // Counts resets, so a request in flight at one can't fill the state.
 let generation = 0
 
@@ -41,16 +43,20 @@ export function usePreferences() {
   /** Save one preference. The state becomes the server's answer (which has
    * the unit spelled as the catalogue does). False, with the state as it
    * was, if the server refuses or can't be reached. */
-  async function set(key: keyof Preferences, unit: string): Promise<boolean> {
+  function set(key: keyof Preferences, unit: string): Promise<boolean> {
     const mine = generation
-    try {
-      const { data } = await api.PUT('/api/preferences', { body: { [key]: unit } })
-      if (!data) return false
-      if (mine === generation) state.preferences = data
-      return true
-    } catch {
-      return false
-    }
+    const save = saves.then(async () => {
+      try {
+        const { data } = await api.PUT('/api/preferences', { body: { [key]: unit } })
+        if (!data) return false
+        if (mine === generation) state.preferences = data
+        return true
+      } catch {
+        return false
+      }
+    })
+    saves = save
+    return save
   }
 
   return { ...toRefs(readonly(state)), load, set }
@@ -60,5 +66,6 @@ export function usePreferences() {
 export function resetPreferences() {
   generation++
   pending = null
+  saves = Promise.resolve()
   Object.assign(state, { preferences: null, loading: false, failed: false })
 }

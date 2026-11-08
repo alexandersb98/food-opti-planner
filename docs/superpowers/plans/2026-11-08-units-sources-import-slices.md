@@ -70,8 +70,6 @@ match in its pending review.
 
 ## Overview
 
-U1 done: see `2026-11-08-slice-u1-unit-catalogue.md`.
-
 | # | Slice | Screens | Usable result after merge |
 |---|---|---|---|
 | U1 | Unit catalogue and Settings | S1 | Known units understood; preferred units chosen |
@@ -88,6 +86,8 @@ U1 done: see `2026-11-08-slice-u1-unit-catalogue.md`.
 | R3 | Line units and conversions | C2, C4 | "2 dl crème fraîche" in a recipe |
 | R4 | Import from pasted text | C1, I1, C2 review | **Recipes imported by AI** from pasted text |
 | R5 | Import from a link | I1 | Recipes imported from a URL |
+
+U1 done: see `2026-11-08-slice-u1-unit-catalogue.md`.
 
 **Dependencies:**
 

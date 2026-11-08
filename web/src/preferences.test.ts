@@ -1,5 +1,5 @@
 import { defineComponent } from 'vue'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, expect, test, vi } from 'vitest'
 import { resetPreferences, usePreferences } from './preferences'
 import { fakeServer } from './test-app'
@@ -88,4 +88,28 @@ test('two components see one state', async () => {
   await stores[0]!.load()
   await stores[0]!.set('unit.volume', 'msk')
   expect(stores[1]!.preferences.value?.['unit.volume']).toBe('msk')
+})
+
+test('overlapping saves go one after the other and the last answer stays', async () => {
+  const answers: ((reply: { body: unknown }) => void)[] = []
+  const started: unknown[] = []
+  fakeServer({
+    'GET /api/preferences': { body: preferences() },
+    'PUT /api/preferences': (body) => {
+      started.push(body)
+      return new Promise((resolve) => answers.push(resolve))
+    },
+  })
+  const store = usePreferences()
+  await store.load()
+  const first = store.set('unit.mass', 'kg')
+  const second = store.set('unit.volume', 'msk')
+  await flushPromises()
+  expect(started).toEqual([{ 'unit.mass': 'kg' }])
+  answers[0]!({ body: preferences({ 'unit.mass': 'kg' }) })
+  await flushPromises()
+  expect(started).toEqual([{ 'unit.mass': 'kg' }, { 'unit.volume': 'msk' }])
+  answers[1]!({ body: preferences({ 'unit.mass': 'kg', 'unit.volume': 'msk' }) })
+  expect(await Promise.all([first, second])).toEqual([true, true])
+  expect(store.preferences.value).toEqual(preferences({ 'unit.mass': 'kg', 'unit.volume': 'msk' }))
 })

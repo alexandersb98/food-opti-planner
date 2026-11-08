@@ -159,3 +159,17 @@ def test_offered_lists():
     assert symbols("energy") == ["kJ", "kcal"]
     assert symbols(None) == symbols("mass") + symbols("volume") + symbols("energy") + ["st"]
     assert [u.symbol for u in units.catalogue() if u.offered] == symbols(None)
+
+
+@pytest.mark.parametrize(
+    ("text", "symbol"),
+    [("mJ", "mJ"), ("KCAL", "kcal"), ("Kg", "kg"), ("mL", "ml"), ("MCG", "µg"), ("MSK", "msk"), ("mcal", "mcal")],
+)
+def test_milli_is_lower_case_m_only(text, symbol):
+    assert parse(text).symbol == symbol
+
+
+@pytest.mark.parametrize("text", ["MJ", "Ml", "ML", "Mg", "MG", "Mcal", "MCAL"])
+def test_capital_m_is_mega_which_is_not_known(text):
+    assert parse(text) is None
+    assert factor(text, "J") is None

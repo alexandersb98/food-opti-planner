@@ -70,6 +70,13 @@ def test_an_unknown_key_is_refused(client):
     assert (error["loc"], error["type"]) == (["body", "unit.length"], "extra_forbidden")
 
 
+def test_a_python_style_field_name_is_refused(client):
+    response = put(client, {"unit_mass": "kg"})
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["type"] == "extra_forbidden"
+    assert client.get("/api/preferences").json() == DEFAULTS
+
+
 def test_a_number_is_refused(client):
     assert put(client, {"unit.mass": 5}).status_code == 422
 
