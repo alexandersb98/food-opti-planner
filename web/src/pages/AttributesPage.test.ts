@@ -1,11 +1,27 @@
 import { afterEach, expect, test, vi } from 'vitest'
-import { button, click, dialog, fakeServer, field, mountApp, texts, type FakeServer } from '../test-app'
+import { resetPreferences } from '../preferences'
+import {
+  button,
+  chooseUnit,
+  click,
+  dialog,
+  fakeServer,
+  field,
+  mountApp,
+  openUnitList,
+  texts,
+  unitRoutes,
+  type FakeServer,
+} from '../test-app'
 import { attribute } from '../test-data'
+import { resetUnits } from '../units'
 
 const energy = attribute({ id: 1, name: 'Energy', unit: 'kcal' })
 const protein = attribute({ id: 2, name: 'Protein', unit: 'g', decimals: 1, ingredient_count: 12, goal_count: 1 })
 
 afterEach(() => {
+  resetUnits()
+  resetPreferences()
   vi.unstubAllGlobals()
   document.body.innerHTML = ''
 })
@@ -13,6 +29,7 @@ afterEach(() => {
 async function mountPage(server: FakeServer = {}) {
   const calls = fakeServer({
     'GET /api/session': 204,
+    ...unitRoutes(),
     'GET /api/attributes': { body: [energy, protein] },
     ...server,
   })
@@ -101,10 +118,10 @@ test('opening another row saves the open one first', async () => {
     'PUT /api/attributes/1': (body) => ({ body: { ...energy, ...(body as object) } }),
   })
   await click(wrapper.findAll('.attribute-row')[0]!.get('.q-item'))
-  await field(wrapper, 'Unit').setValue('kJ')
+  await field(wrapper, 'Unit').setValue('IU')
   await click(wrapper.findAll('.attribute-row')[1]!.get('.q-item'))
   expect(calls).toContain('PUT /api/attributes/1')
-  expect(rows(wrapper)[0]).toMatch(/Energy\s*\(kJ\)/)
+  expect(rows(wrapper)[0]).toMatch(/Energy\s*\(IU\)/)
   expect(field(wrapper, 'Name').element.value).toBe('Protein')
   wrapper.unmount()
 })
@@ -168,5 +185,54 @@ test('a failed load offers to try again', async () => {
   server['GET /api/attributes'] = { body: [energy] }
   await click(button(wrapper, 'Try again'))
   expect(rows(wrapper)).toHaveLength(1)
+  wrapper.unmount()
+})
+
+test('the open row has the unit list with mass, volume and energy, and its help text', async () => {
+  const { wrapper } = await mountPage()
+  await click(wrapper.findAll('.attribute-row')[1]!.get('.q-item'))
+  expect(field(wrapper, 'Unit').element.value).toBe('g')
+  expect(wrapper.text()).toContain("The amount per the ingredient's basis, e.g. g or kcal.")
+  const rows = await openUnitList(wrapper, 'Unit')
+  expect(rows.filter((row) => row.startsWith('#'))).toEqual(['# Mass', '# Volume', '# Energy'])
+  expect(rows[rows.indexOf('# Energy') + 1]).toBe('kcal (kilocalorie)')
+  expect(rows).not.toContain('st (piece)')
+  wrapper.unmount()
+})
+
+test('a unit chosen from the list is sent as its symbol, typed text as typed', async () => {
+  const saved: unknown[] = []
+  const { wrapper } = await mountPage({
+    'PUT /api/attributes/1': (body) => {
+      saved.push(body)
+      return { body: { ...energy, ...(body as object) } }
+    },
+  })
+  await click(wrapper.findAll('.attribute-row')[0]!.get('.q-item'))
+  await chooseUnit(wrapper, 'Unit', 'kJ (kilojoule)')
+  await click(button(wrapper, 'Done'))
+  await click(wrapper.findAll('.attribute-row')[0]!.get('.q-item'))
+  await field(wrapper, 'Unit').setValue('gram')
+  await click(button(wrapper, 'Done'))
+  expect(saved).toEqual([
+    { name: 'Energy', unit: 'kJ', decimals: 0 },
+    { name: 'Energy', unit: 'gram', decimals: 0 },
+  ])
+  wrapper.unmount()
+})
+
+test('a new attribute opens with an empty unit and saves with it empty', async () => {
+  let created: unknown
+  const { wrapper } = await mountPage({
+    'POST /api/attributes': (body) => {
+      created = body
+      return { status: 201, body: { ...(body as object), id: 3, ingredient_count: 0, goal_count: 0 } }
+    },
+  })
+  await click(button(wrapper, '+ New attribute'))
+  expect(field(wrapper, 'Unit').element.value).toBe('')
+  await field(wrapper, 'Name').setValue('Score')
+  await click(button(wrapper, 'Done'))
+  expect(created).toEqual({ name: 'Score', unit: '', decimals: 3 })
   wrapper.unmount()
 })

@@ -6,6 +6,7 @@ import { fieldErrors } from '../api/errors'
 import type { Attribute, AttributeFields as Fields } from '../api/types'
 import ConfirmDelete from '../components/ConfirmDelete.vue'
 import LoadState from '../components/LoadState.vue'
+import UnitField from '../components/UnitField.vue'
 import { useLoad } from '../composables/useLoad'
 
 const { t } = useI18n()
@@ -206,10 +207,10 @@ async function confirmDelete() {
                 :error="!!errors.name"
                 :error-message="errors.name"
               />
-              <q-input
+              <UnitField
                 v-model="draft.unit"
                 class="col-3"
-                outlined
+                :categories="['mass', 'volume', 'energy']"
                 dense
                 :label="$t('attributes.unit')"
               />
@@ -224,6 +225,9 @@ async function confirmDelete() {
                 :error="!!errors.decimals"
                 :error-message="errors.decimals"
               />
+            </div>
+            <div class="text-caption text-grey-8">
+              {{ $t('attributes.unitHint') }}
             </div>
             <div class="text-caption text-grey-8">
               {{ $t('attributes.decimalsHint') }}
