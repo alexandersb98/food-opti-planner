@@ -34,7 +34,8 @@ a step when the flow changes. In addition:
   unit change converts whatever stored numbers exist by then: U3 the
   values, goals, basis and recipe amounts; D4 the copied source values;
   R3 the recipe line units and ingredient conversions. Each slice
-  extends the unit-change preview, its counts and its tests.
+  extends the unit-change preview, its counts and its tests: each slice
+  adds a converter in `server/unit_change.py`.
 - **The units catalogue (`server/units.py`) is the only place unit
   rules live.** Later slices add to it; none keep their own unit table
   (see "Overlaps settled here").
@@ -89,6 +90,7 @@ match in its pending review.
 
 U1 done: see `2026-11-08-slice-u1-unit-catalogue.md`.
 U2 done: see `2026-11-08-slice-u2-unit-fields.md`.
+U3 done: see `2026-11-08-slice-u3-unit-change-converts.md`.
 
 **Dependencies:**
 

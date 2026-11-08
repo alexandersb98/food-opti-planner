@@ -166,6 +166,11 @@ values per their basis and how many recipes use them), and a round
   value divided by the basis. An empty value counts as 0, as in the
   library.
 - **Tags:** on/off buttons → `tags`.
+- **Changing the unit** of a saved ingredient asks first: "Oats: the basis
+  and 4 recipe amounts will be converted from g to kg (× 0.001)." with
+  **Cancel** and **Convert** (**Change unit** when another category or free
+  text keeps the numbers; no dialog for another spelling). A refused
+  conversion shows under **Measured in** and the form stays open.
 - **Used in N recipes · Show.** **Delete** is disabled while any recipe
   uses the ingredient.
 
@@ -173,7 +178,10 @@ values per their basis and how many recipes use them), and a round
 
 A list; a row opens in place to edit **Name**, **Unit** (GUI-only; the same
 combo box, with the help text "The amount per the ingredient's basis, e.g.
-g or kcal.") and **Decimals** (→ `precision`). Delete warns how many ingredient values
+g or kcal.") and **Decimals** (→ `precision`). Changing the unit of a saved
+attribute asks first, in the same dialog ("Iron: 12 ingredient values and 2
+goals will be converted from mg to µg (× 1000)."); a refusal, such as a goal
+bound that needs more decimals, shows under **Unit**. Delete warns how many ingredient values
 and goals it removes, then removes them. `accrues_on` is not shown (it
 has no effect yet, decision #28). "+ New attribute".
 

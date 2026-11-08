@@ -23,7 +23,10 @@ a Settings page with preferred units for mass, volume and energy (on a
 unit catalogue in `server/units.py` that later slices build on), unit
 fields of ingredients and attributes that are combo boxes over that
 catalogue (grouped by category, the preferred unit first, free text
-allowed; a new ingredient starts in the preferred mass unit), and a
+allowed; a new ingredient starts in the preferred mass unit), a unit
+change within its category that converts the stored numbers after a
+dialog (ingredient values, goal bounds and references, basis, recipe
+amounts; another category or free text only changes the unit), and a
 deploy to Cloud Run.
 
 Run the Python tests with `python3 -m pip install -e '.[server,dev]'` and

@@ -198,6 +198,31 @@ decimals and 15 digits (`EXACT_NUMBER`).
   would need 4 decimals as g. Raise Iron's decimals first."
 - A number past 15 digits refuses the change, naming the first one.
 
+**Settled in slice U3.**
+
+- The arithmetic is exact (`Fraction`, from the catalogue's exact
+  factors). A ratio with no finite decimals (tsk to US cup) rounds
+  ingredient numbers to 6 decimals and refuses goal bounds.
+- The preview also takes what the form is about to save: the attribute
+  preview an optional `decimals`, the ingredient preview an optional
+  `basis`, so that "Raise Iron's decimals first" can be answered by
+  raising them and asking again, and the preview matches `PUT`.
+- `PUT` converts the body's basis (the form shows it in the old unit and
+  does not convert it), so a basis edited in the same save converts too.
+- What converts: ingredient values, the live plan's goal `min`, `max` and
+  `zero_reference`; the ingredient's basis and its recipe amounts. A
+  goal counts once however many bounds it has.
+- Rounding is half away from zero to 6 decimals; "rounded" counts the
+  numbers that lost digits. A refusal names the first problem, going
+  through the converters in order.
+- Added: `conversion_rounds_to_zero`, when a basis or recipe amount would
+  round to 0 (the rest of the API rejects 0). The ingredient preview also
+  refuses an energy unit (`unit_not_for_ingredient`) as `PUT` does.
+- A refusal shows under the unit field, not in the dialog. A failed
+  preview saves nothing.
+- Each later slice that stores numbers in a unit adds one converter to
+  the list in `server/unit_change.py` and one count text.
+
 **API.** `POST /api/attributes/{id}/unit-change` and
 `POST /api/ingredients/{id}/unit-change` take `{unit}` and answer what a
 save with it would do: `{kind: "same" | "convert" | "no_convert",
@@ -213,6 +238,7 @@ client that skipped the check can't lose precision.
 | Energy unit on an ingredient | 422 `unit_not_for_ingredient` on `unit` |
 | Converted goal bound needs more decimals | 422 `conversion_needs_decimals` on `unit`, with the goal |
 | Converted number past 15 digits | 422 `conversion_too_large` on `unit` |
+| Converted basis or recipe amount would round to 0 | 422 `conversion_rounds_to_zero` on `unit` |
 | Unknown preference key or a unit of the wrong category | 422 on that field |
 
 ## Testing

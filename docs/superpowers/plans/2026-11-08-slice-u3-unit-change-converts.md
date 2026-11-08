@@ -39,7 +39,7 @@ Interfaces of earlier slices:
 [`2026-11-08-slice-u1-unit-catalogue.md`](2026-11-08-slice-u1-unit-catalogue.md),
 [`2026-11-08-slice-u2-unit-fields.md`](2026-11-08-slice-u2-unit-fields.md).
 
-**Status:** Planned; to be built task by task on branch
+**Status:** Built, and reviewed task by task, on branch
 claude/implement-remaining-slices-qwrp83.
 
 ## Global Constraints
@@ -169,6 +169,24 @@ claude/implement-remaining-slices-qwrp83.
     `no_convert`. Neither is added here (YAGNI); the extension is one
     field on `Converter` and one branch in `plan()`.
 
+15. **Decisions made while building.**
+    - `mg` to `MG` is `no_convert`, not `same`: a capital M is not milli in the
+      catalogue, so `MG` is free text. Tests use `mg.` for a spelling-only change.
+    - Ratio 1 between different spellings of one amount (ml to krm) is `same`.
+    - The plan's "0.0000004 stays" case cannot be stored (6 decimals); tests use
+      0.000001 (stays) and 0.0004 g to kg (refused).
+    - The goal converter reads the plan with `db.get`, not `queries.plan`, so a
+      preview never creates the default plan.
+    - `PUT /api/ingredients` plans before `_fill` (the plan reads the database and
+      must not flush the new fields) and raises the refusal after `_fill`, so
+      `_fill`'s own 422s win.
+    - The app composes refusal sentences from `unitChange.subject.*` and
+      `unitChange.refusal.*` with the form's old and new unit and the attribute's
+      name; a refusal in a `PUT`'s 422 shows the server's `msg` as is.
+    - The dialog answers no when its page unmounts, and Escape cancels.
+    - `IngredientPage`'s local `basisFor` fallback stays: `units.basisFor` gives
+      `1` for g while the catalogue is empty, the page keeps `100`.
+
 ## Tasks
 
 ### Task 1: Server: `units.ratio` and the conversion engine
@@ -267,6 +285,8 @@ msk to US cup non-terminating), None across categories, for free text
 
 **Verify:** `python3 -m pytest tests/server/test_units.py tests/server/test_unit_change.py -q`,
 then `python3 -m pytest -q`.
+
+**Checked:** both commands, green. Differences from the text: see interpretation 15.
 
 ### Task 2: Server: preview endpoints, `PUT` converts, refusals
 
@@ -379,6 +399,9 @@ gen:api` and `git diff --stat` shows `openapi.json` and `schema.ts` changed,
 `test-units.json` not; then `python3 -m pytest -q` (the OpenAPI test is green
 once regenerated).
 
+**Checked:** `python3 -m pytest -q` green; `gen:api` changed `openapi.json` and
+`schema.ts`, not `test-units.json`. Differences: none.
+
 ### Task 3: Web: `useUnitChange` and `UnitChangeDialog`
 
 **Files:** create `web/src/composables/useUnitChange.ts`,
@@ -442,6 +465,10 @@ sentence when `decimals_needed` is null: "...can't be written exactly in {to}.")
 
 **Verify:** `npm run lint`, `npm run typecheck`, `npm test` in `web/`.
 
+**Checked:** lint, typecheck, Vitest. Differences: the dialog also resolves no
+when its page unmounts; `refusalText` takes a context (old and new unit, attribute
+name) besides the refusal; `test-data.ts` also has `unitChangeRefusal`.
+
 ### Task 4: C5, the attribute form asks before converting
 
 **Files:** modify `web/src/pages/AttributesPage.vue`,
@@ -495,6 +522,11 @@ browser at 390 px (`npx vite build`, uvicorn on an empty SQLite file as for the
 e2e): the dialog fits the viewport and nothing scrolls sideways; record in
 Checked.
 
+**Checked:** lint, typecheck, Vitest. Dialog at 390 px in Chromium (vite build,
+uvicorn on an empty SQLite file): 247 px wide, `scrollWidth` 390 = viewport, no
+sideways scroll. Differences: a `PUT` 422 of a conversion shows the server's
+`msg` (new `conversionRefusal` in `api/errors.ts`).
+
 ### Task 5: C4, the ingredient form asks before converting
 
 **Files:** modify `web/src/pages/IngredientPage.vue`,
@@ -538,6 +570,9 @@ Checked.
 
 **Verify:** `npm run lint`, `npm run typecheck`, `npm test`; the dialog at 390 px.
 
+**Checked:** lint, typecheck, Vitest; the same dialog at 390 px from the ingredient
+form. Differences: none.
+
 ### Task 6: End-to-end step
 
 **Files:** `web/e2e/catalog.e2e.ts`.
@@ -560,6 +595,9 @@ Checked.
 uvicorn on an empty SQLite file in the scratchpad with `PASSWORD_HASH` and
 `SESSION_KEY`; `E2E_PASSWORD=... E2E_BASE_URL=http://localhost:8000 npm run e2e
 -- --trace off`; kill the server.
+
+**Checked:** build, uvicorn on an empty SQLite file, the e2e flow passed (1 test).
+Differences: none.
 
 ### Task 7: Docs
 
@@ -585,6 +623,8 @@ this plan.
 
 **Verify:** the full checks (both suites, lint, typecheck) and the e2e run once
 more.
+
+**Checked:** see the report of the slice. Differences: none.
 
 ## Done when
 
