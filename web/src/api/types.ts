@@ -27,3 +27,6 @@ export type SolveFailure = NonNullable<SolveOutcome['failure']>
 export type ClashMember = Schemas['ClashMember']
 export type TagFilter = Schemas['TagFilter']
 export type RecipeCount = Schemas['RecipeCount']
+export type UnitCatalogue = Schemas['UnitCatalogue']
+export type CatalogueUnit = Schemas['CatalogueUnit']
+export type Preferences = Schemas['Preferences']

@@ -1,5 +1,4 @@
-"""Preferences: defaults, reading and saving. The API validates (see
-`refusals`, added with it); this module has no FastAPI import."""
+"""Preferences: defaults, validation, reading and saving. No FastAPI import."""
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -40,3 +39,25 @@ def save(db: Session, changes: dict[str, str]) -> None:
     for key, value in changes.items():
         db.merge(models.Preference(key=key, value=value))
     db.commit()
+
+
+def _offered_unit(key: str, value: object) -> units.Unit | None:
+    unit = units.parse(value) if isinstance(value, str) else None
+    if unit is not None and unit.offered and unit.category == UNIT_KEYS[key]:
+        return unit
+    return None
+
+
+def refusals(changes: dict[str, object]) -> dict[str, str]:
+    """The changes the API must refuse, by key, with the reason: a unit that
+    is not offered for its key's category (any spelling is fine), or a null."""
+    return {
+        key: f"Not a unit offered for {UNIT_KEYS[key]}"
+        for key, value in changes.items()
+        if key in UNIT_KEYS and _offered_unit(key, value) is None
+    }
+
+
+def canonical(changes: dict[str, str]) -> dict[str, str]:
+    """The changes with each unit as the catalogue spells it."""
+    return {key: _offered_unit(key, value).symbol for key, value in changes.items()}

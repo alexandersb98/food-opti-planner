@@ -8,7 +8,7 @@
     "typecheck": "vue-tsc --noEmit",
     "lint": "eslint . --max-warnings=0",
     "test": "vitest run",
-    "gen:api": "cd .. && python3 -m server.export_openapi web/openapi.json && cd web && openapi-typescript openapi.json -o src/api/schema.ts",
+    "gen:api": "cd .. && python3 -m server.export_openapi web/openapi.json && python3 -m server.export_units web/src/test-units.json && cd web && openapi-typescript openapi.json -o src/api/schema.ts",
     "e2e": "playwright test"
   },
   "dependencies": {
