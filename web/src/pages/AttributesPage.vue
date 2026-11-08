@@ -2,20 +2,18 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api } from '../api/client'
+import { DECIMALS, parseDecimals } from '../attributeFields'
 import { conversionRefusal, fieldErrors } from '../api/errors'
 import type { Attribute, AttributeFields as Fields } from '../api/types'
+import AttributeFields from '../components/AttributeFields.vue'
 import ConfirmDelete from '../components/ConfirmDelete.vue'
 import LoadState from '../components/LoadState.vue'
 import UnitChangeDialog from '../components/UnitChangeDialog.vue'
-import UnitField from '../components/UnitField.vue'
 import { useLoad } from '../composables/useLoad'
 import { refusalText, useUnitChange } from '../composables/useUnitChange'
 
 const { t } = useI18n()
 const unitChange = useUnitChange()
-
-// The library's precision range, and its default for a new attribute.
-const DECIMALS = { min: 0, max: 6, default: 3 }
 
 const { data: attributes, loading, failed: loadFailed, load } = useLoad(() => api.GET('/api/attributes'), [])
 
@@ -55,24 +53,6 @@ function info(attribute: Attribute) {
   return `${decimals} · ${t('count.goals', attribute.goal_count)}`
 }
 
-/** "1 → 0.1 g": the smallest step the planner counts, for the typed decimals. */
-const decimalsExample = computed(() => {
-  const decimals = parsedDecimals()
-  if (decimals === null) return ''
-  const step = (10 ** -decimals).toFixed(decimals)
-  return `${decimals} → ${step} ${draft.unit.trim()}`.trim().replaceAll(' ', '\u00a0') // kept on one line
-})
-
-function parsedDecimals(): number | null {
-  const decimals = Number(draft.decimals)
-  const valid =
-    String(draft.decimals).trim() !== '' &&
-    Number.isInteger(decimals) &&
-    decimals >= DECIMALS.min &&
-    decimals <= DECIMALS.max
-  return valid ? decimals : null
-}
-
 function openRow(attribute: Attribute, id: number | 'new') {
   openId.value = id
   draft.name = attribute.name
@@ -95,7 +75,7 @@ async function startNew() {
 /** Save the open row and close it; false if it has to stay open. */
 async function done(): Promise<boolean> {
   if (openId.value === null) return true
-  const decimals = parsedDecimals()
+  const decimals = parseDecimals(draft.decimals)
   const fields: Fields = { name: draft.name.trim(), unit: draft.unit.trim(), decimals: decimals ?? 0 }
   errors.name = fields.name ? '' : t('common.nameRequired')
   errors.decimals = decimals === null ? t('attributes.decimalsRange', DECIMALS) : ''
@@ -236,45 +216,10 @@ async function confirmDelete() {
             class="q-pa-md q-gutter-y-sm"
             @submit="done"
           >
-            <div class="row q-col-gutter-sm">
-              <q-input
-                v-model="draft.name"
-                class="col-6"
-                outlined
-                dense
-                autofocus
-                :label="$t('common.name')"
-                :error="!!errors.name"
-                :error-message="errors.name"
-              />
-              <UnitField
-                v-model="draft.unit"
-                class="col-3"
-                :categories="['mass', 'volume', 'energy']"
-                dense
-                :label="$t('attributes.unit')"
-                :error="!!errors.unit"
-                :error-message="errors.unit"
-              />
-              <q-input
-                v-model="draft.decimals"
-                class="col-3"
-                type="number"
-                inputmode="numeric"
-                outlined
-                dense
-                :label="$t('attributes.decimals')"
-                :error="!!errors.decimals"
-                :error-message="errors.decimals"
-              />
-            </div>
-            <div class="text-caption text-grey-8">
-              {{ $t('attributes.unitHint') }}
-            </div>
-            <div class="text-caption text-grey-8">
-              {{ $t('attributes.decimalsHint') }}
-              <span v-if="decimalsExample">({{ decimalsExample }})</span>
-            </div>
+            <AttributeFields
+              v-model:draft="draft"
+              :errors="errors"
+            />
             <div
               v-if="errors.save"
               class="text-negative"
