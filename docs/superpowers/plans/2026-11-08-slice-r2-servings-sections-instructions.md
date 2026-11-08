@@ -523,7 +523,7 @@ after U3's unit-change step, whose Oats amount reads `0.06 kg`; do not
 hard-code grams, read the field's current value) and before the Tags step:
 
 - Open Porridge, set **Serves** to 2, the per-portion total reads `Energy 117
-  kcal` (233 halved, rounded half away: 116.5 to 117, check against the
+  kcal` (60 g of oats is 233.4 kcal, halved 116.7, rounded to 117; check against the
   server's number when written); type text in **Instructions**, a link in
   **Source**; Save. The list row reads `Per portion: Energy 117 kcal`.
 - Open it again: Serves 2, instructions and source persisted, **Open source**
