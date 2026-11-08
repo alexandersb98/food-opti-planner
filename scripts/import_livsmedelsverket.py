@@ -13,11 +13,18 @@ readers accept a few spellings of each field. First run: see README,
 "Refreshing the Livsmedelsverket data file".
 """
 
+import argparse
 import gzip
 import json
 import os
+import socket
 import sys
 import threading
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+from datetime import datetime, timezone
 from collections import Counter
 from collections.abc import Callable, Iterable, Mapping
 from concurrent.futures import ThreadPoolExecutor
@@ -115,6 +122,54 @@ class ReplayFetcher:
             return self.responses[key]
         except KeyError:
             raise ImportError_(f"no recorded response for {key}") from None
+
+
+class HttpFetcher:
+    """GET base_url + path with JSON back; retries 429, 5xx and network errors."""
+
+    def __init__(
+        self,
+        base_url: str,
+        *,
+        timeout: float = 30,
+        retries: int = 3,
+        sleep: Callable[[float], Any] = time.sleep,
+        user_agent: str = "food-opti-planner data import (manual run)",
+    ):
+        self.base_url = base_url.rstrip("/")
+        self.timeout, self.retries, self.sleep, self.user_agent = timeout, retries, sleep, user_agent
+
+    def get(self, path: str, params: Mapping[str, str | int]) -> Any:
+        url = f"{self.base_url}{path}"
+        if params:
+            url += "?" + urllib.parse.urlencode(params)
+        request = urllib.request.Request(
+            url, headers={"Accept": "application/json", "User-Agent": self.user_agent}
+        )
+        delay = 1
+        for attempt in range(self.retries + 1):
+            wait: float = delay
+            try:
+                with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                    body = response.read()
+                try:
+                    return json.loads(body, parse_float=Decimal)
+                except ValueError as error:
+                    raise ImportError_(f"GET {url}: the answer is not JSON ({error})") from None
+            except urllib.error.HTTPError as error:
+                if error.code != 429 and error.code < 500:
+                    raise ImportError_(f"GET {url}: HTTP {error.code}") from None
+                problem = f"HTTP {error.code}"
+                retry_after = (error.headers.get("Retry-After") or "").strip() if error.headers else ""
+                if retry_after.isdigit() and int(retry_after) <= 30:
+                    wait = int(retry_after)
+            except (urllib.error.URLError, TimeoutError, socket.timeout, ConnectionError) as error:
+                problem = f"{type(error).__name__}: {getattr(error, 'reason', error)}"
+            if attempt == self.retries:
+                raise ImportError_(f"GET {url}: {problem} after {attempt + 1} tries")
+            self.sleep(wait)
+            delay *= 2
+        raise AssertionError("unreachable")  # pragma: no cover
 
 
 class RecordingFetcher:
@@ -467,3 +522,90 @@ def write_data_file(path: Path, data: dict) -> None:
     except BaseException:
         tmp.unlink(missing_ok=True)
         raise
+
+
+# ------------------------------------------------------------ command line
+
+HELP_EPILOG = (
+    "First run: --limit-foods 5 --out /tmp/lv-trial.json.gz --min-foods 0 "
+    "--record /tmp/lv-trial.json, then check the summary (README, "
+    "'Refreshing the Livsmedelsverket data file')."
+)
+
+
+def make_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Download Livsmedelsverket's food database and write the app's data file.",
+        epilog=HELP_EPILOG,
+    )
+    parser.add_argument("--out", type=Path, help="output file (default: server/data_sources/livsmedelsverket.json.gz)")
+    parser.add_argument("--base-url", help=f"API base URL (default: {DEFAULT_BASE_URL})")
+    parser.add_argument("--language", default="1", help="value of the sprak parameter (default 1)")
+    parser.add_argument("--page-size", type=int, default=100, help="foods per list request (default 100)")
+    parser.add_argument("--workers", type=int, default=4, help="parallel per-food requests (default 4)")
+    parser.add_argument("--version", help="data version (default: today's date, UTC)")
+    parser.add_argument("--group-type", action="append", default=[], metavar="TYPE",
+                        help="classification type that holds the food groups (repeatable)")
+    parser.add_argument("--allow-no-groups", action="store_true", help="do not fail when no food has a group")
+    parser.add_argument("--min-foods", type=int, default=1000,
+                        help="refuse to write fewer foods than this (default 1000)")
+    parser.add_argument("--limit-foods", type=int, metavar="N", help="only the first N foods (trial run; needs --out)")
+    parser.add_argument("--record", type=Path, metavar="FILE", help="also save every response to FILE")
+    parser.add_argument("--replay", type=Path, metavar="FILE",
+                        help="answer from a recorded file instead of HTTP (not with --base-url)")
+    return parser
+
+
+def _progress(message: str) -> None:
+    print(message, file=sys.stderr)
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = make_parser()
+    try:
+        args = parser.parse_args(argv)
+        if args.limit_foods is not None and args.out is None:
+            parser.error("--limit-foods needs an explicit --out, so a trial run cannot overwrite the real data file")
+        if args.replay is not None and args.base_url is not None:
+            parser.error("--replay and --base-url cannot be used together")
+        if args.limit_foods is not None and args.limit_foods < 1:
+            parser.error("--limit-foods must be at least 1")
+        if args.page_size < 1 or args.workers < 1:
+            parser.error("--page-size and --workers must be at least 1")
+    except SystemExit as stop:
+        return stop.code if isinstance(stop.code, int) else 2
+
+    out = args.out or ROOT / "server" / "data_sources" / "livsmedelsverket.json.gz"
+    version = args.version or datetime.now(timezone.utc).date().isoformat()
+    fetcher: Fetcher = (
+        ReplayFetcher(args.replay) if args.replay else HttpFetcher(args.base_url or DEFAULT_BASE_URL)
+    )
+    recorder = RecordingFetcher(fetcher) if args.record else None
+    try:
+        try:
+            data, _report = build_data_file(
+                recorder or fetcher,
+                version=version,
+                language=args.language,
+                page_size=args.page_size,
+                workers=args.workers,
+                group_types=args.group_type,
+                limit_foods=args.limit_foods,
+                min_foods=args.min_foods,
+                allow_no_groups=args.allow_no_groups,
+                log=_progress,
+            )
+        finally:
+            if recorder is not None and recorder.responses:
+                recorder.save(args.record)
+                _progress(f"responses recorded in {args.record}")
+        write_data_file(out, data)
+    except (ImportError_, OSError) as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1
+    _progress(f"wrote {out} ({out.stat().st_size} bytes, version {version})")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

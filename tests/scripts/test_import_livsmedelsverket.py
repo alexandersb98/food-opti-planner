@@ -1,8 +1,11 @@
 import copy
 import gzip
+import http.server
 import importlib.util
 import json
 import os
+import threading
+import urllib.parse
 from decimal import Decimal
 from pathlib import Path
 
@@ -544,3 +547,193 @@ def test_record_and_replay_round_trip(tmp_path):
     text = saved.read_text(encoding="utf-8")
     assert '"varde": 13.5' in text or '"varde":13.5' in text
     assert json.loads(text, parse_float=Decimal)["/livsmedel/1/naringsvarden?sprak=1"][2]["varde"] == Decimal("13.5")
+
+
+# --------------------------------------------------------------- command line
+
+FIXTURE_ARGS = ["--replay", str(FIXTURE), "--min-foods", "0", "--page-size", "2", "--version", "2026-11-08"]
+
+
+def read_file(path):
+    with gzip.open(path, "rt", encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def test_main_replay_writes_the_file(tmp_path, capsys):
+    out = tmp_path / "x.json.gz"
+    assert iv.main([*FIXTURE_ARGS, "--out", str(out)]) == 0
+    assert read_file(out) == build()
+    shown = capsys.readouterr()
+    text = shown.out + shown.err
+    assert "foods: 3" in text and "LanguaL" in text and "FoodEx2" in text and str(out) in text
+
+
+def test_limit_foods_needs_an_explicit_out(tmp_path, capsys):
+    default = iv.ROOT / "server" / "data_sources" / "livsmedelsverket.json.gz"
+    before = default.exists()
+    assert iv.main([*FIXTURE_ARGS, "--limit-foods", "2"]) == 2
+    assert "--out" in capsys.readouterr().err
+    assert default.exists() == before
+    out = tmp_path / "t.json.gz"
+    assert iv.main([*FIXTURE_ARGS, "--limit-foods", "2", "--out", str(out)]) == 0
+    assert [f["key"] for f in read_file(out)["foods"]] == ["1", "2"]
+
+
+def test_default_min_foods_refuses_and_writes_nothing(tmp_path, capsys):
+    out = tmp_path / "x.json.gz"
+    args = [a for a in FIXTURE_ARGS if a not in ("--min-foods", "0")]
+    assert iv.main([*args, "--out", str(out)]) == 1
+    assert "3 foods" in capsys.readouterr().err
+    assert not out.exists() and list(tmp_path.iterdir()) == []
+
+
+def test_replay_and_base_url_exclude_each_other(tmp_path):
+    assert iv.main([*FIXTURE_ARGS, "--base-url", "http://127.0.0.1:1", "--out", str(tmp_path / "x")]) == 2
+
+
+def test_help_works(capsys):
+    assert iv.main(["--help"]) == 0
+    assert "--limit-foods" in capsys.readouterr().out
+
+
+def test_main_record_round_trip(tmp_path):
+    rec, out1, out2 = tmp_path / "rec.json", tmp_path / "1.json.gz", tmp_path / "2.json.gz"
+    assert iv.main([*FIXTURE_ARGS, "--out", str(out1), "--record", str(rec)]) == 0
+    replay = ["--replay", str(rec)] + FIXTURE_ARGS[2:]
+    assert iv.main([*replay, "--out", str(out2)]) == 0
+    assert out1.read_bytes() == out2.read_bytes()
+
+
+def test_group_flags_are_passed_through(tmp_path):
+    stripped = tmp_path / "stripped.json"
+    stripped.write_text(json.dumps(without_group_entries(json.loads(FIXTURE.read_text(encoding="utf-8")))),
+                        encoding="utf-8")
+    args = ["--replay", str(stripped)] + FIXTURE_ARGS[2:]
+    out = tmp_path / "o.json.gz"
+    assert iv.main([*args, "--out", str(out)]) == 1
+    assert not out.exists()
+    assert iv.main([*args, "--out", str(out), "--allow-no-groups"]) == 0
+    assert all(f["groups"] == [] for f in read_file(out)["foods"])
+    assert iv.main([*args, "--out", str(out), "--group-type", "LanguaL"]) == 0
+    assert read_file(out)["foods"][0]["groups"] == ["TEST CEREAL GRAIN"]
+
+
+def test_the_default_output_is_the_committed_path():
+    source = SCRIPT.read_text(encoding="utf-8")
+    assert '"server" / "data_sources" / "livsmedelsverket.json.gz"' in source
+
+
+# ---------------------------------------------------------------- HttpFetcher
+
+class Stub:
+    """A local HTTP server answering from the fixture, with scripted failures."""
+
+    def __init__(self, statuses=(), headers=None):
+        self.requests = []
+        self.statuses = list(statuses)  # consumed one per request; empty = serve normally
+        self.forever = None
+        self.headers = headers or {}
+        replay = iv.ReplayFetcher(FIXTURE)
+        stub = self
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):  # noqa: N802
+                parts = urllib.parse.urlsplit(self.path)
+                params = dict(urllib.parse.parse_qsl(parts.query))
+                stub.requests.append((parts.path, params, dict(self.headers)))
+                status = stub.forever or (stub.statuses.pop(0) if stub.statuses else 200)
+                body = b""
+                if status == 200:
+                    try:
+                        body = iv._dump(replay.get(parts.path.removeprefix("/api"), params)).encode("utf-8")
+                    except iv.ImportError_:
+                        status = 404
+                self.send_response(status)
+                for k, v in stub.headers.items():
+                    self.send_header(k, v)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def log_message(self, *_):
+                pass
+
+        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.url = f"http://127.0.0.1:{self.server.server_address[1]}/api"
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+
+    def __enter__(self):
+        self.thread.start()
+        return self
+
+    def __exit__(self, *_):
+        self.server.shutdown()
+        self.server.server_close()
+
+
+def test_a_build_through_http_equals_the_replay_build():
+    with Stub() as stub:
+        fetcher = iv.HttpFetcher(stub.url, sleep=lambda _: None)
+        assert build(fetcher, workers=4) == build()
+        paths = {p for p, _, _ in stub.requests}
+        assert "/api/livsmedel" in paths and "/api/livsmedel/1/naringsvarden" in paths
+
+
+def test_the_request_carries_the_query_and_the_user_agent():
+    with Stub() as stub:
+        iv.HttpFetcher(stub.url).get("/livsmedel", {"limit": 2, "offset": 0, "sprak": 1})
+        (path, params, headers), = stub.requests
+    assert params == {"limit": "2", "offset": "0", "sprak": "1"}
+    assert headers["User-Agent"] == "food-opti-planner data import (manual run)"
+    assert headers["Accept"] == "application/json"
+
+
+def test_http_retries_then_succeeds():
+    sleeps = []
+    with Stub(statuses=[503, 503]) as stub:
+        body = iv.HttpFetcher(stub.url, sleep=sleeps.append).get("/livsmedel", {"limit": 2, "offset": 0, "sprak": 1})
+        assert len(stub.requests) == 3
+    assert sleeps == [1, 2]
+    assert iv.read_foods(body)[0] == ("1", "TEST Oat flakes")
+
+
+def test_http_gives_up_after_four_requests():
+    sleeps = []
+    with Stub() as stub:
+        stub.forever = 503
+        with pytest.raises(iv.ImportError_, match="HTTP 503"):
+            iv.HttpFetcher(stub.url, sleep=sleeps.append).get("/livsmedel", {"limit": 2})
+        assert len(stub.requests) == 4
+    assert sleeps == [1, 2, 4]
+
+
+def test_http_404_is_not_retried():
+    sleeps = []
+    with Stub() as stub:
+        with pytest.raises(iv.ImportError_, match="HTTP 404"):
+            iv.HttpFetcher(stub.url, sleep=sleeps.append).get("/livsmedel/999/naringsvarden", {"sprak": 1})
+        assert len(stub.requests) == 1
+    assert sleeps == []
+
+
+def test_retry_after_is_honoured():
+    sleeps = []
+    with Stub(statuses=[429], headers={"Retry-After": "3"}) as stub:
+        iv.HttpFetcher(stub.url, sleep=sleeps.append).get("/livsmedel", {"limit": 2, "offset": 0, "sprak": 1})
+    assert sleeps == [3]
+
+
+def test_a_long_retry_after_is_ignored():
+    sleeps = []
+    with Stub(statuses=[429], headers={"Retry-After": "600"}) as stub:
+        iv.HttpFetcher(stub.url, sleep=sleeps.append).get("/livsmedel", {"limit": 2, "offset": 0, "sprak": 1})
+    assert sleeps == [1]
+
+
+def test_a_refused_connection_is_retried_then_reported():
+    with Stub() as stub:
+        url = stub.url
+    sleeps = []
+    with pytest.raises(iv.ImportError_, match="after 4 tries"):
+        iv.HttpFetcher(url, sleep=sleeps.append, timeout=1).get("/livsmedel", {})
+    assert sleeps == [1, 2, 4]
