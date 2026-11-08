@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
 // One flow through the app, growing with each slice that changes it:
-// log in, build a small catalog and a recipe from it, then make a plan,
+// log in, set a preferred unit, build a small catalog and a recipe from it, then make a plan,
 // then one that clashes and is fixed.
 
 const password = process.env.E2E_PASSWORD
@@ -19,6 +19,23 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await page.getByLabel('Password').fill(password)
   await page.getByRole('button', { name: 'Log in' }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Plan')
+
+  // Settings: the preferred units start at the defaults, and a change is
+  // saved, not just shown. It ends as it started: the Oats ingredient below
+  // starts in the preferred mass unit and is expected in g.
+  await openPage(page, 'Settings')
+  const mass = page.locator('.preferred-units-card .q-select').filter({ hasText: 'Mass' })
+  await expect(mass).toContainText('g (gram)')
+  await expect(page.locator('.preferred-units-card .q-select').filter({ hasText: 'Volume' })).toContainText('dl (decilitre)')
+  await expect(page.locator('.preferred-units-card .q-select').filter({ hasText: 'Energy' })).toContainText('kcal (kilocalorie)')
+  await mass.click()
+  await page.getByRole('option', { name: 'kg (kilogram)' }).click()
+  await expect(mass).toContainText('kg (kilogram)')
+  await page.reload()
+  await expect(mass).toContainText('kg (kilogram)')
+  await mass.click()
+  await page.getByRole('option', { name: 'g (gram)', exact: true }).click()
+  await expect(mass).toContainText('g (gram)')
 
   await openPage(page, 'Attributes')
   await page.getByText('+ New attribute').click()
