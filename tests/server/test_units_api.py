@@ -14,6 +14,7 @@ def test_each_unit_has_its_aliases(client):
     units = {u["symbol"]: u["aliases"] for u in client.get("/api/units").json()}
     assert units["tbsp"] == ["msk", "tablespoon", "matsked", "msk."]
     assert units["st"] == ["st.", "stycken", "styck", "pcs", "piece", "pieces"]
+    assert units["µg"] == ["ug", "mcg"]
     assert units["kg"] == []
 
 

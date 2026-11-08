@@ -56,6 +56,7 @@ def test_a_unit_not_offered_for_the_key_is_refused(client, key, unit):
     [error] = response.json()["detail"]
     assert error["loc"] == ["body", key]
     assert error["type"] == "unit_not_offered"
+    assert error["msg"].startswith("Must be one of: ")
     assert client.get("/api/preferences").json() == DEFAULTS
 
 
@@ -72,6 +73,12 @@ def test_an_unknown_key_is_refused(client):
     [error] = response.json()["detail"]
     assert (error["loc"], error["type"]) == (["body", "unit.length"], "extra_forbidden")
     assert client.get("/api/preferences").json() == DEFAULTS
+
+
+def test_the_python_field_name_is_not_a_key(client):
+    response = put(client, {"unit_mass": "kg"})
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["type"] == "extra_forbidden"
 
 
 def test_a_refused_key_saves_none_of_the_others(client):
