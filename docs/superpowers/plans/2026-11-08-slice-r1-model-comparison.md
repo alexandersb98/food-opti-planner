@@ -57,8 +57,9 @@ settings (`AI_PROVIDER`, `AI_MODEL`, key, `AI_DAILY_LIMIT`), the `fake`
 provider, the one retry on a bad answer, the daily limit, the endpoints,
 page fetching, anything in the web app (all R4/R5).
 
-**Status:** Planned; to be built task by task on branch
-`claude/implement-remaining-slices-qwrp83`.
+**Status:** Built (run pending the owner), task by task and reviewed task by
+task on branch `claude/implement-remaining-slices-qwrp83`. The comparison run
+itself needs real keys and was not made.
 
 ## Global Constraints
 
@@ -207,6 +208,33 @@ page fetching, anything in the web app (all R4/R5).
     `factors.json`, `recipes/<id>.txt`, `recipes/<id>.expected.json`) and
     `tests/data/ai_responses/<provider>.json` (recorded replies for the
     adapter tests). The script's default `--data` is `tests/data/recipe_import`.
+
+16. **Built, decisions taken while building** (all small; the spec and the
+    plan's intent unchanged):
+    - A `not_an_ingredient` line has `match: null` as well as `amount: null`
+      (prompt rule 9, the parser does not enforce it, the data test does for
+      the expected drafts). A "pinch of salt" is not a catalogue match.
+    - `unit` is "as written": plural spellings (`klyftor`, `cloves`) are kept
+      in the expected drafts, and the scorer compares after `units.normalise`
+      only, so a model that writes `klyfta` for `klyftor` loses that point.
+      Accepted: it is rare and the report is a guide.
+    - The plan says "mean of the five draft percentages" but lists six
+      (amount, unit, match, not-an-ingredient, servings, no recipe):
+      `overall` is the mean of those of the six that have checks.
+    - `en-no-recipe` has only the `no_recipe` check (servings are not scored
+      there, or a synthesised empty draft would always pass it). A failed
+      call counts every expected line as missing.
+    - `Tally` is a small dataclass (`checks`, `extra_lines`, `missing_lines`)
+      rather than a dict holding both lists and ints.
+    - OpenAI and Mistral share one reader of the chat-completions reply
+      (`providers/_chat_completions.py`). A reply with no usage block is a
+      `BadAnswerError` for every adapter (Gemini's missing
+      `candidatesTokenCount` is 0, as planned). Mistral's documented error
+      body has a top-level `message`; the transport reads that as well as
+      `error.message`.
+    - `--record` together with `--replay` is a usage error (exit 2).
+      `main` takes `err=` as well as `out=` so the progress lines are
+      testable.
 
 ## The test data (fixed here so the expected drafts can be written once)
 
@@ -424,6 +452,11 @@ whole suite. Commit: "server: AI draft shapes, schema and answer parsers".
 whole suite. Commit: "server: recipe converter and factor suggester over a chat
 provider".
 
+**Built and checked:** `python3 -m pytest tests/server/test_ai_converter.py`
+and the full suite. Difference: the commit also contains `Transport` and
+`HttpxTransport` in `server/ai/chat.py` (Task 3 text), because the file was
+written once; Task 3's commit holds the adapters and their tests.
+
 ### Task 3: Transport and the four adapters
 
 **Files:** modify `server/ai/chat.py` (add `Transport`, `HttpxTransport`);
@@ -503,6 +536,13 @@ tests/server/test_ai_*.py` shows no test that could reach the network (all use
 `MockTransport` or a fake). Commit: "server: HTTP transport and adapters for
 four AI providers".
 
+**Built and checked:** transport and provider tests (45), the full suite;
+`grep` over the AI tests shows only `MockTransport` and fake transports.
+Differences: see interpretation 16 (shared chat-completions reader, usage
+rules, Mistral error body). The recorded replies in `tests/data/ai_responses/`
+carry the serialised `sv-pannkakor` expected draft (Task 4 data was written
+before they were generated).
+
 ### Task 4: The test data
 
 **Files:** create `tests/data/recipe_import/catalog.json`, `factors.json`,
@@ -554,6 +594,14 @@ contains none of the injected sentence.
 whole suite. If Task 3 used a placeholder draft in `tests/data/ai_responses/`,
 replace it now with the serialised `sv-pannkakor` expected draft. Commit:
 "tests: ten import test recipes with hand-written expected drafts".
+
+**Built and checked:** `tests/server/test_ai_testdata.py` (18 tests,
+including that every text is 600 to 2 500 characters). Differences: the data
+test also checks `not_an_ingredient` lines have no amount and no match, and
+that every recipe but `en-no-recipe` has at least two instruction lines.
+Lines the catalogue cannot match (brown sugar, raisins, dark chocolate, penne,
+mozzarella, tortillas, lemongrass, bell pepper, fresh basil) have
+`match: null`.
 
 ### Task 5: Scoring and cost
 
@@ -625,6 +673,11 @@ Task 6), `tests/scripts/test_compare_models.py`.
 **Verify:** `python3 -m pytest tests/scripts/test_compare_models.py -q`, then
 the whole suite. Commit: "scripts: scoring and cost for the model comparison".
 
+**Built and checked:** `tests/scripts/test_compare_models.py` (scoring,
+cost, `run_candidate` against a scripted chat that serves the expected files,
+a golden report). Differences: interpretation 16 (overall, `no_recipe`,
+`Tally`); `run_candidate` also takes `price=` and `progress=`.
+
 ### Task 6: The command line, record and replay
 
 **Files:** modify `scripts/compare_models.py`, `tests/scripts/test_compare_models.py`.
@@ -673,6 +726,11 @@ the whole suite. Commit: "scripts: scoring and cost for the model comparison".
 `python3 scripts/compare_models.py --help`. Do **not** run it with real
 providers. Commit: "scripts: compare_models command line with record and
 replay".
+
+**Built and checked:** the same test file (main with a serving transport,
+missing key, usage errors, record then replay, request key, `--help` as a
+subprocess); `python3 scripts/compare_models.py --help`. Never run against a
+real provider.
 
 ### Task 7: Docs
 
@@ -728,6 +786,10 @@ replay".
 `npm run lint`, `npm run typecheck`, `npm test` in `web/` (unchanged, so they
 must still pass); `git status` shows no change under `meal_planner/`, `web/`
 or `server/migrations/`. Commit: "Docs: model comparison section, R1 status".
+
+**Built and checked:** full Python suite; `git status` shows no change under
+`meal_planner/`, `web/` or `server/migrations/`. Web checks were not run:
+nothing under `web/` was touched by this slice.
 
 ## Done when
 

@@ -212,7 +212,8 @@ new conversions to create, each with its `source`. One transaction.
 
 ### Settings
 
-`AI_PROVIDER` (including `fake` for tests), `AI_MODEL`, the provider's
+`AI_PROVIDER` (including `fake` for tests), `AI_MODEL` (default: the provisional one in
+Model comparison), the provider's
 API key (from Secret Manager in production), and `AI_DAILY_LIMIT`
 (default 50 model calls a day; a call over the limit is refused). The
 health answer says whether a key is configured.
@@ -307,6 +308,67 @@ Gemini Flash-Lite, GPT-5.4 nano, Mistral Small; and Jev for factor
 suggestions only, if its API takes a numeric answer. Prices are checked
 on the providers' own pages at that time.
 
+## Model comparison
+
+**Status: built, run pending the owner.** Slice R1 built the test data
+(`tests/data/recipe_import/`), the `RecipeConverter` and `FactorSuggester`
+interfaces, the prompt and JSON schema, one adapter per provider
+(Anthropic, Google Gemini, OpenAI, Mistral) over plain HTTP, and
+`scripts/compare_models.py`. The run needs real keys and was not made.
+The adapters follow the providers' documentation as remembered when the
+plan was written and were not checked against the live services, so the
+first real run may need small adapter fixes.
+
+**How to run it:**
+
+1. Install `.[server]`.
+2. Set the key variables of the providers to try: `ANTHROPIC_API_KEY`,
+   `GEMINI_API_KEY`, `OPENAI_API_KEY`, `MISTRAL_API_KEY`.
+3. Copy each model's prices from the provider's page on the day into a
+   `prices.json`: `{"anthropic:<id>": {"input_per_mtok": 1.0,
+   "output_per_mtok": 5.0}}`, USD per million tokens.
+4. Run `python3 scripts/compare_models.py --models anthropic:<id>
+   gemini:<id> openai:<id> mistral:<id> --prices prices.json --report
+   /tmp/report.md --record /tmp/recorded`. It makes about 10 conversion
+   calls and 12 factor calls per model and costs real money. Model ids
+   are the providers' exact ids, not the display names above.
+5. Read the table, decide, and write the result and the default below.
+6. If an adapter needed a fix, send the `--record` folder back, so the
+   hand-written fixtures in `tests/data/ai_responses/` can be replaced by
+   real replies. `--replay DIR` repeats a run from such a folder without
+   keys.
+
+**What is scored**, per candidate: for each expected line, whether the
+model's paired line has the right amount (within 1 %), unit (after unit
+normalisation), match (the catalogue name, or none) and
+not-an-ingredient flag; servings per recipe; whether the recipe-free
+text got no lines; and whether each suggested factor is within 25 % of
+the reference. Model lines are paired with expected lines by similarity
+of their original text; lines the model invented are counted but do not
+change the percentages. Cost comes from the token counts the providers
+return and the prices file. Not scored: section names, recipe names and
+the instructions text. The overall figure in the report is a guide for
+reading the table, not the decision.
+
+**Provisional default `AI_MODEL`:** provider `anthropic`, model
+`claude-sonnet-5-5`. **Provisional:** chosen without a run. R4 ships with
+it as the default; replacing it is a change of the setting's default and
+of this paragraph. After the run, replace this paragraph with the result
+table and the decision. The list above names Claude Haiku 5.5 first and
+puts every candidate under a cent per recipe, so a cheaper model may
+win; that is what the run decides.
+
+**Not covered:** Jev (TypeSafe AI), for factor suggestions, has no
+adapter until its API is known; the `ChatProvider` seam in
+`server/ai/chat.py`, or a `FactorSuggester` of its own, is where it goes.
+Native schema enforcement per provider is a possible later improvement
+if a candidate often gives bad answers.
+
+**Reused by R4:** `server/ai/` as it is. R4 adds the settings, the `fake`
+provider, the one retry on a bad answer, the daily limit, and maps
+`NoRecipeFound`, `AIServiceError` and `BadAnswerError` to the error
+messages above.
+
 ## Testing
 
 No automated test calls a real AI service or the internet.
@@ -328,7 +390,8 @@ No automated test calls a real AI service or the internet.
 
 ## Slices
 
-1. **Model comparison:** the script and the test recipes.
+1. **Model comparison:** the script and the test recipes (built; run
+   pending, see Model comparison).
 2. **Data model, C2 and C4 without AI:** sections, servings, units,
    conversions, instructions, source link. Useful on its own for typing
    in cookbook recipes.

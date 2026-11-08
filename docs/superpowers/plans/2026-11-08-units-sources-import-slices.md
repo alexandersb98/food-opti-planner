@@ -91,6 +91,7 @@ match in its pending review.
 U1 done: see `2026-11-08-slice-u1-unit-catalogue.md`.
 U2 done: see `2026-11-08-slice-u2-unit-fields.md`.
 U3 done: see `2026-11-08-slice-u3-unit-change-converts.md`.
+R1 built, run pending the owner: see `2026-11-08-slice-r1-model-comparison.md`.
 
 **Dependencies:**
 
@@ -279,7 +280,8 @@ test for the questions. Playwright: filter a plan on an equivalent tag.
   amounts, units, matches, servings, not-an-ingredient flags and cost.
   Prices are checked on the providers' pages at that time.
 - Run by hand with real keys; the result and the chosen default
-  `AI_MODEL` are written into the import spec.
+  `AI_MODEL` are written into the import spec. The run and the final
+  default are the owner's; the slice ships a provisional default.
 
 **Tests:** each adapter against a recorded response; the scoring
 function on a hand-made draft.

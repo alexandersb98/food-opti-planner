@@ -27,12 +27,17 @@ allowed; a new ingredient starts in the preferred mass unit), a unit
 change within its category that converts the stored numbers after a
 dialog (ingredient values, goal bounds and references, basis, recipe
 amounts; another category or free text only changes the unit), and a
-deploy to Cloud Run.
+deploy to Cloud Run. The AI layer of the planned recipe import is built in
+`server/ai/` (interfaces, prompt and schema, adapters for four providers)
+with a comparison script, `scripts/compare_models.py`, that the owner runs
+by hand to choose a model; the import itself is not available yet.
 
 Run the Python tests with `python3 -m pip install -e '.[server,dev]'` and
 then `python3 -m pytest`. Server tests use SQLite; set
 `TEST_DATABASE_URL=postgresql+psycopg://...` to run them on Postgres. The
 reference-scale benchmark is opt-in: `python3 -m pytest -m benchmark -s`.
+`scripts/compare_models.py` needs real AI keys and costs money; it is never
+run in tests (see "Model comparison" in the recipe-import spec).
 
 Run the GUI locally. The server needs the login password's hash and a
 key that signs the session cookie; it refuses to start without them:
