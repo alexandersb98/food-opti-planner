@@ -15,9 +15,9 @@ readers accept a few spellings of each field. First run: see README,
 
 import argparse
 import gzip
+import http.client
 import json
 import os
-import socket
 import sys
 import threading
 import time
@@ -65,6 +65,7 @@ WEIGHT_FIELDS = ("viktGram",)
 TYPE_FIELDS = ("typ", "klassificeringstyp", "typNamn", "klassificering", "kategori")
 GROUP_NAME_FIELDS = ("namn", "benamning", "klassificeringNamn")
 
+DEFAULT_OUT = ROOT / "server" / "data_sources" / "livsmedelsverket.json.gz"
 DEFAULT_BASE_URL = "https://dataportal.livsmedelsverket.se/livsmedel/api/v1"
 DECIMALS = Decimal("0.000001")
 EXAMPLES = 5
@@ -163,8 +164,9 @@ class HttpFetcher:
                 retry_after = (error.headers.get("Retry-After") or "").strip() if error.headers else ""
                 if retry_after.isdigit() and int(retry_after) <= 30:
                     wait = int(retry_after)
-            except (urllib.error.URLError, TimeoutError, socket.timeout, ConnectionError) as error:
-                problem = f"{type(error).__name__}: {getattr(error, 'reason', error)}"
+            except (http.client.HTTPException, OSError) as error:
+                # URLError, timeouts, connection and SSL errors, a truncated body (IncompleteRead)
+                problem = f"{type(error).__name__}: {getattr(error, 'reason', error) or error}"
             if attempt == self.retries:
                 raise ImportError_(f"GET {url}: {problem} after {attempt + 1} tries")
             self.sleep(wait)
@@ -199,7 +201,7 @@ def _pick(entry: Mapping[str, Any], names: Iterable[str]) -> Any:
     """The first present field of `names`, matched case-insensitively."""
     lowered = {str(k).lower(): v for k, v in entry.items()}
     for name in names:
-        if name.lower() in lowered:
+        if lowered.get(name.lower()) is not None:
             return lowered[name.lower()]
     return None
 
@@ -325,7 +327,10 @@ def decimal_string(raw: Any, vikt_gram: Any = None) -> str | None:
                 return None
             if weight != 100:
                 number = number * 100 / weight
-        number = number.quantize(DECIMALS, rounding=ROUND_HALF_UP)
+        try:
+            number = number.quantize(DECIMALS, rounding=ROUND_HALF_UP)
+        except InvalidOperation:  # far too large to be a nutrient value
+            return None
     text = format(number, "f")
     if "." in text:
         text = text.rstrip("0").rstrip(".")
@@ -413,8 +418,8 @@ def build_data_file(
 
     def fetch_one(food: tuple[str, str]) -> tuple[list[RawValue], list[dict]]:
         key = food[0]
-        values = read_values(fetcher.get(f"/livsmedel/{key}/naringsvarden", {"sprak": language}))
-        classes = read_classifications(fetcher.get(f"/livsmedel/{key}/klassificeringar", {"sprak": language}))
+        values = read_values(fetcher.get(f"/livsmedel/{urllib.parse.quote(key, safe='')}/naringsvarden", {"sprak": language}))
+        classes = read_classifications(fetcher.get(f"/livsmedel/{urllib.parse.quote(key, safe='')}/klassificeringar", {"sprak": language}))
         return values, classes
 
     if workers > 1:
@@ -566,6 +571,8 @@ def main(argv: list[str] | None = None) -> int:
         args = parser.parse_args(argv)
         if args.limit_foods is not None and args.out is None:
             parser.error("--limit-foods needs an explicit --out, so a trial run cannot overwrite the real data file")
+        if args.replay is not None and args.out is None:
+            parser.error("--replay needs an explicit --out, so recorded data cannot land in the real data file")
         if args.replay is not None and args.base_url is not None:
             parser.error("--replay and --base-url cannot be used together")
         if args.limit_foods is not None and args.limit_foods < 1:
@@ -575,7 +582,7 @@ def main(argv: list[str] | None = None) -> int:
     except SystemExit as stop:
         return stop.code if isinstance(stop.code, int) else 2
 
-    out = args.out or ROOT / "server" / "data_sources" / "livsmedelsverket.json.gz"
+    out = args.out or DEFAULT_OUT
     version = args.version or datetime.now(timezone.utc).date().isoformat()
     fetcher: Fetcher = (
         ReplayFetcher(args.replay) if args.replay else HttpFetcher(args.base_url or DEFAULT_BASE_URL)
@@ -599,6 +606,8 @@ def main(argv: list[str] | None = None) -> int:
             if recorder is not None and recorder.responses:
                 recorder.save(args.record)
                 _progress(f"responses recorded in {args.record}")
+        if out.resolve() == DEFAULT_OUT.resolve() and any(f["name"].startswith("TEST ") for f in data["foods"]):
+            raise ImportError_(f"refusing to write test data (foods named 'TEST ...') to {out}")
         write_data_file(out, data)
     except (ImportError_, OSError) as error:
         print(f"error: {error}", file=sys.stderr)

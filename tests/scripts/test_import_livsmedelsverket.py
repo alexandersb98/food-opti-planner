@@ -568,12 +568,12 @@ def test_main_replay_writes_the_file(tmp_path, capsys):
     assert "foods: 3" in text and "LanguaL" in text and "FoodEx2" in text and str(out) in text
 
 
-def test_limit_foods_needs_an_explicit_out(tmp_path, capsys):
-    default = iv.ROOT / "server" / "data_sources" / "livsmedelsverket.json.gz"
-    before = default.exists()
+def test_limit_foods_needs_an_explicit_out(tmp_path, capsys, monkeypatch):
+    default = tmp_path / "default" / "lv.json.gz"
+    monkeypatch.setattr(iv, "DEFAULT_OUT", default)
     assert iv.main([*FIXTURE_ARGS, "--limit-foods", "2"]) == 2
     assert "--out" in capsys.readouterr().err
-    assert default.exists() == before
+    assert not default.exists()
     out = tmp_path / "t.json.gz"
     assert iv.main([*FIXTURE_ARGS, "--limit-foods", "2", "--out", str(out)]) == 0
     assert [f["key"] for f in read_file(out)["foods"]] == ["1", "2"]
@@ -624,6 +624,14 @@ def test_the_default_output_is_the_committed_path():
 
 
 # ---------------------------------------------------------------- HttpFetcher
+
+@pytest.fixture(autouse=True)
+def _no_proxy(monkeypatch):
+    for name in ("http_proxy", "HTTP_PROXY", "all_proxy", "ALL_PROXY"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("no_proxy", "127.0.0.1")
+    monkeypatch.setenv("NO_PROXY", "127.0.0.1")
+
 
 class Stub:
     """A local HTTP server answering from the fixture, with scripted failures."""
@@ -737,3 +745,63 @@ def test_a_refused_connection_is_retried_then_reported():
     with pytest.raises(iv.ImportError_, match="after 4 tries"):
         iv.HttpFetcher(url, sleep=sleeps.append, timeout=1).get("/livsmedel", {})
     assert sleeps == [1, 2, 4]
+
+
+def test_replay_needs_an_explicit_out(tmp_path, capsys, monkeypatch):
+    default = tmp_path / "default" / "lv.json.gz"
+    monkeypatch.setattr(iv, "DEFAULT_OUT", default)
+    assert iv.main(FIXTURE_ARGS) == 2
+    assert "--out" in capsys.readouterr().err
+    assert not default.exists()
+
+
+def test_test_data_never_goes_to_the_default_path(tmp_path, capsys, monkeypatch):
+    default = tmp_path / "default" / "lv.json.gz"
+    monkeypatch.setattr(iv, "DEFAULT_OUT", default)
+    assert iv.main([*FIXTURE_ARGS, "--out", str(default)]) == 1
+    assert "TEST" in capsys.readouterr().err
+    assert not default.exists() and not default.parent.exists()
+
+
+def test_decimal_string_skips_absurd_numbers():
+    assert iv.decimal_string("1e100") is None
+    assert iv.decimal_string(Decimal("1E+100")) is None
+
+
+def test_pick_falls_through_on_null():
+    assert iv.read_foods([{"nummer": None, "id": 5, "namn": "X"}]) == [("5", "X")]
+
+
+def test_a_truncated_body_is_retried_then_reported(tmp_path, monkeypatch):
+    monkeypatch.setenv("no_proxy", "127.0.0.1")
+    sleeps = []
+
+    class Short(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802
+            self.send_response(200)
+            self.send_header("Content-Length", "100")
+            self.end_headers()
+            self.wfile.write(b"[1")
+
+        def log_message(self, *_):
+            pass
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Short)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        url = f"http://127.0.0.1:{server.server_address[1]}"
+        with pytest.raises(iv.ImportError_, match="IncompleteRead|after 4 tries"):
+            iv.HttpFetcher(url, sleep=sleeps.append).get("/livsmedel", {})
+    finally:
+        server.shutdown()
+        server.server_close()
+    assert sleeps == [1, 2, 4]
+
+
+def test_main_turns_a_final_http_failure_into_an_error_exit(tmp_path, capsys, monkeypatch):
+    monkeypatch.setenv("no_proxy", "127.0.0.1")
+    with Stub() as stub:
+        stub.forever = 404
+        url = stub.url
+        assert iv.main(["--base-url", url, "--out", str(tmp_path / "o.json.gz")]) == 1
+    assert "error:" in capsys.readouterr().err
