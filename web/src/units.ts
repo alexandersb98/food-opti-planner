@@ -53,8 +53,9 @@ export function useUnits() {
     return pending
   }
 
-  /** The units a category's drop-down offers, in the server's order. */
-  function offered(category: Category): CatalogueUnit[] {
+  /** The units a category's drop-down offers, in the server's order; with
+   * null, the offered free-text units (st). */
+  function offered(category: Category | null): CatalogueUnit[] {
     return state.units.filter((unit) => unit.offered && unit.category === category)
   }
 
@@ -73,7 +74,14 @@ export function useUnits() {
     return `${unit.symbol} (${unit.name})`
   }
 
-  return { ...toRefs(readonly(state)), load, offered, findUnit, label }
+  /** The value basis a unit starts with: '100' for a mass or volume unit in
+   * any spelling, '1' for anything else (also while the catalogue is empty). */
+  function basisFor(text: string): '100' | '1' {
+    const category = findUnit(text)?.category
+    return category === 'mass' || category === 'volume' ? '100' : '1'
+  }
+
+  return { ...toRefs(readonly(state)), load, offered, findUnit, label, basisFor }
 }
 
 /** Forget the catalogue, for tests. */

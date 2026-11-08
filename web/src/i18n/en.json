@@ -22,6 +22,14 @@
       "energy": "Energy"
     }
   },
+  "units": {
+    "groups": {
+      "mass": "Mass",
+      "volume": "Volume",
+      "energy": "Energy",
+      "piece": "Other"
+    }
+  },
   "login": {
     "title": "Log in",
     "password": "Password",

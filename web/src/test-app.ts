@@ -5,6 +5,8 @@ import { createMemoryHistory } from 'vue-router'
 import App from './App.vue'
 import { makeI18n } from './i18n'
 import { makeRouter } from './router'
+import { preferences, unitCatalogue } from './test-data'
+import type { Preferences } from './api/types'
 
 /** What the fake server answers: a status, a status with a JSON body, or a
  * function of the request's JSON body giving either, at once or later (a
@@ -31,6 +33,15 @@ export function fakeServer(server: FakeServer) {
     })
   })
   return calls
+}
+
+/** The answers for the unit catalogue and the preferences, to spread into a
+ * fake server of a page that has a unit field. */
+export function unitRoutes(fields: Partial<Preferences> = {}): FakeServer {
+  return {
+    'GET /api/units': { body: unitCatalogue() },
+    'GET /api/preferences': { body: preferences(fields) },
+  }
 }
 
 /** Mount the whole app at `path`, with its router and plugins. */

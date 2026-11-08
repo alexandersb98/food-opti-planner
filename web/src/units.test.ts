@@ -89,3 +89,23 @@ test('label shows the symbol and the name', async () => {
   expect(units.label(units.findUnit('kg')!)).toBe('kg (kilogram)')
   expect(units.label(units.findUnit('msk')!)).toBe('msk (tablespoon)')
 })
+
+test('basisFor gives 100 for a mass or volume unit in any spelling and 1 for the rest', async () => {
+  const { units } = await loaded()
+  for (const text of ['g', 'kg', 'µg', 'dl', 'msk', 'US cup', 'oz', 'gram', 'MSK.']) {
+    expect(units.basisFor(text), text).toBe('100')
+  }
+  for (const text of ['st', 'pcs', 'kcal', 'kJ', 'pinch', 'cup', '']) {
+    expect(units.basisFor(text), text).toBe('1')
+  }
+})
+
+test('basisFor gives 1 for everything while the catalogue is empty', () => {
+  expect(useUnits().basisFor('g')).toBe('1')
+  expect(useUnits().basisFor('dl')).toBe('1')
+})
+
+test('offered(null) is the free-text unit st', async () => {
+  const { units } = await loaded()
+  expect(symbols(units.offered(null))).toEqual(['st'])
+})
