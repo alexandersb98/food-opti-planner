@@ -5,16 +5,20 @@ from typing import Literal
 from fastapi import APIRouter, status
 from pydantic import BaseModel
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from .. import models
 from ..db import DbSession
 from ..fields import Name
 from .catalog import commit_named, count_by, get_or_404
-from .errors import NAME_IN_USE
+from .errors import NAME_IN_USE, FieldError, FieldErrors, invalid_fields
 
 router = APIRouter(prefix="/tags", tags=["tags"])
 
 NOT_FOUND = {404: {"description": "No such tag"}}
+SOURCE_TAG = {
+    422: {"model": FieldErrors, "description": "A source tag's name can't change and it can't be deleted"}
+}
 
 # The library's DERIVE_RULES, spelled out so the API description lists them;
 # a test checks that the two agree.
@@ -26,8 +30,17 @@ class TagFields(BaseModel):
     derive: DeriveRule
 
 
+class TagSource(BaseModel):
+    key: str
+    name: str
+    colour: str
+
+
 class Tag(TagFields):
     id: int
+    # The data source a source tag comes from (decision 12), null for a tag
+    # made by hand.
+    source: TagSource | None
     # What deleting the tag removes it from, for the warning: the ingredients
     # that have it, the recipes it was added to by hand and the plan's recipe
     # filters on it. No ingredient having it means it was only ever added by
@@ -51,13 +64,23 @@ def _response(tag: models.Tag, counts: dict[str, dict[int, int]]) -> Tag:
         id=tag.id,
         name=tag.name,
         derive=tag.derive,
+        source=(
+            None
+            if tag.source is None
+            else TagSource(key=tag.source.key, name=tag.source.name, colour=tag.source.colour)
+        ),
         **{field: by_id.get(tag.id, 0) for field, by_id in counts.items()},
     )
 
 
 @router.get("")
 def list_tags(db: DbSession) -> list[Tag]:
-    tags = db.scalars(select(models.Tag).order_by(models.Tag.id))
+    # The tags made by hand first, so a source's many tags don't bury them.
+    tags = db.scalars(
+        select(models.Tag)
+        .options(selectinload(models.Tag.source))
+        .order_by(models.Tag.source_id.is_not(None), models.Tag.id)
+    )
     counts = _counts(db)
     return [_response(tag, counts) for tag in tags]
 
@@ -70,16 +93,27 @@ def create_tag(body: TagFields, db: DbSession) -> Tag:
     return _response(tag, _counts(db))
 
 
-@router.put("/{tag_id}", responses={**NOT_FOUND, **NAME_IN_USE})
+@router.put("/{tag_id}", responses={**NOT_FOUND, **NAME_IN_USE, **SOURCE_TAG})
 def update_tag(tag_id: int, body: TagFields, db: DbSession) -> Tag:
     tag = get_or_404(db, models.Tag, tag_id, "tag")
+    if tag.source_id is not None and body.name != tag.name:
+        raise invalid_fields(
+            [FieldError(loc=["body", "name"], type="source_tag", msg="A source tag can't be renamed")]
+        )
     for field, value in body.model_dump().items():
         setattr(tag, field, value)
     commit_named(db, tag, "A tag")
     return _response(tag, _counts(db))
 
 
-@router.delete("/{tag_id}", status_code=status.HTTP_204_NO_CONTENT, responses=NOT_FOUND)
+@router.delete(
+    "/{tag_id}", status_code=status.HTTP_204_NO_CONTENT, responses={**NOT_FOUND, **SOURCE_TAG}
+)
 def delete_tag(tag_id: int, db: DbSession) -> None:
-    db.delete(get_or_404(db, models.Tag, tag_id, "tag"))
+    tag = get_or_404(db, models.Tag, tag_id, "tag")
+    if tag.source_id is not None:
+        raise invalid_fields(
+            [FieldError(loc=["path", "tag_id"], type="source_tag", msg="A source tag can't be deleted")]
+        )
+    db.delete(tag)
     db.commit()

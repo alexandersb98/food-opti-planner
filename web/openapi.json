@@ -267,6 +267,129 @@
         "title": "Counts",
         "type": "object"
       },
+      "DataSource": {
+        "properties": {
+          "attribution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attribution"
+          },
+          "colour": {
+            "title": "Colour",
+            "type": "string"
+          },
+          "column_count": {
+            "title": "Column Count",
+            "type": "integer"
+          },
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/SourceColumn"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "food_count": {
+            "title": "Food Count",
+            "type": "integer"
+          },
+          "imported_at": {
+            "format": "date-time",
+            "title": "Imported At",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "colour",
+          "version",
+          "imported_at",
+          "food_count",
+          "column_count",
+          "attribution",
+          "columns"
+        ],
+        "title": "DataSource",
+        "type": "object"
+      },
+      "DataSourceChanges": {
+        "additionalProperties": false,
+        "properties": {
+          "colour": {
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "title": "Colour",
+            "type": "string"
+          }
+        },
+        "required": [
+          "colour"
+        ],
+        "title": "DataSourceChanges",
+        "type": "object"
+      },
+      "DataSourceSummary": {
+        "properties": {
+          "colour": {
+            "title": "Colour",
+            "type": "string"
+          },
+          "column_count": {
+            "title": "Column Count",
+            "type": "integer"
+          },
+          "food_count": {
+            "title": "Food Count",
+            "type": "integer"
+          },
+          "imported_at": {
+            "format": "date-time",
+            "title": "Imported At",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "colour",
+          "version",
+          "imported_at",
+          "food_count",
+          "column_count"
+        ],
+        "title": "DataSourceSummary",
+        "type": "object"
+      },
       "FieldError": {
         "properties": {
           "loc": {
@@ -1896,6 +2019,39 @@
         "title": "SolveOutcome",
         "type": "object"
       },
+      "SourceColumn": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "withdrawn": {
+            "title": "Withdrawn",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "name",
+          "unit",
+          "withdrawn"
+        ],
+        "title": "SourceColumn",
+        "type": "object"
+      },
       "Tag": {
         "properties": {
           "derive": {
@@ -1927,12 +2083,23 @@
           "recipe_count": {
             "title": "Recipe Count",
             "type": "integer"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TagSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
           "name",
           "derive",
           "id",
+          "source",
           "ingredient_count",
           "recipe_count",
           "filter_count"
@@ -1985,6 +2152,29 @@
           "mode"
         ],
         "title": "TagFilter",
+        "type": "object"
+      },
+      "TagSource": {
+        "properties": {
+          "colour": {
+            "title": "Colour",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "colour"
+        ],
+        "title": "TagSource",
         "type": "object"
       },
       "TodayPlan": {
@@ -2493,6 +2683,129 @@
           }
         },
         "summary": "Counts"
+      }
+    },
+    "/api/data-sources": {
+      "get": {
+        "operationId": "list_data_sources_api_data_sources_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DataSourceSummary"
+                  },
+                  "title": "Response List Data Sources Api Data Sources Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Data Sources",
+        "tags": [
+          "data sources"
+        ]
+      }
+    },
+    "/api/data-sources/{key}": {
+      "get": {
+        "operationId": "get_data_source_api_data_sources__key__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataSource"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such data source"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Data Source",
+        "tags": [
+          "data sources"
+        ]
+      },
+      "patch": {
+        "operationId": "update_data_source_api_data_sources__key__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DataSourceChanges"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataSource"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such data source"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Data Source",
+        "tags": [
+          "data sources"
+        ]
       }
     },
     "/api/health": {
@@ -3691,11 +4004,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/FieldErrors"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "A source tag's name can't change and it can't be deleted"
           }
         },
         "summary": "Delete Tag",
@@ -3754,11 +4067,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/FieldErrors"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "A source tag's name can't change and it can't be deleted"
           }
         },
         "summary": "Update Tag",

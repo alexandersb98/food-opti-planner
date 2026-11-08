@@ -7,6 +7,7 @@ from ..auth import require_session
 from . import (
     attributes,
     counts,
+    data_sources,
     health,
     ingredients,
     login,
@@ -24,6 +25,7 @@ protected.include_router(login.session_router)
 protected.include_router(counts.router)
 protected.include_router(units.router)
 protected.include_router(preferences.router)
+protected.include_router(data_sources.router)
 protected.include_router(attributes.router)
 protected.include_router(tags.router)
 protected.include_router(ingredients.router)

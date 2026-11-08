@@ -23,6 +23,7 @@ const NEW_ROW: Tag = {
   id: -1,
   name: '',
   derive: 'all',
+  source: null,
   ingredient_count: 0,
   recipe_count: 0,
   filter_count: 0,

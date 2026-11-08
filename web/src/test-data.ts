@@ -12,7 +12,7 @@ export function attribute(fields: Given<Attribute, 'id' | 'name'>): Attribute {
 }
 
 export function tag(fields: Given<Tag, 'id' | 'name'>): Tag {
-  return { derive: 'all', ingredient_count: 0, recipe_count: 0, filter_count: 0, ...fields }
+  return { derive: 'all', source: null, ingredient_count: 0, recipe_count: 0, filter_count: 0, ...fields }
 }
 
 export function ingredient(fields: Given<Ingredient, 'id' | 'name'>): Ingredient {
