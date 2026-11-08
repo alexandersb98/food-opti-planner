@@ -20,7 +20,10 @@ recipe filters (tags set to Only or Never, with a count of the recipes
 left), a No plan possible card when Must goals clash (the clashing goals
 and days, fixed in place: a looser bound or Make Prefer, then Try again),
 a Settings page with preferred units for mass, volume and energy (on a
-unit catalogue in `server/units.py` that later slices build on), and a
+unit catalogue in `server/units.py` that later slices build on), unit
+fields of ingredients and attributes that are combo boxes over that
+catalogue (grouped by category, the preferred unit first, free text
+allowed; a new ingredient starts in the preferred mass unit), and a
 deploy to Cloud Run.
 
 Run the Python tests with `python3 -m pip install -e '.[server,dev]'` and

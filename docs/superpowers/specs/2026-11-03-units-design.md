@@ -153,6 +153,12 @@ stored as typed (and is still understood when it parses, e.g. "gram").
 - **Attribute:** the list offers mass, volume and energy units. A new
   attribute starts empty, as its category isn't known. Under the field:
   "The amount per the ingredient's basis, e.g. g or kcal."
+- **Groups and display:** the list has a header per group: Mass, Volume,
+  Energy (attributes only) and "Other", which holds the piece unit `st`
+  (ingredients only). The list shows `kg (kilogram)`, while the box shows
+  only the symbol, `kg`. The energy refusal applies to every save of an
+  ingredient, so an old ingredient that holds an energy unit cannot be
+  saved until its unit is changed.
 
 ## Changing a unit
 

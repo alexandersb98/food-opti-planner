@@ -159,9 +159,10 @@ values per their basis and how many recipes use them), and a round
 
 ### C4 · Edit ingredient
 
-- **Name**, **Measured in** (g, ml, pcs, ...) → `unit`.
-- **Values per [100] g:** the value basis (default 100 for g and ml, 1
-  for pcs), then one row per attribute. The library value is the typed
+- **Name**, **Measured in** (a combo box of units grouped by category,
+  preferred first, free text allowed) → `unit`.
+- **Values per [100] g:** the value basis (default 100 for a mass or
+  volume unit, 1 otherwise), then one row per attribute. The library value is the typed
   value divided by the basis. An empty value counts as 0, as in the
   library.
 - **Tags:** on/off buttons → `tags`.
@@ -170,8 +171,9 @@ values per their basis and how many recipes use them), and a round
 
 ### C5 · Attributes
 
-A list; a row opens in place to edit **Name**, **Unit** (GUI-only) and
-**Decimals** (→ `precision`). Delete warns how many ingredient values
+A list; a row opens in place to edit **Name**, **Unit** (GUI-only; the same
+combo box, with the help text "The amount per the ingredient's basis, e.g.
+g or kcal.") and **Decimals** (→ `precision`). Delete warns how many ingredient values
 and goals it removes, then removes them. `accrues_on` is not shown (it
 has no effect yet, decision #28). "+ New attribute".
 

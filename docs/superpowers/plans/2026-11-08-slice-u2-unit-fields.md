@@ -34,8 +34,9 @@ screens C4 and C5 in
 [`2026-10-21-gui-wireframes-design.md`](../specs/2026-10-21-gui-wireframes-design.md).
 U1's interfaces: [`2026-11-08-slice-u1-unit-catalogue.md`](2026-11-08-slice-u1-unit-catalogue.md).
 
-**Status:** Planned; to be built task by task on branch
-`claude/implement-remaining-slices-qwrp83`.
+**Status:** Built and committed task by task on branch
+`claude/implement-remaining-slices-qwrp83`, and reviewed task by task on
+it. Each task says how it was checked and what differs from the text.
 
 ## Global Constraints
 
@@ -140,6 +141,21 @@ U1's interfaces: [`2026-11-08-slice-u1-unit-catalogue.md`](2026-11-08-slice-u1-u
     existing tests that do not care keep passing, except where they
     assert the new behaviour.
 
+12. **Added while building (UnitField).** The free-text units of the
+    "Other" group come from `useUnits().offered(null)` (`offered` now
+    takes `Category | null`; null is the offered units without a
+    category). The `q-select` gets `option-label` returning the symbol,
+    so that the filled-in box text of a chosen option is the symbol
+    (without it Quasar reports the option object as the input value).
+    `virtual-scroll-slice-size` is 60, so the whole list (at most about
+    30 entries) is rendered at once instead of Quasar's default slice of
+    10, which also lets the tests see every entry.
+13. **Test helpers.** `unitRoutes(fields)` takes the preference fields to
+    override (not a whole preferences object). `test-app.ts` also has
+    `openUnitList`, `chooseUnit` and `settleMenu`, shared by the page
+    tests: Quasar fills a menu's virtual list a moment after it opens, so
+    they wait for the rows.
+
 ## Tasks
 
 ### Task 1: Server: refuse an energy unit on an ingredient
@@ -198,6 +214,15 @@ tests/server/test_attributes.py -q`, then `python3 -m pytest -q` (the
 OpenAPI test fails until `npm run gen:api` is run: run it in `web/`,
 then `git diff --stat` shows `openapi.json` and `schema.ts` changed,
 `test-units.json` not).
+
+**Checked:** `python3 -m pytest tests/server/test_ingredients.py
+tests/server/test_attributes.py -q` (97 tests), then the whole suite
+(817 passed) after `npm run gen:api`, which changed `openapi.json` and
+`schema.ts` and left `test-units.json` alone.
+
+Differences from the plan text: none. `References.error` is public as
+planned; the tests check the two-error 422 in the order tag then unit
+(the unit check runs after the id checks).
 
 ### Task 2: `basisFor` and the `UnitField` component
 
@@ -294,6 +319,14 @@ Then open it once in a browser at 390 px wide (the build and server as
 for the e2e) when Task 3 has put it on a page; record in Task 3's
 "Checked".
 
+**Checked:** lint, typecheck and Vitest (`units.test.ts` with the
+`basisFor` cases, 11 new tests in `UnitField.test.ts`; the pitfall of the
+plan is covered: opening and closing the list without a choice emits
+nothing, choosing emits the symbol once).
+
+Differences from the plan text: interpretations 12 and 13 above. The
+list's headers and rows are tested through the rendered menu.
+
 ### Task 3: C4, the ingredient form
 
 **Files:** modify `web/src/pages/IngredientPage.vue`,
@@ -351,6 +384,18 @@ in each mounted server:**
 form at 390 px in a browser (build `npx vite build`, server as for the
 e2e): the list opens inside the viewport, nothing scrolls sideways.
 
+**Checked:** lint, typecheck and Vitest (the page's tests as in the plan,
+`pcs` shown as typed, a failing preferences request, the 422 on the
+unit); the form at 390 px in a browser (`npx vite build`, uvicorn on an
+empty SQLite file, Playwright's Chromium): the list opens inside the
+viewport (x 8, width 374) and the page does not scroll sideways.
+
+Differences from the plan text: the page awaits the preferences in
+parallel with its other requests (`Promise.all`), and the new draft's
+unit and basis are set by `startDraft()` only for a new ingredient. The
+`unitHint` text of Task 4 went into the same commit as this task, as
+both edit `en.json`.
+
 ### Task 4: C5, the attribute form
 
 **Files:** modify `web/src/pages/AttributesPage.vue`,
@@ -389,6 +434,15 @@ e2e): the list opens inside the viewport, nothing scrolls sideways.
 **Verify:** `npm run lint`, `npm run typecheck`, `npm test`; the row in
 a browser at 390 px.
 
+**Checked:** lint, typecheck and Vitest (the page's tests as in the plan,
+including the unit field's typed `IU`); the open row at 390 px in a
+browser: the unit field fits in its `col-3` slot (a symbol such as `kcal`
+shows whole), the list opens inside the viewport (x 199, width 187, over
+the neighbouring fields, inside the page) and nothing scrolls sideways,
+so the `col-6` fallback was not needed.
+
+Differences from the plan text: none.
+
 ### Task 5: End-to-end step
 
 **Files:** `web/e2e/catalog.e2e.ts`.
@@ -421,6 +475,15 @@ server. If a test-id or role needs the `q-select` option list to be
 reached differently from Quasar's rendered menu (`role="option"`), use
 `getByRole('option', { name: ... })` as the Settings step does.
 
+**Checked:** `npx vite build`, uvicorn on an empty SQLite file in the
+scratchpad, `E2E_PASSWORD=... E2E_BASE_URL=http://localhost:8000 npm run
+e2e -- --trace off`: the flow passes (1 test). The server was stopped
+afterwards.
+
+Differences from the plan text: the options are found with
+`getByRole('option', ...)` and the headers with
+`getByRole('listbox')`, as the Settings step does for options.
+
 ### Task 6: Docs
 
 **Files:** `README.md`, the master plan, the units spec, the wireframes
@@ -448,6 +511,12 @@ spec, this plan.
 
 **Verify:** the full checks (both test suites, lint, typecheck) once
 more, and the e2e run of Task 5 if nothing in Tasks 1-5 changed since.
+
+**Checked:** both test suites, lint and typecheck once more at the end
+(see the report of the slice for the counts); the e2e run of Task 5 was
+not repeated as nothing in Tasks 1-5 changed after it.
+
+Differences from the plan text: none.
 
 ## Done when
 

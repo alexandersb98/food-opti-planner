@@ -88,6 +88,7 @@ match in its pending review.
 | R5 | Import from a link | I1 | Recipes imported from a URL |
 
 U1 done: see `2026-11-08-slice-u1-unit-catalogue.md`.
+U2 done: see `2026-11-08-slice-u2-unit-fields.md`.
 
 **Dependencies:**
 
