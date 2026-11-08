@@ -1,5 +1,8 @@
 import importlib.util
+import io
 import json
+import subprocess
+import sys
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -281,3 +284,138 @@ Date: 2026-11-08. 10 recipes, 12 factor cases. Run by hand; scores are a guide, 
 - sv-pannkakor: 503: overloaded
 """
     assert report == expected
+
+
+# --- command line ----------------------------------------------------------------
+
+RESPONSES = ROOT / "tests" / "data" / "ai_responses"
+KEYS = {"ANTHROPIC_API_KEY": "sk-ant-SECRET-1", "GEMINI_API_KEY": "gem-SECRET-2",
+        "OPENAI_API_KEY": "sk-oai-SECRET-3", "MISTRAL_API_KEY": "mis-SECRET-4"}
+
+
+class ServingTransport:
+    """Serves each provider's recorded `ok` reply, picked by URL."""
+
+    def __init__(self):
+        self.calls = []
+
+    def post_json(self, url, headers, body):
+        self.calls.append((url, dict(headers), body))
+        name = (
+            "anthropic" if "anthropic" in url else "gemini" if "googleapis" in url
+            else "openai" if "openai" in url else "mistral"
+        )
+        return json.loads((RESPONSES / f"{name}.json").read_text("utf-8"))["ok"]
+
+
+def run_main(argv, env=None, transport=None):
+    out, err = io.StringIO(), io.StringIO()
+    code = cm.main(
+        argv,
+        transport_factory=(lambda: transport) if transport is not None else None,
+        env=KEYS if env is None else env,
+        out=out,
+        err=err,
+    )
+    return code, out.getvalue(), err.getvalue()
+
+
+def test_main_runs_two_providers(tmp_path):
+    transport = ServingTransport()
+    report_file = tmp_path / "r.md"
+    code, out, err = run_main(
+        ["--models", "anthropic:m1", "gemini:m2", "--only", "sv-pannkakor", "--skip-factors",
+         "--report", str(report_file)],
+        transport=transport,
+    )
+    assert code == 0
+    assert "anthropic:m1" in out and "gemini:m2" in out
+    assert report_file.read_text("utf-8") == out
+    assert len(transport.calls) == 2
+    assert "2 calls" in err and "sv-pannkakor ok" in err
+    urls = [c[0] for c in transport.calls]
+    assert any("api.anthropic.com" in u for u in urls) and any("googleapis" in u for u in urls)
+    for secret in KEYS.values():
+        assert secret not in out and secret not in err
+
+
+def test_main_missing_key_exits_2_without_calls():
+    transport = ServingTransport()
+    env = {k: v for k, v in KEYS.items() if k != "OPENAI_API_KEY"}
+    code, out, err = run_main(
+        ["--models", "anthropic:m1", "openai:m2", "--only", "sv-pannkakor"], env=env, transport=transport
+    )
+    assert code == 2 and "OPENAI_API_KEY" in err
+    assert transport.calls == []
+    assert not any(secret in out + err for secret in KEYS.values())
+
+
+def test_main_usage_errors():
+    assert run_main(["--models", "nope:x"])[0] == 2
+    assert run_main(["--models", "anthropic"])[0] == 2
+    assert "unknown provider" in run_main(["--models", "nope:x"])[2]
+    code, _, err = run_main(["--models", "anthropic:m", "--only", "nope"], transport=ServingTransport())
+    assert code == 1 and "nope" in err
+    assert run_main(["--models", "anthropic:m", "--record", "a", "--replay", "b"])[0] == 2
+
+
+def test_main_price_file_gives_cost(tmp_path):
+    prices = tmp_path / "p.json"
+    prices.write_text('{"anthropic:m1": {"input_per_mtok": 1, "output_per_mtok": 5}}')
+    code, out, _ = run_main(
+        ["--models", "anthropic:m1", "--only", "sv-pannkakor", "--skip-factors",
+         "--prices", str(prices)],
+        transport=ServingTransport(),
+    )
+    assert code == 0 and "$0.0036" in out  # 1500 in + 420 out tokens
+
+
+def test_request_key_ignores_headers_and_is_stable():
+    body = {"model": "m", "n": [1, 2]}
+    assert cm.request_key("https://x", body) == cm.request_key("https://x", dict(reversed(body.items())))
+    assert len(cm.request_key("https://x", body)) == 16
+    assert cm.request_key("https://x", body) != cm.request_key("https://y", body)
+    assert cm.request_key("https://x", body) != cm.request_key("https://x", {"model": "m2"})
+
+
+def _without_seconds(report):
+    rows = []
+    for row in report.splitlines():
+        if row.startswith("| ") and not row.startswith("| candidate"):
+            row = "|".join(row.split("|")[:-2]) + "|"
+        rows.append(row)
+    return "\n".join(rows)
+
+
+def test_record_then_replay(tmp_path):
+    rec = tmp_path / "rec"
+    args = ["--models", "anthropic:m1", "mistral:m2", "--only", "sv-pannkakor", "--only", "en-no-recipe"]
+    code1, out1, _ = run_main([*args, "--record", str(rec)], transport=ServingTransport())
+    assert code1 == 0
+    files = sorted(rec.glob("*.json"))
+    assert files
+    for file in files:
+        text = file.read_text("utf-8")
+        assert set(json.loads(text)) == {"url", "body", "response"}
+        for secret in KEYS.values():
+            assert secret not in text
+    code2, out2, _ = run_main([*args, "--replay", str(rec)], env={})
+    assert code2 == 0
+    assert _without_seconds(out1) == _without_seconds(out2)
+
+
+def test_replay_of_unknown_request_is_a_failure_in_the_report(tmp_path):
+    (tmp_path / "empty").mkdir()
+    code, out, _ = run_main(
+        ["--models", "openai:m", "--only", "sv-pannkakor", "--skip-factors", "--replay", str(tmp_path / "empty")],
+        env={},
+    )
+    assert code == 0 and "no recorded reply for" in out
+
+
+def test_help_exits_zero():
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "--help"], capture_output=True, text=True, check=False
+    )
+    assert result.returncode == 0
+    assert "--models" in result.stdout and "real money" in result.stdout

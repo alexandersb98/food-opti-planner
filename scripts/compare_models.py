@@ -3,27 +3,49 @@
 Scores each candidate `provider:model` on amounts, units, matches, servings,
 not-an-ingredient flags, "no recipe" and unit factors, and prints a Markdown
 report with token counts and cost.
+
+Needs: `pip install -e ".[server]"` and, per provider tried, an API key in the
+environment (ANTHROPIC_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY, MISTRAL_API_KEY).
+It makes real calls that cost real money: it prints how many it will make
+(about 10 conversions and 12 factor suggestions per candidate) and then just
+runs, since you start it on purpose. It is never run by the tests.
+
+Example:
+  python3 scripts/compare_models.py --models anthropic:<model-id> gemini:<model-id> \\
+      --prices prices.json --report /tmp/report.md --record /tmp/recorded
+
+Model ids are the providers' exact ids. Prices, in USD per million tokens, are
+copied by you from the providers' pages on the day into a JSON file:
+  {"anthropic:<model-id>": {"input_per_mtok": 1.0, "output_per_mtok": 5.0}}
+A candidate without a price shows n/a for cost.
+--record DIR keeps every request and reply (never the key) so a run can be
+repeated without keys by --replay DIR.
 """
 
+import argparse
+import hashlib
 import json
+import os
 import sys
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 from difflib import SequenceMatcher
 from pathlib import Path
+from typing import Any, TextIO
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from server import units  # noqa: E402
-from server.ai.chat import ChatProvider, MeteredChat  # noqa: E402
+from server.ai.chat import ChatProvider, HttpxTransport, MeteredChat, Transport  # noqa: E402
 from server.ai.converter import ProviderFactorSuggester, ProviderRecipeConverter  # noqa: E402
 from server.ai.draft import CatalogEntry, Draft, LineDraft  # noqa: E402
-from server.ai.errors import AIError, NoRecipeFound  # noqa: E402
+from server.ai.errors import AIError, AIServiceError, NoRecipeFound  # noqa: E402
+from server.ai.providers import ADAPTERS, KEY_ENV, build_chat  # noqa: E402
 from server.ai.schema import parse_draft  # noqa: E402
 
 DEFAULT_DATA = ROOT / "tests" / "data" / "recipe_import"
@@ -383,3 +405,152 @@ def render_report(results: Sequence[CandidateResult], data: Data, today: date | 
             lines += ["", f"## Failures: {r.candidate}", ""]
             lines += [f"- {case_id}: {message}" for case_id, message in r.failures]
     return "\n".join(lines) + "\n"
+
+
+# --- record and replay -------------------------------------------------------------
+
+
+def request_key(url: str, body: Mapping[str, Any]) -> str:
+    """First 16 hex digits of the SHA-256 of the canonical JSON of url and body.
+    Headers (so API keys) are not part of it."""
+    canonical = json.dumps({"url": url, "body": body}, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
+
+
+class RecordingTransport:
+    def __init__(self, inner: Transport, directory: Path):
+        self.inner = inner
+        self.directory = Path(directory)
+        self.directory.mkdir(parents=True, exist_ok=True)
+
+    def post_json(
+        self, url: str, headers: Mapping[str, str], body: Mapping[str, Any]
+    ) -> Mapping[str, Any]:
+        reply = self.inner.post_json(url, headers, body)
+        record = {"url": url, "body": body, "response": reply}
+        path = self.directory / f"{request_key(url, body)}.json"
+        path.write_text(json.dumps(record, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        return reply
+
+
+class ReplayTransport:
+    def __init__(self, directory: Path):
+        self.directory = Path(directory)
+
+    def post_json(
+        self, url: str, headers: Mapping[str, str], body: Mapping[str, Any]
+    ) -> Mapping[str, Any]:
+        key = request_key(url, body)
+        path = self.directory / f"{key}.json"
+        if not path.exists():
+            raise AIServiceError(None, f"no recorded reply for {key}")
+        return json.loads(path.read_text(encoding="utf-8"))["response"]
+
+
+# --- command line --------------------------------------------------------------------
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="compare_models.py",
+        description="Score AI models on the recipe-import test data.",
+        epilog="Needs:" + __doc__.split("Needs:", 1)[1],
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("--models", nargs="+", required=True, metavar="PROVIDER:MODEL")
+    parser.add_argument("--data", type=Path, default=DEFAULT_DATA, help="test data directory")
+    parser.add_argument("--prices", type=Path, help="JSON file of prices per million tokens")
+    parser.add_argument("--skip-factors", action="store_true", help="only convert recipes")
+    parser.add_argument("--only", action="append", default=[], metavar="RECIPE_ID")
+    parser.add_argument("--report", type=Path, help="also write the Markdown report here")
+    parser.add_argument("--record", type=Path, metavar="DIR", help="record requests and replies")
+    parser.add_argument("--replay", type=Path, metavar="DIR", help="answer from a recording")
+    parser.add_argument("--timeout", type=float, default=60.0, help="seconds per request")
+    return parser
+
+
+def main(
+    argv: Sequence[str],
+    *,
+    transport_factory: Callable[[], Transport] | None = None,
+    env: Mapping[str, str] = os.environ,
+    out: TextIO | None = None,
+    err: TextIO | None = None,
+) -> int:
+    out = out or sys.stdout
+    err = err or sys.stderr
+    args = _parser().parse_args(list(argv))
+
+    def fail(code: int, message: str) -> int:
+        print(f"compare_models: {message}", file=err)
+        return code
+
+    if args.record and args.replay:
+        return fail(2, "--record and --replay cannot be used together")
+    candidates: list[tuple[str, str, str]] = []  # id, provider, model
+    for spec in args.models:
+        provider, sep, model = spec.partition(":")
+        if not sep or not provider or not model:
+            return fail(2, f"--models entries look like provider:model, got {spec!r}")
+        if provider not in ADAPTERS:
+            return fail(2, f"unknown provider {provider!r}; known: {', '.join(sorted(ADAPTERS))}")
+        if not args.replay and not env.get(KEY_ENV[provider]):
+            return fail(2, f"no key for {provider}: set {KEY_ENV[provider]}")
+        candidates.append((spec, provider, model))
+    prices: dict[str, Price] = {}
+    if args.prices:
+        try:
+            prices = load_prices(args.prices)
+        except (OSError, ValueError) as exc:
+            return fail(2, f"prices file: {exc}")
+    data = load_data(args.data)
+    if args.only:
+        known = {r.id for r in data.recipes}
+        unknown = [rid for rid in args.only if rid not in known]
+        if unknown:
+            return fail(1, f"no recipe named {', '.join(unknown)}; known: {', '.join(sorted(known))}")
+        data = Data(data.catalog, [r for r in data.recipes if r.id in args.only], data.factors)
+
+    transport: Transport
+    if args.replay:
+        transport = ReplayTransport(args.replay)
+    elif transport_factory is not None:
+        transport = transport_factory()
+    else:
+        transport = HttpxTransport(timeout=args.timeout)
+    if args.record:
+        transport = RecordingTransport(transport, args.record)
+
+    per_candidate = len(data.recipes) + (0 if args.skip_factors else len(data.factors))
+    print(
+        f"{per_candidate * len(candidates)} calls to make "
+        f"({len(candidates)} candidates x {per_candidate})",
+        file=err,
+    )
+
+    def progress(candidate: str, case_id: str, status: str, seconds: float) -> None:
+        print(f"{candidate} {case_id} {status} {seconds:.1f}s", file=err)
+
+    results = []
+    for spec, provider, model in candidates:
+        key = "replay" if args.replay else env[KEY_ENV[provider]]
+        chat = build_chat(provider, model, key, transport)
+        results.append(
+            run_candidate(
+                spec,
+                chat,
+                data,
+                factors=not args.skip_factors,
+                price=prices.get(spec),
+                progress=progress,
+            )
+        )
+    report = render_report(results, data)
+    out.write(report)
+    if args.report:
+        args.report.write_text(report, encoding="utf-8")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
