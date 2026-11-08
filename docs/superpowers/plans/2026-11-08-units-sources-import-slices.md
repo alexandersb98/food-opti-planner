@@ -106,6 +106,9 @@ from R3 extending U3's unit change, so they can also be interleaved.
 
 ### U1 · Unit catalogue and Settings (S1)
 
+*Built: plan and status in
+[`2026-11-08-slice-u1-unit-catalogue.md`](2026-11-08-slice-u1-unit-catalogue.md).*
+
 - `server/units.py`, a pure module: categories, prefixes, listed units
   with factors and aliases, known free-text units (`st`), `parse`,
   `factor`, display names.

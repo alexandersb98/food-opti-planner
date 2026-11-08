@@ -92,9 +92,11 @@ subagent, and the findings fixed.
    so the page loads it with the preferences; U2, with three users
    (C4, C5, Settings), moves it into a shared store.
 9. **Saving on change.** Each drop-down saves its own key at once.
-   While it saves, that drop-down is disabled. If the save fails, the
-   drop-down goes back to the saved unit and the card says "Could not
-   save. Try again." The page has no Save button.
+   While it saves, that drop-down is disabled; the others can still be
+   changed, and each takes only its own key from its answer, as answers
+   may come back out of order. If the save fails, the drop-down goes
+   back to the saved unit and the card says "Could not save. Try
+   again." The page has no Save button.
 10. **The menu.** Settings is the sixth entry, after Tags, icon
     `settings`, path `/settings`; it has no count.
 
@@ -120,6 +122,10 @@ Swedish spelling; case and spaces; Cal vs cal; µ, μ and u; free text
 (oz to g, kcal to kJ, tbsp to dl), none across categories or with free
 text; display order and that each display unit parses to itself.
 
+**Checked:** 127 tests in `test_units.py`. Review fixes: an upper-case
+M on a base (MJ) is free text, not milli (interpretation 1); text is
+composed (NFC); a test that only cal and Cal differ by case.
+
 ### Task 2: Units endpoint, preferences table and API
 
 **Files:** `server/models.py` (`Preference`),
@@ -144,6 +150,12 @@ back; a spelling is stored as the catalogue symbol; a unit of another
 category, a free-text unit, a not-offered unit (cg) and an unknown key
 are refused; a second PUT updates the row.
 
+**Checked:** 582 Python tests pass on SQLite, the migration and OpenAPI
+tests among them. Review fixes: `Preference` with the other models and
+in `__all__`; more refusal tests. Not done: an upsert for two first
+writes of one key at the same moment (a 500 on Postgres), as the page
+disables a drop-down while it saves.
+
 ### Task 3: The Settings page
 
 **Files:** `web/src/pages/SettingsPage.vue`,
@@ -157,3 +169,8 @@ its category's units in catalogue order; a change sends only that key
 and keeps the answer; a failed save goes back and says so; a failed
 load offers Try again. Playwright: open Settings and change the
 preferred volume unit; it is still chosen after a reload.
+
+**Checked:** lint, typecheck and 355 Vitest tests pass; the Playwright
+flow passes against the built app on SQLite. Review fix: two saves at
+once each keep their own unit, and the first stays disabled until its
+answer (a test answers them out of order); a network failure is tested.

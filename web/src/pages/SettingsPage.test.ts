@@ -105,6 +105,35 @@ test('a failed save keeps the saved unit and says so', async () => {
   wrapper.unmount()
 })
 
+test('two saves answered out of order each keep their own unit', async () => {
+  const answers: ((reply: { body: Preferences }) => void)[] = []
+  const { wrapper } = await mountPage({
+    'PUT /api/preferences': () => new Promise((resolve) => answers.push(resolve)),
+  })
+  await choose(wrapper, 0, 'kg')
+  await choose(wrapper, 1, 'ml')
+  expect(selects(wrapper).map((s) => s.props('disable'))).toEqual([true, true, false])
+  // Volume is answered first; the mass answer was made before volume was saved.
+  answers[1]!({ body: { ...SAVED, 'unit.mass': 'kg', 'unit.volume': 'ml' } })
+  await flushPromises()
+  expect(selects(wrapper).map((s) => s.props('disable'))).toEqual([true, false, false])
+  answers[0]!({ body: { ...SAVED, 'unit.mass': 'kg' } })
+  await flushPromises()
+  expect(selects(wrapper).map((s) => s.props('modelValue'))).toEqual(['kg', 'ml', 'kcal'])
+  expect(selects(wrapper).map((s) => s.props('disable'))).toEqual([false, false, false])
+  wrapper.unmount()
+})
+
+test('a save the server never gets keeps the saved unit and says so', async () => {
+  const { wrapper } = await mountPage({
+    'PUT /api/preferences': () => Promise.reject(new TypeError('Failed to fetch')),
+  })
+  await choose(wrapper, 0, 'kg')
+  expect(selects(wrapper)[0]!.props('modelValue')).toBe('g')
+  expect(wrapper.get('[role="alert"]').text()).toBe('Could not save. Try again.')
+  wrapper.unmount()
+})
+
 test('a failed load offers Try again', async () => {
   const { wrapper } = await mountPage({ 'GET /api/preferences': 500 })
   expect(wrapper.text()).toContain('Could not load the settings.')

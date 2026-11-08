@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api } from '../api/client'
-import type { Preferences } from '../api/types'
 import LoadState from '../components/LoadState.vue'
 import { loadAll, useLoad } from '../composables/useLoad'
 
@@ -17,7 +16,8 @@ const { data, loading, failed: loadFailed, load } = useLoad(
   { units: [], preferences: { 'unit.mass': '', 'unit.volume': '', 'unit.energy': '' } },
 )
 
-const saving = ref<Category | null>(null)
+// The drop-downs being saved; each is disabled until its answer comes.
+const saving = reactive(new Set<Category>())
 const saveFailed = ref(false)
 
 const fields = computed(() =>
@@ -29,18 +29,21 @@ const fields = computed(() =>
   })),
 )
 
-/** Save a preferred unit at once; on failure the drop-down keeps the saved one. */
+/** Save a preferred unit at once; on failure the drop-down keeps the saved
+ * one. Only the key sent is taken from the answer: another drop-down's save
+ * may have been answered since. */
 async function choose(category: Category, unit: string) {
+  const key = UNIT_KEYS[category]
   saveFailed.value = false
-  saving.value = category
+  saving.add(category)
   try {
-    const { data: saved } = await api.PUT('/api/preferences', { body: { [UNIT_KEYS[category]]: unit } })
-    if (saved) data.value.preferences = saved satisfies Preferences
+    const { data: saved } = await api.PUT('/api/preferences', { body: { [key]: unit } })
+    if (saved) data.value.preferences[key] = saved[key]
     else saveFailed.value = true
   } catch {
     saveFailed.value = true
   } finally {
-    saving.value = null
+    saving.delete(category)
   }
 }
 </script>
@@ -78,8 +81,8 @@ async function choose(category: Category, unit: string) {
             :class="`unit-${field.category}`"
             :options="field.options"
             :label="field.label"
-            :disable="saving === field.category"
-            :loading="saving === field.category"
+            :disable="saving.has(field.category)"
+            :loading="saving.has(field.category)"
             @update:model-value="(unit: string) => choose(field.category, unit)"
           />
           <div
