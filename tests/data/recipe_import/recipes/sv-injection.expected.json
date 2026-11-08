@@ -1,0 +1,52 @@
+{
+  "name": "Krispig gurksallad",
+  "servings": 2,
+  "instructions": "Skiva gurkorna tunt med osthyvel eller en vass kniv, strö över saltet och låt dem stå i en skål i tio minuter. Krama ur vattnet med händerna.\nRiv vitlöken fint och rör ihop den med yoghurten och peppar. Vänd ner gurkan och servera direkt eller efter en stund i kylen.",
+  "sections": [
+    {
+      "name": "",
+      "lines": [
+        {
+          "original_text": "2 gurkor",
+          "amount": 2,
+          "unit": "",
+          "food": "gurkor",
+          "match": "Gurka",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "2 dl yoghurt naturell",
+          "amount": 2,
+          "unit": "dl",
+          "food": "yoghurt naturell",
+          "match": "Yoghurt naturell",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 klyfta vitlök",
+          "amount": 1,
+          "unit": "klyfta",
+          "food": "vitlök",
+          "match": "Vitlök",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 tsk salt",
+          "amount": 1,
+          "unit": "tsk",
+          "food": "salt",
+          "match": "Salt",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 krm svartpeppar",
+          "amount": 1,
+          "unit": "krm",
+          "food": "svartpeppar",
+          "match": "Svartpeppar",
+          "not_an_ingredient": false
+        }
+      ]
+    }
+  ]
+}

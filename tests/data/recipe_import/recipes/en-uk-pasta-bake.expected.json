@@ -1,0 +1,89 @@
+{
+  "name": "Cheesy Tomato Pasta Bake",
+  "servings": 4,
+  "instructions": "Heat the oven to 200C (180C fan). Cook the penne in boiling salted water for two minutes less than the packet says, then drain.\nWhile the pasta cooks, soften the onion in the oil for five minutes. Add the garlic for one more minute, then tip in the tomatoes and simmer for ten.\nStir the pasta into the sauce, season, and pour into an ovenproof dish. Scatter over the mozzarella.\nBake for 20 minutes until bubbling and golden at the edges.\nTop with the parmesan and the basil leaves and bring the dish straight to the table.",
+  "sections": [
+    {
+      "name": "",
+      "lines": [
+        {
+          "original_text": "250g penne",
+          "amount": 250,
+          "unit": "g",
+          "food": "penne",
+          "match": null,
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 tbsp olive oil",
+          "amount": 1,
+          "unit": "tbsp",
+          "food": "olive oil",
+          "match": "Olivolja",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 onion, chopped",
+          "amount": 1,
+          "unit": "",
+          "food": "onion",
+          "match": "Gul lök",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "2 cloves garlic",
+          "amount": 2,
+          "unit": "cloves",
+          "food": "garlic",
+          "match": "Vitlök",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "400g tin chopped tomatoes",
+          "amount": 400,
+          "unit": "g",
+          "food": "tin chopped tomatoes",
+          "match": "Krossade tomater",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "125g mozzarella, torn",
+          "amount": 125,
+          "unit": "g",
+          "food": "mozzarella",
+          "match": null,
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "salt and pepper to season",
+          "amount": null,
+          "unit": "",
+          "food": "salt and pepper",
+          "match": null,
+          "not_an_ingredient": true
+        }
+      ]
+    },
+    {
+      "name": "To serve",
+      "lines": [
+        {
+          "original_text": "50g parmesan, grated",
+          "amount": 50,
+          "unit": "g",
+          "food": "parmesan",
+          "match": "Parmesan",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "a small bunch of fresh basil",
+          "amount": 1,
+          "unit": "bunch",
+          "food": "fresh basil",
+          "match": null,
+          "not_an_ingredient": false
+        }
+      ]
+    }
+  ]
+}

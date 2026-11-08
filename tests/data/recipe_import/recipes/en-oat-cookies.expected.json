@@ -1,0 +1,92 @@
+{
+  "name": "Chewy Oat and Chocolate Cookies",
+  "servings": 24,
+  "instructions": "Heat the oven to 350 F and line two trays with baking paper.\nBeat the butter and brown sugar until pale and fluffy, then beat in the egg and the honey.\nStir the flour, baking powder and cinnamon together, then fold into the butter mixture with the oats.\nFold in the chocolate and the raisins. The dough will be stiff.\nRoll into 24 balls, place them well apart on the trays and flatten slightly with your palm.\nBake for 11 to 13 minutes until golden at the edges but still soft in the middle. Cool on the tray for five minutes before moving them.",
+  "sections": [
+    {
+      "name": "",
+      "lines": [
+        {
+          "original_text": "1 stick butter, softened",
+          "amount": 1,
+          "unit": "stick",
+          "food": "butter",
+          "match": "Smör",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "3/4 cup brown sugar",
+          "amount": 0.75,
+          "unit": "cup",
+          "food": "brown sugar",
+          "match": null,
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 egg",
+          "amount": 1,
+          "unit": "",
+          "food": "egg",
+          "match": "Ägg",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 cup all-purpose flour",
+          "amount": 1,
+          "unit": "cup",
+          "food": "all-purpose flour",
+          "match": "Vetemjöl",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 1/2 cups rolled oats",
+          "amount": 1.5,
+          "unit": "cup",
+          "food": "rolled oats",
+          "match": "Havregryn",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 1/2 tsp baking powder",
+          "amount": 1.5,
+          "unit": "tsp",
+          "food": "baking powder",
+          "match": "Bakpulver",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 tsp cinnamon",
+          "amount": 1,
+          "unit": "tsp",
+          "food": "cinnamon",
+          "match": "Kanel",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "4 oz dark chocolate, chopped",
+          "amount": 4,
+          "unit": "oz",
+          "food": "dark chocolate",
+          "match": null,
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1/2 cup raisins",
+          "amount": 0.5,
+          "unit": "cup",
+          "food": "raisins",
+          "match": null,
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 tbsp honey",
+          "amount": 1,
+          "unit": "tbsp",
+          "food": "honey",
+          "match": "Honung",
+          "not_an_ingredient": false
+        }
+      ]
+    }
+  ]
+}

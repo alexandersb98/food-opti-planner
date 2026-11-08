@@ -1,0 +1,74 @@
+[
+  {
+    "ingredient": "Crème fraîche",
+    "unit": "dl",
+    "food": "crème fraîche",
+    "expected": 100
+  },
+  {
+    "ingredient": "Vetemjöl",
+    "unit": "dl",
+    "food": "vetemjöl",
+    "expected": 60
+  },
+  {
+    "ingredient": "Socker",
+    "unit": "dl",
+    "food": "strösocker",
+    "expected": 85
+  },
+  {
+    "ingredient": "Havregryn",
+    "unit": "dl",
+    "food": "havregryn",
+    "expected": 40
+  },
+  {
+    "ingredient": "Basmatiris",
+    "unit": "dl",
+    "food": "basmatiris, okokt",
+    "expected": 85
+  },
+  {
+    "ingredient": "Smör",
+    "unit": "msk",
+    "food": "smör",
+    "expected": 14
+  },
+  {
+    "ingredient": "Honung",
+    "unit": "msk",
+    "food": "flytande honung",
+    "expected": 20
+  },
+  {
+    "ingredient": "Salt",
+    "unit": "tsk",
+    "food": "salt",
+    "expected": 6
+  },
+  {
+    "ingredient": "Gul lök",
+    "unit": "st",
+    "food": "stor gul lök",
+    "expected": 1
+  },
+  {
+    "ingredient": "Vitlök",
+    "unit": "klyfta",
+    "food": "vitlöksklyfta",
+    "expected": 0.1
+  },
+  {
+    "ingredient": "Parmesan",
+    "unit": "dl",
+    "food": "riven parmesan",
+    "expected": 40
+  },
+  {
+    "ingredient": "Kokosmjölk",
+    "unit": "burk",
+    "food": "kokosmjölk, burk 400 ml",
+    "expected": 400
+  }
+]

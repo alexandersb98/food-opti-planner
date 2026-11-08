@@ -1,0 +1,105 @@
+{
+  "name": "Potatis- och morotsform med köttfärs",
+  "servings": 6,
+  "instructions": "Skala potatisen och morötterna och skär dem i tunna skivor. Smält smöret och blanda det med havregrynen, löken, ägget och saltet. Rör ner köttfärsen och arbeta ihop smeten.\nVarva potatis, morot och köttfärsblandning i en smord form. Grädda i 200 grader i en timme.\nTill såsen: smält smöret i en liten kastrull, rör ner vetemjölet och späd med grädden. Koka under omrörning tills såsen tjocknat och servera till formen.",
+  "sections": [
+    {
+      "name": "",
+      "lines": [
+        {
+          "original_text": "1 kg potatis",
+          "amount": 1,
+          "unit": "kg",
+          "food": "potatis",
+          "match": "Potatis",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "2–3 morötter",
+          "amount": 2.5,
+          "unit": "",
+          "food": "morötter",
+          "match": "Morötter",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "500 g köttfärs",
+          "amount": 500,
+          "unit": "g",
+          "food": "köttfärs",
+          "match": "Köttfärs",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 ½ dl havregryn",
+          "amount": 1.5,
+          "unit": "dl",
+          "food": "havregryn",
+          "match": "Havregryn",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 gul lök",
+          "amount": 1,
+          "unit": "",
+          "food": "gul lök",
+          "match": "Gul lök",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "125 g smör",
+          "amount": 125,
+          "unit": "g",
+          "food": "smör",
+          "match": "Smör",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "0,5 tsk salt",
+          "amount": 0.5,
+          "unit": "tsk",
+          "food": "salt",
+          "match": "Salt",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 ägg",
+          "amount": 1,
+          "unit": "",
+          "food": "ägg",
+          "match": "Ägg",
+          "not_an_ingredient": false
+        }
+      ]
+    },
+    {
+      "name": "Sås",
+      "lines": [
+        {
+          "original_text": "2 dl grädde",
+          "amount": 2,
+          "unit": "dl",
+          "food": "grädde",
+          "match": "Grädde",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 msk smör",
+          "amount": 1,
+          "unit": "msk",
+          "food": "smör",
+          "match": "Smör",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 msk vetemjöl",
+          "amount": 1,
+          "unit": "msk",
+          "food": "vetemjöl",
+          "match": "Vetemjöl",
+          "not_an_ingredient": false
+        }
+      ]
+    }
+  ]
+}

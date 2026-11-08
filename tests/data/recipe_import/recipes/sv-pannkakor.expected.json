@@ -1,0 +1,52 @@
+{
+  "name": "Enkla pannkakor",
+  "servings": 4,
+  "instructions": "Blanda mjöl och salt i en stor bunke. Vispa ner hälften av mjölken och rör till en slät smet utan klumpar.\nVispa i resten av mjölken och sedan äggen ett i taget. Låt smeten vila i tio minuter.\nHetta upp en stekpanna på medelvärme och smält en liten klick smör. Häll i en slev smet och vrid pannan så att den breder ut sig.\nStek ungefär en minut på varje sida tills pannkakan har fått fin färg. Lägg på ett fat och fortsätt med resten av smeten.\nServera varma med sylt och vispad grädde.",
+  "sections": [
+    {
+      "name": "",
+      "lines": [
+        {
+          "original_text": "3 dl vetemjöl",
+          "amount": 3,
+          "unit": "dl",
+          "food": "vetemjöl",
+          "match": "Vetemjöl",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 krm salt",
+          "amount": 1,
+          "unit": "krm",
+          "food": "salt",
+          "match": "Salt",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "6 dl mjölk",
+          "amount": 6,
+          "unit": "dl",
+          "food": "mjölk",
+          "match": "Mjölk",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "3 ägg",
+          "amount": 3,
+          "unit": "",
+          "food": "ägg",
+          "match": "Ägg",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "2 msk smör till stekning",
+          "amount": 2,
+          "unit": "msk",
+          "food": "smör",
+          "match": "Smör",
+          "not_an_ingredient": false
+        }
+      ]
+    }
+  ]
+}

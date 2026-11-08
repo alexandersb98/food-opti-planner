@@ -1,0 +1,84 @@
+{
+  "name": "Thai-ish Red Curry",
+  "servings": 1,
+  "instructions": "Cook the rice.\nMeanwhile fry the paste in a splash of oil for one minute, add garlic and lemongrass, then the chicken.\nPour in the coconut milk and simmer ten minutes. Add the pepper for the last three.\nFish out the lemongrass, season with salt, serve over rice with lime wedges.",
+  "sections": [
+    {
+      "name": "",
+      "lines": [
+        {
+          "original_text": "2-3 tbsp red curry paste",
+          "amount": 2.5,
+          "unit": "tbsp",
+          "food": "red curry paste",
+          "match": "Röd currypasta",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 can (14 oz) coconut milk",
+          "amount": 1,
+          "unit": "can",
+          "food": "coconut milk",
+          "match": "Kokosmjölk",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 lb chicken breast, sliced thin",
+          "amount": 1,
+          "unit": "lb",
+          "food": "chicken breast",
+          "match": "Kycklingfilé",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "2 cloves garlic, minced",
+          "amount": 2,
+          "unit": "cloves",
+          "food": "garlic",
+          "match": "Vitlök",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 stalk lemongrass, bruised",
+          "amount": 1,
+          "unit": "stalk",
+          "food": "lemongrass",
+          "match": null,
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 red bell pepper, sliced",
+          "amount": 1,
+          "unit": "",
+          "food": "red bell pepper",
+          "match": null,
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 cup basmati rice",
+          "amount": 1,
+          "unit": "cup",
+          "food": "basmati rice",
+          "match": "Basmatiris",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 lime, cut in wedges",
+          "amount": 1,
+          "unit": "",
+          "food": "lime",
+          "match": "Lime",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "salt to taste",
+          "amount": null,
+          "unit": "",
+          "food": "salt",
+          "match": null,
+          "not_an_ingredient": true
+        }
+      ]
+    }
+  ]
+}
