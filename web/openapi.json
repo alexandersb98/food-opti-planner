@@ -1113,6 +1113,49 @@
         "title": "PlanResults",
         "type": "object"
       },
+      "Preferences": {
+        "properties": {
+          "unit.energy": {
+            "title": "Unit.Energy",
+            "type": "string"
+          },
+          "unit.mass": {
+            "title": "Unit.Mass",
+            "type": "string"
+          },
+          "unit.volume": {
+            "title": "Unit.Volume",
+            "type": "string"
+          }
+        },
+        "required": [
+          "unit.mass",
+          "unit.volume",
+          "unit.energy"
+        ],
+        "title": "Preferences",
+        "type": "object"
+      },
+      "PreferencesUpdate": {
+        "additionalProperties": false,
+        "description": "The keys to change; the others keep their value.",
+        "properties": {
+          "unit.energy": {
+            "title": "Unit.Energy",
+            "type": "string"
+          },
+          "unit.mass": {
+            "title": "Unit.Mass",
+            "type": "string"
+          },
+          "unit.volume": {
+            "title": "Unit.Volume",
+            "type": "string"
+          }
+        },
+        "title": "PreferencesUpdate",
+        "type": "object"
+      },
       "Recipe": {
         "properties": {
           "derived_tag_ids": {
@@ -1843,6 +1886,44 @@
           "value"
         ],
         "title": "Total",
+        "type": "object"
+      },
+      "UnitInfo": {
+        "properties": {
+          "aliases": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Aliases",
+            "type": "array"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "enum": [
+                  "mass",
+                  "volume",
+                  "energy"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symbol",
+          "category",
+          "aliases"
+        ],
+        "title": "UnitInfo",
         "type": "object"
       },
       "ValidationError": {
@@ -2805,6 +2886,66 @@
         ]
       }
     },
+    "/api/preferences": {
+      "get": {
+        "operationId": "get_preferences_api_preferences_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preferences"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Preferences",
+        "tags": [
+          "preferences"
+        ]
+      },
+      "put": {
+        "operationId": "update_preferences_api_preferences_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreferencesUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preferences"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Preferences",
+        "tags": [
+          "preferences"
+        ]
+      }
+    },
     "/api/recipes": {
       "get": {
         "operationId": "list_recipes_api_recipes_get",
@@ -3253,6 +3394,32 @@
         "summary": "Update Tag",
         "tags": [
           "tags"
+        ]
+      }
+    },
+    "/api/units": {
+      "get": {
+        "description": "The units offered: per category (mass, volume, energy) from small to\nlarge, then the known free-text units.",
+        "operationId": "list_units_api_units_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/UnitInfo"
+                  },
+                  "title": "Response List Units Api Units Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Units",
+        "tags": [
+          "units"
         ]
       }
     }

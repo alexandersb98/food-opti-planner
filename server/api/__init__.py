@@ -4,7 +4,20 @@ route goes in `protected`, which needs a session."""
 from fastapi import APIRouter, Depends
 
 from ..auth import require_session
-from . import attributes, counts, health, ingredients, login, plan, plan_results, recipes, solve, tags
+from . import (
+    attributes,
+    counts,
+    health,
+    ingredients,
+    login,
+    plan,
+    plan_results,
+    preferences,
+    recipes,
+    solve,
+    tags,
+    units,
+)
 
 protected = APIRouter(dependencies=[Depends(require_session)])
 protected.include_router(login.session_router)
@@ -16,6 +29,8 @@ protected.include_router(recipes.router)
 protected.include_router(plan.router)
 protected.include_router(solve.router)
 protected.include_router(plan_results.router)
+protected.include_router(units.router)
+protected.include_router(preferences.router)
 
 router = APIRouter(prefix="/api")
 router.include_router(health.router)

@@ -432,3 +432,17 @@ __all__ = [
     "ingredient_tags",
     "recipe_extra_tags",
 ]
+
+
+PREFERENCE_KEY_LENGTH = 50
+PREFERENCE_VALUE_LENGTH = 100
+
+
+class Preference(Base):
+    """One of the user's preferences (S1), such as `unit.mass`. A key without
+    a row has its default, which `server/api/preferences.py` holds."""
+
+    __tablename__ = "preferences"
+
+    key: Mapped[str] = mapped_column(String(PREFERENCE_KEY_LENGTH), primary_key=True)
+    value: Mapped[str] = mapped_column(String(PREFERENCE_VALUE_LENGTH))
