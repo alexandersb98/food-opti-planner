@@ -14,6 +14,8 @@ from sqlalchemy import create_engine, text
 from server.app import create_app
 from server.settings import Settings
 
+from .data_source_files import test_source, write
+
 PASSWORD = "correct horse battery staple"
 PASSWORD_HASH = PasswordHasher().hash(PASSWORD)
 
@@ -176,3 +178,18 @@ def porridge(client, catalog):
         solve_time_limit=10,
     )
     return recipe
+
+
+@pytest.fixture
+def data_sources_dir(tmp_path):
+    """A data directory holding the fake TEST source."""
+    directory = tmp_path / "data_sources"
+    write(directory, test_source())
+    return directory
+
+
+@pytest.fixture
+def data_client(database_url, web_dist, data_sources_dir):
+    """A logged-in client of an app that loaded the TEST source at startup."""
+    with logged_in_client(database_url, web_dist, data_sources_dir=data_sources_dir) as client:
+        yield client

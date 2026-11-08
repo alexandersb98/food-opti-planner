@@ -8,7 +8,7 @@ from argon2.exceptions import InvalidHashError
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 
-from . import api
+from . import api, source_loader
 from .auth import Auth
 from .db import make_engine, migrate
 from .settings import Settings
@@ -22,6 +22,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI):
         if settings.migrate_on_startup:
             migrate(settings.database_url)
+            source_loader.load_all(app.state.engine, settings.data_sources_dir)
         yield
         app.state.engine.dispose()
 
