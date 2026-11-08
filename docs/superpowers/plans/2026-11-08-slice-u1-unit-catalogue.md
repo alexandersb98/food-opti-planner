@@ -47,10 +47,13 @@ subagent, and the findings fixed.
    but lists "Cal" as an alias of kcal, while "cal" is the prefixable
    small calorie. Reading tries an exact match first, then a
    case-insensitive one. So "Cal" is kcal, and "cal" and "CAL" are cal.
-   No other spelling is affected: no two other catalogue spellings
-   differ by case only.
+   No two other catalogue spellings differ by case only (a test checks
+   it). One more exception to ignoring case: an upper-case M on a base
+   (MJ, Mg, ML, Mcal) is mega, which is not supported, so it is free
+   text rather than milli, off by 10¹²; MJ appears on energy labels.
 2. **Spellings.** Leading and trailing spaces are dropped and inner runs
-   of spaces become one ("US  cup" is "US cup"). The Greek mu (μ) reads
+   of spaces become one ("US  cup" is "US cup"), and the text is
+   composed (NFC), so an å typed as a and a ring reads. The Greek mu (μ) reads
    as the micro sign (µ), which the catalogue uses. "u" stands for µ on
    every base ("ul", "uJ"), not only "ug", as both are common ASCII
    stand-ins; "mcg" stays mass only.

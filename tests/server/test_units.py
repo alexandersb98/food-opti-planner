@@ -71,7 +71,6 @@ def test_listed_units_and_aliases(text, symbol, category, unit_factor):
     [
         ("  g ", "g"),
         ("KG", "kg"),
-        ("Mg", "mg"),
         ("dL", "dl"),
         ("mL", "ml"),
         ("kj", "kJ"),
@@ -97,9 +96,31 @@ def test_micro_is_the_micro_sign_the_greek_mu_or_u(text):
     assert parse(text).symbol == "µg"
 
 
-@pytest.mark.parametrize("text", ["ul", "μl", "uJ"])
-def test_u_stands_for_micro_on_every_base(text):
-    assert parse(text).symbol in {"µl", "µJ"}
+@pytest.mark.parametrize(("text", "symbol"), [("ul", "µl"), ("μl", "µl"), ("uJ", "µJ"), ("ucal", "µcal")])
+def test_u_stands_for_micro_on_every_base(text, symbol):
+    assert parse(text).symbol == symbol
+
+
+@pytest.mark.parametrize("text", ["MJ", "Mg", "MG", "ML", "Mcal", "MCAL"])
+def test_an_upper_case_M_is_mega_and_not_known(text):
+    assert parse(text) is None
+
+
+@pytest.mark.parametrize(("text", "symbol"), [("MSK", "tbsp"), ("MCG", "µg"), ("mJ", "mJ"), ("mL", "ml")])
+def test_other_spellings_starting_with_M_read_as_usual(text, symbol):
+    assert parse(text).symbol == symbol
+
+
+def test_a_decomposed_letter_reads_as_composed():
+    assert parse("kryddma\u030att").symbol == "krm"
+
+
+def test_only_cal_and_Cal_are_told_apart_by_case():
+    by_fold: dict[str, set[str]] = {}
+    for unit in units._UNITS:
+        for spelling in (unit.symbol, *unit.aliases):
+            by_fold.setdefault(spelling.casefold(), set()).add(unit.symbol)
+    assert {fold: symbols for fold, symbols in by_fold.items() if len(symbols) > 1} == {"cal": {"cal", "kcal"}}
 
 
 @pytest.mark.parametrize("text", ["slice", "IU", "pinch", "cup", "", "  ", "dag", "mcl", "kkg"])
@@ -127,6 +148,7 @@ def test_pieces_are_a_known_free_text_unit(text):
         ("dl", "ml", "100"),
         ("g", "gram", "1"),
         ("st", "pieces", "1"),
+        ("cal", "Cal", "0.001"),
     ],
 )
 def test_factor_within_a_category_is_exact(a, b, expected):
@@ -158,6 +180,8 @@ def test_display_units_go_from_small_to_large_per_category_then_pieces():
 
 
 def test_display_units_of_one_category():
+    assert [unit.symbol for unit in display_units("mass")] == ["µg", "mg", "g", "oz", "lb", "kg"]
+    assert [unit.symbol for unit in display_units("volume")][:3] == ["ml", "krm", "tsp"]
     assert [unit.symbol for unit in display_units("energy")] == ["kJ", "kcal"]
 
 

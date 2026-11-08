@@ -8,6 +8,7 @@ nothing; a few common ones (`st`, pieces) are known by name only.
 """
 
 import re
+import unicodedata
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Literal
@@ -88,29 +89,45 @@ _UNITS = _build()
 
 
 def _normal(text: str) -> str:
-    """Trimmed, inner spaces as one, the Greek mu as the micro sign."""
-    return re.sub(r"\s+", " ", text.strip()).replace("μ", MICRO)
+    """Composed (an å typed as a and a ring is one å), trimmed, inner spaces
+    as one, the Greek mu as the micro sign."""
+    composed = unicodedata.normalize("NFC", text)
+    return re.sub(r"\s+", " ", composed.strip()).replace("μ", MICRO)
 
 
 def _fold(text: str) -> str:
     return text.casefold()
 
 
-# Exact spellings first, then case-insensitive ones. Symbols go before
-# aliases, so "cal" folds to the small calorie, not to kcal's alias "Cal".
+def _folded() -> dict[str, Unit]:
+    """Every spelling, case-folded. Symbols go before aliases, so "cal" folds
+    to the small calorie, not to kcal's alias "Cal"."""
+    folded: dict[str, Unit] = {}
+    for unit in _UNITS:
+        folded.setdefault(_fold(unit.symbol), unit)
+    for unit in _UNITS:
+        for alias in unit.aliases:
+            folded.setdefault(_fold(alias), unit)
+    return folded
+
+
 _EXACT = {spelling: unit for unit in _UNITS for spelling in (unit.symbol, *unit.aliases)}
-_FOLDED: dict[str, Unit] = {}
-for _unit in _UNITS:
-    _FOLDED.setdefault(_fold(_unit.symbol), _unit)
-for _unit in _UNITS:
-    for _alias in _unit.aliases:
-        _FOLDED.setdefault(_fold(_alias), _unit)
+_FOLDED = _folded()
+
+# An upper-case M on a base is mega (MJ on energy labels), which is not
+# supported; read case-insensitively it would be milli, off by 10^12.
+_MEGA = re.compile("M(" + "|".join(base for base, _, _ in _PREFIXABLE) + ")", re.IGNORECASE)
 
 
 def parse(text: str) -> Unit | None:
     """The known unit `text` spells, or None for free text."""
     normal = _normal(text)
-    return _EXACT.get(normal) or _FOLDED.get(_fold(normal))
+    exact = _EXACT.get(normal)
+    if exact is not None:
+        return exact
+    if normal.startswith("M") and _MEGA.fullmatch(normal):
+        return None
+    return _FOLDED.get(_fold(normal))
 
 
 def factor(a: str, b: str) -> Decimal | None:
