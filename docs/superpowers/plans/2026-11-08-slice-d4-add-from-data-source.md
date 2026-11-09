@@ -52,7 +52,7 @@ Interfaces of earlier slices:
 [`2026-11-08-slice-d3-column-mapping.md`](2026-11-08-slice-d3-column-mapping.md),
 [`2026-11-08-slice-u3-unit-change-converts.md`](2026-11-08-slice-u3-unit-change-converts.md).
 
-**Status:** Planned; to be built task by task on branch
+**Status:** Built and reviewed task by task on branch
 claude/implement-remaining-slices-qwrp83.
 
 ## Global Constraints
@@ -76,7 +76,7 @@ claude/implement-remaining-slices-qwrp83.
   "TEST Protein" g, `ENERC:kcal` "TEST Energy" kcal, `VITD` "TEST Vitamin D" µg;
   foods `1` "TEST Oats" group "TEST Grains", `2` "TEST Milk" and `10` "TEST
   Cheese" group "TEST Dairy"; Milk has no `VITD` value).
-- **D2 and D3 are planned but not yet built when this plan was written.**
+- **D2 and D3 were planned but not yet built when this plan was written (both are built now).**
   This plan names their code by the planned names (`server/source_loader.py`,
   `server/api/data_sources.py` with `DataSourceSummary`, `SourceColumn`
   and the D3 route `PUT /{key}/columns/{id}`; models `DataSource`, `SourceColumn`
@@ -279,7 +279,37 @@ claude/implement-remaining-slices-qwrp83.
     affected (`source` is null).
 16. **Nothing on C3 yet** beyond the button: the marker for updated values is D5.
     The ingredient list row is unchanged.
-17. **Not in this slice:** the "Updated values available" banner, `updated_values`,
+17. **Built differently from the text** (found against the built code; the spec
+    wins where it speaks):
+    - `unit_change.convert_number(value, ratio)` is the public wrapper; the
+      `source_values` converter sits between `ingredient_values` and `goals`
+      (its count key reads in that order in the answer).
+    - `GET/PUT /api/preferences` use an `UNSET` sentinel in `preferences.py`
+      to tell "`last_data_source` not sent" from "sent as null" (which is
+      refused with `invalid_data_source`).
+    - The ingredient's unit rules (energy first, then a linked ingredient's
+      non-mass unit) live in one function, `ingredients._unit_refusal`, which
+      `_fill` and the preview both use.
+    - `from-source` keeps the existing name-in-use answer (409 `name_in_use`).
+      The unlinked answer sets both `source_food_id` and the relationship.
+    - `GET /api/ingredients` loads the source with `selectinload`; the
+      per-ingredient values and tags were already loaded lazily, so a test
+      that the SQL statement count stays flat was not added.
+    - A `SourceChip` takes a `name` prop (the ingredient's name, for the
+      confirmation's title) besides `source` and `busy`.
+    - `refusalText` keeps its list of subject kinds and adds `source_value`
+      (the smaller change the plan allowed; no `exists` plumbing).
+    - The server tests for add, unlink and the unit rule are in
+      `tests/server/test_ingredients_from_source.py`, not
+      `test_ingredients.py` (which only gained `"source": None`).
+    - `web/src/units.ts`: before this slice `unitNamed` was folded into
+      `findUnit` (commit "web: findUnit applies the server's case rule ..."),
+      so the D3 note about two lookups no longer applies.
+    - C7: **Add** is disabled for a withdrawn preview (with the message); a
+      failed list of data sources shows the settings card's text with **Try
+      again**; the search box keeps its text when going Back to results.
+    - The source tag toggles send only the preview's `groups` ids that are on.
+18. **Not in this slice:** the "Updated values available" banner, `updated_values`,
     Accept/Keep mine (D5); tag groups (D6); source tags in the other pickers
     (D2 left them plain).
 
@@ -325,6 +355,10 @@ an unknown key is still refused as before; 401 without a session.
 
 **Verify:** the touched tests, the root suite, `npm run gen:api`, `npm run typecheck`.
 Commit: "server: ingredient link to a source food, source values, last data source preference".
+
+**Built.** As written. The migration test is the check (no upgrade-from-`0011`
+pattern exists; `down_revision` is `0011`, the real head). Preferences tests extended
+as listed.
 
 ### Task 2: Server: the source's numbers and the food search and preview
 
@@ -378,6 +412,10 @@ if the file is already long), `tests/server/test_unit_change.py`, `web/src/test-
 
 **Verify:** the touched tests, the root suite, `npm run gen:api`, typecheck. Commit: "server:
 convert a source food's numbers, search and preview source foods".
+
+**Built.** As written (interpretation 17). The tests are in `test_source_values.py` and
+`test_source_foods_api.py`; the huge-unit fallback of `food_basis` is tested by
+monkeypatching `units.ratio`, as the plan allows.
 
 ### Task 3: Server: add from source, unlink, `source` on ingredients, the unit rule
 
@@ -434,6 +472,8 @@ ingredient added from TEST Oats):
 **Verify:** the touched tests, the root suite, typecheck. Commit: "server: add an ingredient from a
 source food, unlink, linked ingredients keep to mass units".
 
+**Built.** As written (interpretation 17). Cascade tests went into `test_delete_cascades.py`.
+
 ### Task 4: Server: U3's attribute unit change converts source values
 
 **Files:** modify `server/unit_change.py`, `server/api/unit_changes.py` (nothing if Task 3 did the
@@ -460,6 +500,8 @@ attribute with a mapped column still refuses a category change with `unit_mismat
 **Verify:** the touched tests, the root suite, `npm run gen:api` (no diff expected beyond comments),
 typecheck. Commit: "server: an attribute's unit change converts copied source values".
 
+**Built.** As written; the existing whole-`counts` assertions gained `"source_values": 0`.
+
 ### Task 5: Web: unit-change texts for source values and linked ingredients
 
 **Files:** modify `web/src/composables/useUnitChange.ts`, `web/src/composables/useUnitChange.test.ts`,
@@ -485,6 +527,8 @@ typecheck. Commit: "server: an attribute's unit change converts copied source va
 
 **Tests (first):** the new cases fail before the code. **Verify:** `npm run lint`, `npm run typecheck`,
 `npm test`. Commit: "web: unit change texts for source values and ingredients from a source".
+
+**Built.** The smaller change for `refusalText` (interpretation 17).
 
 ### Task 6: Web: C7, Add from data source
 
@@ -534,6 +578,9 @@ unchanged otherwise.
 **Verify:** `npm run lint`, `npm run typecheck`, `npm test`. Commit: "web: Add from data source dialog on the
 Ingredients page".
 
+**Built.** As written; its tests use their own fake `fetch` (they need the query string) with real timers
+for the 300 ms pause. See interpretation 17 for the small differences.
+
 ### Task 7: Web: C4's source chip, Unlink, mass units only
 
 **Files:** create `web/src/components/SourceChip.vue` (+ `.test.ts`), `web/src/colours.ts` (+ `.test.ts`);
@@ -574,6 +621,8 @@ modify `web/src/pages/IngredientPage.vue`, `web/src/pages/IngredientPage.test.ts
 **Verify:** `npm run lint`, `npm run typecheck`, `npm test`. Commit: "web: source chip, Unlink and mass units
 only on a linked ingredient".
 
+**Built.** As written. The chip's own tests and the page's tests drive the confirmation.
+
 ### Task 8: End-to-end step
 
 **Files:** modify `web/e2e/catalog.e2e.ts`.
@@ -599,6 +648,9 @@ single-row locators (`.ingredient-row`).
 scratchpad with `DATABASE_URL`, `PASSWORD_HASH`, `SESSION_KEY` and
 `DATA_SOURCES_DIR=$PWD/tests/data/data_sources`; `E2E_PASSWORD=... E2E_BASE_URL=http://localhost:8000 npm run e2e
 -- --trace off`; kill the server. Commit: "e2e: add an ingredient from a data source".
+
+**Built.** As written. D3's end state was as assumed (only TEST Energy mapped, to Energy in kcal).
+Checked: `npx vite build`, a server on a temp SQLite file, the flow green (about 25 s).
 
 ### Task 9: Docs
 
@@ -627,6 +679,9 @@ scratchpad with `DATABASE_URL`, `PASSWORD_HASH`, `SESSION_KEY` and
 
 **Verify:** the full checks (both suites, lint, typecheck) and the e2e run once more. Commit: "Docs: slice D4
 built, README, data source, units and wireframes specs".
+
+**Built.** As written. Checked: root suite on SQLite (1337 passed) and `tests/server` on Postgres
+(1009 passed), lint, typecheck, `npm test` (567 passed), the e2e flow (green on the final code).
 
 ## Done when
 

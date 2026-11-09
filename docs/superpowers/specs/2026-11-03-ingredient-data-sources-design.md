@@ -91,8 +91,8 @@ Changes to existing tables:
 | Table | New column | Notes |
 |---|---|---|
 | `tags` | `source_id` (nullable), group (nullable, from D6) | `source_id` set: a source tag (decision 12). |
-| `ingredients` | source food (nullable) | The link (decision 1). Deleting is never needed, as source foods are never deleted. |
-| `ingredient_values` | source value (nullable) | The source's value when last copied or answered, converted to the attribute's unit. Drives decision 4. Converted with the value when the attribute's unit changes (units spec). |
+| `ingredients` | `source_food_id` (nullable, indexed, no cascade) | The link (decision 1). Deleting is never needed, as source foods are never deleted. |
+| `ingredient_values` | `source_value` (nullable) | The source's value when last copied or answered, converted to the attribute's unit. Drives decision 4. Converted with the value when the attribute's unit changes (units spec). |
 
 ## The data file and its import *(proposed)*
 
@@ -249,34 +249,43 @@ It opens a full-screen dialog:
 
 1. **Data source** drop-down, starting at the last choice
    (`last_data_source`); a change is saved.
-2. **Search** by food name (server-side, 20 results at a time).
-   Withdrawn foods are not offered. A result shows the food's name and
-   food group.
+2. **Search** by food name (server-side, 20 results at a time, with
+   **Show more**): the name contains the text, ignoring case, names that
+   start with it first; an empty search lists the first 20. The answer has
+   a `total`. Withdrawn foods are not offered. A result shows the food's
+   name and food group.
 3. Choosing a food shows the ingredient to be made:
-   - **Name**, prefilled with the food's name, editable;
+   - **Name**, prefilled with the food's name (cut to 100 characters),
+     editable;
    - **Measured in** the preferred mass unit, with basis 100 g in that
      unit (rounded to 6 decimals);
    - the **values** to be copied: one row per mapped column with a
      value, converted to the attribute's unit; unmapped columns are not
-     shown;
+     shown. A value too large to store is left out and named in a "Not
+     copied" line. A food with no mapped values says so and can still be
+     added (an ingredient with a name and a link);
    - the food's **source tags**, each on/off, on by default;
    - a warning when an ingredient already links to this food
      (decision 11).
 4. **Add** creates the ingredient, with `source value` set on each
-   copied value, and opens it on C4. A name already taken is refused on
-   the name field.
+   copied value, and opens it on C4. The server works out the unit,
+   basis and values again at that moment from the mapping as it stands.
+   A name already taken is refused on the name field; a food withdrawn
+   in the meantime is refused and the preview shows it.
 
 ## The linked ingredient on C4 *(proposed)*
 
 - A chip under the name, "From Livsmedelsverket: Havregryn", in the
-  source's colour. A withdrawn food adds "No longer in the source"; the
+  source's colour (with a readable text colour). A withdrawn food adds "No longer in the source"; the
   ingredient keeps its values.
 - Values can be edited as for any ingredient.
 - The unit can change to another mass unit (the basis is converted,
   units spec). Volume or free text is refused while linked, as the
-  source's values are per 100 g of food. **Unlink from source** (with a
-  confirmation) removes the link and the source values; the ingredient
-  is then an ordinary one.
+  source's values are per 100 g of food (422 `unit_not_for_source`,
+  also in the unit-change preview). **Unlink from source** (with a
+  confirmation) removes the link and the source values and keeps the
+  values, tags and basis, so unsaved edits on the form stay; the
+  ingredient is then an ordinary one.
 - **Updated values available**: a banner when, for any mapped column,
   the source's current value (converted) differs from `source value`,
   including a value the ingredient has never had because the column
@@ -333,16 +342,16 @@ list Seafood, not the group).
 | `GET /api/data-sources` | The sources, by name: `key, name, colour, version, imported_at, food_count, column_count` (not withdrawn) and `mapped_count`, the not withdrawn columns that are mapped (S1). |
 | `GET/PATCH /api/data-sources/{key}` | The summary plus `attribution` and all `columns` (`id, key, name, unit, withdrawn, attribute_id`; active by name, then withdrawn); `PATCH` takes `{"colour": "#rrggbb"}` (S2). |
 | `PUT /api/data-sources/{key}/columns/{id}` | `{attribute_id \| null}`; answers the column. 404 for an unknown source or column, 422 `unknown_attribute`, `unit_mismatch`, `attribute_taken` (S2). `GET /api/attributes` gains `mapping_count`. |
-| `GET /api/data-sources/{key}/foods?search=&offset=` | The search (C7). |
-| `GET /api/data-sources/{key}/foods/{id}` | A food as it would become an ingredient, with the warning of decision 11 (C7). |
-| `POST /api/ingredients/from-source` | `{food_id, name, tag_ids}` (C7). |
+| `GET /api/data-sources/{key}/foods?search=&offset=` | The search (C7): `{foods: [{id, name, groups}], total, offset, limit}`, `limit` fixed at 20; 422 for a negative `offset`. |
+| `GET /api/data-sources/{key}/foods/{id}` | A food as it would become an ingredient (C7): `id, name, withdrawn, source, suggested_name, unit, basis, values, skipped, groups` (with tag ids) and `existing` (ingredients already linked, for the warning of decision 11). 404 for a food of another source. |
+| `POST /api/ingredients/from-source` | `{food_id, name, tag_ids}`; 201 with the ingredient (C7). |
 | `POST /api/ingredients/{id}/source-values` | `{answer: "accept" \| "keep"}` (C4). |
-| `POST /api/ingredients/{id}/unlink` | C4. |
+| `POST /api/ingredients/{id}/unlink` | C4; answers the ingredient; unlinking an unlinked one is a no-op. |
 | `PUT /api/tags/{id}` | Gains `equivalent_tag_ids` and a `confirm` flag for the questions above. |
-| `GET/PUT /api/preferences` | Preferred units, last data source. |
+| `GET/PUT /api/preferences` | Preferred units, and `last_data_source` (null until set; `PUT` refuses a key that is not a loaded source: 422 `invalid_data_source`). |
 
-Ingredient responses gain `source` (name, colour, food name, withdrawn)
-and `updated_values` (the attributes with a new source value). Tag
+Ingredient responses gain `source` (`key, name, colour, food_id, food_name, withdrawn`, or null)
+and (slice D5) `updated_values` (the attributes with a new source value). Tag
 responses gain `source` and `group` (member ids).
 
 ## Errors *(proposed)*
@@ -352,8 +361,9 @@ responses gain `source` and `group` (member ids).
 | Mapping to an attribute whose unit doesn't convert | 422 `unit_mismatch`, on `attribute_id` |
 | Attribute already mapped from another column of the source | 422 `attribute_taken`, on `attribute_id` |
 | An attribute's unit change that would stop a mapped column converting | 422 `unit_mismatch`, on `unit` (the refusal names the column) |
-| Ingredient name taken | 422 `duplicate` on `name`, as today |
-| Withdrawn food added | 422 `withdrawn` |
+| Ingredient name taken | 409 `name_in_use` on `name`, as for every ingredient (not 422 `duplicate`) |
+| Withdrawn food added | 422 `withdrawn`, on `food_id` |
+| A tag that is not one of the food's source tags | 422 `not_a_food_tag`, on `tag_ids[i]` |
 | Rename or delete of a source tag | 422 `source_tag`, on `body.name` (rename) or `path.tag_id` (delete) |
 | Group change needing an answer, sent without `confirm` | 409 with the question's facts |
 | Linked ingredient changed to a volume or free-text unit | 422 `unit_not_for_source` |

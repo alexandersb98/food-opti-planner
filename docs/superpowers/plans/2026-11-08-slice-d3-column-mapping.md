@@ -199,6 +199,8 @@ claude/implement-remaining-slices-qwrp83.
     `unitNamed` in `units.ts` (also used by the Create attribute dialog) applies
     that rule on top of `findUnit`, so `convertible` agrees with `units.factor`
     for `MJ` against `J` (false). `findUnit` itself is unchanged.
+    *(Superseded after the D3 review: the rule moved into `findUnit` and
+    `unitNamed` was deleted, so one lookup exists; see the D4 commits.)*
 17. **S2's row is a component, `SourceColumnRow.vue`,** with D2's class
     `column-row` (not `source-column-row`) and a `column-name` label; D2's tests
     that compared a row's whole text now compare names and captions. It has no

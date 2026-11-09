@@ -137,7 +137,8 @@ part of this spec; it is designed in
 Search, quick tag filter chips (recipes), one row per item with key
 facts (recipes: kcal, protein, cost per portion and tags; ingredients:
 values per their basis and how many recipes use them), and a round
-**+** button to add.
+**+** button to add. The Ingredients list also has an **Add from data
+source** button (C7) under its intro text.
 
 ### C2 · Edit recipe
 
@@ -171,6 +172,12 @@ values per their basis and how many recipes use them), and a round
   **Cancel** and **Convert** (**Change unit** when another category or free
   text keeps the numbers; no dialog for another spelling). A refused
   conversion shows under **Measured in** and the form stays open.
+- An ingredient made from a data source food has a chip under the name,
+  "From Livsmedelsverket: Havregryn", in the source's colour (and "No
+  longer in the source" if the food was withdrawn), and **Unlink from
+  source**, which asks first and keeps the values and tags. **Measured in**
+  offers mass units only while it is linked; a volume unit or free text is
+  refused under it.
 - **Used in N recipes · Show.** **Delete** is disabled while any recipe
   uses the ingredient.
 
@@ -179,8 +186,8 @@ values per their basis and how many recipes use them), and a round
 A list; a row opens in place to edit **Name**, **Unit** (GUI-only; the same
 combo box, with the help text "The amount per the ingredient's basis, e.g.
 g or kcal.") and **Decimals** (→ `precision`). Changing the unit of a saved
-attribute asks first, in the same dialog ("Iron: 12 ingredient values and 2
-goals will be converted from mg to µg (× 1000)."); a refusal, such as a goal
+attribute asks first, in the same dialog ("Iron: 12 ingredient values, 2 source
+values and 2 goals will be converted from mg to µg (× 1000)."); a refusal, such as a goal
 bound that needs more decimals, or a mapped source column that would stop
 converting (it names the column), shows under **Unit**. Delete warns how many
 ingredient values and goals it removes and how many source columns' mappings it
@@ -198,6 +205,18 @@ A source tag (made from a data source's food group) shows a dot in its
 source's colour and the source's name in its caption; its open form has no
 Name input and no Delete, only the rule and Done. Tags made by hand are
 listed first, then the source tags.
+
+### C7 · Add from data source
+
+A full-screen dialog opened from C3, with a back arrow. A **Data source**
+drop-down (starting at the last one used), a **Search foods** box and the
+foods, 20 at a time (name, food groups) with **Show more**. Choosing a food
+shows **Name** (editable), "Measured in g, values per 100 g", the values
+that will be copied ("Protein 13.5 g"; "Not copied: ..." for any too large;
+a hint if no column is mapped), the food's source tags as on/off buttons, a
+warning if an ingredient already comes from the food, and **Back to
+results** and **Add**, which opens the new ingredient on C4. A name in use
+shows under **Name**.
 
 ### S1 · Settings
 

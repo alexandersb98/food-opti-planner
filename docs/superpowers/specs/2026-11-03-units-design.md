@@ -202,6 +202,10 @@ decimals and 15 digits (`EXACT_NUMBER`).
   are the column's name, its source's name and its unit, and the text
   tells the user to unmap the column first. A change within the category
   keeps every mapping converting and is allowed.
+- An attribute's unit change also converts the source values copied into
+  ingredients (`ingredient_values.source_value`), counted and refused like
+  the values themselves. An ingredient linked to a data source may change
+  its unit only to another mass unit (data source spec, C4).
 
 **Settled in slice U3.**
 
