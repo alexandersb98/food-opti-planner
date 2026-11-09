@@ -38,7 +38,7 @@ Interfaces of earlier slices:
 [`2026-11-08-slice-d3-column-mapping.md`](2026-11-08-slice-d3-column-mapping.md),
 [`2026-11-08-slice-d4-add-from-data-source.md`](2026-11-08-slice-d4-add-from-data-source.md).
 
-**Status:** Planned; to be built task by task on branch
+**Status:** Built and reviewed task by task on branch
 claude/implement-remaining-slices-qwrp83.
 
 ## Global Constraints
@@ -160,7 +160,20 @@ claude/implement-remaining-slices-qwrp83.
 9. **No new unit handling.** An attribute unit change converts `source_value` (D4),
    so the comparison stays right across it; nothing in this slice reads units except
    the scale of interpretation 3.
-10. **Not in this slice:** a notification outside the two screens, an "Accept all"
+10. **Built differently from the text** (found against the built code and D4's review notes):
+    - Numbers a last decimal apart count as the same (`SAME_WITHIN` = 0.000001), both for the
+      stored `source_value` against the source's number and for the proposed value against the
+      ingredient's own. An attribute unit change converts the stored `source_value` and value
+      step by step, rounding at each, so they can end one decimal from the same number converted
+      once from the source; without the tolerance that shows as a false update. A larger drift
+      (a conversion that lost digits, then a larger factor) still shows once, and either answer
+      repairs the stored number.
+    - The ingredient's basis stays editable on a linked ingredient: the scale is the saved basis
+      (interpretation 3), and `source_value` stays per 100 g, so editing the basis never makes an update.
+    - `apply_answer(ingredient, updates, answer)` has no `db` parameter (it needs none).
+    - The refusal `not_linked` uses `invalid_fields` with the loc `["path", "ingredient_id"]`.
+    - The Playwright test timeout is raised to 90 s: the one flow passed 30 s with this step.
+11. **Not in this slice:** a notification outside the two screens, an "Accept all"
     across ingredients, a diff of added/removed foods, tag groups (D6).
 
 ## Tasks
@@ -219,6 +232,8 @@ an ingredient linked to TEST Oats with values and `source_value` as D4's add mak
 
 **Verify:** the touched tests, then the root suite. Commit: "server: find and answer updated source values".
 
+**Built.** Tests in the new `tests/server/test_source_updates.py` (36 tests with `test_source_values.py`, all passing; the statement count of `copied_values_many` is the same for 1 and 3 foods). Differences: interpretation 10.
+
 ### Task 2: Server: `updated_values` on ingredients and the answer route
 
 **Files:** modify `server/api/ingredients.py`, `tests/server/test_ingredients.py` (or a new
@@ -268,6 +283,8 @@ exports its parts).
 **Verify:** the touched tests, the root suite, typecheck. Commit: "server: updated source values on ingredients,
 Accept and Keep mine".
 
+**Built.** Tests in `tests/server/test_source_updates_api.py`, including a new fixture version loaded through `load_file`, a basis of 50 and the attribute unit change g to mg (no false update); the list statement count is equal for 1 and 5 linked ingredients with updates. `gen:api` ran; `test-units.json` unchanged; `UpdatedValue` exported in `types.ts`. `tests/server` on Postgres: 1048 passed, 1 skipped.
+
 ### Task 3: Web: C4's banner
 
 **Files:** create `web/src/components/UpdatedValuesBanner.vue` (+ `.test.ts`); modify
@@ -308,6 +325,8 @@ Accept and Keep mine".
 **Verify:** `npm run lint`, `npm run typecheck`, `npm test`. Commit: "web: Updated values available banner on a
 linked ingredient".
 
+**Built.** As written. `UpdatedValuesBanner.test.ts` (5 tests) and 7 new page tests (Accept, Keep mine with the `0` in the PUT body, a typed value is not overwritten by the `0`, failure, busy and a second click).
+
 ### Task 4: Web: C3's marker and filter
 
 **Files:** modify `web/src/pages/IngredientsPage.vue`, `web/src/pages/IngredientsPage.test.ts`,
@@ -329,6 +348,8 @@ existing tests are unchanged.
 
 **Verify:** `npm run lint`, `npm run typecheck`, `npm test`. Commit: "web: mark and filter ingredients with updated
 values".
+
+**Built.** As written, with the marker as a `q-badge` in its own caption line and the toggle in a row beside the search. 3 new tests in `IngredientsPage.test.ts`.
 
 ### Task 5: End-to-end step
 
@@ -355,6 +376,8 @@ locators) and adapt. The step goes at the end and must not break earlier single-
 E2E_BASE_URL=http://localhost:8000 npm run e2e -- --trace off`; kill the server. Commit: "e2e: updated source values on
 linked ingredients".
 
+**Built.** As written (D4 left only TEST Energy mapped and Protein deleted, so Protein is created again from the column with Create attribute). The e2e run passes (~31 s) after the timeout change in interpretation 10.
+
 ### Task 6: Docs
 
 **Files:** `README.md`, the master plan, the data source spec, the wireframes spec, this plan.
@@ -373,6 +396,8 @@ linked ingredients".
 
 **Verify:** the full checks (both suites, lint, typecheck) and the e2e run once more. Commit: "Docs: slice D5 built, README,
 data source and wireframes specs".
+
+**Built.** Checked: root suite, web lint/typecheck/tests and the e2e run once more (see `d5-report.md`).
 
 ## Done when
 

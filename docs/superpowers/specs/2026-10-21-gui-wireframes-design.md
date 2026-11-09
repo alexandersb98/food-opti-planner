@@ -138,7 +138,10 @@ Search, quick tag filter chips (recipes), one row per item with key
 facts (recipes: kcal, protein, cost per portion and tags; ingredients:
 values per their basis and how many recipes use them), and a round
 **+** button to add. The Ingredients list also has an **Add from data
-source** button (C7) under its intro text.
+source** button (C7) under its intro text. A linked ingredient with updated
+source values shows a small **Updated values available** badge in its row, and
+a toggle **Only with updated values (n)** beside the search (shown only while
+some ingredient has updates) lists just those.
 
 ### C2 · Edit recipe
 
@@ -178,6 +181,11 @@ source** button (C7) under its intro text.
   source**, which asks first and keeps the values and tags. **Measured in**
   offers mass units only while it is linked; a volume unit or free text is
   refused under it.
+- **Updated values available** (a linked ingredient whose source has new
+  numbers): a banner under the chip lists each attribute, "Protein 13.5 g →
+  13.8 g" ("Protein none → 13.8 g" for a value it never had), with **Keep
+  mine** and **Accept**. Either answer hides the banner and keeps other
+  unsaved edits; Accept fills the form with the new numbers.
 - **Used in N recipes · Show.** **Delete** is disabled while any recipe
   uses the ingredient.
 

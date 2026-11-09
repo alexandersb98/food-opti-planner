@@ -92,7 +92,7 @@ Changes to existing tables:
 |---|---|---|
 | `tags` | `source_id` (nullable), group (nullable, from D6) | `source_id` set: a source tag (decision 12). |
 | `ingredients` | `source_food_id` (nullable, indexed, no cascade) | The link (decision 1). Deleting is never needed, as source foods are never deleted. |
-| `ingredient_values` | `source_value` (nullable) | The source's value when last copied or answered, converted to the attribute's unit. Drives decision 4. Converted with the value when the attribute's unit changes (units spec). |
+| `ingredient_values` | `source_value` (nullable) | The source's value when last copied or answered, converted to the attribute's unit. Drives decision 4. Converted with the value when the attribute's unit changes (units spec). No other column is needed for updates: the comparison is computed (D5). |
 
 ## The data file and its import *(proposed)*
 
@@ -289,11 +289,17 @@ It opens a full-screen dialog:
 - **Updated values available**: a banner when, for any mapped column,
   the source's current value (converted) differs from `source value`,
   including a value the ingredient has never had because the column
-  was mapped later. The banner lists each attribute: "Protein 13.5 g →
-  13.8 g". **Accept** copies the new values; **Keep mine** keeps the
+  was mapped later. The banner lists each attribute with the
+  ingredient's current value and the new one, in the ingredient's basis
+  (not the previous source value): "Protein 13.5 g → 13.8 g", "Protein
+  none → 13.8 g". A value the ingredient already has (typed by the user)
+  is not offered. **Accept** copies the new values; **Keep mine** keeps the
   values and records the new ones as answered, so the banner returns
-  only on the next change. A value with no mapped column any more is
-  left alone.
+  only on the next change; an attribute the ingredient had no value for
+  gets an explicit 0. A value with no mapped column any more is
+  left alone. The comparison is computed from the source as it stands,
+  never stored, and treats numbers a last decimal apart as equal (a unit
+  change rounds the stored number step by step).
 - The Ingredients list (C3) marks ingredients with updated values and
   can filter on them.
 
@@ -345,13 +351,14 @@ list Seafood, not the group).
 | `GET /api/data-sources/{key}/foods?search=&offset=` | The search (C7): `{foods: [{id, name, groups}], total, offset, limit}`, `limit` fixed at 20; 422 for a negative `offset`. |
 | `GET /api/data-sources/{key}/foods/{id}` | A food as it would become an ingredient (C7): `id, name, withdrawn, source, suggested_name, unit, basis, values, skipped, groups` (with tag ids) and `existing` (ingredients already linked, for the warning of decision 11). 404 for a food of another source. |
 | `POST /api/ingredients/from-source` | `{food_id, name, tag_ids}`; 201 with the ingredient (C7). |
-| `POST /api/ingredients/{id}/source-values` | `{answer: "accept" \| "keep"}` (C4). |
+| `POST /api/ingredients/{id}/source-values` | `{answer: "accept" \| "keep"}` (C4); answers the ingredient. What is answered is what the server finds now; nothing to answer is a 200 no-op. 404 unknown ingredient; 422 `not_linked` on `path.ingredient_id`. |
 | `POST /api/ingredients/{id}/unlink` | C4; answers the ingredient; unlinking an unlinked one is a no-op. |
 | `PUT /api/tags/{id}` | Gains `equivalent_tag_ids` and a `confirm` flag for the questions above. |
 | `GET/PUT /api/preferences` | Preferred units, and `last_data_source` (null until set; `PUT` refuses a key that is not a loaded source: 422 `invalid_data_source`). |
 
 Ingredient responses gain `source` (`key, name, colour, food_id, food_name, withdrawn`, or null)
-and (slice D5) `updated_values` (the attributes with a new source value). Tag
+and (slice D5) `updated_values`, a list ordered by attribute id of `{attribute_id, value, new_value}`
+(the ingredient's current value, or null, and the proposed one, in its basis; empty without a link). Tag
 responses gain `source` and `group` (member ids).
 
 ## Errors *(proposed)*
@@ -367,6 +374,7 @@ responses gain `source` and `group` (member ids).
 | Rename or delete of a source tag | 422 `source_tag`, on `body.name` (rename) or `path.tag_id` (delete) |
 | Group change needing an answer, sent without `confirm` | 409 with the question's facts |
 | Linked ingredient changed to a volume or free-text unit | 422 `unit_not_for_source` |
+| Answering updated values of an ingredient with no link | 422 `not_linked`, on `path.ingredient_id` |
 | A data file that fails to load | Logged at startup; the old copy stays. |
 
 ## Testing *(proposed)*
