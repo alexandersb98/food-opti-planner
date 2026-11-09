@@ -169,7 +169,7 @@ printf '%s' "$VALUE" | gcloud secrets create password-hash --data-file=-
 
 ## 5b. AI key (only for recipe import)
 
-Importing a recipe from pasted text asks an AI service. This step is
+Importing a recipe from a link or pasted text asks an AI service. This step is
 optional: without it the app works as before, and **Import recipe**
 on the Recipes page is disabled ("Needs an AI key").
 
@@ -201,6 +201,12 @@ in the console stays). The deploy refuses `AI_PROVIDER=fake`, a provider
 for tests that also needs `AI_ALLOW_FAKE=true` to start. To see that it works, open
 Recipes, press **+**: **Import recipe** is enabled, and
 `/api/health` says `"ai_configured": true`.
+
+Importing from a link needs outbound internet from the service. Cloud
+Run's default has it; with a VPC connector set to route all egress, the
+recipe sites must stay reachable. It needs no new secret or setting. The
+fetch refuses the metadata server and private networks on every redirect,
+so it can't be used to reach Google's internal services.
 
 To rotate the key, add a new version of the secret and **Run workflow**:
 

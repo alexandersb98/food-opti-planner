@@ -39,8 +39,9 @@ ingredient's unit, and a line that does not convert is refused when the recipe i
 saved. Changing an ingredient's unit converts its lines in the own unit and its
 conversions too, and is refused for another category or free text while a
 conversion or a line in another unit exists.
-Recipes can be imported by AI from pasted text: Recipes, **+**, **Import recipe**
-(disabled with "Needs an AI key" until a key is set) takes the text to a draft that
+Recipes can be imported by AI from a link or from pasted text: Recipes, **+**, **Import recipe**
+(disabled with "Needs an AI key" until a key is set; it opens on a **Link** field, with a
+**Paste text** switch for the text box) takes the page or the text to a draft that
 opens on the recipe editor as an unsaved recipe in review (a banner counting the lines
 that need you, each line's source line, **Pick ingredient** with **+ New ingredient**,
 "1 dl = 100 g ✨ **Accept**" for a line that needs a conversion factor, **Skip**, and
@@ -50,7 +51,24 @@ The AI layer is in `server/ai/` (interfaces, prompt and schema, adapters for fou
 providers and a canned `fake` one), with a comparison script,
 `scripts/compare_models.py`, that the owner runs by hand to choose a model (the
 default in the app, `claude-sonnet-5-5`, is provisional until it has been run).
-The import from a link is not available yet.
+
+### Importing from a link
+
+The server fetches the page under strict limits: http and https only, ports 80 and
+443, 10 seconds for the whole fetch, 2 MB, at most 3 redirects, HTML only. On every
+hop (the first URL and each redirect) it refuses internal addresses: loopback,
+private networks, link-local (including the cloud metadata server), carrier-grade
+NAT, 0.0.0.0, IPv4-mapped and other IPv6 equivalents, and legacy numeric hosts such
+as `2130706433`. It resolves the name once per hop and connects to the address it
+checked (the certificate is still verified against the name), so a name whose
+address changes between the check and the connection has nothing to rebind. The
+rules are in `server/address_policy.py`. A page with schema.org `Recipe` JSON-LD
+sends only that recipe's main fields; otherwise the page's visible text is sent.
+Pages that need JavaScript or a login can't be read: the app says "paste the text
+instead". The tests never touch the internet (a stubbed transport and a fake
+resolver). Residual risk: a public site is fetched, and its page is untrusted text
+that goes to a model with no tools.
+
 A script to build the Livsmedelsverket data file,
 `scripts/import_livsmedelsverket.py`, exists and is tested on a hand-made
 recorded response; the data file itself has not been generated yet (see

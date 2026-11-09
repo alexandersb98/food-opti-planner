@@ -58,8 +58,8 @@ service, `ImportPage`, the banner, `importReview.ts`, the error types and
 `http(s)://`, error `invalid_url`). The wireframes spec gets I1's final shape in
 Task 7.
 
-**Status:** Planned; to be built task by task on branch
-claude/implement-remaining-slices-qwrp83.
+**Status:** Built and reviewed task by task on branch
+claude/implement-remaining-slices-qwrp83 (see "As built" at the end).
 
 ## Global Constraints
 
@@ -661,6 +661,34 @@ npm run e2e -- --trace off`; kill the server.
 - This plan: Status "Built"; under each task how it was checked and the differences from the text, as earlier slice plans do.
 
 **Verify:** the full checks once more: both suites, lint, typecheck, the Postgres run of the server suite, e2e.
+
+## As built: differences from the text above
+
+Checked by: the full server suite (SQLite and Postgres), `npm run lint`,
+`npm run typecheck`, `npm test`, the Playwright flow (fake provider, link refusals), and
+the I1 Link/Paste switch in a real Chromium at 390 px (no horizontal overflow).
+
+1. **Task 1.** As planned. The "edges of the IPv4 table" guard test checks both edges of every
+   table range; a scan of the neighbours was dropped (the allowed list covers them).
+2. **Task 2.** As planned. An empty host (`http://`) is `scheme`, as the test list says, not
+   `host_name`. Timeout test clock ticks 4 s per call, so the deadline trips after the second chunk.
+3. **Task 3.** One addition: a visible-text result with no letter or digit in it (`<<<>>>`, control
+   characters) is `""`, so the plan's garbage case gives "no text" without a model call. A `<title>`
+   inside a hidden element is not taken. A head with no end tag is closed at `<body>`.
+   A page whose strict pass is under 200 characters gets the lenient second pass as planned, so the
+   test pages in tests hold more than 200 characters of visible text.
+4. **Task 4.** As planned. `no_recipe` for a link has `loc` `["body","url"]` and the message "No
+   recipe found on this page." (same type as for text, whose `loc` is `["body","text"]`).
+   `page_client` is a context manager yielding `(client, requests)`; `logged_in_client` takes
+   `page_transport` and `page_resolver`. R4's test "a missing field is 422" is now "no input is 422"
+   (`input_required`).
+5. **Task 5.** The banner's site is taken at import time (`draft.imported.site`, from the answer's
+   `source_url`) and not read from the Source field, so editing the field doesn't change the
+   banner. `imported` is `{ cut, site }`. The Link field and the switch are `.import-link` and
+   `.import-switch`.
+6. **Task 6.** As planned. The e2e's second visit to I1 (leaving an unsaved import) flips the switch
+   first.
+7. **Task 7.** As planned.
 
 ## Done when
 

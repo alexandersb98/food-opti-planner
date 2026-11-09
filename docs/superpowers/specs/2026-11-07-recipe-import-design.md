@@ -172,6 +172,29 @@ Body: `{url}` or `{text}`.
   maximum length (set in the plan).
 - **Pasted text** is sent as is, with the same maximum.
 
+**As built in R5.** Exactly one of `url` and `text` is given (`input_required`,
+`one_input_only`). A link that is not http or https with a host, or over 2000
+characters, is `url_invalid`; an empty one `url_required`; both before any network
+call. Everything found out by looking (user info, port, host name, address,
+unreachable, wrong content, too big, too slow, too many redirects) is the one
+answer `page_unreadable`, with the same words for an internal address as for a
+dead site, so the answer is no probe of the internal network; the reason goes to
+the log with the host name only. Only ports 80 and 443 are fetched. The address
+tables are one sentence: IPv4 is a deny-list of every special-purpose range
+(including CGNAT and the 169.254.0.0/16 metadata range), IPv6 an allow-list of
+global unicast minus its special ranges (IPv4-mapped, NAT64 and 6to4 are refused),
+and Python's `is_global` must agree; they live in `server/address_policy.py`. Per
+hop the fetcher resolves the name once, refuses the hop if any answer is internal,
+and connects to the checked address with the name kept in `Host` and the TLS SNI
+(no second lookup). The 10 s is a deadline for the whole fetch and 2 MB is 2 MiB,
+read in chunks and stopped at the first byte over; compressed bodies are refused.
+The JSON-LD route keeps only `name`, `description`, `recipeYield`,
+`recipeIngredient`, `recipeInstructions`, `recipeCategory`, `recipeCuisine`,
+`inLanguage` and the three times; the visible-text route drops scripts, styles,
+navigation, forms and hidden elements. A page with no text is `no_recipe` without a
+model call, and the fetch uses none of the daily limit. `source_url` is the last
+page's URL without the fragment.
+
 ### 2. Convert: `RecipeConverter.convert(text, catalog) → Draft`
 
 The catalog is each ingredient's name, unit and the units it has
@@ -286,8 +309,9 @@ recipes"), and **+ Add conversion**.
 
 | Case | Message |
 |---|---|
-| Page can't be read: timeout, error status, over 2 MB, not HTML, refused address | "Couldn't read this page. Paste the recipe text instead." |
+| Page can't be read: timeout, error status, over 2 MB, not HTML, refused address (`page_unreadable`) | "Couldn't read this page. Paste the recipe text instead." |
 | Page read, but no recipe found by the model | "No recipe found on this page. Paste the recipe text instead." |
+| The link is empty or isn't http(s) (`url_required`, `url_invalid`) | "Enter the link to the recipe." / "Enter a link that starts with http:// or https://." |
 | The AI service fails or times out | "The AI service didn't answer. Try again." |
 | The AI answer doesn't fit the schema | One automatic retry, then the message above. |
 | Daily limit reached | "Today's import limit is reached." |
@@ -513,8 +537,8 @@ Settled details:
    unit picker per line). R2 alone is useful for typing in cookbook
    recipes.
 3. **Import from pasted text:** built as R4 (I1, the converter, factor
-   suggestions, C2's review states). **Import from a link** is R5: page
-   fetching and the `url` input.
+   suggestions, C2's review states). **Import from a link:** built as R5
+   (page fetching and the `url` input).
 
 ## Not in this spec
 

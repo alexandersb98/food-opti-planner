@@ -180,17 +180,21 @@ some ingredient has updates) lists just those.
 
 ### I1 · Import (`/recipes/import`)
 
-A paste box (**Recipe text**) and **Import**, disabled while the box is empty
-or there is no AI key (the hint "Needs an AI key."). While the AI reads,
-the button says "Reading the recipe…" and the box is read-only. A failure
-shows its sentence under the box (no recipe found, the AI did not answer,
-today's limit reached, too much text) and keeps the text. On success C2
-opens the draft.
+Opens on a **Link** field (with the hint "Works for most recipe sites. If a site
+won't open, paste the recipe text instead.") and a **Paste text** switch that shows
+the large **Recipe text** box instead. **Import** is disabled while the active
+input is empty or there is no AI key (the hint "Needs an AI key."). While the AI
+reads, the button says "Reading the recipe…" and the input is read-only. A failure
+shows its sentence under the input and keeps both inputs: "Couldn't read this page.
+Paste the recipe text instead.", "No recipe found on this page. Paste the recipe
+text instead.", "Enter a link that starts with http:// or https://." (for text: no
+recipe found, too much text), the AI did not answer, today's limit reached. On
+success C2 opens the draft.
 
 ### C2 · Edit recipe: import review
 
-The draft opens as an unsaved new recipe. A banner says "Imported from pasted
-text. N lines need you." (or "All lines are ready."), notes a cut text, and
+The draft opens as an unsaved new recipe. A banner says "Imported from *site*
+(or "pasted text"). N lines need you." (or "All lines are ready."), notes a cut text, and
 scrolls to the next line that needs you when tapped. Each line shows its source
 line above it. An unmatched line has **Pick ingredient** (the picker opens
 with the food searched; **+ New ingredient** makes it in a dialog) and
