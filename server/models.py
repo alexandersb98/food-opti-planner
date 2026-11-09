@@ -81,6 +81,16 @@ class DataSource(Base):
     imported_at: Mapped[datetime]
 
 
+class TagGroup(Base):
+    """A set of equivalent tags (decision 13 of the data source spec); it has
+    no name and no rule of its own. Its members are the tags whose `group_id`
+    is its id."""
+
+    __tablename__ = "tag_groups"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+
 class Tag(Base):
     """A yes/no label (C6). `derive` is the library's rule for recipes, "all" or
     "any". `source_id` set means a source tag, made from a food group of that
@@ -94,6 +104,10 @@ class Tag(Base):
     derive: Mapped[str] = mapped_column(String(DERIVE_LENGTH))
     source_id: Mapped[int | None] = mapped_column(ForeignKey("data_sources.id"))
     source: Mapped[DataSource | None] = relationship()
+    # The group of equivalent tags this tag is in, at most one (decision 13);
+    # all its tags share one rule (decision 14), kept equal by
+    # `server/tag_groups.py`. A group of one tag does not exist.
+    group_id: Mapped[int | None] = mapped_column(ForeignKey("tag_groups.id", ondelete="SET NULL"), index=True)
 
 
 ingredient_tags = Table(

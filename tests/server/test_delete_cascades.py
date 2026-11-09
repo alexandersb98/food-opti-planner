@@ -188,3 +188,20 @@ def test_deleting_a_linked_ingredient_leaves_the_source_food(data_client):
     assert data_client.delete(f"/api/ingredients/{made['id']}").status_code == 204
     foods = data_client.get("/api/data-sources/testsource/foods").json()
     assert foods["total"] == 3
+
+
+def test_deleting_a_tag_group_row_keeps_its_tags_and_clears_their_group(client, catalog):
+    fish, seafood = catalog.tag("Fish"), catalog.tag("Seafood")
+    with Session(client.app.state.engine) as db:
+        group = models.TagGroup()
+        db.add(group)
+        db.flush()
+        for tag_id in (fish, seafood):
+            db.get(models.Tag, tag_id).group_id = group.id
+        db.commit()
+        db.delete(group)
+        db.commit()
+        assert [(t.name, t.group_id) for t in db.query(models.Tag).order_by(models.Tag.id)] == [
+            ("Fish", None),
+            ("Seafood", None),
+        ]
