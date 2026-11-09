@@ -426,6 +426,24 @@
         "title": "DataSourceSummary",
         "type": "object"
       },
+      "ExistingIngredient": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ExistingIngredient",
+        "type": "object"
+      },
       "FieldError": {
         "properties": {
           "loc": {
@@ -473,6 +491,138 @@
           "detail"
         ],
         "title": "FieldErrors",
+        "type": "object"
+      },
+      "FoodPage": {
+        "properties": {
+          "foods": {
+            "items": {
+              "$ref": "#/components/schemas/FoodSummary"
+            },
+            "title": "Foods",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "foods",
+          "total",
+          "offset",
+          "limit"
+        ],
+        "title": "FoodPage",
+        "type": "object"
+      },
+      "FoodPreview": {
+        "description": "The ingredient a food would become: what Add from data source copies.",
+        "properties": {
+          "basis": {
+            "title": "Basis",
+            "type": "string"
+          },
+          "existing": {
+            "items": {
+              "$ref": "#/components/schemas/ExistingIngredient"
+            },
+            "title": "Existing",
+            "type": "array"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/PreviewGroup"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "skipped": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Skipped",
+            "type": "array"
+          },
+          "source": {
+            "$ref": "#/components/schemas/PreviewSource"
+          },
+          "suggested_name": {
+            "title": "Suggested Name",
+            "type": "string"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "values": {
+            "items": {
+              "$ref": "#/components/schemas/PreviewValue"
+            },
+            "title": "Values",
+            "type": "array"
+          },
+          "withdrawn": {
+            "title": "Withdrawn",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "withdrawn",
+          "source",
+          "suggested_name",
+          "unit",
+          "basis",
+          "values",
+          "skipped",
+          "groups",
+          "existing"
+        ],
+        "title": "FoodPreview",
+        "type": "object"
+      },
+      "FoodSummary": {
+        "properties": {
+          "groups": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "groups"
+        ],
+        "title": "FoodSummary",
         "type": "object"
       },
       "Goal": {
@@ -1485,6 +1635,80 @@
           "unit.energy"
         ],
         "title": "Preferences",
+        "type": "object"
+      },
+      "PreviewGroup": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "tag_id": {
+            "title": "Tag Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "tag_id",
+          "name"
+        ],
+        "title": "PreviewGroup",
+        "type": "object"
+      },
+      "PreviewSource": {
+        "properties": {
+          "colour": {
+            "title": "Colour",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "colour"
+        ],
+        "title": "PreviewSource",
+        "type": "object"
+      },
+      "PreviewValue": {
+        "properties": {
+          "attribute_id": {
+            "title": "Attribute Id",
+            "type": "integer"
+          },
+          "attribute_name": {
+            "title": "Attribute Name",
+            "type": "string"
+          },
+          "attribute_unit": {
+            "title": "Attribute Unit",
+            "type": "string"
+          },
+          "column_name": {
+            "title": "Column Name",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "attribute_id",
+          "attribute_name",
+          "attribute_unit",
+          "column_name",
+          "value"
+        ],
+        "title": "PreviewValue",
         "type": "object"
       },
       "Recipe": {
@@ -2961,6 +3185,127 @@
           }
         },
         "summary": "Map Column",
+        "tags": [
+          "data sources"
+        ]
+      }
+    },
+    "/api/data-sources/{key}/foods": {
+      "get": {
+        "description": "The source's foods (not withdrawn) whose name contains `search`, ignoring\ncase, 20 at a time: names starting with it first, then by name. Matched in\nPython on the case-folded name, as SQLite's lower() knows only ASCII.",
+        "operationId": "search_foods_api_data_sources__key__foods_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Search",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoodPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such data source"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search Foods",
+        "tags": [
+          "data sources"
+        ]
+      }
+    },
+    "/api/data-sources/{key}/foods/{food_id}": {
+      "get": {
+        "operationId": "get_food_api_data_sources__key__foods__food_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "food_id",
+            "required": true,
+            "schema": {
+              "title": "Food Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoodPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such data source or food"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Food",
         "tags": [
           "data sources"
         ]

@@ -197,6 +197,13 @@ def plan(db: Session, old_unit: str, new_unit: str, converters: list[Converter])
     )
 
 
+def convert_number(value: Decimal, ratio: Fraction) -> Decimal | None:
+    """`value` times `ratio`, rounded half away from zero to 6 decimals, by the
+    same rule an attribute's unit change applies; None when the result reaches
+    the stored maximum (10^9). The one public way to convert a single number."""
+    return _convert(value, ratio, None, False).value
+
+
 def mapped_column_refusal(db: Session, attribute: models.Attribute, new_unit: str) -> Refusal | None:
     """The first column (by source, then column id) mapped to the attribute
     that would no longer convert with `new_unit`, or None. A mapping must keep

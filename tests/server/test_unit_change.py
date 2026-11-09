@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from server import models
-from server.unit_change import _convert, attribute_converters, ingredient_converters, plan
+from server.unit_change import _convert, attribute_converters, convert_number, ingredient_converters, plan
 
 from .conftest import schedule
 from .test_plan import goal
@@ -227,3 +227,13 @@ def test_a_saved_plan_result_keeps_its_own_numbers(client, catalog, db):
     db.commit()
     db.expire_all()
     assert frozen() == before
+
+
+def test_convert_number_converts_rounds_and_refuses_the_too_large():
+    assert convert_number(Decimal("13.5"), Fraction(1000)) == Decimal("13500")  # g to mg
+    assert convert_number(Decimal("2500"), Fraction(1, 1000)) == Decimal("2.5")  # g to kg
+    assert convert_number(Decimal("0.0000005"), Fraction(1)) == Decimal("0.000001")  # half up
+    assert convert_number(Decimal("1"), Fraction(1, 3)) == Decimal("0.333333")
+    assert convert_number(Decimal("-0.0000005"), Fraction(1)) == Decimal("-0.000001")
+    assert convert_number(Decimal("1000"), Fraction(10**6)) is None  # 10^9 does not fit
+    assert convert_number(Decimal("999"), Fraction(10**6)) == Decimal("999000000")

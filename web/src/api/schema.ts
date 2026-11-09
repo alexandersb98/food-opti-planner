@@ -134,6 +134,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/data-sources/{key}/foods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Foods
+         * @description The source's foods (not withdrawn) whose name contains `search`, ignoring
+         *     case, 20 at a time: names starting with it first, then by name. Matched in
+         *     Python on the case-folded name, as SQLite's lower() knows only ASCII.
+         */
+        get: operations["search_foods_api_data_sources__key__foods_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-sources/{key}/foods/{food_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Food */
+        get: operations["get_food_api_data_sources__key__foods__food_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -733,6 +772,13 @@ export interface components {
             /** Version */
             version: string;
         };
+        /** ExistingIngredient */
+        ExistingIngredient: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+        };
         /** FieldError */
         FieldError: {
             /** Loc */
@@ -746,6 +792,53 @@ export interface components {
         FieldErrors: {
             /** Detail */
             detail: components["schemas"]["FieldError"][];
+        };
+        /** FoodPage */
+        FoodPage: {
+            /** Foods */
+            foods: components["schemas"]["FoodSummary"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Total */
+            total: number;
+        };
+        /**
+         * FoodPreview
+         * @description The ingredient a food would become: what Add from data source copies.
+         */
+        FoodPreview: {
+            /** Basis */
+            basis: string;
+            /** Existing */
+            existing: components["schemas"]["ExistingIngredient"][];
+            /** Groups */
+            groups: components["schemas"]["PreviewGroup"][];
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Skipped */
+            skipped: string[];
+            source: components["schemas"]["PreviewSource"];
+            /** Suggested Name */
+            suggested_name: string;
+            /** Unit */
+            unit: string;
+            /** Values */
+            values: components["schemas"]["PreviewValue"][];
+            /** Withdrawn */
+            withdrawn: boolean;
+        };
+        /** FoodSummary */
+        FoodSummary: {
+            /** Groups */
+            groups: string[];
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
         };
         /** Goal */
         Goal: {
@@ -1079,6 +1172,35 @@ export interface components {
             "unit.mass": string;
             /** Unit.Volume */
             "unit.volume": string;
+        };
+        /** PreviewGroup */
+        PreviewGroup: {
+            /** Name */
+            name: string;
+            /** Tag Id */
+            tag_id: number;
+        };
+        /** PreviewSource */
+        PreviewSource: {
+            /** Colour */
+            colour: string;
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+        };
+        /** PreviewValue */
+        PreviewValue: {
+            /** Attribute Id */
+            attribute_id: number;
+            /** Attribute Name */
+            attribute_name: string;
+            /** Attribute Unit */
+            attribute_unit: string;
+            /** Column Name */
+            column_name: string;
+            /** Value */
+            value: string;
         };
         /** Recipe */
         Recipe: {
@@ -1788,6 +1910,86 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+        };
+    };
+    search_foods_api_data_sources__key__foods_get: {
+        parameters: {
+            query?: {
+                search?: string;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FoodPage"];
+                };
+            };
+            /** @description No such data source */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_food_api_data_sources__key__foods__food_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+                food_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FoodPreview"];
+                };
+            };
+            /** @description No such data source or food */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
