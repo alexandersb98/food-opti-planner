@@ -51,7 +51,8 @@ const options = computed<Option[]>(() => [
 
 <template>
   <q-item
-    class="column-row wrap"
+    class="column-row items-center"
+    style="flex-wrap: wrap"
     :class="{ 'text-grey-6': column.withdrawn }"
   >
     <q-item-section class="col-12 col-sm">
@@ -65,7 +66,10 @@ const options = computed<Option[]>(() => [
         {{ [column.unit, column.withdrawn ? $t('dataSource.withdrawn') : ''].filter(Boolean).join(' · ') }}
       </q-item-label>
     </q-item-section>
-    <q-item-section class="col-12 col-sm-6">
+    <q-item-section
+      class="col-12 col-sm-6 q-pt-xs"
+      style="min-width: 0"
+    >
       <q-select
         :model-value="column.attribute_id"
         :options="options"

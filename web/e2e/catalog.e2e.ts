@@ -4,7 +4,9 @@ import { expect, test, type Page } from '@playwright/test'
 // log in, set a preferred unit, look at the data source the server loaded from its fixture file
 // (its card, page and colour), build a small catalog and a recipe from it (the unit fields are
 // combo boxes over the unit catalogue), change the unit of an ingredient in use (its basis and
-// recipe amount convert after a dialog), then make a plan, then one that clashes and is fixed.
+// recipe amount convert after a dialog), then make a plan, then one that clashes and is fixed,
+// then map the source's columns to attributes (and create one from a column), and see what
+// that blocks and clears.
 
 const password = process.env.E2E_PASSWORD
 if (!password) throw new Error('Set E2E_PASSWORD to the login password')
@@ -262,6 +264,69 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await expect(page.locator('.clash-card')).toHaveCount(0)
   await expect(page.locator('.goal-row.clashing')).toHaveCount(0)
   await expect(page.locator('.goal-row').nth(1)).toContainText(/at most 10 kcal\s*Each day\s*Prefer/)
+
+  // Column mapping: the source page's Attribute drop-downs. TEST Energy (kcal)
+  // is offered Energy only, and the choice is saved, not just shown. TEST
+  // Protein (g) gets a new attribute made on the spot, which then shows as
+  // taken in the other columns' lists. The card counts the mapped columns.
+  await openPage(page, 'Settings')
+  await page.locator('.data-sources-card').getByText('TEST Source').click()
+  const column = (name: string) => page.locator('.column-row').filter({ hasText: name })
+  const attributeSelect = (name: string) => column(name).locator('.q-select')
+  await attributeSelect('TEST Energy').click()
+  await expect(page.getByRole('option')).toHaveText(['Not mapped', 'Energy', 'Create attribute…'])
+  await page.getByRole('option', { name: 'Energy', exact: true }).click()
+  await expect(attributeSelect('TEST Energy')).toContainText('Energy')
+  await page.reload()
+  await expect(attributeSelect('TEST Energy')).toContainText('Energy')
+
+  await attributeSelect('TEST Protein').click()
+  await page.getByRole('option', { name: 'Create attribute…' }).click()
+  const newAttribute = page.getByRole('dialog')
+  await expect(newAttribute.getByLabel('Name')).toHaveValue('')
+  await expect(newAttribute.getByLabel('Unit')).toHaveValue('g')
+  await newAttribute.getByLabel('Name').fill('Protein')
+  await newAttribute.getByLabel('Decimals').fill('1')
+  await newAttribute.getByRole('button', { name: 'Add' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(attributeSelect('TEST Protein')).toContainText('Protein')
+  await page.reload()
+  await expect(attributeSelect('TEST Protein')).toContainText('Protein')
+
+  await attributeSelect('TEST Vitamin D').click()
+  const taken = page.getByRole('option', { name: /^Protein/ })
+  await expect(taken).toContainText('taken by TEST Protein')
+  await expect(taken).toHaveAttribute('aria-disabled', 'true')
+  await page.keyboard.press('Escape')
+  await page.getByRole('link', { name: 'Back' }).click()
+  await expect(page.locator('.data-sources-card .source-row')).toContainText('2 of 3 columns mapped')
+
+  // An attribute's unit can't change while a column that converts only in the
+  // old one is mapped to it; deleting an attribute clears its mapping, after a
+  // warning that counts it.
+  await openPage(page, 'Attributes')
+  await expect(page.locator('.attribute-row')).toHaveCount(2)
+  await page.locator('.attribute-row').filter({ hasText: 'Energy' }).click()
+  await page.getByLabel('Unit').fill('g')
+  await page.keyboard.press('Escape') // closes the unit list
+  await page.getByRole('button', { name: 'Done' }).click()
+  await expect(page.getByText(/mapped from TEST Energy \(TEST Source\), which is in kcal/)).toBeVisible()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.getByLabel('Unit').fill('kcal')
+  await page.keyboard.press('Escape')
+  await page.getByRole('button', { name: 'Done' }).click()
+  await expect(page.locator('.attribute-row').filter({ hasText: 'Energy' })).toContainText('(kcal)')
+  await page.locator('.attribute-row').filter({ hasText: 'Protein' }).click()
+  await page.getByRole('button', { name: 'Delete' }).click()
+  await expect(page.getByRole('dialog')).toContainText('Its mapping from 1 source column is cleared.')
+  await expect(page.getByRole('dialog')).not.toContainText('removes')
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click()
+  await expect(page.locator('.attribute-row')).toHaveCount(1)
+  await openPage(page, 'Settings')
+  await expect(page.locator('.data-sources-card .source-row')).toContainText('1 of 3 columns mapped')
+  await page.locator('.data-sources-card').getByText('TEST Source').click()
+  await expect(attributeSelect('TEST Protein')).toContainText('Not mapped')
+  await expect(attributeSelect('TEST Energy')).toContainText('Energy')
 
   // Designed at phone width: nothing scrolls sideways.
   const scrolls = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)
