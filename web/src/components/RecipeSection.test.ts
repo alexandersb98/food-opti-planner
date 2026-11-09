@@ -3,20 +3,25 @@ import { Quasar } from 'quasar'
 import { afterEach, expect, test } from 'vitest'
 import { makeI18n } from '../i18n'
 import { ingredient } from '../test-data'
-import type { DraftSection } from '../composables/useRecipeDraft'
+import type { DraftLine, DraftSection } from '../composables/useRecipeDraft'
 import RecipeSection from './RecipeSection.vue'
 
 const oats = ingredient({ id: 1, name: 'Oats' })
 const milk = ingredient({ id: 2, name: 'Milk', unit: 'ml' })
 const ingredients = new Map([oats, milk].map((i) => [i.id, i]))
 
+/** A plain line, as a recipe typed by hand has it. */
+function line(key: number, ingredientId: number, amount: string, unit: string): DraftLine {
+  return { key, ingredientId, amount, unit, originalText: '', food: '', skipped: false, notAnIngredient: false, suggestedFactor: null }
+}
+
 function section(name = ''): DraftSection {
   return {
     key: 1,
     name,
     items: [
-      { key: 11, ingredientId: 1, amount: '60', unit: '', originalText: '' },
-      { key: 12, ingredientId: 2, amount: '200', unit: '', originalText: '' },
+      line(11, 1, '60', ''),
+      line(12, 2, '200', ''),
     ],
   }
 }
@@ -135,7 +140,7 @@ test("New unit… on a line is passed up with the line's place", async () => {
 test('a unit error shows under its line only', () => {
   const { wrapper } = mountSection({
     errors: { name: '', amounts: {}, units: { 12: true } },
-    section: { ...section(), items: [{ key: 11, ingredientId: 1, amount: '60', unit: '', originalText: '' }, { key: 12, ingredientId: 2, amount: '1', unit: 'dl', originalText: '' }] },
+    section: { ...section(), items: [line(11, 1, '60', ''), line(12, 2, '1', 'dl')] },
   })
   const rows = wrapper.findAll('.recipe-item')
   expect(rows[0]!.text()).not.toContain("doesn't convert")

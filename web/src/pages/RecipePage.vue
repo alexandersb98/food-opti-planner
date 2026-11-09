@@ -88,11 +88,16 @@ function factorOf(ingredient: Ingredient, unit: string) {
   return lineFactor(units.ratio, ingredient, unit)
 }
 
+/** A line's ingredient; none for an imported line not matched yet. */
+function ingredientOf(line: { ingredientId: number | null }): Ingredient | undefined {
+  return line.ingredientId === null ? undefined : ingredients.value.get(line.ingredientId)
+}
+
 /** Whether a line's unit converts to its ingredient's. Without the catalogue
  * (a failed load) the page can't tell, so the server decides. */
 function converts(line: DraftLine) {
   if (units.units.value.length === 0) return true
-  const ingredient = ingredients.value.get(line.ingredientId)
+  const ingredient = ingredientOf(line)
   return !ingredient || factorOf(ingredient, line.unit) !== null
 }
 
@@ -103,7 +108,7 @@ function converts(line: DraftLine) {
 const totals = computed(() => {
   const amounts = draft.sections.flatMap((section) =>
     section.items.flatMap(({ ingredientId, amount, unit }) => {
-      const ingredient = ingredients.value.get(ingredientId)
+      const ingredient = ingredientOf({ ingredientId })
       const number = typedNumber(amount)
       return ingredient && number !== null ? [{ ingredient, amount: number, unit }] : []
     }),
@@ -140,7 +145,7 @@ function askForUnit(section: number, line: number) {
 /** The ingredient of the line that asked for a new unit. */
 const conversionIngredient = computed(() => {
   const line = askingLine()
-  return line ? ingredients.value.get(line.ingredientId) : undefined
+  return line ? ingredientOf(line) : undefined
 })
 
 /** The line that asked for a new unit, if it is still there. */
@@ -153,7 +158,7 @@ function askingLine(): DraftLine | undefined {
  * give the line that asked for it as its unit. */
 function conversionSaved(saved: Conversion) {
   const line = askingLine()
-  const ingredient = line && ingredients.value.get(line.ingredientId)
+  const ingredient = line && ingredientOf(line)
   if (!line || !ingredient) return
   const conversions = [...ingredient.conversions.filter((c) => c.id !== saved.id), saved].sort((a, b) => a.id - b.id)
   const index = data.value.ingredients.findIndex((i) => i.id === ingredient.id)

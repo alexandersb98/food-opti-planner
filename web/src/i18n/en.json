@@ -275,7 +275,33 @@
     },
     "newUnit": "New unit…",
     "unitNotConvertible": "{unit} of {name} doesn't convert. Pick another unit or add a conversion.",
-    "aiTooltip": "Suggested by AI, not checked by you"
+    "aiTooltip": "Suggested by AI, not checked by you",
+    "add": "Add recipe",
+    "import": "Import recipe",
+    "needsKey": "Needs an AI key",
+    "pickIngredient": "Pick ingredient",
+    "newIngredient": "+ New ingredient",
+    "skip": "Skip",
+    "skipped": "Skipped",
+    "addAnyway": "Add anyway",
+    "addBack": "Add back",
+    "sourceLine": "From the text: {text}",
+    "factorRow": "1 {unit} =",
+    "factorLabel": "How many {own} one {unit} makes",
+    "accept": "Accept",
+    "change": "Change",
+    "suggesting": "Suggesting…",
+    "factorInvalid": "Enter a number above 0, with at most 6 decimals.",
+    "badUnit": "{unit} can't be used for an ingredient. Pick another unit.",
+    "conversionRefused": "A conversion was refused. Check the units of the lines and save again.",
+    "leaveTitle": "Discard this recipe?",
+    "leaveBody": "It was imported and is not saved yet.",
+    "keepEditing": "Keep editing",
+    "discard": "Discard",
+    "banner": "Imported from pasted text. {n} line needs you. | Imported from pasted text. {n} lines need you.",
+    "bannerReady": "Imported from pasted text. All lines are ready.",
+    "bannerCut": "The text was long: the end was left out.",
+    "saveBlocked": "Match, convert or skip every line to save."
   },
   "clash": {
     "title": "No plan possible",
@@ -550,5 +576,22 @@
     "deleteName": "the conversion for {unit}",
     "editOf": "Edit the conversion for {unit}",
     "deleteOf": "Delete the conversion for {unit}"
+  },
+  "import": {
+    "title": "Import recipe",
+    "intro": "Paste a recipe. The AI reads it and makes a draft for you to check.",
+    "text": "Recipe text",
+    "run": "Import",
+    "reading": "Reading the recipe…",
+    "needsKey": "Needs an AI key.",
+    "error": {
+      "text_required": "Paste the recipe text first.",
+      "too_long": "That is too much text. Paste only the recipe.",
+      "no_recipe": "No recipe found in this text.",
+      "ai_failed": "The AI service didn't answer. Try again.",
+      "limit_reached": "Today's import limit is reached.",
+      "ai_not_configured": "Needs an AI key.",
+      "other": "Could not import the recipe. Try again."
+    }
   }
 }

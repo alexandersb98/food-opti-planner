@@ -1,4 +1,4 @@
-import type { Attribute, Conversion, DataSource, DataSourceSummary, FoodPreview, FoodSummary, IngredientSource, SourceColumn, Goal, Ingredient, Plan, PlanResult, PlanResultSummary, Preferences, Recipe, ResultGoal, ResultMeal, ResultMiss, Tag, UnitCatalogue, UnitChange, UnitChangeRefusal } from './api/types'
+import type { Attribute, Conversion, ImportedLine, ImportedRecipe, DataSource, DataSourceSummary, FoodPreview, FoodSummary, IngredientSource, SourceColumn, Goal, Ingredient, Plan, PlanResult, PlanResultSummary, Preferences, Recipe, ResultGoal, ResultMeal, ResultMiss, Tag, UnitCatalogue, UnitChange, UnitChangeRefusal } from './api/types'
 import unitFixture from './test-units.json'
 
 // Rows as the server answers them, for tests: give what the test is about,
@@ -39,6 +39,34 @@ export function recipe(fields: Given<Recipe, 'id' | 'name'>): Recipe {
     derived_tag_ids: [],
     unconvertible: false,
     totals: [],
+    ...fields,
+  }
+}
+
+/** A line of an imported recipe the server answered: 100 g of oats, matched. */
+export function importedLine(fields: Partial<ImportedLine> = {}): ImportedLine {
+  return {
+    original_text: '100 g oats',
+    food: 'oats',
+    amount: '100',
+    unit: '',
+    ingredient_id: null,
+    status: 'unmatched',
+    suggested_factor: null,
+    ...fields,
+  }
+}
+
+/** An imported recipe: one unnamed section of `lines` (one by default). */
+export function importedRecipe(fields: Partial<ImportedRecipe> = {}): ImportedRecipe {
+  return {
+    name: 'Imported porridge',
+    servings: 2,
+    instructions: 'Boil.\nStir.',
+    source_url: '',
+    cut: false,
+    needs_you: 0,
+    sections: [{ name: '', lines: [importedLine()] }],
     ...fields,
   }
 }

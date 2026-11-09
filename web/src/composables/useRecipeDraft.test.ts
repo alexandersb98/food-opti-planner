@@ -3,10 +3,11 @@ import { afterEach, expect, test, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
 import { makeI18n } from '../i18n'
 import { fakeServer } from '../test-app'
-import { ingredient, lines, recipe, tag } from '../test-data'
+import { importedLine, importedRecipe, ingredient, lines, recipe, tag } from '../test-data'
 import {
   checkRecipe,
   draftOf,
+  draftOfImport,
   emptyDraft,
   hasErrors,
   multiplier,
@@ -26,7 +27,7 @@ function draft(changes: Partial<RecipeDraft> = {}): RecipeDraft {
 
 let lineKey = 100
 function line(ingredientId: number, amount: string, originalText = '', unit = ''): DraftLine {
-  return { key: ++lineKey, ingredientId, amount, unit, originalText }
+  return { key: ++lineKey, ingredientId, amount, unit, originalText, food: '', skipped: false, notAnIngredient: false, suggestedFactor: null }
 }
 
 /** A draft of named sections, each a list of (ingredient id, amount) lines. */
@@ -66,6 +67,7 @@ test('a draft that passes gives the fields to send', () => {
     step: null,
     hard_max_multiplier: null,
     serving_cap_weight: '1',
+    new_conversions: [],
   })
 })
 
@@ -336,4 +338,127 @@ test('a line added starts in the ingredient\'s own unit', () => {
   drafted.addIngredient(0, oats)
   expect(drafted.draft.sections[0]!.items[0]!.unit).toBe('')
   wrapper.unmount()
+})
+
+// the import review -----------------------------------------------------------
+
+function imported() {
+  return importedRecipe({
+    cut: true,
+    sections: [
+      {
+        name: '',
+        lines: [
+          importedLine({ original_text: '100 g oats', ingredient_id: 1, status: 'own_unit' }),
+          importedLine({ original_text: '3 dl milk', food: 'milk', amount: '3', unit: 'dl', ingredient_id: 2, status: 'needs_factor', suggested_factor: '50' }),
+          importedLine({ original_text: 'salt to taste', food: 'salt', amount: null, status: 'not_an_ingredient' }),
+        ],
+      },
+    ],
+  })
+}
+
+test('an imported recipe is filled as typed, with the review state', () => {
+  const filled = draftOfImport(imported(), emptyDraft())
+  expect(filled).toMatchObject({ name: 'Imported porridge', servings: '2', instructions: 'Boil.\nStir.', imported: { cut: true }, pending: [] })
+  const [oats, milk, salt] = filled.sections[0]!.items
+  expect(oats).toMatchObject({ ingredientId: 1, amount: '100', unit: '', originalText: '100 g oats', skipped: false, notAnIngredient: false })
+  expect(milk).toMatchObject({ ingredientId: 2, unit: 'dl', food: 'milk', suggestedFactor: '50', skipped: false })
+  expect(salt).toMatchObject({ ingredientId: null, amount: '', skipped: true, notAnIngredient: true })
+})
+
+test('fillImported fills the draft of the composable', () => {
+  fakeServer({ 'POST /api/recipes/derived-tags': { body: [] } })
+  const { wrapper, draft } = mounted()
+  draft.fillImported(imported())
+  expect(draft.draft.name).toBe('Imported porridge')
+  expect(draft.draft.imported).toEqual({ cut: true })
+  wrapper.unmount()
+})
+
+function reviewDraft(changes: Partial<RecipeDraft> = {}) {
+  return { ...draftOfImport(imported(), emptyDraft()), ...changes }
+}
+
+test('a skipped line is not validated or sent', () => {
+  const d = reviewDraft()
+  d.sections[0]!.items[1]!.skipped = true
+  const { fields, errors } = checkRecipe(d, [], t)
+  expect(hasErrors(errors)).toBe(false)
+  expect(fields.sections[0]!.items.map((i) => i.ingredient_id)).toEqual([1])
+})
+
+test('a kept line with no ingredient is refused on its key', () => {
+  const d = reviewDraft()
+  const salt = d.sections[0]!.items[2]!
+  salt.skipped = false
+  const { errors } = checkRecipe(d, [], t)
+  expect(errors.lineIngredients).toEqual({ [salt.key]: t('recipes.pickIngredient') })
+  expect(hasErrors(errors)).toBe(true)
+})
+
+test('a recipe whose lines are all skipped needs an ingredient', () => {
+  const d = reviewDraft()
+  for (const l of d.sections[0]!.items) l.skipped = true
+  expect(checkRecipe(d, [], t).errors.items).toBe(t('recipes.noItems'))
+})
+
+test('new_conversions holds only the pending conversions a kept line uses, with their source', () => {
+  const d = reviewDraft({
+    pending: [
+      { ingredientId: 2, unit: 'DL', factor: '50', source: 'ai' },
+      { ingredientId: 2, unit: 'klyfta', factor: '5', source: 'user' },
+      { ingredientId: 1, unit: 'dl', factor: '40', source: 'user' },
+    ],
+  })
+  d.sections[0]!.items[2]!.skipped = true
+  expect(checkRecipe(d, [], t).fields.new_conversions).toEqual([{ ingredient_id: 2, unit: 'DL', factor: '50', source: 'ai' }])
+  d.sections[0]!.items[1]!.skipped = true
+  expect(checkRecipe(d, [], t).fields.new_conversions).toEqual([])
+})
+
+test('acceptFactor replaces a pending conversion of the same key; forgetFactor removes it', () => {
+  const { wrapper, draft } = mounted()
+  draft.acceptFactor(2, 'dl', '50', '50')
+  draft.acceptFactor(2, 'DL', '60', '50')
+  expect(draft.draft.pending).toEqual([{ ingredientId: 2, unit: 'DL', factor: '60', source: 'user' }])
+  draft.forgetFactor(2, 'dl')
+  expect(draft.draft.pending).toEqual([])
+  wrapper.unmount()
+})
+
+test('skipLine and unskipLine toggle a line; setLineIngredient keeps amount and unit', () => {
+  fakeServer({ 'POST /api/recipes/derived-tags': { body: [] } })
+  const { wrapper, draft } = mounted()
+  draft.fillImported(imported())
+  draft.skipLine(0, 0)
+  expect(draft.draft.sections[0]!.items[0]!.skipped).toBe(true)
+  draft.unskipLine(0, 0)
+  expect(draft.draft.sections[0]!.items[0]!.skipped).toBe(false)
+  draft.setLineIngredient(0, 2, oats)
+  expect(draft.draft.sections[0]!.items[2]).toMatchObject({ ingredientId: oats.id, amount: '', unit: '' })
+  draft.setLineIngredient(0, 1, oats)
+  expect(draft.draft.sections[0]!.items[1]).toMatchObject({ ingredientId: oats.id, amount: '3', unit: 'dl' })
+  wrapper.unmount()
+})
+
+test('the derived-tags question ignores skipped and unmatched lines', async () => {
+  const asked: unknown[] = []
+  fakeServer({
+    'POST /api/recipes/derived-tags': (body) => {
+      asked.push(body)
+      return { body: [] }
+    },
+  })
+  const { wrapper, draft } = mounted()
+  draft.fillImported(imported())
+  draft.skipLine(0, 0)
+  await flushPromises()
+  expect(asked).toEqual([{ ingredient_ids: [2] }])
+  wrapper.unmount()
+})
+
+test('the server refusing a new conversion shows the save message', () => {
+  const shown = serverErrors({ 'new_conversions.0.unit': 'duplicate' }, draft(), t)
+  expect(shown).toEqual({ save: t('recipes.conversionRefused') })
 })

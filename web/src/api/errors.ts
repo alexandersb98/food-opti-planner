@@ -13,6 +13,18 @@ export function fieldErrors(error: unknown): Partial<Record<string, string>> {
   return errors
 }
 
+/** The first error `type` in a FieldErrors answer, whatever its `loc`: for
+ * the errors that belong to no one field (`loc: ["body"]`, such as
+ * `limit_reached`), and null when the error is not of that shape. */
+export function errorType(error: unknown): string | null {
+  const detail = (error as { detail?: unknown } | undefined)?.detail
+  if (!Array.isArray(detail)) return null
+  for (const { type } of detail as { type?: unknown }[]) {
+    if (typeof type === 'string') return type
+  }
+  return null
+}
+
 /** The server's sentence for a refused unit change in a 422 of a save (the
  * preview shows it from its facts; this is for a save that raced a change
  * elsewhere), or null if the error is not one: a `conversion_` refusal, or

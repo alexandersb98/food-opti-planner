@@ -2,8 +2,9 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api } from '../api/client'
 import { fieldErrors } from '../api/errors'
-import type { Ingredient, Recipe, RecipeFields as Fields, Tag } from '../api/types'
+import type { ImportedRecipe, Ingredient, Recipe, RecipeFields as Fields, Tag } from '../api/types'
 import type { Translate } from '../goals'
+import { factorSource, pendingKey, type PendingConversion } from '../importReview'
 import { typedNumber } from '../numbers'
 
 // The recipe editor's draft: the fields as typed, how they are checked before
@@ -15,7 +16,20 @@ import { typedNumber } from '../numbers'
  * ingredient may be on several lines); `unit` is the unit the amount is in,
  * empty for the ingredient's own; `originalText` is the imported line, kept so
  * a save does not lose it. */
-export type DraftLine = { key: number; ingredientId: number; amount: string; unit: string; originalText: string }
+export type DraftLine = {
+  key: number
+  ingredientId: number | null // null only on an imported line not matched yet
+  amount: string
+  unit: string
+  originalText: string
+  // Import review only (empty and false on a recipe typed by hand): the
+  // food as the text names it, whether the line is left out of the save, whether
+  // it was not an ingredient to begin with, and the AI's factor for its unit.
+  food: string
+  skipped: boolean
+  notAnIngredient: boolean
+  suggestedFactor: string | null
+}
 
 /** A part of the recipe under a heading; `name` is empty for an unnamed one. */
 export type DraftSection = { key: number; name: string; items: DraftLine[] }
@@ -35,6 +49,10 @@ export type RecipeDraft = {
   step: string
   hardMax: string // empty: 3 times max, the library's default
   penalty: string
+  // An imported recipe under review (null for any other): whether the text
+  // was cut, and the conversions the user accepted, created with the recipe.
+  imported: { cut: boolean } | null
+  pending: PendingConversion[]
 }
 
 let lastKey = 0
@@ -50,6 +68,7 @@ const noErrors = {
   sectionNames: {} as Partial<Record<number, string>>, // by section key
   amounts: {} as Partial<Record<number, string>>, // by line key
   unitErrors: {} as Partial<Record<number, true>>, // by line key: a unit that doesn't convert
+  lineIngredients: {} as Partial<Record<number, string>>, // by line key: no ingredient picked yet
   sourceUrl: '',
   min: '',
   max: '',
@@ -77,7 +96,14 @@ export function emptyDraft(): RecipeDraft {
     step: '0.5',
     hardMax: '',
     penalty: '1',
+    imported: null,
+    pending: [],
   }
+}
+
+/** A line as typed or stored: no review state. */
+function plainLine(ingredientId: number, amount: string, unit: string, originalText: string): DraftLine {
+  return { key: newKey(), ingredientId, amount, unit, originalText, food: '', skipped: false, notAnIngredient: false, suggestedFactor: null }
 }
 
 /** A stored recipe as typed; a recipe without a step keeps `step` as it was. */
@@ -88,13 +114,9 @@ export function draftOf(recipe: Recipe, step: string): RecipeDraft {
     sections: recipe.sections.map(({ name, items }) => ({
       key: newKey(),
       name,
-      items: items.map(({ ingredient_id, amount, unit, original_text }) => ({
-        key: newKey(),
-        ingredientId: ingredient_id,
-        amount,
-        unit,
-        originalText: original_text,
-      })),
+      items: items.map(({ ingredient_id, amount, unit, original_text }) =>
+        plainLine(ingredient_id, amount, unit, original_text),
+      ),
     })),
     instructions: recipe.instructions,
     sourceUrl: recipe.source_url,
@@ -105,6 +127,37 @@ export function draftOf(recipe: Recipe, step: string): RecipeDraft {
     step: recipe.step ?? step,
     hardMax: recipe.hard_max_multiplier ?? '',
     penalty: recipe.serving_cap_weight,
+    imported: null,
+    pending: [],
+  }
+}
+
+/** An imported recipe as typed, to review: lines the AI called not an
+ * ingredient start skipped; a line with no amount starts with an empty box. */
+export function draftOfImport(recipe: ImportedRecipe, base: RecipeDraft): RecipeDraft {
+  return {
+    ...base,
+    name: recipe.name,
+    servings: String(recipe.servings),
+    instructions: recipe.instructions,
+    sourceUrl: recipe.source_url,
+    sections: recipe.sections.map(({ name, lines }) => ({
+      key: newKey(),
+      name,
+      items: lines.map((line) => ({
+        key: newKey(),
+        ingredientId: line.ingredient_id,
+        amount: line.amount ?? '',
+        unit: line.unit,
+        originalText: line.original_text,
+        food: line.food,
+        skipped: line.status === 'not_an_ingredient',
+        notAnIngredient: line.status === 'not_an_ingredient',
+        suggestedFactor: line.suggested_factor,
+      })),
+    })),
+    imported: { cut: recipe.cut },
+    pending: [],
   }
 }
 
@@ -128,6 +181,7 @@ export function hasErrors(errors: RecipeErrors): boolean {
     Object.keys(errors.sectionNames).length > 0 ||
     Object.keys(errors.amounts).length > 0 ||
     Object.keys(errors.unitErrors).length > 0 ||
+    Object.keys(errors.lineIngredients).length > 0 ||
     errors.min ||
     errors.max ||
     errors.step ||
@@ -149,6 +203,11 @@ function servingsOf(text: string): number | null {
 /** Every line of the recipe in order. */
 function linesOf(draft: RecipeDraft): DraftLine[] {
   return draft.sections.flatMap((section) => section.items)
+}
+
+/** The lines a save sends: the ones not skipped. */
+function keptLines(draft: RecipeDraft): DraftLine[] {
+  return linesOf(draft).filter((line) => !line.skipped)
 }
 
 /** The fields to send, and what is wrong with each as typed. `tags` are the
@@ -174,25 +233,38 @@ export function checkRecipe(
     step: draft.inSteps ? (typedNumber(draft.step) ?? '') : null,
     hard_max_multiplier: draft.hardMax.trim() === '' ? null : (typedNumber(draft.hardMax) ?? ''),
     serving_cap_weight: typedNumber(draft.penalty) ?? '',
-    new_conversions: [],
+    // Only the conversions a kept line still uses.
+    new_conversions: draft.pending
+      .filter((p) =>
+        keptLines(draft).some(
+          (line) => line.ingredientId !== null && pendingKey(line.ingredientId, line.unit) === pendingKey(p.ingredientId, p.unit),
+        ),
+      )
+      .map((p) => ({ ingredient_id: p.ingredientId, unit: p.unit, factor: p.factor, source: p.source })),
   }
   const errors: RecipeErrors = {
     ...noErrors,
     name: fields.name ? '' : t('common.nameRequired', {}),
     servings: servings === null ? t('recipes.servingsInvalid', {}) : '',
-    items: linesOf(draft).length > 0 ? '' : t('recipes.noItems', {}),
+    items: keptLines(draft).length > 0 ? '' : t('recipes.noItems', {}),
     sourceUrl: fields.source_url === '' || /^https?:\/\/\S+$/.test(fields.source_url) ? '' : t('recipes.sourceInvalid', {}),
     sectionNames: {},
     amounts: {},
     unitErrors: {},
+    lineIngredients: {},
   }
   for (const section of draft.sections) {
     const name = section.name.trim()
     if (draft.sections.length > 1 && name === '') errors.sectionNames[section.key] = t('recipes.sectionNameRequired', {})
     const items: Fields['sections'][number]['items'] = []
     for (const line of section.items) {
+      if (line.skipped) continue
       const { key, ingredientId, amount, unit, originalText } = line
       const number = typedNumber(amount)
+      if (ingredientId === null) {
+        errors.lineIngredients[key] = t('recipes.pickIngredient', {})
+        continue
+      }
       if (number === null || Number(number) <= 0) errors.amounts[key] = t('recipes.amountInvalid', {})
       else items.push({ ingredient_id: ingredientId, amount: number, unit: unit.trim(), original_text: originalText })
       if (!converts(line)) errors.unitErrors[key] = true
@@ -256,6 +328,9 @@ export function serverErrors(
   const sectionNames: Partial<Record<number, string>> = {}
   const amounts: Partial<Record<number, string>> = {}
   const unitErrors: Partial<Record<number, true>> = {}
+  if (Object.keys(byField).some((field) => field.startsWith('new_conversions.'))) {
+    errors.save = t('recipes.conversionRefused', {})
+  }
   draft.sections.forEach((section, i) => {
     if (byField[`sections.${i}.name`]) sectionNames[section.key] = t('recipes.sectionNameRequired', {})
     section.items.forEach((line, j) => {
@@ -279,7 +354,7 @@ export function useRecipeDraft(id: number | null) {
   const { t } = useI18n()
 
   const draft = reactive(emptyDraft())
-  const errors = reactive<RecipeErrors>({ ...noErrors, sectionNames: {}, amounts: {}, unitErrors: {} })
+  const errors = reactive<RecipeErrors>({ ...noErrors, sectionNames: {}, amounts: {}, unitErrors: {}, lineIngredients: {} })
   const saving = ref(false)
   // Open when it holds something other than the defaults, or a mistake.
   const advancedOpen = ref(false)
@@ -307,9 +382,52 @@ export function useRecipeDraft(id: number | null) {
     derivedTagIds.value = recipe.derived_tag_ids
   }
 
+  /** Fill the draft from an imported recipe, to review. */
+  function fillImported(recipe: ImportedRecipe) {
+    Object.assign(draft, draftOfImport(recipe, draft))
+    advancedOpen.value = false
+    stored = { ids: '', tagIds: [] }
+  }
+
   function addIngredient(sectionIndex: number, ingredient: Ingredient) {
-    draft.sections[sectionIndex]?.items.push({ key: newKey(), ingredientId: ingredient.id, amount: '', unit: '', originalText: '' })
+    draft.sections[sectionIndex]?.items.push(plainLine(ingredient.id, '', '', ''))
     errors.items = ''
+  }
+
+  function lineAt(sectionIndex: number, lineIndex: number): DraftLine | undefined {
+    return draft.sections[sectionIndex]?.items[lineIndex]
+  }
+
+  /** Match an imported line with an ingredient; its amount and unit stay. */
+  function setLineIngredient(sectionIndex: number, lineIndex: number, ingredient: Ingredient) {
+    const line = lineAt(sectionIndex, lineIndex)
+    if (!line) return
+    line.ingredientId = ingredient.id
+    delete errors.lineIngredients[line.key]
+  }
+
+  function skipLine(sectionIndex: number, lineIndex: number) {
+    const line = lineAt(sectionIndex, lineIndex)
+    if (line) line.skipped = true
+  }
+
+  function unskipLine(sectionIndex: number, lineIndex: number) {
+    const line = lineAt(sectionIndex, lineIndex)
+    if (line) line.skipped = false
+  }
+
+  /** Accept a factor for an ingredient and unit: "1 `unit` = `text` of its
+   * own unit", saved with the recipe; replaces an earlier one for the pair. */
+  function acceptFactor(ingredientId: number, unit: string, text: string, suggested: string | null) {
+    const factor = typedNumber(text)
+    if (factor === null) return
+    forgetFactor(ingredientId, unit)
+    draft.pending.push({ ingredientId, unit, factor, source: factorSource(text, suggested) })
+  }
+
+  function forgetFactor(ingredientId: number, unit: string) {
+    const key = pendingKey(ingredientId, unit)
+    draft.pending = draft.pending.filter((p) => pendingKey(p.ingredientId, p.unit) !== key)
   }
 
   function removeLine(sectionIndex: number, lineIndex: number) {
@@ -345,7 +463,10 @@ export function useRecipeDraft(id: number | null) {
   // question is dropped. The stored recipe's ingredients come with their tags.
   let asked = 0
   watch(
-    () => idsKey(linesOf(draft).map((line) => line.ingredientId)),
+    () =>
+      idsKey(
+        keptLines(draft).flatMap((line) => (line.ingredientId === null ? [] : [line.ingredientId])),
+      ),
     async (ids) => {
       const question = ++asked
       if (ids === stored.ids || ids === '') {
@@ -440,7 +561,13 @@ export function useRecipeDraft(id: number | null) {
     servingsNumber,
     lineCount,
     fillDraft,
+    fillImported,
     addIngredient,
+    setLineIngredient,
+    skipLine,
+    unskipLine,
+    acceptFactor,
+    forgetFactor,
     removeLine,
     moveLine,
     addSection,

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Ingredient } from '../api/types'
-import type { DraftSection } from '../composables/useRecipeDraft'
+import type { DraftLine, DraftSection } from '../composables/useRecipeDraft'
 import LineUnitPicker from './LineUnitPicker.vue'
 
 // One section of the recipe editor (C2): an optional heading, its lines (an
@@ -10,7 +10,7 @@ import LineUnitPicker from './LineUnitPicker.vue'
 // lines' amounts and units in place; "New unit…" on a line is passed up with
 // the line, as the page adds the conversion.
 const section = defineModel<DraftSection>('section', { required: true })
-defineProps<{
+const props = defineProps<{
   index: number
   count: number // the sections in the recipe
   ingredients: ReadonlyMap<number, Ingredient>
@@ -25,6 +25,11 @@ defineEmits<{
   newUnit: [index: number]
   removeSection: []
 }>()
+
+/** The ingredient of a line; none for an imported line not matched yet. */
+function ingredientOf(item: DraftLine): Ingredient | undefined {
+  return item.ingredientId === null ? undefined : props.ingredients.get(item.ingredientId)
+}
 </script>
 
 <template>
@@ -48,7 +53,7 @@ defineEmits<{
     >
       <div class="row items-start no-wrap q-gutter-x-sm">
         <div class="col item-name">
-          {{ ingredients.get(item.ingredientId)?.name }}
+          {{ ingredientOf(item)?.name }}
         </div>
         <q-input
           v-model="item.amount"
@@ -56,16 +61,16 @@ defineEmits<{
           outlined
           dense
           inputmode="decimal"
-          :aria-label="$t('recipes.amountOf', { name: ingredients.get(item.ingredientId)?.name })"
+          :aria-label="$t('recipes.amountOf', { name: ingredientOf(item)?.name })"
           :error="!!errors.amounts[item.key]"
           :error-message="errors.amounts[item.key]"
           hide-bottom-space
         />
         <LineUnitPicker
-          v-if="ingredients.get(item.ingredientId)"
+          v-if="ingredientOf(item)"
           v-model="item.unit"
-          :ingredient="ingredients.get(item.ingredientId)!"
-          :name="ingredients.get(item.ingredientId)!.name"
+          :ingredient="ingredientOf(item)!"
+          :name="ingredientOf(item)!.name"
           :error="!!errors.units?.[item.key]"
           @new-unit="$emit('newUnit', lineIndex)"
         />
@@ -75,7 +80,7 @@ defineEmits<{
           round
           dense
           icon="more_vert"
-          :aria-label="$t('recipes.lineMenu', { name: ingredients.get(item.ingredientId)?.name })"
+          :aria-label="$t('recipes.lineMenu', { name: ingredientOf(item)?.name })"
         >
           <q-menu>
             <q-list>
@@ -97,7 +102,7 @@ defineEmits<{
           round
           dense
           icon="close"
-          :aria-label="$t('recipes.remove', { name: ingredients.get(item.ingredientId)?.name })"
+          :aria-label="$t('recipes.remove', { name: ingredientOf(item)?.name })"
           @click="$emit('removeLine', lineIndex)"
         />
       </div>
@@ -105,7 +110,7 @@ defineEmits<{
         v-if="errors.units?.[item.key]"
         class="unit-error text-negative text-caption"
       >
-        {{ $t('recipes.unitNotConvertible', { unit: item.unit, name: ingredients.get(item.ingredientId)?.name }) }}
+        {{ $t('recipes.unitNotConvertible', { unit: item.unit, name: ingredientOf(item)?.name }) }}
       </div>
     </div>
     <div class="row items-center q-gutter-x-sm">
