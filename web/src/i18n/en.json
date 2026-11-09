@@ -151,7 +151,14 @@
     "numberTooLong": "Use at most 9 digits before the point and 6 after.",
     "inUse": "Recipes use it, so it can't be deleted.",
     "show": "Show",
-    "usedInLoadFailed": "Could not load the recipes."
+    "usedInLoadFailed": "Could not load the recipes.",
+    "fromSource": "From {source}: {food}",
+    "noLongerInSource": "No longer in the source",
+    "unlink": "Unlink from source",
+    "unlinkTitle": "Unlink {name} from {source}?",
+    "unlinkBody": "The ingredient keeps its values and tags. It is no longer connected to the source, so it won't get updates from it.",
+    "unlinkConfirm": "Unlink",
+    "unlinkFailed": "Could not unlink. Try again."
   },
   "addFromSource": {
     "button": "Add from data source",

@@ -8,6 +8,7 @@ import type { Attribute, Ingredient, IngredientFields as Fields, Recipe, Tag } f
 import ConfirmDelete from '../components/ConfirmDelete.vue'
 import EditorHeader from '../components/EditorHeader.vue'
 import LoadState from '../components/LoadState.vue'
+import SourceChip from '../components/SourceChip.vue'
 import UnitChangeDialog from '../components/UnitChangeDialog.vue'
 import UnitField from '../components/UnitField.vue'
 import { loadAll, useLoad } from '../composables/useLoad'
@@ -97,6 +98,30 @@ function setUnit(unit: string) {
 function toggleTag(tag: Tag) {
   if (draft.tagIds.has(tag.id)) draft.tagIds.delete(tag.id)
   else draft.tagIds.add(tag.id)
+}
+
+// A linked ingredient is measured in mass units only (its values are per 100 g).
+const linked = computed(() => data.value.ingredient?.source != null)
+const unitCategories = computed(() => (linked.value ? ['mass' as const] : ['mass' as const, 'volume' as const, 'piece' as const]))
+const unlinking = ref(false)
+
+/** Cut the link. The page's ingredient becomes the answer, but the form is
+ * not refilled, so what was typed stays. */
+async function unlink() {
+  if (id === null || unlinking.value) return
+  errors.save = ''
+  unlinking.value = true
+  try {
+    const { data: unlinked } = await api.POST('/api/ingredients/{ingredient_id}/unlink', {
+      params: { path: { ingredient_id: id } },
+    })
+    if (unlinked) data.value.ingredient = unlinked
+    else errors.save = t('ingredients.unlinkFailed')
+  } catch {
+    errors.save = t('ingredients.unlinkFailed')
+  } finally {
+    unlinking.value = false
+  }
 }
 
 const inUse = computed(() => (data.value.ingredient?.recipe_count ?? 0) > 0)
@@ -202,7 +227,7 @@ async function confirmUnitChange(ingredientId: number, stored: Ingredient, field
   return unitChange.ask({ name: fields.name, ...names, change })
 }
 
-/** A name in use, an energy unit, a unit change that loses precision, or a number with too many digits; anything else just failed. */
+/** A name in use, an energy unit or (for a linked ingredient) a non-mass one, a unit change that loses precision, or a number with too many digits; anything else just failed. */
 function showServerErrors(byField: Partial<Record<string, string>>, fields: Fields, refusal: string | null) {
   let shown = false
   if (byField.name === 'name_in_use') {
@@ -211,6 +236,10 @@ function showServerErrors(byField: Partial<Record<string, string>>, fields: Fiel
   }
   if (byField.unit === 'unit_not_for_ingredient') {
     errors.unit = t('ingredients.unitNotForIngredient')
+    shown = true
+  }
+  if (byField.unit === 'unit_not_for_source') {
+    errors.unit = t('ingredients.unitNotForSource')
     shown = true
   }
   if (refusal) {
@@ -277,9 +306,17 @@ async function confirmDelete() {
           hide-bottom-space
         />
 
+        <SourceChip
+          v-if="data.ingredient?.source"
+          :source="data.ingredient.source"
+          :name="data.ingredient.name"
+          :busy="unlinking"
+          @unlink="unlink"
+        />
+
         <UnitField
           :model-value="draft.unit"
-          :categories="['mass', 'volume', 'piece']"
+          :categories="unitCategories"
           :label="$t('ingredients.measuredIn')"
           :error="!!errors.unit"
           :error-message="errors.unit"

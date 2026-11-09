@@ -13,7 +13,7 @@ import {
   unitRoutes,
   type FakeServer,
 } from '../test-app'
-import { attribute, ingredient, recipe, tag, unitChange, unitChangeRefusal } from '../test-data'
+import { attribute, ingredient, ingredientSource, recipe, tag, unitChange, unitChangeRefusal } from '../test-data'
 import { resetUnits } from '../units'
 
 const energy = attribute({ id: 1, name: 'Energy', unit: 'kcal', ingredient_count: 1 })
@@ -527,5 +527,105 @@ test('a new ingredient and an unchanged unit never ask', async () => {
   await field(wrapper, 'Name').setValue('Rolled oats')
   await click(button(wrapper, 'Save'))
   expect(calls.filter((call) => call.includes('unit-change'))).toEqual([])
+  wrapper.unmount()
+})
+
+// An ingredient made from a data source food: the chip, Unlink, mass units only.
+
+const linkedOats = { ...oats, source: ingredientSource() }
+
+async function openLinked(server: FakeServer = {}, from = linkedOats) {
+  return openOats({ 'GET /api/ingredients/7': { body: from }, ...server })
+}
+
+test('an ordinary ingredient shows no chip and offers mass, volume and piece units', async () => {
+  const { wrapper } = await openOats()
+  expect(wrapper.find('.source-chip').exists()).toBe(false)
+  const rows = await openUnitList(wrapper, 'Measured in')
+  expect(rows.filter((row) => row.startsWith('#'))).toEqual(['# Mass', '# Volume', '# Other'])
+  wrapper.unmount()
+})
+
+test('a linked ingredient shows its chip and offers only mass units', async () => {
+  const { wrapper } = await openLinked()
+  expect(wrapper.get('.source-chip').text()).toBe('From TEST Source: TEST Oats')
+  expect(wrapper.find('.source-withdrawn').exists()).toBe(false)
+  const rows = await openUnitList(wrapper, 'Measured in')
+  expect(rows.filter((row) => row.startsWith('#'))).toEqual(['# Mass'])
+  wrapper.unmount()
+})
+
+test('a withdrawn food shows the second chip', async () => {
+  const { wrapper } = await openLinked({}, { ...oats, source: ingredientSource({ withdrawn: true }) })
+  expect(wrapper.get('.source-withdrawn').text()).toBe('No longer in the source')
+  wrapper.unmount()
+})
+
+test('Unlink asks, posts once, removes the chip, keeps what was typed and offers all units again', async () => {
+  const posts: string[] = []
+  const { wrapper } = await openLinked({
+    'POST /api/ingredients/7/unlink': () => {
+      posts.push('unlink')
+      return { body: { ...oats, source: null } }
+    },
+  })
+  await field(wrapper, 'Name').setValue('Typed before')
+  await click(wrapper.get('.unlink-button'))
+  expect(dialog().text).toContain('Unlink Oats from TEST Source?')
+  await dialog().click('Unlink')
+  expect(posts).toEqual(['unlink'])
+  expect(wrapper.find('.source-chip').exists()).toBe(false)
+  expect(value(wrapper, 'Name')).toBe('Typed before')
+  const rows = await openUnitList(wrapper, 'Measured in')
+  expect(rows.filter((row) => row.startsWith('#'))).toEqual(['# Mass', '# Volume', '# Other'])
+  wrapper.unmount()
+})
+
+test('a failing unlink says so and the chip stays', async () => {
+  const { wrapper } = await openLinked({ 'POST /api/ingredients/7/unlink': 500 })
+  await click(wrapper.get('.unlink-button'))
+  await dialog().click('Unlink')
+  expect(wrapper.text()).toContain('Could not unlink. Try again.')
+  expect(wrapper.find('.source-chip').exists()).toBe(true)
+  wrapper.unmount()
+})
+
+const notMass =
+  "An ingredient from a data source can only be measured in a mass unit such as g or kg, as the source's values are per 100 g of food."
+
+test('a unit that is not mass is refused by the preview under Measured in, with no dialog', async () => {
+  const { wrapper, sent } = await openLinked({
+    'POST /api/ingredients/7/unit-change': {
+      body: unitChange({ kind: 'no_convert', factor: null, refusal: unitChangeRefusal({ type: 'unit_not_for_source' }) }),
+    },
+  })
+  await field(wrapper, 'Measured in').setValue('dl')
+  await click(button(wrapper, 'Save'))
+  expect(wrapper.text()).toContain(notMass)
+  expect(document.querySelector('.q-dialog')).toBeNull()
+  expect(sent).toEqual([])
+  wrapper.unmount()
+})
+
+test('a save refused as unit_not_for_source shows the same text', async () => {
+  const { wrapper } = await openLinked({
+    'POST /api/ingredients/7/unit-change': { body: unitChange({ kind: 'no_convert', factor: null }) },
+    'PUT /api/ingredients/7': {
+      status: 422,
+      body: { detail: [{ loc: ['body', 'unit'], type: 'unit_not_for_source', msg: 'x' }] },
+    },
+  })
+  await field(wrapper, 'Measured in').setValue('dl')
+  await click(button(wrapper, 'Save'))
+  await dialog().click('Change unit')
+  expect(wrapper.text()).toContain(notMass)
+  wrapper.unmount()
+})
+
+test('g to kg on a linked ingredient still asks the Convert dialog', async () => {
+  const { wrapper } = await openLinked()
+  await chooseUnit(wrapper, 'Measured in', 'kg (kilogram)')
+  await click(button(wrapper, 'Save'))
+  expect(dialog().text).toContain("Convert Oats's numbers?")
   wrapper.unmount()
 })
