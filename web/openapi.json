@@ -536,6 +536,46 @@
         "title": "ExistingIngredient",
         "type": "object"
       },
+      "FactorAnswer": {
+        "properties": {
+          "factor": {
+            "title": "Factor",
+            "type": "string"
+          }
+        },
+        "required": [
+          "factor"
+        ],
+        "title": "FactorAnswer",
+        "type": "object"
+      },
+      "FactorRequest": {
+        "properties": {
+          "food": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Food",
+            "type": "string"
+          },
+          "ingredient_id": {
+            "title": "Ingredient Id",
+            "type": "integer"
+          },
+          "unit": {
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ingredient_id",
+          "unit",
+          "food"
+        ],
+        "title": "FactorRequest",
+        "type": "object"
+      },
       "FieldError": {
         "properties": {
           "loc": {
@@ -1062,6 +1102,146 @@
           "ai_configured"
         ],
         "title": "Health",
+        "type": "object"
+      },
+      "ImportedLine": {
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "food": {
+            "title": "Food",
+            "type": "string"
+          },
+          "ingredient_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ingredient Id"
+          },
+          "original_text": {
+            "title": "Original Text",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "unmatched",
+              "not_an_ingredient",
+              "own_unit",
+              "built_in_step",
+              "stored_conversion",
+              "needs_factor",
+              "bad_unit"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "suggested_factor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested Factor"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "original_text",
+          "food",
+          "amount",
+          "unit",
+          "ingredient_id",
+          "status",
+          "suggested_factor"
+        ],
+        "title": "ImportedLine",
+        "type": "object"
+      },
+      "ImportedRecipe": {
+        "properties": {
+          "cut": {
+            "title": "Cut",
+            "type": "boolean"
+          },
+          "instructions": {
+            "title": "Instructions",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "needs_you": {
+            "title": "Needs You",
+            "type": "integer"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/ImportedSection"
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "servings": {
+            "title": "Servings",
+            "type": "integer"
+          },
+          "source_url": {
+            "title": "Source Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "servings",
+          "instructions",
+          "source_url",
+          "cut",
+          "needs_you",
+          "sections"
+        ],
+        "title": "ImportedRecipe",
+        "type": "object"
+      },
+      "ImportedSection": {
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/ImportedLine"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "lines"
+        ],
+        "title": "ImportedSection",
         "type": "object"
       },
       "Ingredient": {
@@ -2234,6 +2414,19 @@
           "serving_cap_weight"
         ],
         "title": "RecipeFields",
+        "type": "object"
+      },
+      "RecipeImportRequest": {
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "RecipeImportRequest",
         "type": "object"
       },
       "RecipeItem-Input": {
@@ -4996,6 +5189,150 @@
         "summary": "Put Preferences",
         "tags": [
           "preferences"
+        ]
+      }
+    },
+    "/api/recipe-imports": {
+      "post": {
+        "description": "Ask the AI for a draft of the text, checked against the user's own\ningredients. Writes nothing.",
+        "operationId": "import_recipe_api_recipe_imports_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecipeImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportedRecipe"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "No text, too much text, or no recipe in it"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "Today's limit of model calls is reached"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "The AI service didn't give a usable answer"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "No AI key is set"
+          }
+        },
+        "summary": "Import Recipe",
+        "tags": [
+          "recipe imports"
+        ]
+      }
+    },
+    "/api/recipe-imports/factor": {
+      "post": {
+        "description": "The AI's guess at how many of the ingredient's own unit one `unit` of\n`food` makes.",
+        "operationId": "suggest_factor_api_recipe_imports_factor_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FactorRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactorAnswer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "No text, too much text, or no recipe in it"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "Today's limit of model calls is reached"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "The AI service didn't give a usable answer"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "No AI key is set"
+          }
+        },
+        "summary": "Suggest Factor",
+        "tags": [
+          "recipe imports"
         ]
       }
     },

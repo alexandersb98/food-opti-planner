@@ -589,6 +589,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/recipe-imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Recipe
+         * @description Ask the AI for a draft of the text, checked against the user's own
+         *     ingredients. Writes nothing.
+         */
+        post: operations["import_recipe_api_recipe_imports_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/recipe-imports/factor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Suggest Factor
+         * @description The AI's guess at how many of the ingredient's own unit one `unit` of
+         *     `food` makes.
+         */
+        post: operations["suggest_factor_api_recipe_imports_factor_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/recipes": {
         parameters: {
             query?: never;
@@ -925,6 +967,20 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** FactorAnswer */
+        FactorAnswer: {
+            /** Factor */
+            factor: string;
+        };
+        /** FactorRequest */
+        FactorRequest: {
+            /** Food */
+            food: string;
+            /** Ingredient Id */
+            ingredient_id: number;
+            /** Unit */
+            unit: string;
+        };
         /** FieldError */
         FieldError: {
             /** Loc */
@@ -1094,6 +1150,50 @@ export interface components {
             ai_configured: boolean;
             /** Database */
             database: boolean;
+        };
+        /** ImportedLine */
+        ImportedLine: {
+            /** Amount */
+            amount: string | null;
+            /** Food */
+            food: string;
+            /** Ingredient Id */
+            ingredient_id: number | null;
+            /** Original Text */
+            original_text: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "unmatched" | "not_an_ingredient" | "own_unit" | "built_in_step" | "stored_conversion" | "needs_factor" | "bad_unit";
+            /** Suggested Factor */
+            suggested_factor: string | null;
+            /** Unit */
+            unit: string;
+        };
+        /** ImportedRecipe */
+        ImportedRecipe: {
+            /** Cut */
+            cut: boolean;
+            /** Instructions */
+            instructions: string;
+            /** Name */
+            name: string;
+            /** Needs You */
+            needs_you: number;
+            /** Sections */
+            sections: components["schemas"]["ImportedSection"][];
+            /** Servings */
+            servings: number;
+            /** Source Url */
+            source_url: string;
+        };
+        /** ImportedSection */
+        ImportedSection: {
+            /** Lines */
+            lines: components["schemas"]["ImportedLine"][];
+            /** Name */
+            name: string;
         };
         /** Ingredient */
         Ingredient: {
@@ -1483,6 +1583,11 @@ export interface components {
             source_url: string;
             /** Step */
             step: number | string | null;
+        };
+        /** RecipeImportRequest */
+        RecipeImportRequest: {
+            /** Text */
+            text: string;
         };
         /**
          * RecipeItem
@@ -3308,6 +3413,126 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    import_recipe_api_recipe_imports_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecipeImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportedRecipe"];
+                };
+            };
+            /** @description No text, too much text, or no recipe in it */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+            /** @description Today's limit of model calls is reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+            /** @description The AI service didn't give a usable answer */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+            /** @description No AI key is set */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+        };
+    };
+    suggest_factor_api_recipe_imports_factor_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FactorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FactorAnswer"];
+                };
+            };
+            /** @description No text, too much text, or no recipe in it */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+            /** @description Today's limit of model calls is reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+            /** @description The AI service didn't give a usable answer */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+            /** @description No AI key is set */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
             };
         };
     };

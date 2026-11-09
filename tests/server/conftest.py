@@ -78,6 +78,13 @@ def logged_in_client(database_url, web_dist, *, log_in=True, ai_transport=None, 
 
 
 @pytest.fixture
+def ai_client(database_url, web_dist):
+    """A logged-in client of an app whose AI is the fake provider."""
+    with logged_in_client(database_url, web_dist, ai_provider="fake") as client:
+        yield client
+
+
+@pytest.fixture
 def anonymous_client(database_url, web_dist):
     """A client without a session."""
     with logged_in_client(database_url, web_dist, log_in=False) as client:

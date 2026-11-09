@@ -15,6 +15,7 @@ from . import (
     plan,
     plan_results,
     preferences,
+    recipe_imports,
     recipes,
     solve,
     tags,
@@ -32,6 +33,7 @@ protected.include_router(tags.router)
 protected.include_router(ingredients.router)
 protected.include_router(conversions.router)
 protected.include_router(recipes.router)
+protected.include_router(recipe_imports.router)
 protected.include_router(plan.router)
 protected.include_router(solve.router)
 protected.include_router(plan_results.router)
