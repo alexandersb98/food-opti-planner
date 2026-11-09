@@ -7,7 +7,7 @@ afterEach(() => {
   document.body.innerHTML = ''
 })
 
-const test_source = dataSourceSummary()
+const test_source = dataSourceSummary({ column_count: 55, mapped_count: 2 })
 const other = dataSourceSummary({ key: 'other', name: 'TEST Other', colour: '#ff0000', food_count: 1, version: '2026-02-02' })
 
 function routes(sources: unknown = [test_source, other]) {
@@ -19,13 +19,13 @@ function routes(sources: unknown = [test_source, other]) {
   }
 }
 
-test('each source is a row with its colour, name, version and food count', async () => {
+test('each source is a row with its colour, name, version, food count and mapped columns', async () => {
   fakeServer(routes())
   const { wrapper } = await mountApp('/settings')
   expect(wrapper.get('.data-sources-card').text()).toContain('Data sources')
   expect(texts(wrapper, '.source-row')).toEqual([
-    expect.stringMatching(/TEST Source\s*Version 2026-01-01 · 3 foods/),
-    expect.stringMatching(/TEST Other\s*Version 2026-02-02 · 1 food/),
+    expect.stringMatching(/TEST Source\s*Version 2026-01-01 · 3 foods · 2 of 55 columns mapped/),
+    expect.stringMatching(/TEST Other\s*Version 2026-02-02 · 1 food · 0 of 3 columns mapped/),
   ])
   const dots = wrapper.findAll('.source-dot')
   expect(dots.map((dot) => dot.attributes('style'))).toEqual([

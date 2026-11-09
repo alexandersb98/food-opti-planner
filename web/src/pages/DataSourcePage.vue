@@ -1,21 +1,44 @@
 <script setup lang="ts">
-// A data source (S2), read-only but for its colour: version, when it was
-// imported, attribution, and a searchable list of its columns.
-import { computed, ref, watch } from 'vue'
+// A data source (S2): version, when it was imported, attribution, its colour,
+// and a searchable list of its columns, each with the attribute it feeds.
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { api } from '../api/client'
-import type { DataSource } from '../api/types'
+import { fieldErrors } from '../api/errors'
+import type { Attribute, DataSource, SourceColumn } from '../api/types'
 import EditorHeader from '../components/EditorHeader.vue'
 import LoadState from '../components/LoadState.vue'
-import { useLoad } from '../composables/useLoad'
+import SourceColumnRow from '../components/SourceColumnRow.vue'
+import { loadAll, useLoad } from '../composables/useLoad'
+import { useUnits } from '../units'
 
 const route = useRoute()
 const key = String(route.params.key)
 
-const { data: source, loading, failed, load } = useLoad(
-  () => api.GET('/api/data-sources/{key}', { params: { path: { key } } }),
-  null as DataSource | null,
+const { t } = useI18n()
+
+// The drop-downs offer the attributes that convert with a column's unit, which
+// takes the unit catalogue; without it only the same spelling matches.
+onMounted(() => void useUnits().load())
+
+// The source and the attributes its columns can be mapped to. A created
+// attribute is added to the list here, without a refetch.
+const { data, loading, failed, load } = useLoad(
+  () =>
+    loadAll({
+      source: api.GET('/api/data-sources/{key}', { params: { path: { key } } }),
+      attributes: api.GET('/api/attributes'),
+    }),
+  null as { source: DataSource; attributes: Attribute[] } | null,
 )
+const source = computed({
+  get: () => data.value?.source ?? null,
+  set: (value) => {
+    if (data.value && value) data.value.source = value
+  },
+})
+const attributes = computed(() => data.value?.attributes ?? [])
 
 // Quasar's QInput passes `type` on to the browser's input but does not list
 // "color" among the types it knows.
@@ -28,6 +51,69 @@ const shown = computed(() => {
   const text = (search.value ?? '').trim().toLocaleLowerCase()
   return (source.value?.columns ?? []).filter((column) => column.name.toLocaleLowerCase().includes(text))
 })
+
+// Which attribute each column feeds, as the other columns of a row see it:
+// attribute id to the name of the column that has it.
+function takenFor(column: SourceColumn): Map<number, string> {
+  const taken = new Map<number, string>()
+  for (const other of source.value?.columns ?? []) {
+    if (other.id !== column.id && other.attribute_id !== null) taken.set(other.attribute_id, other.name)
+  }
+  return taken
+}
+
+const saving = reactive<Record<number, boolean>>({})
+const rowErrors = reactive<Record<number, string>>({})
+// The column whose Create attribute dialog is open (wired up with the dialog).
+const createFor = ref<SourceColumn | null>(null)
+
+async function reloadSource() {
+  try {
+    const { data: fresh } = await api.GET('/api/data-sources/{key}', { params: { path: { key } } })
+    if (fresh) source.value = fresh
+  } catch {
+    // the page stays as it was; the row already says what went wrong
+  }
+}
+
+/** Save a column's mapping (null: none). Answers whether it was saved. */
+async function map(column: SourceColumn, attributeId: number | null): Promise<boolean> {
+  saving[column.id] = true
+  rowErrors[column.id] = ''
+  try {
+    const { data: saved, error } = await api.PUT('/api/data-sources/{key}/columns/{column_id}', {
+      params: { path: { key, column_id: column.id } },
+      body: { attribute_id: attributeId },
+    })
+    if (saved && source.value) {
+      source.value = { ...source.value, columns: source.value.columns.map((c) => (c.id === saved.id ? saved : c)) }
+      return true
+    }
+    const problem = fieldErrors(error).attribute_id
+    if (problem === 'attribute_taken' || problem === 'unit_mismatch') {
+      // The page was stale: show the truth, then say what was refused.
+      await reloadSource()
+      const attribute = attributes.value.find((a) => a.id === attributeId)?.name ?? ''
+      const holder = takenFor(column).get(attributeId ?? -1)
+      rowErrors[column.id] =
+        problem === 'attribute_taken' && holder !== undefined
+          ? t('dataSource.takenError', { attribute, column: holder })
+          : t('dataSource.mismatchError', { column: column.name, attribute })
+    } else {
+      rowErrors[column.id] = t('dataSource.mapFailed')
+    }
+  } catch {
+    rowErrors[column.id] = t('dataSource.mapFailed')
+  } finally {
+    saving[column.id] = false
+  }
+  return false
+}
+
+function choose(column: SourceColumn, choice: number | null | 'create') {
+  if (choice === 'create') createFor.value = column
+  else void map(column, choice)
+}
 
 const imported = computed(() => (source.value ? new Date(source.value.imported_at).toLocaleString() : ''))
 
@@ -47,11 +133,11 @@ async function saveColour() {
   if (!source.value || colour.value === source.value.colour) return
   saveFailed.value = false
   try {
-    const { data } = await api.PATCH('/api/data-sources/{key}', {
+    const { data: saved } = await api.PATCH('/api/data-sources/{key}', {
       params: { path: { key } },
       body: { colour: colour.value },
     })
-    if (data) source.value = data
+    if (saved) source.value = saved
     else saveFailed.value = true
   } catch {
     saveFailed.value = true
@@ -139,22 +225,16 @@ async function saveColour() {
               {{ $t('dataSource.noColumnMatch') }}
             </q-item-section>
           </q-item>
-          <q-item
+          <SourceColumnRow
             v-for="column in shown"
             :key="column.id"
-            class="column-row"
-            :class="{ 'text-grey-6': column.withdrawn }"
-          >
-            <q-item-section>
-              <q-item-label>{{ column.name }}</q-item-label>
-              <q-item-label
-                v-if="column.unit || column.withdrawn"
-                caption
-              >
-                {{ [column.unit, column.withdrawn ? $t('dataSource.withdrawn') : ''].filter(Boolean).join(' · ') }}
-              </q-item-label>
-            </q-item-section>
-          </q-item>
+            :column="column"
+            :attributes="attributes"
+            :taken-by="takenFor(column)"
+            :saving="saving[column.id] === true"
+            :error="rowErrors[column.id] ?? ''"
+            @choose="(choice) => choose(column, choice)"
+          />
         </q-list>
       </template>
     </LoadState>

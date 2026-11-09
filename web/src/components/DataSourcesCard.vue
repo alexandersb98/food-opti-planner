@@ -17,7 +17,7 @@ const {
 } = useLoad(() => api.GET('/api/data-sources'), [] as DataSourceSummary[])
 
 function caption(source: DataSourceSummary) {
-  return `${t('settings.dataSources.version', { version: source.version })} · ${t('settings.dataSources.foods', source.food_count)}`
+  return `${t('settings.dataSources.version', { version: source.version })} · ${t('settings.dataSources.foods', source.food_count)} · ${t('settings.dataSources.mapped', { mapped: source.mapped_count, n: source.column_count }, source.column_count)}`
 }
 </script>
 

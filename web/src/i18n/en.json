@@ -26,7 +26,8 @@
       "empty": "No data sources loaded.",
       "loadFailed": "Could not load the data sources.",
       "version": "Version {version}",
-      "foods": "no foods | 1 food | {n} foods"
+      "foods": "no foods | 1 food | {n} foods",
+      "mapped": "{mapped} of {n} column mapped | {mapped} of {n} columns mapped"
     }
   },
   "dataSource": {
@@ -39,7 +40,14 @@
     "columnCount": "no columns | 1 column | {n} columns",
     "searchColumns": "Search columns",
     "noColumnMatch": "No columns match.",
-    "withdrawn": "No longer in the source"
+    "withdrawn": "No longer in the source",
+    "attribute": "Attribute",
+    "notMapped": "Not mapped",
+    "createAttribute": "Create attribute…",
+    "takenBy": "taken by {column}",
+    "mapFailed": "Could not save the mapping.",
+    "takenError": "{attribute} is already mapped from {column}.",
+    "mismatchError": "{column} and {attribute} don't convert."
   },
   "units": {
     "groups": {
