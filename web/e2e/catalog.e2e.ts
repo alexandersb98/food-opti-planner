@@ -32,6 +32,15 @@ async function openPage(page: Page, name: string) {
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(name)
 }
 
+// Closes the open q-select list. Typing in the select opens its popup a moment
+// later, so wait for an option before Escape (else Escape finds nothing to
+// close and the popup then covers the page), and for the popup to be gone.
+async function closeSelectList(page: Page) {
+  await expect(page.getByRole('option').first()).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.q-menu')).toHaveCount(0)
+}
+
 test('log in, build a catalog of an attribute, a tag and an ingredient, and a recipe', async ({ page }) => {
   await page.goto('/')
   await expect(page).toHaveURL(/\/login/)
@@ -119,7 +128,7 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await page.getByLabel('Measured in').click()
   await expect(page.getByRole('option', { name: 'st (piece)' })).toBeVisible()
   await expect(page.getByRole('option', { name: 'kcal (kilocalorie)' })).toHaveCount(0)
-  await page.keyboard.press('Escape')
+  await closeSelectList(page)
   await page.getByLabel('Energy').fill('389')
   await page.getByRole('button', { name: 'vegan' }).click()
   await page.getByRole('button', { name: 'Save' }).click()
@@ -611,7 +620,7 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   const taken = page.getByRole('option', { name: /^Protein/ })
   await expect(taken).toContainText('taken by TEST Protein')
   await expect(taken).toHaveAttribute('aria-disabled', 'true')
-  await page.keyboard.press('Escape')
+  await closeSelectList(page)
   await page.getByRole('link', { name: 'Back' }).click()
   await expect(page.locator('.data-sources-card .source-row')).toContainText('2 of 3 columns mapped')
 
@@ -622,12 +631,12 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await expect(page.locator('.attribute-row')).toHaveCount(2)
   await page.locator('.attribute-row').filter({ hasText: 'Energy' }).click()
   await page.getByLabel('Unit').fill('g')
-  await page.keyboard.press('Escape') // closes the unit list
+  await closeSelectList(page)
   await page.getByRole('button', { name: 'Done' }).click()
   await expect(page.getByText(/mapped from TEST Energy \(TEST Source\), which is in kcal/)).toBeVisible()
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await page.getByLabel('Unit').fill('kcal')
-  await page.keyboard.press('Escape')
+  await closeSelectList(page)
   await page.getByRole('button', { name: 'Done' }).click()
   await expect(page.locator('.attribute-row').filter({ hasText: 'Energy' })).toContainText('(kcal)')
   await page.locator('.attribute-row').filter({ hasText: 'Protein' }).click()
@@ -669,13 +678,13 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await expect(page.locator('.tag-choice', { hasText: 'TEST Grains' })).toHaveAttribute('aria-pressed', 'true')
   await page.getByLabel('Measured in').click()
   await expect(page.locator('.q-menu .q-item__label--header')).toHaveText(['Mass'])
-  await page.keyboard.press('Escape')
+  await closeSelectList(page)
   await page.getByLabel('Measured in').fill('dl')
-  await page.keyboard.press('Escape')
+  await closeSelectList(page)
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(page.getByText(/can only be measured in a mass unit/)).toBeVisible()
   await page.getByLabel('Measured in').fill('g')
-  await page.keyboard.press('Escape')
+  await closeSelectList(page)
   await page.reload()
   await expect(page.locator('.source-chip')).toHaveText('From TEST Source: TEST Oats')
 
@@ -695,7 +704,7 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await expect(page.getByLabel('Energy')).toHaveValue('389')
   await page.getByLabel('Measured in').click()
   await expect(page.locator('.q-menu .q-item__label--header')).toHaveText(['Mass', 'Volume', 'Other'])
-  await page.keyboard.press('Escape')
+  await closeSelectList(page)
   await page.reload()
   await expect(page.getByLabel('Name')).toHaveValue('Source oats')
   await expect(page.locator('.source-chip')).toHaveCount(0)

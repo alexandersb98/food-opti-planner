@@ -27,15 +27,16 @@ export function errorType(error: unknown): string | null {
 
 /** The server's sentence for a refused unit change in a 422 of a save (the
  * preview shows it from its facts; this is for a save that raced a change
- * elsewhere), or null if the error is not one: a `conversion_` refusal, or
+ * elsewhere), or null if the error is not one: a `conversion_` refusal,
  * `unit_mismatch` (a source column mapped to the attribute would stop
- * converting). */
+ * converting) or `unit_has_dependents` (the ingredient got a conversion or a
+ * recipe line in another unit meanwhile). */
 export function conversionRefusal(error: unknown): string | null {
   const detail = (error as { detail?: unknown } | undefined)?.detail
   if (!Array.isArray(detail)) return null
   for (const { loc, type, msg } of detail as { loc?: unknown; type?: unknown; msg?: unknown }[]) {
     const onUnit = Array.isArray(loc) && loc[0] === 'body' && loc[1] === 'unit'
-    if (onUnit && typeof type === 'string' && (type.startsWith('conversion_') || type === 'unit_mismatch') && typeof msg === 'string') return msg
+    if (onUnit && typeof type === 'string' && (type.startsWith('conversion_') || type === 'unit_mismatch' || type === 'unit_has_dependents') && typeof msg === 'string') return msg
   }
   return null
 }

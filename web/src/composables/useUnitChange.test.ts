@@ -94,3 +94,14 @@ test('a conversion factor that rounds to zero is named by its unit', () => {
     'The conversion for pinch (0.0004 g) would round to 0 in kg. Use a smaller unit.',
   )
 })
+
+// Every `field` server/unit_change.py's Number can carry.
+test.each(['value', 'source_value', 'min', 'max', 'zero_reference', 'basis', 'amount', 'factor'])(
+  'the refusal field %s has text',
+  (field) => {
+    const key = `unitChange.fields.${field}`
+    const text = t(key)
+    expect(text).not.toBe(key)
+    expect(text).not.toBe('')
+  },
+)

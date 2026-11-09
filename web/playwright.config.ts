@@ -6,8 +6,8 @@ import { defineConfig } from '@playwright/test'
 export default defineConfig({
   testDir: 'e2e',
   testMatch: '*.e2e.ts',
-  // One long flow that grows with each slice, so more than the default 30 s.
-  timeout: 90_000,
+  // One long flow that grows with each slice (about 55 s now), so far more than the default 30 s.
+  timeout: 180_000,
   retries: 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {

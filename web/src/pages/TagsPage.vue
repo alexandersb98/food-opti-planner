@@ -226,14 +226,19 @@ function onAnswer(yes: boolean[]) {
 
 const deleteWarning = computed(() => {
   const tag = openTag.value
-  if (!tag || tag.ingredient_count + tag.recipe_count + tag.filter_count === 0) {
-    return t('common.deleteNothing')
+  if (!tag) return ''
+  // The server takes it out of its group, which dissolves when one tag is left.
+  const leavesGroup = otherMembers(tag).length ? ` ${t('tags.deleteLeavesGroup')}` : ''
+  if (tag.ingredient_count + tag.recipe_count + tag.filter_count === 0) {
+    return t('common.deleteNothing') + leavesGroup
   }
-  return t('tags.deleteRemoves', {
-    ingredients: t('count.ingredients', tag.ingredient_count),
-    recipes: t('count.recipes', tag.recipe_count),
-    filters: t('count.planFilters', tag.filter_count),
-  })
+  return (
+    t('tags.deleteRemoves', {
+      ingredients: t('count.ingredients', tag.ingredient_count),
+      recipes: t('count.recipes', tag.recipe_count),
+      filters: t('count.planFilters', tag.filter_count),
+    }) + leavesGroup
+  )
 })
 
 async function confirmDelete() {

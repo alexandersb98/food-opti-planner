@@ -123,6 +123,7 @@
     "nameInUse": "A tag with this name already exists.",
     "new": "+ New tag",
     "deleteRemoves": "This also removes it from {ingredients}, {recipes} and {filters}.",
+    "deleteLeavesGroup": "It also leaves its group of equivalent tags; a group left with one tag ends.",
     "group": {
       "equivalent": "Equivalent tags",
       "equivalentHint": "Filtering on one of them includes recipes whose ingredients have any of them.",
@@ -528,7 +529,10 @@
       "max": "maximum",
       "zero_reference": "zero reference",
       "value": "value",
-      "factor": "number"
+      "factor": "number",
+      "source_value": "source value",
+      "basis": "value basis",
+      "amount": "amount"
     },
     "subject": {
       "goal": "The goal {name}'s {field}",

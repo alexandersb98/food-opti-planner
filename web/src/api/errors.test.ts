@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { errorType, fieldErrors } from './errors'
+import { conversionRefusal, errorType, fieldErrors } from './errors'
 
 test('gives each body field its first error type', () => {
   const error = {
@@ -24,4 +24,16 @@ test('errorType gives the first type whatever its place', () => {
   expect(errorType({ detail: 'No such tag' })).toBeNull()
   expect(errorType(undefined)).toBeNull()
   expect(errorType({ detail: [{ loc: [], type: 5 }] })).toBeNull()
+})
+
+test.each(['conversion_too_large', 'unit_mismatch', 'unit_has_dependents'])(
+  "a unit change refused as %s gives the server's sentence",
+  (type) => {
+    const error = { detail: [{ loc: ['body', 'unit'], type, msg: 'The sentence.' }] }
+    expect(conversionRefusal(error)).toBe('The sentence.')
+  },
+)
+
+test('other errors on the unit are not a unit change refusal', () => {
+  expect(conversionRefusal({ detail: [{ loc: ['body', 'unit'], type: 'unit_not_for_ingredient', msg: 'x' }] })).toBeNull()
 })

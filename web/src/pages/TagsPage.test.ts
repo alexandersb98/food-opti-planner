@@ -539,3 +539,19 @@ test('a name in use is still shown on a tag with equivalent tags', async () => {
   expect(wrapper.text()).toContain('A tag with this name already exists.')
   wrapper.unmount()
 })
+
+test('deleting a tag in a group says it leaves the group', async () => {
+  const wrapper = (await mountGroups()).wrapper
+  await openRow(wrapper, 0)
+  await click(button(wrapper, 'Delete'))
+  expect(dialog().text).toContain('It also leaves its group of equivalent tags')
+  wrapper.unmount()
+})
+
+test('deleting a tag in no group does not mention groups', async () => {
+  const wrapper = (await mountGroups()).wrapper
+  await openRow(wrapper, 2)
+  await click(button(wrapper, 'Delete'))
+  expect(dialog().text).not.toContain('group')
+  wrapper.unmount()
+})
