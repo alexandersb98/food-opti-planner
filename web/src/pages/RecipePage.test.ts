@@ -1,7 +1,8 @@
 import { flushPromises } from '@vue/test-utils'
 import { afterEach, expect, test, vi } from 'vitest'
 import { button, click, dialog, fakeServer, field, mountApp, settleMenu, texts, unitRoutes, type FakeServer } from '../test-app'
-import { attribute, conversion, ingredient, lines, recipe, tag } from '../test-data'
+import { setImportedDraft } from '../importDraft'
+import { attribute, conversion, importedLine, importedRecipe, ingredient, lines, recipe, tag } from '../test-data'
 import { resetUnits } from '../units'
 
 const energy = attribute({ id: 1, name: 'Energy', unit: 'kcal' })
@@ -764,5 +765,233 @@ test('with the catalogue not loaded a saved line in a catalogue unit still saves
   await click(button(wrapper, 'Save'))
   expect(put.sent).toHaveLength(1)
   expect(wrapper.find('.unit-error').exists()).toBe(false)
+  wrapper.unmount()
+})
+
+
+// the import review ---------------------------------------------------------------
+
+const porridgeLine = importedLine({ original_text: '100 g oats', food: 'oats', amount: '100', ingredient_id: 1, status: 'own_unit' })
+const milkLine = importedLine({ original_text: '3 dl milk', food: 'milk', amount: '3', unit: 'dl' })
+const honeyLine = importedLine({ original_text: '2 tbsp honey', food: 'honey', amount: '2', unit: 'msk' })
+const pepperLine = importedLine({ original_text: 'salt and pepper to taste', food: 'salt and pepper', amount: null, status: 'not_an_ingredient' })
+const almondLine = importedLine({
+  original_text: '3 dl almonds',
+  food: 'almonds',
+  amount: '3',
+  unit: 'dl',
+  ingredient_id: 3,
+  status: 'needs_factor',
+  suggested_factor: '50',
+})
+
+async function mountImported(lineList = [porridgeLine, milkLine, honeyLine, pepperLine], server: FakeServer = {}, over = {}) {
+  setImportedDraft(importedRecipe({ sections: [{ name: '', lines: lineList }], ...over }))
+  return mountPage('/recipes/new', { 'POST /api/recipes/derived-tags': { body: [] }, ...server })
+}
+
+function banner(wrapper: Wrapper) {
+  return wrapper.get('.import-banner').text()
+}
+
+function lineRow(wrapper: Wrapper, index: number) {
+  return wrapper.findAll('.recipe-item')[index]!
+}
+
+function sourceLines(wrapper: Wrapper) {
+  return texts(wrapper, '.source-line')
+}
+
+function saveButton(wrapper: Wrapper) {
+  return wrapper.findAll('button').find((b) => b.text() === 'Save')!
+}
+
+async function typeIn(input: HTMLInputElement, text: string) {
+  input.value = text
+  input.dispatchEvent(new Event('input'))
+  await flushPromises()
+}
+
+test('an imported recipe opens in review: the banner counts the lines that need you and each line shows its source line', async () => {
+  const { wrapper } = await mountImported()
+  expect(banner(wrapper)).toBe('Imported from pasted text. 2 lines need you.')
+  expect(sourceLines(wrapper)).toEqual(['100 g oats', '3 dl milk', '2 tbsp honey', 'salt and pepper to taste'])
+  expect(value(wrapper, 'Name')).toBe('Imported porridge')
+  expect(value(wrapper, 'Serves')).toBe('2')
+  expect(wrapper.get('textarea').element.value).toBe('Boil.\nStir.')
+  expect(wrapper.findAll('.line-skipped')).toHaveLength(1)
+  expect(wrapper.findAll('.needs-you')).toHaveLength(2)
+  expect(saveButton(wrapper).attributes('disabled')).toBeDefined()
+  expect(wrapper.text()).toContain('Match, convert or skip every line to save.')
+  wrapper.unmount()
+})
+
+test('Pick ingredient opens the picker filled with the food, picking matches the line and the banner count drops', async () => {
+  const { wrapper } = await mountImported()
+  await click(lineRow(wrapper, 1).get('.pick-ingredient'))
+  expect(document.querySelector<HTMLInputElement>('.q-dialog input')!.value).toBe('milk')
+  const rows = [...document.querySelectorAll<HTMLElement>('.q-dialog .picker-row')]
+  expect(rows.map((r) => r.textContent)).toEqual(['Milkml'])
+  rows[0]!.click()
+  await flushPromises()
+  expect(lineRow(wrapper, 1).find('.item-name').text()).toBe('Milk')
+  expect(lineRow(wrapper, 1).find('.pick-ingredient').exists()).toBe(false)
+  expect(banner(wrapper)).toBe('Imported from pasted text. 1 line needs you.')
+  wrapper.unmount()
+})
+
+test('+ New ingredient opens the dialog with the name filled; saving matches the line, lists the ingredient and asks for a factor suggestion', async () => {
+  const honey = ingredient({ id: 9, name: 'Honey', unit: 'g' })
+  const asked: unknown[] = []
+  const { wrapper } = await mountImported(undefined, {
+    'POST /api/ingredients': { status: 201, body: honey },
+    'POST /api/recipe-imports/factor': (body) => {
+      asked.push(body)
+      return { body: { factor: '15' } }
+    },
+  })
+  await click(lineRow(wrapper, 2).get('.pick-ingredient'))
+  expect(document.querySelector<HTMLInputElement>('.q-dialog input')!.value).toBe('honey')
+  document.querySelector<HTMLButtonElement>('.q-dialog .new-ingredient')!.click()
+  await flushPromises()
+  const form = document.querySelector<HTMLInputElement>('.new-ingredient-dialog input[aria-label="Name"]')!
+  expect(form.value).toBe('Honey')
+  const save = [...document.querySelectorAll<HTMLButtonElement>('.new-ingredient-dialog button')].find((b) => b.textContent?.trim() === 'Save')!
+  save.click()
+  await flushPromises()
+  expect(lineRow(wrapper, 2).find('.item-name').text()).toBe('Honey')
+  expect(asked).toEqual([{ ingredient_id: 9, unit: 'msk', food: 'honey' }])
+  const input = lineRow(wrapper, 2).get<HTMLInputElement>('.factor-row input')
+  expect(input.element.value).toBe('15')
+  expect(lineRow(wrapper, 2).find('.ai-mark').exists()).toBe(true)
+  wrapper.unmount()
+})
+
+test('a line that needs a factor shows 1 dl = [50] g with the sparkle; Accept makes the line ready', async () => {
+  const { wrapper } = await mountImported([porridgeLine, almondLine])
+  const row = lineRow(wrapper, 1)
+  expect(row.get('.factor-row').text()).toContain('1 dl =')
+  expect(row.get<HTMLInputElement>('.factor-row input').element.value).toBe('50')
+  expect(row.find('.ai-mark').exists()).toBe(true)
+  expect(banner(wrapper)).toBe('Imported from pasted text. 1 line needs you.')
+  await click(row.get('.accept-factor'))
+  expect(banner(wrapper)).toBe('Imported from pasted text. All lines are ready.')
+  expect(lineRow(wrapper, 1).get('.factor-row').text()).toContain('50')
+  expect(lineRow(wrapper, 1).find('input[aria-label^="How many"]').exists()).toBe(false)
+  await click(lineRow(wrapper, 1).get('.change-factor'))
+  expect(banner(wrapper)).toBe('Imported from pasted text. 1 line needs you.')
+  wrapper.unmount()
+})
+
+test('a different factor is saved as user and the same one as ai, and only used conversions are sent', async () => {
+  for (const [typed, source] of [['50', 'ai'], ['55', 'user']] as const) {
+    const { sent, handler } = recorder(201, (body) => ({ ...porridge, ...body, id: 8 }))
+    const { wrapper, router } = await mountImported([porridgeLine, almondLine], { 'POST /api/recipes': handler })
+    await typeIn(lineRow(wrapper, 1).get<HTMLInputElement>('.factor-row input').element, typed)
+    await click(lineRow(wrapper, 1).get('.accept-factor'))
+    expect(saveButton(wrapper).attributes('disabled')).toBeUndefined()
+    await click(saveButton(wrapper))
+    const body = sent[0] as { new_conversions: unknown[]; sections: { items: unknown[] }[] }
+    expect(body.new_conversions).toEqual([{ ingredient_id: 3, unit: 'dl', factor: typed, source }])
+    expect(body.sections[0]!.items).toEqual([
+      { ingredient_id: 1, amount: '100', unit: '', original_text: '100 g oats' },
+      { ingredient_id: 3, amount: '3', unit: 'dl', original_text: '3 dl almonds' },
+    ])
+    expect(router.currentRoute.value.fullPath).toBe('/recipes')
+    wrapper.unmount()
+  }
+})
+
+test('a not-an-ingredient line is greyed; Add anyway makes it an ordinary line with an empty amount', async () => {
+  const { wrapper } = await mountImported([porridgeLine, pepperLine])
+  expect(lineRow(wrapper, 1).classes()).toContain('line-skipped')
+  expect(lineRow(wrapper, 1).get('input').attributes('disabled')).toBeDefined()
+  expect(banner(wrapper)).toBe('Imported from pasted text. All lines are ready.')
+  await click(button(lineRow(wrapper, 1) as never, 'Add anyway'))
+  expect(lineRow(wrapper, 1).classes()).not.toContain('line-skipped')
+  expect(lineRow(wrapper, 1).get<HTMLInputElement>('input').element.value).toBe('')
+  expect(banner(wrapper)).toBe('Imported from pasted text. 1 line needs you.')
+  wrapper.unmount()
+})
+
+test('Skip leaves a line out of the save and Add back returns it', async () => {
+  const { sent, handler } = recorder(201, (body) => ({ ...porridge, ...body, id: 8 }))
+  const { wrapper } = await mountImported([porridgeLine, milkLine], { 'POST /api/recipes': handler })
+  expect(saveButton(wrapper).attributes('disabled')).toBeDefined()
+  await click(lineRow(wrapper, 1).get('.skip'))
+  expect(banner(wrapper)).toBe('Imported from pasted text. All lines are ready.')
+  await click(lineRow(wrapper, 1).get('.unskip'))
+  expect(lineRow(wrapper, 1).find('.pick-ingredient').exists()).toBe(true)
+  await click(lineRow(wrapper, 1).get('.skip'))
+  await click(saveButton(wrapper))
+  const body = sent[0] as { sections: { items: { ingredient_id: number }[] }[] }
+  expect(body.sections[0]!.items.map((i) => i.ingredient_id)).toEqual([1])
+  wrapper.unmount()
+})
+
+test('tapping the banner scrolls to the next line that needs you and cycles', async () => {
+  const scrolled: Element[] = []
+  const original = Element.prototype.scrollIntoView
+  Element.prototype.scrollIntoView = function (this: Element) {
+    scrolled.push(this)
+  }
+  const { wrapper } = await mountImported()
+  const needing = wrapper.findAll('.needs-you').map((w) => w.element)
+  await click(wrapper.get('.import-banner'))
+  await click(wrapper.get('.import-banner'))
+  await click(wrapper.get('.import-banner'))
+  expect(scrolled).toEqual([needing[0], needing[1], needing[0]])
+  Element.prototype.scrollIntoView = original
+  wrapper.unmount()
+})
+
+test('leaving an imported draft asks first; Keep editing stays; Discard leaves', async () => {
+  const { wrapper, router } = await mountImported()
+  await click(wrapper.get('[aria-label="Back"]'))
+  expect(dialog().text).toContain('Discard this recipe?')
+  expect(router.currentRoute.value.fullPath).toBe('/recipes/new')
+  await dialog().click('Keep editing')
+  await new Promise((resolve) => setTimeout(resolve, 400))
+  expect(router.currentRoute.value.fullPath).toBe('/recipes/new')
+  await click(wrapper.get('[aria-label="Back"]'))
+  await dialog().click('Discard')
+  expect(router.currentRoute.value.fullPath).toBe('/recipes')
+  wrapper.unmount()
+})
+
+test('a saved imported recipe leaves without asking', async () => {
+  const { handler } = recorder(201, (body) => ({ ...porridge, ...body, id: 8 }))
+  const { wrapper, router } = await mountImported([porridgeLine], { 'POST /api/recipes': handler })
+  await click(saveButton(wrapper))
+  expect(router.currentRoute.value.fullPath).toBe('/recipes')
+  wrapper.unmount()
+})
+
+test('an ordinary new recipe never asks, and a reload of an import is the empty editor', async () => {
+  const { wrapper, router } = await mountPage('/recipes/new')
+  expect(wrapper.find('.import-banner').exists()).toBe(false)
+  expect(value(wrapper, 'Name')).toBe('')
+  await field(wrapper, 'Name').setValue('Half typed')
+  await click(wrapper.get('[aria-label="Back"]'))
+  expect(router.currentRoute.value.fullPath).toBe('/recipes')
+  wrapper.unmount()
+})
+
+test('the cut note shows when the text was cut', async () => {
+  const { wrapper } = await mountImported(undefined, {}, { cut: true })
+  expect(wrapper.get('.import-banner').text()).toContain('The text was long: the end was left out.')
+  wrapper.unmount()
+})
+
+test('a server refusal of a conversion shows the save message and keeps the page', async () => {
+  const refusal = {
+    status: 422,
+    body: { detail: [{ loc: ['body', 'new_conversions', 0, 'unit'], type: 'duplicate', msg: 'x' }] },
+  }
+  const { wrapper, router } = await mountImported([porridgeLine, almondLine], { 'POST /api/recipes': refusal })
+  await click(lineRow(wrapper, 1).get('.accept-factor'))
+  await click(saveButton(wrapper))
+  expect(wrapper.text()).toContain('A conversion was refused. Check the units of the lines and save again.')
+  expect(router.currentRoute.value.fullPath).toBe('/recipes/new')
   wrapper.unmount()
 })

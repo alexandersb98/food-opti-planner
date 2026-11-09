@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, provide, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute, useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRoute, useRouter, type RouteLocationNormalized } from 'vue-router'
 import { api } from '../api/client'
 import type { Attribute, Conversion, Ingredient, Recipe, Tag } from '../api/types'
 import ConfirmDelete from '../components/ConfirmDelete.vue'
@@ -9,11 +9,24 @@ import ConversionDialog from '../components/ConversionDialog.vue'
 import EditorHeader from '../components/EditorHeader.vue'
 import IngredientPicker from '../components/IngredientPicker.vue'
 import LoadState from '../components/LoadState.vue'
+import NewIngredientDialog from '../components/NewIngredientDialog.vue'
 import RecipeSection from '../components/RecipeSection.vue'
 import { loadAll, useLoad } from '../composables/useLoad'
 import { useRecipeDraft, type DraftLine } from '../composables/useRecipeDraft'
 import { valueText } from '../format'
-import { lineFactor } from '../lineUnits'
+import { takeImportedDraft } from '../importDraft'
+import {
+  acceptable,
+  factorSource,
+  importReviewKey,
+  ingredientWithPending,
+  lineState,
+  needsYou,
+  pendingKey,
+  type FactorRow,
+  type ImportReview,
+} from '../importReview'
+import { isOwn, lineFactor } from '../lineUnits'
 import { byId } from '../lists'
 import { typedNumber } from '../numbers'
 import { portionTotals } from '../totals'
@@ -23,8 +36,11 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 
-// The editor for a new recipe (/recipes/new) or an existing one.
+// The editor for a new recipe (/recipes/new) or an existing one. A new one may
+// open an imported draft for review: taken once here, not in the loader, so a
+// retry of the load cannot lose it.
 const id = route.params.id === undefined ? null : Number(route.params.id)
+const importedDraft = id === null ? takeImportedDraft() : null
 
 const {
   draft,
@@ -35,7 +51,13 @@ const {
   defaultHardMax,
   servingsNumber,
   fillDraft,
+  fillImported,
   addIngredient,
+  setLineIngredient,
+  skipLine,
+  unskipLine,
+  acceptFactor,
+  forgetFactor,
   removeLine,
   moveLine,
   addSection,
@@ -70,6 +92,7 @@ const { data, loading, failed, load } = useLoad(
           : api.GET('/api/recipes/{recipe_id}', { params: { path: { recipe_id: id } } }),
     })
     if (loaded.data?.recipe) fillDraft(loaded.data.recipe)
+    else if (importedDraft && loaded.data) fillImported(importedDraft)
     return loaded
   },
   {
@@ -85,7 +108,7 @@ const ingredients = computed(() => byId(data.value.ingredients))
 /** What one of a line's `unit` makes of its ingredient's own unit (null: it
  * doesn't convert), by the server's rule. */
 function factorOf(ingredient: Ingredient, unit: string) {
-  return lineFactor(units.ratio, ingredient, unit)
+  return lineFactor(units.ratio, ingredientWithPending(ingredient, draft.pending), unit)
 }
 
 /** A line's ingredient; none for an imported line not matched yet. */
@@ -107,8 +130,8 @@ function converts(line: DraftLine) {
  * counts as 0. */
 const totals = computed(() => {
   const amounts = draft.sections.flatMap((section) =>
-    section.items.flatMap(({ ingredientId, amount, unit }) => {
-      const ingredient = ingredientOf({ ingredientId })
+    section.items.flatMap(({ ingredientId, amount, unit, skipped }) => {
+      const ingredient = skipped ? undefined : ingredientOf({ ingredientId })
       const number = typedNumber(amount)
       return ingredient && number !== null ? [{ ingredient, amount: number, unit }] : []
     }),
@@ -128,6 +151,7 @@ function movesFrom(index: number) {
 
 function askForIngredient(index: number) {
   pickerSection.value = index
+  pickTarget.value = null
   pickerOpen.value = true
 }
 
@@ -167,8 +191,178 @@ function conversionSaved(saved: Conversion) {
 }
 
 function save() {
-  return saveDraft(data.value.tags, () => router.push('/recipes'), converts)
+  if (blocked.value) return
+  return saveDraft(
+    data.value.tags,
+    () => {
+      saved.value = true // leaving after a save is not leaving a draft
+      return router.push('/recipes')
+    },
+    converts,
+  )
 }
+
+// The import review ------------------------------------------------------------
+// Each imported line's state is worked out here from the draft, the ingredients
+// and the accepted conversions, so every change shows at once.
+
+const reviewLines = computed(() => draft.sections.flatMap((section) => section.items))
+const needsCount = computed(() =>
+  draft.imported ? needsYou(reviewLines.value, ingredients.value, draft.pending, units.ratio) : 0,
+)
+/** An imported recipe can't be saved while a line needs the user. */
+const blocked = computed(() => needsCount.value > 0)
+
+function stateOf(line: DraftLine) {
+  return lineState(line, ingredientOf(line), draft.pending, units.ratio)
+}
+
+// What the user typed in a factor row, and the AI's suggestions asked for
+// lines matched by hand, by ingredient and unit (`pendingKey`).
+const typed = reactive<Record<string, { text: string; loading: boolean }>>({})
+const suggestions = reactive<Record<string, string | null>>({})
+
+function keyOf(line: DraftLine) {
+  return line.ingredientId === null ? '' : pendingKey(line.ingredientId, line.unit)
+}
+
+/** The AI's number for a line's ingredient and unit, if one was given. */
+function suggestedFor(line: DraftLine): string | null {
+  const key = keyOf(line)
+  if (suggestions[key] != null) return suggestions[key]
+  return reviewLines.value.find((other) => keyOf(other) === key && other.suggestedFactor !== null)?.suggestedFactor ?? null
+}
+
+function factorRow(line: DraftLine): FactorRow | null {
+  if (line.ingredientId === null || line.skipped) return null
+  const key = keyOf(line)
+  const accepted = draft.pending.find((p) => pendingKey(p.ingredientId, p.unit) === key)
+  if (accepted) return { text: accepted.factor, ai: accepted.source === 'ai', loading: false, accepted: true }
+  if (stateOf(line) !== 'needs_factor') return null
+  const suggested = suggestedFor(line)
+  const row = typed[key]
+  const text = row?.text ?? suggested ?? ''
+  return { text, ai: suggested !== null && factorSource(text, suggested) === 'ai', loading: row?.loading ?? false, accepted: false }
+}
+
+/** Ask the AI for a number for a line matched by hand that needs one. */
+async function suggestFor(line: DraftLine) {
+  const key = keyOf(line)
+  if (line.ingredientId === null || stateOf(line) !== 'needs_factor' || suggestedFor(line) !== null || typed[key]?.loading) return
+  typed[key] = { text: typed[key]?.text ?? '', loading: true }
+  try {
+    const { data: answer } = await api.POST('/api/recipe-imports/factor', {
+      body: { ingredient_id: line.ingredientId, unit: line.unit, food: line.food || line.unit },
+    })
+    if (answer) {
+      suggestions[key] = answer.factor
+      if (typed[key]!.text === '') typed[key]!.text = answer.factor
+    }
+  } catch {
+    // no suggestion: the box stays empty to type in
+  } finally {
+    typed[key]!.loading = false
+  }
+}
+
+// The line whose "Pick ingredient" opened the picker (null: "+ Add ingredient").
+const pickTarget = ref<{ section: number; line: number } | null>(null)
+const newOpen = ref(false)
+const pickedLine = () => (pickTarget.value ? draft.sections[pickTarget.value.section]?.items[pickTarget.value.line] : undefined)
+const pickerSearch = computed(() => pickedLine()?.food ?? '')
+const newName = computed(() => {
+  const food = pickedLine()?.food.trim() ?? ''
+  return food.charAt(0).toUpperCase() + food.slice(1)
+})
+
+/** Match the line that asked with an ingredient: its unit stays as imported
+ * (empty when it is the ingredient's own), and a number is asked for if needed. */
+function matchPicked(ingredient: Ingredient) {
+  const target = pickTarget.value
+  const line = pickedLine()
+  if (!target || !line) return
+  setLineIngredient(target.section, target.line, ingredient)
+  if (isOwn(units.ratio, ingredient, line.unit)) line.unit = ''
+  void suggestFor(line)
+}
+
+function ingredientPicked(ingredient: Ingredient) {
+  if (pickTarget.value) matchPicked(ingredient)
+  else addIngredient(pickerSection.value, ingredient)
+}
+
+function ingredientCreated(ingredient: Ingredient) {
+  data.value.ingredients.push(ingredient)
+  matchPicked(ingredient)
+}
+
+const review: ImportReview = {
+  state: stateOf,
+  factor: factorRow,
+  pick(section, line) {
+    pickTarget.value = { section, line }
+    pickerOpen.value = true
+  },
+  skip: skipLine,
+  unskip: unskipLine,
+  accept(section, lineIndex, text) {
+    const line = draft.sections[section]?.items[lineIndex]
+    const factor = acceptable(text)
+    if (!line || line.ingredientId === null || factor === null) return
+    acceptFactor(line.ingredientId, line.unit, factor, suggestedFor(line))
+    delete typed[keyOf(line)]
+  },
+  change(section, lineIndex) {
+    const line = draft.sections[section]?.items[lineIndex]
+    if (!line || line.ingredientId === null) return
+    const key = keyOf(line)
+    const accepted = draft.pending.find((p) => pendingKey(p.ingredientId, p.unit) === key)
+    forgetFactor(line.ingredientId, line.unit)
+    typed[key] = { text: accepted?.factor ?? '', loading: false }
+  },
+  factorInput(section, lineIndex, text) {
+    const line = draft.sections[section]?.items[lineIndex]
+    if (line) typed[keyOf(line)] = { text, loading: false }
+  },
+}
+// Only an imported draft is reviewed; an ordinary editor provides nothing.
+if (importedDraft) provide(importReviewKey, review)
+
+/** The banner: scrolls to the next line that needs the user, cycling. */
+const form = ref<{ $el: HTMLElement } | null>(null)
+let scrolled = -1
+function scrollToNext() {
+  const lines = [...(form.value?.$el.querySelectorAll<HTMLElement>('.needs-you') ?? [])]
+  if (lines.length === 0) return
+  scrolled = (scrolled + 1) % lines.length
+  lines[scrolled]!.scrollIntoView({ behavior: 'smooth', block: 'center' })
+}
+
+// Leaving an imported draft asks first; a save sets `saved` so its own
+// navigation isn't stopped.
+const saved = ref(false)
+const leaveOpen = ref(false)
+let leaveTo: RouteLocationNormalized | null = null
+const unsaved = () => draft.imported !== null && !saved.value
+
+onBeforeRouteLeave((to) => {
+  if (!unsaved()) return true
+  leaveTo = to
+  leaveOpen.value = true
+  return false
+})
+
+async function discard() {
+  saved.value = true
+  leaveOpen.value = false
+  if (leaveTo) await router.push(leaveTo.fullPath)
+}
+
+function warnBeforeUnload(event: BeforeUnloadEvent) {
+  if (unsaved()) event.preventDefault()
+}
+onMounted(() => window.addEventListener('beforeunload', warnBeforeUnload))
+onBeforeUnmount(() => window.removeEventListener('beforeunload', warnBeforeUnload))
 
 async function confirmDelete() {
   const deleted = await remove()
@@ -191,9 +385,30 @@ async function confirmDelete() {
       @retry="load"
     >
       <q-form
+        ref="form"
         class="q-gutter-y-md"
         @submit="save"
       >
+        <q-banner
+          v-if="draft.imported"
+          class="import-banner bg-blue-1 text-dark cursor-pointer"
+          rounded
+          role="button"
+          tabindex="0"
+          @click="scrollToNext"
+          @keydown.enter="scrollToNext"
+        >
+          <div>
+            {{ needsCount > 0 ? $t('recipes.banner', { n: needsCount }, needsCount) : $t('recipes.bannerReady') }}
+          </div>
+          <div
+            v-if="draft.imported.cut"
+            class="import-cut text-caption"
+          >
+            {{ $t('recipes.bannerCut') }}
+          </div>
+        </q-banner>
+
         <q-input
           v-model="draft.name"
           outlined
@@ -463,7 +678,14 @@ async function confirmDelete() {
             color="primary"
             :label="$t('common.save')"
             :loading="saving"
+            :disable="blocked"
           />
+        </div>
+        <div
+          v-if="blocked"
+          class="save-blocked text-caption text-grey-8"
+        >
+          {{ $t('recipes.saveBlocked') }}
         </div>
       </q-form>
     </LoadState>
@@ -471,8 +693,43 @@ async function confirmDelete() {
     <IngredientPicker
       v-model="pickerOpen"
       :ingredients="data.ingredients"
-      @pick="(ingredient) => addIngredient(pickerSection, ingredient)"
+      :initial-search="pickerSearch"
+      :allow-new="pickTarget !== null"
+      @pick="ingredientPicked"
+      @new="newOpen = true"
     />
+    <NewIngredientDialog
+      v-model="newOpen"
+      :initial-name="newName"
+      @saved="ingredientCreated"
+    />
+    <q-dialog v-model="leaveOpen">
+      <q-card>
+        <q-card-section>
+          <div class="text-h6">
+            {{ $t('recipes.leaveTitle') }}
+          </div>
+          <p class="q-mb-none q-mt-sm">
+            {{ $t('recipes.leaveBody') }}
+          </p>
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn
+            v-close-popup
+            flat
+            no-caps
+            :label="$t('recipes.keepEditing')"
+          />
+          <q-btn
+            flat
+            no-caps
+            color="negative"
+            :label="$t('recipes.discard')"
+            @click="discard"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
     <ConversionDialog
       v-if="conversionIngredient"
       v-model="conversionOpen"

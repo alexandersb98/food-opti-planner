@@ -20,6 +20,7 @@ const props = defineProps<{
   /** The ingredient's name, for the label. */
   name: string
   error?: boolean
+  disable?: boolean
 }>()
 const emit = defineEmits<{ 'update:modelValue': [unit: string]; 'new-unit': [] }>()
 
@@ -81,6 +82,7 @@ function factorText(conversion: Conversion): string {
     :display-value="shown"
     :aria-label="t('recipes.unitOf', { name })"
     :error="error || stale"
+    :disable="disable"
     :class="{ 'unit-stale': stale }"
     behavior="menu"
     outlined

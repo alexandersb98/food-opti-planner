@@ -87,7 +87,10 @@ test('a success posts the text, shows the wait, hands the draft over and opens a
   await flushPromises()
   expect(sent).toEqual([{ text: 'Porridge for two' }])
   expect(router.currentRoute.value.fullPath).toBe('/recipes/new')
-  expect(takeImportedDraft()).toEqual(draft)
+  // the editor took the draft: it is open for review with the imported name
+  expect(takeImportedDraft()).toBeNull()
+  expect(wrapper.get<HTMLInputElement>('input[aria-label="Name"], .q-field input').element.value).toBe('Soup')
+  expect(wrapper.text()).toContain('Imported from pasted text')
   wrapper.unmount()
 })
 

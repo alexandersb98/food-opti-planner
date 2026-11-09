@@ -8,12 +8,15 @@ import { searchByName } from '../lists'
 // ingredients (an ingredient may be on several lines of a recipe); picking
 // one closes it.
 const open = defineModel<boolean>({ required: true })
-const props = defineProps<{ ingredients: readonly Ingredient[] }>()
-const emit = defineEmits<{ pick: [ingredient: Ingredient] }>()
+// `initialSearch` fills the search box each time the picker opens (the import
+// review passes the line's food); `allowNew` adds "+ New ingredient", which
+// closes the picker and says `new`.
+const props = defineProps<{ ingredients: readonly Ingredient[]; initialSearch?: string; allowNew?: boolean }>()
+const emit = defineEmits<{ pick: [ingredient: Ingredient]; new: [] }>()
 
 const { t } = useI18n()
 const search = ref<string | null>('')
-watch(open, () => (search.value = ''))
+watch(open, () => (search.value = props.initialSearch ?? ''))
 
 const shown = computed(() => searchByName(props.ingredients, search.value))
 
@@ -21,6 +24,11 @@ const emptyMessage = computed(() => {
   if (props.ingredients.length === 0) return t('recipes.noIngredients')
   return t('ingredients.noMatch')
 })
+
+function askForNew() {
+  emit('new')
+  open.value = false
+}
 
 function pick(ingredient: Ingredient) {
   emit('pick', ingredient)
@@ -76,6 +84,16 @@ function pick(ingredient: Ingredient) {
         </q-item>
       </q-list>
       <q-card-actions align="right">
+        <q-btn
+          v-if="allowNew"
+          class="new-ingredient"
+          flat
+          no-caps
+          color="primary"
+          :label="$t('recipes.newIngredient')"
+          @click="askForNew"
+        />
+        <q-space v-if="allowNew" />
         <q-btn
           v-close-popup
           flat

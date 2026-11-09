@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { inject } from 'vue'
 import type { Ingredient } from '../api/types'
 import type { DraftLine, DraftSection } from '../composables/useRecipeDraft'
+import { importReviewKey } from '../importReview'
+import ImportLineReview from './ImportLineReview.vue'
 import LineUnitPicker from './LineUnitPicker.vue'
 
 // One section of the recipe editor (C2): an optional heading, its lines (an
@@ -26,9 +29,37 @@ defineEmits<{
   removeSection: []
 }>()
 
+// Provided by the page only while an imported recipe is under review.
+const review = inject(importReviewKey, null)
+
 /** The ingredient of a line; none for an imported line not matched yet. */
 function ingredientOf(item: DraftLine): Ingredient | undefined {
   return item.ingredientId === null ? undefined : props.ingredients.get(item.ingredientId)
+}
+
+/** What a line's review wrapper shows. */
+function reviewProps(item: DraftLine) {
+  const ingredient = ingredientOf(item)
+  return {
+    line: item,
+    ingredient,
+    state: review!.state(item),
+    ownUnit: ingredient?.unit ?? '',
+    factor: review!.factor(item),
+  }
+}
+
+/** What a line's review wrapper asks for, with the line's place. */
+function reviewEvents(lineIndex: number) {
+  const at = props.index
+  return {
+    pick: () => review!.pick(at, lineIndex),
+    skip: () => review!.skip(at, lineIndex),
+    unskip: () => review!.unskip(at, lineIndex),
+    accept: (text: string) => review!.accept(at, lineIndex, text),
+    change: () => review!.change(at, lineIndex),
+    'factor-input': (text: string) => review!.factorInput(at, lineIndex, text),
+  }
 }
 </script>
 
@@ -46,14 +77,17 @@ function ingredientOf(item: DraftLine): Ingredient | undefined {
       :error-message="errors.name"
       hide-bottom-space
     />
-    <div
+    <component
+      :is="review ? ImportLineReview : 'div'"
       v-for="(item, lineIndex) in section.items"
       :key="item.key"
       class="recipe-item"
+      v-bind="review ? reviewProps(item) : {}"
+      v-on="review ? reviewEvents(lineIndex) : {}"
     >
       <div class="row items-start no-wrap q-gutter-x-sm">
         <div class="col item-name">
-          {{ ingredientOf(item)?.name }}
+          {{ ingredientOf(item)?.name ?? item.food }}
         </div>
         <q-input
           v-model="item.amount"
@@ -61,7 +95,8 @@ function ingredientOf(item: DraftLine): Ingredient | undefined {
           outlined
           dense
           inputmode="decimal"
-          :aria-label="$t('recipes.amountOf', { name: ingredientOf(item)?.name })"
+          :disable="review?.state(item) === 'skipped'"
+          :aria-label="$t('recipes.amountOf', { name: ingredientOf(item)?.name ?? item.food })"
           :error="!!errors.amounts[item.key]"
           :error-message="errors.amounts[item.key]"
           hide-bottom-space
@@ -72,6 +107,7 @@ function ingredientOf(item: DraftLine): Ingredient | undefined {
           :ingredient="ingredientOf(item)!"
           :name="ingredientOf(item)!.name"
           :error="!!errors.units?.[item.key]"
+          :disable="review?.state(item) === 'skipped'"
           @new-unit="$emit('newUnit', lineIndex)"
         />
         <q-btn
@@ -112,7 +148,7 @@ function ingredientOf(item: DraftLine): Ingredient | undefined {
       >
         {{ $t('recipes.unitNotConvertible', { unit: item.unit, name: ingredientOf(item)?.name }) }}
       </div>
-    </div>
+    </component>
     <div class="row items-center q-gutter-x-sm">
       <q-btn
         flat

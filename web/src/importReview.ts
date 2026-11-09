@@ -1,4 +1,6 @@
+import type { InjectionKey } from 'vue'
 import type { Conversion, Ingredient } from './api/types'
+import type { DraftLine } from './composables/useRecipeDraft'
 import { fraction, same } from './fractions'
 import { lineFactor, type Ratio } from './lineUnits'
 import { typedNumber } from './numbers'
@@ -77,3 +79,24 @@ export function factorSource(text: string, suggested: string | null): 'ai' | 'us
   if (typed === null || suggested === null) return 'user'
   return same(fraction(typed), fraction(suggested)) ? 'ai' : 'user'
 }
+
+/** The factor row of a line: the number as typed (or accepted), whether it is
+ * the AI's suggestion as it was, whether a suggestion is on its way, and
+ * whether it was accepted. */
+export type FactorRow = { text: string; ai: boolean; loading: boolean; accepted: boolean }
+
+/** What the recipe editor page gives its sections while an imported recipe
+ * is under review (a section injects it; a normal editor provides none). The
+ * numbers are the section's and the line's place in it. */
+export type ImportReview = {
+  state(line: DraftLine): LineState
+  factor(line: DraftLine): FactorRow | null
+  pick(section: number, line: number): void
+  skip(section: number, line: number): void
+  unskip(section: number, line: number): void
+  accept(section: number, line: number, text: string): void
+  change(section: number, line: number): void
+  factorInput(section: number, line: number, text: string): void
+}
+
+export const importReviewKey: InjectionKey<ImportReview> = Symbol('importReview')

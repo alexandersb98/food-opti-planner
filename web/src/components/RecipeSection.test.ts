@@ -1,7 +1,9 @@
 import { mount } from '@vue/test-utils'
 import { Quasar } from 'quasar'
+import { defineComponent, h, provide } from 'vue'
 import { afterEach, expect, test } from 'vitest'
 import { makeI18n } from '../i18n'
+import { importReviewKey, type ImportReview } from '../importReview'
 import { ingredient } from '../test-data'
 import type { DraftLine, DraftSection } from '../composables/useRecipeDraft'
 import RecipeSection from './RecipeSection.vue'
@@ -145,5 +147,49 @@ test('a unit error shows under its line only', () => {
   const rows = wrapper.findAll('.recipe-item')
   expect(rows[0]!.text()).not.toContain("doesn't convert")
   expect(rows[1]!.text()).toContain("dl of Milk doesn't convert. Pick another unit or add a conversion.")
+  wrapper.unmount()
+})
+
+// the import review -------------------------------------------------------------
+
+function mountReview(skippedKeys: number[] = []) {
+  const calls: string[] = []
+  const review: ImportReview = {
+    state: (line) => (skippedKeys.includes(line.key) ? 'skipped' : 'ready'),
+    factor: () => null,
+    pick: (s, l) => calls.push(`pick ${s} ${l}`),
+    skip: (s, l) => calls.push(`skip ${s} ${l}`),
+    unskip: (s, l) => calls.push(`unskip ${s} ${l}`),
+    accept: () => {},
+    change: () => {},
+    factorInput: () => {},
+  }
+  const draft = section()
+  const Host = defineComponent({
+    setup() {
+      provide(importReviewKey, review)
+      return () =>
+        h(RecipeSection, { section: draft, index: 0, count: 1, ingredients, errors: { name: '', amounts: {} }, others: [] })
+    },
+  })
+  const wrapper = mount(Host, { attachTo: document.body, global: { plugins: [Quasar, makeI18n()] } })
+  return { wrapper, calls }
+}
+
+test('without the injected review nothing of the review renders', () => {
+  const { wrapper } = mountSection()
+  expect(wrapper.find('.review-line').exists()).toBe(false)
+  expect(wrapper.find('.source-line').exists()).toBe(false)
+  wrapper.unmount()
+})
+
+test('in review a line is wrapped by its review, and a skipped line has its amount disabled', async () => {
+  const { wrapper } = mountReview([12])
+  const rows = wrapper.findAll('.recipe-item')
+  expect(rows).toHaveLength(2)
+  expect(rows.every((r) => r.classes().includes('review-line'))).toBe(true)
+  expect(rows[0]!.get('input').attributes('disabled')).toBeUndefined()
+  expect(rows[1]!.get('input').attributes('disabled')).toBeDefined()
+  expect(rows[1]!.classes()).toContain('line-skipped')
   wrapper.unmount()
 })
