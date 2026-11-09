@@ -34,6 +34,7 @@ const NEW_ROW: Attribute = {
   decimals: DECIMALS.default,
   ingredient_count: 0,
   goal_count: 0,
+  mapping_count: 0,
 }
 const rows = computed(() =>
   openId.value === 'new' ? [...attributes.value, NEW_ROW] : attributes.value,

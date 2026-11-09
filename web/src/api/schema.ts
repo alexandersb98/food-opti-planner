@@ -566,6 +566,8 @@ export interface components {
             id: number;
             /** Ingredient Count */
             ingredient_count: number;
+            /** Mapping Count */
+            mapping_count: number;
             /** Name */
             name: string;
             /** Unit */

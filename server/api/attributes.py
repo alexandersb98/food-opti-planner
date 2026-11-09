@@ -37,6 +37,8 @@ class Attribute(AttributeFields):
     # What deleting the attribute removes, for the warning.
     ingredient_count: int
     goal_count: int
+    # The source columns mapped to it (withdrawn ones too).
+    mapping_count: int
 
 
 def _counts(db: DbSession) -> dict[str, dict[int, int]]:
@@ -44,6 +46,7 @@ def _counts(db: DbSession) -> dict[str, dict[int, int]]:
     return {
         "ingredient_count": count_by(db, models.IngredientValue.attribute_id),
         "goal_count": count_by(db, models.Goal.attribute_id),
+        "mapping_count": count_by(db, models.SourceColumn.attribute_id),
     }
 
 

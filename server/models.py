@@ -457,7 +457,11 @@ class SourceColumn(Base):
     file no longer has is `withdrawn`, never deleted."""
 
     __tablename__ = "source_columns"
-    __table_args__ = (UniqueConstraint("source_id", "key", name="uq_source_columns_source_id_key"),)
+    __table_args__ = (
+        UniqueConstraint("source_id", "key", name="uq_source_columns_source_id_key"),
+        # NULLs (unmapped columns) never clash, on SQLite and Postgres alike.
+        UniqueConstraint("source_id", "attribute_id", name="uq_source_columns_source_id_attribute_id"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     source_id: Mapped[int] = mapped_column(ForeignKey("data_sources.id", ondelete="CASCADE"))
@@ -465,6 +469,8 @@ class SourceColumn(Base):
     name: Mapped[str] = mapped_column(String(SOURCE_ITEM_NAME_LENGTH))
     unit: Mapped[str] = mapped_column(String(UNIT_LENGTH))
     withdrawn: Mapped[bool] = mapped_column(default=False, server_default=false())
+    # set: the attribute this column feeds (data source spec, decision 5)
+    attribute_id: Mapped[int | None] = mapped_column(ForeignKey("attributes.id", ondelete="SET NULL"))
 
 
 class SourceFood(Base):

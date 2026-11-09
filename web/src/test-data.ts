@@ -8,7 +8,7 @@ import unitFixture from './test-units.json'
 type Given<T, Required extends keyof T> = Pick<T, Required> & Partial<T>
 
 export function attribute(fields: Given<Attribute, 'id' | 'name'>): Attribute {
-  return { unit: '', decimals: 0, ingredient_count: 0, goal_count: 0, ...fields }
+  return { unit: '', decimals: 0, ingredient_count: 0, goal_count: 0, mapping_count: 0, ...fields }
 }
 
 export function tag(fields: Given<Tag, 'id' | 'name'>): Tag {

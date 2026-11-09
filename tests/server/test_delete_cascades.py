@@ -3,6 +3,13 @@ it from whatever uses it. Each list response counts those uses for the
 warning. Deleting an ingredient a recipe uses is refused instead (test_recipes.py)."""
 
 
+from sqlalchemy.orm import Session
+
+from server import models
+
+from .conftest import Catalog
+
+
 def by_name(client, path, field):
     return {row["name"]: row[field] for row in client.get(path).json()}
 
@@ -101,3 +108,47 @@ def test_deleting_a_tag_removes_its_plan_filter(client, catalog):
     assert client.put("/api/plan", json=plan).status_code == 200
     assert client.delete(f"/api/tags/{vegan}").status_code == 204
     assert client.get("/api/plan").json()["tag_filters"] == [{"tag_id": nuts, "mode": "never"}]
+
+
+def column_ids(client, source):
+    """Column ids of a source by column key."""
+    columns = client.get(f"/api/data-sources/{source}").json()["columns"]
+    return {c["key"]: c["id"] for c in columns}
+
+
+def map_column(client, column_id, attribute_id, *, withdrawn=False):
+    """Map a column straight in the database (the API route is tested elsewhere)."""
+    with Session(client.app.state.engine) as db:
+        column = db.get(models.SourceColumn, column_id)
+        column.attribute_id, column.withdrawn = attribute_id, withdrawn
+        db.commit()
+
+
+def mapping(client, column_id):
+    with Session(client.app.state.engine) as db:
+        return db.get(models.SourceColumn, column_id).attribute_id
+
+
+def test_an_attribute_counts_the_columns_mapped_to_it(two_sources_client):
+    client, catalog = two_sources_client, Catalog(two_sources_client)
+    protein = catalog.attribute("Protein", "g")
+    catalog.attribute("Energy", "kcal")
+    test, other = column_ids(client, "testsource"), column_ids(client, "other")
+    map_column(client, test["PROT"], protein)
+    map_column(client, other["PROT"], protein, withdrawn=True)
+    assert by_name(client, "/api/attributes", "mapping_count") == {"Protein": 2, "Energy": 0}
+
+
+def test_deleting_an_attribute_clears_the_mappings_and_keeps_the_columns(two_sources_client):
+    client, catalog = two_sources_client, Catalog(two_sources_client)
+    protein, energy = catalog.attribute("Protein", "g"), catalog.attribute("Energy", "kcal")
+    test, other = column_ids(client, "testsource"), column_ids(client, "other")
+    map_column(client, test["PROT"], protein)
+    map_column(client, test["ENERC:kcal"], energy)
+    map_column(client, other["PROT"], protein)
+
+    assert client.delete(f"/api/attributes/{protein}").status_code == 204
+
+    assert mapping(client, test["PROT"]) is None and mapping(client, other["PROT"]) is None
+    assert mapping(client, test["ENERC:kcal"]) == energy
+    assert set(column_ids(client, "testsource")) == {"PROT", "ENERC:kcal", "VITD"}

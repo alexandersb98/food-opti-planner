@@ -169,6 +169,57 @@ def test_a_withdrawn_food_and_column_come_back(db, tmp_path):
     assert foods(db)["3"].withdrawn is True
 
 
+def map_columns(db, **by_key):
+    """Map columns (by key) to new attributes given as key -> (name, unit)."""
+    for key, (name, unit) in by_key.items():
+        attribute = models.Attribute(name=name, unit=unit, decimals=1)
+        db.add(attribute)
+        db.flush()
+        columns(db)[key].attribute_id = attribute.id
+    db.commit()
+
+
+def mapped(db):
+    db.expire_all()
+    return {k: c.attribute_id is not None for k, c in columns(db).items()}
+
+
+def test_a_new_file_clears_a_mapping_that_no_longer_converts(db, tmp_path, caplog):
+    load(db, tmp_path, test_source())
+    map_columns(db, PROT=("Protein", "g"), **{"ENERC:kcal": ("Energy", "kcal")})
+    data = test_source(version="2026-02-01")
+    data["columns"][0]["unit"] = "kcal"  # PROT: g -> kcal, no longer converts
+    data["columns"][1]["unit"] = "kJ"  # ENERC: kcal -> kJ, same category
+
+    with caplog.at_level(logging.WARNING, logger="uvicorn.error"):
+        load(db, tmp_path, data)
+
+    assert mapped(db) == {"PROT": False, "ENERC:kcal": True, "VITD": False}
+    warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+    assert warnings == ["column TEST Protein of TEST Source now in kcal; mapping to Protein cleared"]
+
+
+def test_a_unit_change_within_the_category_keeps_the_mapping(db, tmp_path):
+    load(db, tmp_path, test_source())
+    map_columns(db, PROT=("Protein", "g"))
+    data = test_source(version="2026-02-01")
+    data["columns"][0]["unit"] = "mg"
+
+    load(db, tmp_path, data)
+
+    assert mapped(db)["PROT"] is True
+
+
+def test_a_withdrawn_column_keeps_its_mapping(db, tmp_path):
+    load(db, tmp_path, test_source())
+    map_columns(db, VITD=("Vitamin D", "µg"))
+
+    load(db, tmp_path, version_2())  # version 2 has no VITD
+
+    assert columns(db)["VITD"].withdrawn is True
+    assert mapped(db)["VITD"] is True
+
+
 def test_a_groups_tag_survives_its_group_leaving(db, tmp_path):
     load(db, tmp_path, test_source())
     dairy = db.scalars(select(models.Tag).where(models.Tag.name == "TEST Dairy")).one().id

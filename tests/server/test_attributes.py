@@ -25,6 +25,7 @@ def test_a_created_attribute_is_listed_with_what_deleting_it_removes(client):
         "unit": "g",
         "decimals": 1,
         "ingredient_count": 0,
+        "mapping_count": 0,
         "goal_count": 0,
     }
     assert client.get("/api/attributes").json() == [created]

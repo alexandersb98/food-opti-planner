@@ -19,7 +19,7 @@ from typing import Any
 from sqlalchemy import Engine, delete, func, insert, select
 from sqlalchemy.orm import Session
 
-from . import models
+from . import models, units
 
 # Uvicorn's logger, as it is the only one the server's runner configures: a
 # module logger's info lines would never show in the container's log.
@@ -226,6 +226,7 @@ def _load(db: Session, file: DataFile) -> bool:
     db.flush()
 
     column_ids = _load_columns(db, source, file)
+    _clear_broken_mappings(db, source)
     food_ids = _load_foods(db, source, file)
     # Withdrawn foods keep their values and tags; the others are replaced.
     active = select(models.SourceFood.id).where(
@@ -289,6 +290,25 @@ def _load_columns(db: Session, source: models.DataSource, file: DataFile) -> dic
     _insert(db, models.SourceColumn, new)
     db.flush()
     return _ids(db, models.SourceColumn, source, in_file)
+
+
+def _clear_broken_mappings(db: Session, source: models.DataSource) -> None:
+    """A mapped column whose unit no longer converts with its attribute's
+    loses the mapping (data source spec, decision 7: every stored mapping
+    converts). A change within the category keeps it."""
+    rows = db.execute(
+        select(models.SourceColumn, models.Attribute)
+        .join(models.Attribute, models.Attribute.id == models.SourceColumn.attribute_id)
+        .where(models.SourceColumn.source_id == source.id)
+    )
+    for column, attribute in rows.all():
+        if units.factor(column.unit, attribute.unit) is None:
+            logger.warning(
+                "column %s of %s now in %s; mapping to %s cleared",
+                column.name, source.name, column.unit or "no unit", attribute.name,
+            )
+            column.attribute_id = None
+    db.flush()
 
 
 def _load_foods(db: Session, source: models.DataSource, file: DataFile) -> dict[str, int]:

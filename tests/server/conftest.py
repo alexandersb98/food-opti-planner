@@ -193,3 +193,21 @@ def data_client(database_url, web_dist, data_sources_dir):
     """A logged-in client of an app that loaded the TEST source at startup."""
     with logged_in_client(database_url, web_dist, data_sources_dir=data_sources_dir) as client:
         yield client
+
+
+@pytest.fixture
+def two_sources_client(database_url, web_dist, data_sources_dir):
+    """Like `data_client`, with a second source, `other` ("TEST Other"), whose
+    columns are PROT "Other Protein" in g and DOSE "Other Dose" in `dose`."""
+    other = test_source(
+        key="other",
+        name="TEST Other",
+        columns=[
+            {"key": "PROT", "name": "Other Protein", "unit": "g"},
+            {"key": "DOSE", "name": "Other Dose", "unit": "dose"},
+        ],
+        foods=[],
+    )
+    write(data_sources_dir, other, "other.json.gz")
+    with logged_in_client(database_url, web_dist, data_sources_dir=data_sources_dir) as client:
+        yield client

@@ -21,6 +21,10 @@
             "title": "Ingredient Count",
             "type": "integer"
           },
+          "mapping_count": {
+            "title": "Mapping Count",
+            "type": "integer"
+          },
           "name": {
             "maxLength": 100,
             "minLength": 1,
@@ -39,7 +43,8 @@
           "decimals",
           "id",
           "ingredient_count",
-          "goal_count"
+          "goal_count",
+          "mapping_count"
         ],
         "title": "Attribute",
         "type": "object"
