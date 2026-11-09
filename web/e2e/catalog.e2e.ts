@@ -13,6 +13,10 @@ import { expect, test, type Page } from '@playwright/test'
 // and finally make vegan equivalent to a source tag (the rule question, the count of the
 // recipe filters) and take it out again. The recipe also gets servings, instructions and a
 // source link, then sections with the same ingredient on two lines, which are taken out again.
+// Then line units and conversions: a conversion on the ingredient (a duplicate refused), a
+// recipe line in dl through the unit picker, the conversion in use, and a unit change that
+// converts the lines in the ingredient's unit and the conversion (and is refused for another
+// category), then the dl line and the conversion taken out again.
 
 const password = process.env.E2E_PASSWORD
 if (!password) throw new Error('Set E2E_PASSWORD to the login password')
@@ -224,6 +228,84 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await page.getByLabel('Source').fill('')
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(page.locator('.recipe-row')).toHaveText([/Porridge\s*Per portion: Energy 233 kcal/])
+
+  // Conversions and line units. Oats is in kg now (the unit change above): "1 dl
+  // = 0.04 kg" is added on its page, and a second one for dl is refused. A
+  // second Oats line in Porridge is in dl through the picker, which offers
+  // other units and the conversion, and the total is the same as 100 g.
+  await openPage(page, 'Ingredients')
+  await page.locator('.ingredient-row').click()
+  const conversions = page.locator('.conversions-card')
+  await expect(conversions).toContainText('No conversions yet.')
+  await conversions.getByRole('button', { name: '+ Add conversion' }).click()
+  const conversionDialog = page.getByRole('dialog')
+  await conversionDialog.getByLabel('Unit', { exact: true }).fill('dl')
+  await conversionDialog.getByLabel('How many kg one makes').fill('0.04')
+  await conversionDialog.getByRole('button', { name: 'Save' }).click()
+  await expect(page.locator('.conversion-row')).toHaveText([/1 dl = 0\.04 kg/])
+  await conversions.getByRole('button', { name: '+ Add conversion' }).click()
+  await conversionDialog.getByLabel('Unit', { exact: true }).fill('dl')
+  await conversionDialog.getByLabel('How many kg one makes').fill('0.04')
+  await conversionDialog.getByRole('button', { name: 'Save' }).click()
+  await expect(conversionDialog).toContainText('This ingredient has a conversion for that unit already.')
+  await conversionDialog.getByRole('button', { name: 'Cancel' }).click()
+  await page.getByRole('link', { name: 'Back' }).click()
+
+  await openPage(page, 'Recipes')
+  await page.locator('.recipe-row').click()
+  await page.getByRole('button', { name: '+ Add ingredient' }).click()
+  await page.getByRole('dialog').getByText('Oats').click()
+  await page.getByLabel('Amount of Oats').nth(1).fill('1')
+  await page.getByLabel('Unit of Oats').nth(1).click()
+  await expect(page.getByRole('option', { name: 'oz (ounce)' })).toBeVisible()
+  await expect(page.getByRole('option', { name: 'msk (tablespoon)' })).toBeVisible()
+  await page.getByRole('option', { name: /^dl/ }).click()
+  await expect(page.locator('.portion-total')).toHaveText(['Energy 389 kcal'])
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.locator('.recipe-row')).toHaveText([/Porridge\s*Per portion: Energy 389 kcal/])
+
+  // The conversion is used now: it says so and can't be deleted. A change of
+  // category is refused while it and the dl line exist, the form staying open;
+  // kg to g converts the own-unit line and the conversion, and leaves the dl
+  // line as written.
+  await openPage(page, 'Ingredients')
+  await page.locator('.ingredient-row').click()
+  await expect(page.locator('.conversion-row')).toContainText('Used in 1 recipe')
+  await expect(page.getByRole('button', { name: 'Delete the conversion for dl' })).toBeDisabled()
+  await page.getByLabel('Measured in').click()
+  await page.getByRole('option', { name: 'st (piece)' }).click()
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByText('Oats has 1 conversion and 1 recipe line in another unit')).toBeVisible()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.getByLabel('Measured in').click()
+  await page.getByRole('option', { name: 'g (gram)', exact: true }).click()
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByRole('dialog')).toContainText(
+    'Oats: the basis, 1 recipe amount and 1 conversion will be converted from kg to g (× 1000).',
+  )
+  await page.getByRole('dialog').getByRole('button', { name: 'Convert' }).click()
+  await expect(page.locator('.ingredient-row')).toHaveText([/Oats\s*per 100 g · Energy 389 kcal/])
+  await page.locator('.ingredient-row').click()
+  await expect(page.locator('.conversion-row')).toHaveText([/1 dl = 40 g/])
+  await page.getByRole('link', { name: 'Back' }).click()
+
+  // Porridge reads as before in total: 60 g, then 1 dl as written. Taking the
+  // dl line out frees the conversion, which is then deleted.
+  await openPage(page, 'Recipes')
+  await page.locator('.recipe-row').click()
+  await expect(page.getByLabel('Amount of Oats').nth(0)).toHaveValue('60')
+  await expect(page.getByLabel('Amount of Oats').nth(1)).toHaveValue('1')
+  await expect(page.locator('.line-unit .q-field__native').nth(1)).toHaveText('dl')
+  await expect(page.locator('.portion-total')).toHaveText(['Energy 389 kcal'])
+  await page.getByRole('button', { name: 'Remove Oats' }).nth(1).click()
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.locator('.recipe-row')).toHaveText([/Porridge\s*Per portion: Energy 233 kcal/])
+  await openPage(page, 'Ingredients')
+  await page.locator('.ingredient-row').click()
+  await page.getByRole('button', { name: 'Delete the conversion for dl' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click()
+  await expect(page.locator('.conversions-card')).toContainText('No conversions yet.')
+  await page.getByRole('link', { name: 'Back' }).click()
 
   // The tag is no longer "added by hand", and deleting the attribute warns
   // about the ingredient value.
