@@ -6,7 +6,8 @@ import { expect, test, type Page } from '@playwright/test'
 // combo boxes over the unit catalogue), change the unit of an ingredient in use (its basis and
 // recipe amount convert after a dialog), then make a plan, then one that clashes and is fixed,
 // then map the source's columns to attributes (and create one from a column), and see what
-// that blocks and clears.
+// that blocks and clears, and finally add an ingredient from a source food (search, preview,
+// the chip on its page, mass units only, the duplicate warning) and unlink it.
 
 const password = process.env.E2E_PASSWORD
 if (!password) throw new Error('Set E2E_PASSWORD to the login password')
@@ -327,6 +328,64 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await page.locator('.data-sources-card').getByText('TEST Source').click()
   await expect(attributeSelect('TEST Protein')).toContainText('Not mapped')
   await expect(attributeSelect('TEST Energy')).toContainText('Energy')
+
+  // Add from data source: TEST Oats is searched, previewed (only Energy is mapped
+  // now, in kcal) and added under another name. Its page shows the chip and
+  // offers mass units only, and refuses a volume unit. A second look at the
+  // food warns about the ingredient made from it. Unlink removes the chip, and
+  // keeps the values.
+  await openPage(page, 'Ingredients')
+  await page.getByRole('button', { name: 'Add from data source' }).click()
+  const fromSource = page.getByRole('dialog')
+  await expect(fromSource.locator('.q-select')).toContainText('TEST Source')
+  await expect(fromSource.locator('.food-row')).toHaveText([/TEST Cheese\s*TEST Dairy/, /TEST Milk\s*TEST Dairy/, /TEST Oats\s*TEST Grains/])
+  await fromSource.getByLabel('Search foods').fill('oat')
+  await expect(fromSource.locator('.food-row')).toHaveCount(1)
+  await fromSource.locator('.food-row').click()
+  await expect(fromSource.getByLabel('Name')).toHaveValue('TEST Oats')
+  await expect(fromSource).toContainText('Measured in g, values per 100 g')
+  await expect(fromSource.locator('.values li')).toHaveText(['Energy 389 kcal'])
+  await expect(fromSource.locator('.tag-choice')).toHaveAttribute('aria-pressed', 'true')
+  await fromSource.getByLabel('Name').fill('Source oats')
+  await fromSource.getByRole('button', { name: 'Add', exact: true }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Edit ingredient')
+  await expect(page.locator('.source-chip')).toHaveText('From TEST Source: TEST Oats')
+  await expect(page.getByLabel('Name')).toHaveValue('Source oats')
+  await expect(page.getByLabel('Measured in')).toHaveValue('g')
+  await expect(page.getByLabel('Energy')).toHaveValue('389')
+  await expect(page.locator('.tag-choice', { hasText: 'TEST Grains' })).toHaveAttribute('aria-pressed', 'true')
+  await page.getByLabel('Measured in').click()
+  await expect(page.locator('.q-menu .q-item__label--header')).toHaveText(['Mass'])
+  await page.keyboard.press('Escape')
+  await page.getByLabel('Measured in').fill('dl')
+  await page.keyboard.press('Escape')
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByText(/can only be measured in a mass unit/)).toBeVisible()
+  await page.getByLabel('Measured in').fill('g')
+  await page.keyboard.press('Escape')
+  await page.reload()
+  await expect(page.locator('.source-chip')).toHaveText('From TEST Source: TEST Oats')
+
+  await page.getByRole('link', { name: 'Back' }).click()
+  await page.getByRole('button', { name: 'Add from data source' }).click()
+  await fromSource.getByLabel('Search foods').fill('oat')
+  await expect(fromSource.locator('.food-row')).toHaveCount(1)
+  await fromSource.locator('.food-row').click()
+  await expect(fromSource).toContainText('You already have an ingredient from this food: Source oats')
+  await fromSource.getByRole('button', { name: 'Close' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+
+  await page.locator('.ingredient-row').filter({ hasText: 'Source oats' }).click()
+  await page.getByRole('button', { name: 'Unlink from source' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Unlink', exact: true }).click()
+  await expect(page.locator('.source-chip')).toHaveCount(0)
+  await expect(page.getByLabel('Energy')).toHaveValue('389')
+  await page.getByLabel('Measured in').click()
+  await expect(page.locator('.q-menu .q-item__label--header')).toHaveText(['Mass', 'Volume', 'Other'])
+  await page.keyboard.press('Escape')
+  await page.reload()
+  await expect(page.getByLabel('Name')).toHaveValue('Source oats')
+  await expect(page.locator('.source-chip')).toHaveCount(0)
 
   // Designed at phone width: nothing scrolls sideways.
   const scrolls = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)
