@@ -1,7 +1,8 @@
 import { expect, test, type Page } from '@playwright/test'
 
 // One flow through the app, growing with each slice that changes it:
-// log in, set a preferred unit, build a small catalog and a recipe from it (the unit fields are
+// log in, set a preferred unit, look at the data source the server loaded from its fixture file
+// (its card, page and colour), build a small catalog and a recipe from it (the unit fields are
 // combo boxes over the unit catalogue), change the unit of an ingredient in use (its basis and
 // recipe amount convert after a dialog), then make a plan, then one that clashes and is fixed.
 
@@ -38,6 +39,24 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await page.getByRole('option', { name: 'g (gram)', exact: true }).click()
   await expect(mass).toContainText('g (gram)')
 
+  // The Data sources card lists the fixture's fake source (the server is
+  // started with DATA_SOURCES_DIR=tests/data/data_sources). Its page shows the
+  // attribution and columns, and a colour that is saved, not just shown.
+  const card = page.locator('.data-sources-card')
+  await expect(card.locator('.source-row')).toHaveText([/TEST Source\s*Version 2026-01-01 · 3 foods/])
+  await card.getByText('TEST Source').click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('TEST Source')
+  await expect(page.getByText('TEST data, not real: for tests only.')).toBeVisible()
+  await expect(page.locator('.column-row')).toHaveText([/TEST Energy/, /TEST Protein/, /TEST Vitamin D/])
+  await page.getByLabel('Search columns').fill('vit')
+  await expect(page.locator('.column-row')).toHaveText([/TEST Vitamin D/])
+  await page.getByLabel('Colour').fill('#ff0000')
+  await expect(page.getByLabel('Colour')).toHaveValue('#ff0000')
+  await page.reload()
+  await expect(page.getByLabel('Colour')).toHaveValue('#ff0000')
+  await page.getByRole('link', { name: 'Back' }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Settings')
+
   await openPage(page, 'Attributes')
   await page.getByText('+ New attribute').click()
   await page.getByLabel('Name').fill('Energy')
@@ -57,7 +76,20 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await page.getByText('+ New tag').click()
   await page.getByLabel('Name').fill('vegan')
   await page.getByRole('button', { name: 'Done' }).click()
-  await expect(page.locator('.tag-row')).toHaveText([/vegan.*added by hand/])
+  // The source's food groups are tags too, after the ones made by hand, in the
+  // source's colour, without Delete or a Name field.
+  const tagRows = page.locator('.tag-row')
+  await expect(tagRows).toHaveCount(3)
+  await expect(tagRows.first()).toHaveText(/vegan.*added by hand/)
+  for (const name of ['TEST Grains', 'TEST Dairy']) {
+    const row = tagRows.filter({ hasText: name })
+    await expect(row).toContainText('TEST Source')
+    await expect(row).not.toContainText('added by hand')
+  }
+  await tagRows.filter({ hasText: 'TEST Dairy' }).click()
+  await expect(page.getByRole('button', { name: 'Delete' })).toHaveCount(0)
+  await expect(page.getByLabel('Name')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Done' }).click()
 
   await openPage(page, 'Ingredients')
   await expect(page.getByText('No ingredients yet.')).toBeVisible()
@@ -133,7 +165,7 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   // The tag is no longer "added by hand", and deleting the attribute warns
   // about the ingredient value.
   await openPage(page, 'Tags')
-  await expect(page.locator('.tag-row')).not.toHaveText([/added by hand/])
+  await expect(page.locator('.tag-row').filter({ hasText: 'vegan' })).not.toContainText('added by hand')
   await openPage(page, 'Attributes')
   await page.locator('.attribute-row').click()
   await page.getByRole('button', { name: 'Delete' }).click()

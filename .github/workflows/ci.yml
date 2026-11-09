@@ -78,6 +78,7 @@ jobs:
           hash="$(docker run --rm meal-planner python -c \
             "from argon2 import PasswordHasher; print(PasswordHasher().hash('$E2E_PASSWORD'))")"
           docker run -d --name app --network host -e PORT=8080 \
+            -v "$PWD/tests/data/data_sources:/data_sources:ro" -e DATA_SOURCES_DIR=/data_sources \
             -e DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/planner_e2e \
             -e PASSWORD_HASH="$hash" -e SESSION_KEY=e2e meal-planner
           curl --fail --silent --show-error --retry 10 --retry-delay 2 --retry-all-errors \

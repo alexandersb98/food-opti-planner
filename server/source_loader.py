@@ -21,7 +21,9 @@ from sqlalchemy.orm import Session
 
 from . import models
 
-logger = logging.getLogger(__name__)
+# Uvicorn's logger, as it is the only one the server's runner configures: a
+# module logger's info lines would never show in the container's log.
+logger = logging.getLogger("uvicorn.error")
 
 CHUNK = 5_000
 # The colours new sources start with, in order and cycling: distinct, readable
