@@ -3,18 +3,21 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '../api/client'
-import type { Attribute, Ingredient, Recipe, Tag } from '../api/types'
+import type { Attribute, Conversion, Ingredient, Recipe, Tag } from '../api/types'
 import ConfirmDelete from '../components/ConfirmDelete.vue'
+import ConversionDialog from '../components/ConversionDialog.vue'
 import EditorHeader from '../components/EditorHeader.vue'
 import IngredientPicker from '../components/IngredientPicker.vue'
 import LoadState from '../components/LoadState.vue'
 import RecipeSection from '../components/RecipeSection.vue'
 import { loadAll, useLoad } from '../composables/useLoad'
-import { useRecipeDraft } from '../composables/useRecipeDraft'
+import { useRecipeDraft, type DraftLine } from '../composables/useRecipeDraft'
 import { valueText } from '../format'
+import { lineFactor } from '../lineUnits'
 import { byId } from '../lists'
 import { typedNumber } from '../numbers'
 import { portionTotals } from '../totals'
+import { useUnits } from '../units'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -42,13 +45,21 @@ const {
   save: saveDraft,
   remove,
 } = useRecipeDraft(id)
+const units = useUnits()
 const deleteOpen = ref(false)
 const pickerOpen = ref(false)
+// The line whose "New unit…" opened the conversion dialog: its section and
+// its place in the section.
+const conversionOpen = ref(false)
+const conversionFor = ref<{ section: number; line: number } | null>(null)
 // The section whose "+ Add ingredient" opened the picker.
 const pickerSection = ref(0)
 
 const { data, loading, failed, load } = useLoad(
   async () => {
+    // The catalogue is shared and loaded once; if it fails the page still
+    // works for lines in the ingredient's own unit and its conversions.
+    await units.load()
     const loaded = await loadAll({
       attributes: api.GET('/api/attributes'),
       tags: api.GET('/api/tags'),
@@ -71,18 +82,31 @@ const { data, loading, failed, load } = useLoad(
 
 const ingredients = computed(() => byId(data.value.ingredients))
 
+/** What one of a line's `unit` makes of its ingredient's own unit (null: it
+ * doesn't convert), by the server's rule. */
+function factorOf(ingredient: Ingredient, unit: string) {
+  return lineFactor(units.ratio, ingredient, unit)
+}
+
+/** Whether a line's unit converts to its ingredient's. */
+function converts(line: DraftLine) {
+  const ingredient = ingredients.value.get(line.ingredientId)
+  return !ingredient || factorOf(ingredient, line.unit) !== null
+}
+
 /** Live totals for one portion, by attribute: all the lines (amounts are for
- * the whole recipe) divided by the servings; an amount not yet a number
+ * the whole recipe, each converted to its ingredient's own unit) divided by
+ * the servings; an amount not yet a number, or a unit that doesn't convert,
  * counts as 0. */
 const totals = computed(() => {
   const amounts = draft.sections.flatMap((section) =>
-    section.items.flatMap(({ ingredientId, amount }) => {
+    section.items.flatMap(({ ingredientId, amount, unit }) => {
       const ingredient = ingredients.value.get(ingredientId)
       const number = typedNumber(amount)
-      return ingredient && number !== null ? [{ ingredient, amount: number }] : []
+      return ingredient && number !== null ? [{ ingredient, amount: number, unit }] : []
     }),
   )
-  return portionTotals(amounts, data.value.attributes, servingsNumber.value)
+  return portionTotals(amounts, data.value.attributes, servingsNumber.value, factorOf)
 })
 
 /** A section's name, or "Section n" while it has none. */
@@ -106,8 +130,37 @@ const sourceLink = computed(() => {
   return /^https?:\/\/\S+$/.test(link) ? link : null
 })
 
+function askForUnit(section: number, line: number) {
+  conversionFor.value = { section, line }
+  conversionOpen.value = true
+}
+
+/** The ingredient of the line that asked for a new unit. */
+const conversionIngredient = computed(() => {
+  const line = askingLine()
+  return line ? ingredients.value.get(line.ingredientId) : undefined
+})
+
+/** The line that asked for a new unit, if it is still there. */
+function askingLine(): DraftLine | undefined {
+  const asking = conversionFor.value
+  return asking ? draft.sections[asking.section]?.items[asking.line] : undefined
+}
+
+/** A conversion was saved: keep it in the page's copy of the ingredient and
+ * give the line that asked for it as its unit. */
+function conversionSaved(saved: Conversion) {
+  const line = askingLine()
+  const ingredient = line && ingredients.value.get(line.ingredientId)
+  if (!line || !ingredient) return
+  const conversions = [...ingredient.conversions.filter((c) => c.id !== saved.id), saved].sort((a, b) => a.id - b.id)
+  const index = data.value.ingredients.findIndex((i) => i.id === ingredient.id)
+  data.value.ingredients[index] = { ...ingredient, conversions }
+  line.unit = saved.unit
+}
+
 function save() {
-  return saveDraft(data.value.tags, () => router.push('/recipes'))
+  return saveDraft(data.value.tags, () => router.push('/recipes'), converts)
 }
 
 async function confirmDelete() {
@@ -174,11 +227,12 @@ async function confirmDelete() {
               :index="index"
               :count="draft.sections.length"
               :ingredients="ingredients"
-              :errors="{ name: errors.sectionNames[section.key] ?? '', amounts: errors.amounts }"
+              :errors="{ name: errors.sectionNames[section.key] ?? '', amounts: errors.amounts, units: errors.unitErrors }"
               :others="movesFrom(index)"
               @add="askForIngredient(index)"
               @remove-line="(lineIndex) => removeLine(index, lineIndex)"
               @move="(lineIndex, to) => moveLine(index, lineIndex, to)"
+              @new-unit="(lineIndex) => askForUnit(index, lineIndex)"
               @remove-section="removeSection(index)"
             />
             <div
@@ -411,6 +465,12 @@ async function confirmDelete() {
       v-model="pickerOpen"
       :ingredients="data.ingredients"
       @pick="(ingredient) => addIngredient(pickerSection, ingredient)"
+    />
+    <ConversionDialog
+      v-if="conversionIngredient"
+      v-model="conversionOpen"
+      :ingredient="conversionIngredient"
+      @saved="conversionSaved"
     />
     <ConfirmDelete
       v-model="deleteOpen"

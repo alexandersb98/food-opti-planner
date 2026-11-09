@@ -1,7 +1,8 @@
 import { flushPromises } from '@vue/test-utils'
 import { afterEach, expect, test, vi } from 'vitest'
-import { button, click, dialog, fakeServer, field, mountApp, texts, type FakeServer } from '../test-app'
-import { attribute, ingredient, lines, recipe, tag } from '../test-data'
+import { button, click, dialog, fakeServer, field, mountApp, settleMenu, texts, unitRoutes, type FakeServer } from '../test-app'
+import { attribute, conversion, ingredient, lines, recipe, tag } from '../test-data'
+import { resetUnits } from '../units'
 
 const energy = attribute({ id: 1, name: 'Energy', unit: 'kcal' })
 const protein = attribute({ id: 2, name: 'Protein', unit: 'g', decimals: 1 })
@@ -28,6 +29,7 @@ const porridge = recipe({
 })
 
 afterEach(() => {
+  resetUnits()
   vi.unstubAllGlobals()
   document.body.innerHTML = ''
 })
@@ -40,6 +42,7 @@ async function mountPage(path: string, server: FakeServer = {}) {
     'GET /api/ingredients': { body: [oats, milk, almonds] },
     'GET /api/recipes/7': { body: porridge },
     'GET /api/recipes': { body: [] },
+    ...unitRoutes(),
     ...server,
   })
   const { wrapper, router } = await mountApp(path)
@@ -607,5 +610,143 @@ test('the picker adds to the section whose button was pressed', async () => {
   await flushPromises()
   const rows = wrapper.findAll('.recipe-section').map((section) => section.findAll('.recipe-item').map((r) => r.find('.item-name').text()))
   expect(rows).toEqual([['Oats'], ['Almonds', 'Milk']])
+  wrapper.unmount()
+})
+
+
+// Line units.
+
+const dl40 = conversion({ id: 1, unit: 'dl', factor: '40' })
+const oatsWithDl = { ...oats, conversions: [dl40] }
+const sections = (items: { ingredient_id: number; amount: string; unit: string }[]) => [
+  { name: '', items: items.map((item) => ({ ...item, original_text: '' })) },
+]
+const dlRecipe = recipe({
+  id: 7,
+  name: 'Porridge',
+  sections: sections([
+    { ingredient_id: 1, amount: '60', unit: '' },
+    { ingredient_id: 1, amount: '1', unit: 'dl' },
+  ]),
+})
+
+/** Open the unit picker of the line labelled `label` (the first match) and choose `option`. */
+async function chooseLineUnit(wrapper: Wrapper, label: string, option: string, index = 0) {
+  const input = wrapper.findAll<HTMLInputElement>(`input[aria-label="${label}"]`)[index]!
+  input.element.closest('.q-field__control')!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+  await settleMenu()
+  const row = [...document.querySelectorAll<HTMLElement>('.q-menu .q-item')].find((r) => r.textContent?.trim() === option)
+  expect(row, `unit ${option}`).toBeDefined()
+  row!.click()
+  await settleMenu()
+}
+
+const unitBoxes = (wrapper: Wrapper) => wrapper.findAll('.line-unit .q-field__native').map((box) => box.text())
+
+test('a line in dl of a g ingredient with a dl conversion converts in the per-portion total', async () => {
+  const { wrapper } = await mountPage('/recipes/7', {
+    'GET /api/recipes/7': { body: dlRecipe },
+    'GET /api/ingredients': { body: [oatsWithDl, milk, almonds] },
+  })
+  // 60 g and 1 dl of 40 g per dl: 100 g of oats.
+  expect(totals(wrapper)).toEqual(['Energy 389 kcal', 'Protein 16.9 g'])
+  expect(unitBoxes(wrapper)).toEqual(['g', 'dl'])
+  wrapper.unmount()
+})
+
+test('an existing recipe opens with its line units', async () => {
+  const { wrapper } = await mountPage('/recipes/7', {
+    'GET /api/recipes/7': { body: dlRecipe },
+    'GET /api/ingredients': { body: [oatsWithDl, milk, almonds] },
+  })
+  expect(unitBoxes(wrapper)).toEqual(['g', 'dl'])
+  expect(wrapper.find('.unit-error').exists()).toBe(false)
+  wrapper.unmount()
+})
+
+test('choosing a catalogue unit on a line changes the total', async () => {
+  const { wrapper } = await mountPage('/recipes/7')
+  await chooseLineUnit(wrapper, 'Unit of Oats', 'kg (kilogram)')
+  expect(unitBoxes(wrapper)).toEqual(['kg', 'ml'])
+  // 60 kg of oats (233400 kcal) and 200 ml of milk (128 kcal).
+  expect(totals(wrapper)).toEqual(['Energy 233528 kcal', 'Protein 10140 g'])
+  wrapper.unmount()
+})
+
+test('New unit… adds a conversion through the API, selects it on the line and updates the total', async () => {
+  const posted = recorder(201, () => conversion({ id: 5, unit: 'dl', factor: '40' }))
+  const { wrapper } = await mountPage('/recipes/new', { 'POST /api/ingredients/1/conversions': posted.handler })
+  await pickIngredient(wrapper, '', 'Oats')
+  await field(wrapper, 'Amount of Oats').setValue('1')
+  await chooseLineUnit(wrapper, 'Unit of Oats', 'New unit…')
+  const open = dialog()
+  expect(open.text).toContain('New unit')
+  const unit = document.querySelector<HTMLInputElement>('.conversion-dialog input[aria-label="Unit"]')!
+  unit.value = 'dl'
+  unit.dispatchEvent(new Event('input', { bubbles: true }))
+  const factor = document.querySelector<HTMLInputElement>('.conversion-dialog input[aria-label="How many g one makes"]')!
+  factor.value = '40'
+  factor.dispatchEvent(new Event('input', { bubbles: true }))
+  await flushPromises()
+  await open.click('Save')
+  expect(posted.sent).toEqual([{ unit: 'dl', factor: '40' }])
+  expect(unitBoxes(wrapper)).toEqual(['dl'])
+  // 1 dl of 40 g per dl: 40 g of oats, 155.6 kcal.
+  expect(totals(wrapper)).toEqual(['Energy 156 kcal', 'Protein 6.8 g'])
+  wrapper.unmount()
+})
+
+test('a line that does not convert is marked and Save sends nothing', async () => {
+  const stale = recipe({
+    id: 7,
+    name: 'Porridge',
+    sections: sections([{ ingredient_id: 1, amount: '1', unit: 'dl' }]),
+  })
+  const put = recorder(200, () => stale)
+  const { wrapper } = await mountPage('/recipes/7', { 'GET /api/recipes/7': { body: stale }, 'PUT /api/recipes/7': put.handler })
+  expect(totals(wrapper)).toEqual(['Energy 0 kcal', 'Protein 0 g'])
+  await click(button(wrapper, 'Save'))
+  expect(wrapper.get('.unit-error').text()).toBe("dl of Oats doesn't convert. Pick another unit or add a conversion.")
+  expect(put.sent).toEqual([])
+  wrapper.unmount()
+})
+
+test("Save sends each line's unit", async () => {
+  const put = recorder(200, (body) => ({ ...dlRecipe, ...body }))
+  const { wrapper } = await mountPage('/recipes/7', {
+    'GET /api/recipes/7': { body: dlRecipe },
+    'GET /api/ingredients': { body: [oatsWithDl, milk, almonds] },
+    'PUT /api/recipes/7': put.handler,
+  })
+  await click(button(wrapper, 'Save'))
+  const [sent] = put.sent as { sections: { items: { unit: string }[] }[] }[]
+  expect(sent!.sections[0]!.items.map((item) => item.unit)).toEqual(['', 'dl'])
+  wrapper.unmount()
+})
+
+test("the server's unit_not_convertible shows on the line", async () => {
+  const withOz = recipe({
+    id: 7,
+    name: 'Porridge',
+    sections: sections([{ ingredient_id: 1, amount: '2', unit: 'oz' }]),
+  })
+  const { wrapper } = await mountPage('/recipes/7', {
+    'GET /api/recipes/7': { body: withOz },
+    'PUT /api/recipes/7': {
+      status: 422,
+      body: { detail: [{ loc: ['body', 'sections', 0, 'items', 0, 'unit'], type: 'unit_not_convertible', msg: 'x' }] },
+    },
+  })
+  await click(button(wrapper, 'Save'))
+  expect(wrapper.get('.unit-error').text()).toContain("oz of Oats doesn't convert")
+  wrapper.unmount()
+})
+
+test('with the catalogue not loaded the page still works for own-unit lines', async () => {
+  const put = recorder(200, (body) => ({ ...porridge, ...body }))
+  const { wrapper } = await mountPage('/recipes/7', { 'GET /api/units': 500, 'PUT /api/recipes/7': put.handler })
+  expect(totals(wrapper)).toEqual(['Energy 361 kcal', 'Protein 10.1 g'])
+  await click(button(wrapper, 'Save'))
+  expect(put.sent).toHaveLength(1)
   wrapper.unmount()
 })

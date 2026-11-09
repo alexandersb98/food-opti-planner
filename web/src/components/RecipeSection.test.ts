@@ -110,3 +110,35 @@ test('a name error and an amount error show on their fields', () => {
   expect(rows[1]!.text()).toContain('Enter an amount above 0.')
   wrapper.unmount()
 })
+
+test('every line has a unit picker, and a change edits the draft line', async () => {
+  const { wrapper, draft } = mountSection()
+  const pickers = wrapper.findAll('.line-unit')
+  expect(pickers).toHaveLength(2)
+  expect(wrapper.find('[aria-label="Unit of Oats"]').exists()).toBe(true)
+  expect(wrapper.find('[aria-label="Unit of Milk"]').exists()).toBe(true)
+  const picker = wrapper.findComponent({ name: 'LineUnitPicker' })
+  picker.vm.$emit('update:modelValue', 'kg')
+  await wrapper.vm.$nextTick()
+  expect(draft.items[0]!.unit).toBe('kg')
+  wrapper.unmount()
+})
+
+test("New unit… on a line is passed up with the line's place", async () => {
+  const { wrapper } = mountSection()
+  const pickers = wrapper.findAllComponents({ name: 'LineUnitPicker' })
+  pickers[1]!.vm.$emit('new-unit')
+  expect(wrapper.emitted('newUnit')).toEqual([[1]])
+  wrapper.unmount()
+})
+
+test('a unit error shows under its line only', () => {
+  const { wrapper } = mountSection({
+    errors: { name: '', amounts: {}, units: { 12: true } },
+    section: { ...section(), items: [{ key: 11, ingredientId: 1, amount: '60', unit: '', originalText: '' }, { key: 12, ingredientId: 2, amount: '1', unit: 'dl', originalText: '' }] },
+  })
+  const rows = wrapper.findAll('.recipe-item')
+  expect(rows[0]!.text()).not.toContain("doesn't convert")
+  expect(rows[1]!.text()).toContain("dl of Milk doesn't convert. Pick another unit or add a conversion.")
+  wrapper.unmount()
+})
