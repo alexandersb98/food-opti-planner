@@ -74,13 +74,19 @@ def tag(row: models.Tag) -> TagDef:
 
 
 def recipe(row: models.Recipe, names: Mapping[str, str] | None = None) -> Recipe:
-    """Amounts are per portion, in each ingredient's unit, as the library's.
-    Tags added by hand become `extra_tags`; the others the library derives.
+    """Amounts are for one portion, in each ingredient's unit, as the library's:
+    each ingredient's lines summed (exactly) and divided once by the servings,
+    one amount per ingredient in the order of its first line. Tags added by hand become `extra_tags`; the others the library derives.
     No hard upper limit means the library's default, 3 times the soft one.
     Tag names go through `names` as in `ingredient`."""
+    totals: dict[models.Ingredient, Decimal] = {}
+    for line in row.lines:
+        totals[line.ingredient] = totals.get(line.ingredient, Decimal(0)) + line.amount
     return Recipe(
         name=row.name,
-        items=tuple(IngredientAmount(ingredient(item.ingredient, names), item.amount) for item in row.items),
+        items=tuple(
+            IngredientAmount(ingredient(stored, names), amount / row.servings) for stored, amount in totals.items()
+        ),
         extra_tags=frozenset((names or {}).get(tag.name, tag.name) for tag in row.extra_tags),
         multiplier_step=row.step,
         min_multiplier=row.min_multiplier,

@@ -87,7 +87,7 @@ def client(database_url, web_dist):
         yield client
 
 
-# A recipe's fields besides its name, items and added tags: the portion
+# A recipe's fields besides its name, lines and added tags: the portion
 # size the editor starts with.
 RECIPE = {
     "min_multiplier": "0.5",
@@ -99,13 +99,20 @@ RECIPE = {
 
 
 def recipe_body(name="Porridge", items=None, extra_tag_ids=(), **changes) -> dict:
-    """A recipe's request body. `items` maps ingredient ids to amounts, or is
-    a list of (ingredient id, amount) pairs when an ingredient repeats."""
+    """A recipe's request body: servings 1, no instructions or source, and
+    `items` as the lines of one unnamed section. `items` maps ingredient ids
+    to amounts, or is a list of (ingredient id, amount) pairs when an
+    ingredient repeats. `sections=` in `changes` replaces that section."""
     pairs = items.items() if isinstance(items, dict) else (items or ())
     return {
         **RECIPE,
         "name": name,
-        "items": [{"ingredient_id": i, "amount": a} for i, a in pairs],
+        "servings": 1,
+        "instructions": "",
+        "source_url": "",
+        "sections": [
+            {"name": "", "items": [{"ingredient_id": i, "amount": a, "original_text": ""} for i, a in pairs]}
+        ],
         "extra_tag_ids": list(extra_tag_ids),
         **changes,
     }
@@ -152,7 +159,8 @@ class Catalog:
         return self._create("/api/ingredients", fields)
 
     def recipe(self, name="Porridge", items=None, extra_tag_ids=()) -> int:
-        """`items` maps ingredient ids to amounts per portion: {oats: "60"}."""
+        """`items` maps ingredient ids to amounts for the whole recipe, which
+        serves 1: {oats: "60"}."""
         return self._create("/api/recipes", recipe_body(name, items or {self.ingredient(): "60"}, extra_tag_ids))
 
 
@@ -168,9 +176,11 @@ def schedule(client, **changes) -> dict:
     return response.json()
 
 
-def fixed_portion_recipe(catalog: Catalog, name: str, items: dict, portion: str, extra_tag_ids=()) -> int:
+def fixed_portion_recipe(
+    catalog: Catalog, name: str, items: dict, portion: str, extra_tag_ids=(), **changes
+) -> int:
     """A recipe always eaten at `portion`, so a solve's choice is known."""
-    body = recipe_body(name, items, extra_tag_ids, min_multiplier=portion, max_multiplier=portion)
+    body = recipe_body(name, items, extra_tag_ids, min_multiplier=portion, max_multiplier=portion, **changes)
     return catalog._create("/api/recipes", body)
 
 

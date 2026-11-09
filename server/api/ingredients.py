@@ -5,14 +5,14 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
-from sqlalchemy import select
+from sqlalchemy import distinct, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from .. import models, source_values, unit_change, units
 from ..db import DbSession
 from ..fields import Name, Number
-from .catalog import References, commit_named, count_by, get_or_404, in_list
+from .catalog import References, commit_named, get_or_404, in_list
 from .errors import NAME_IN_USE, FieldError, FieldErrors, invalid_fields
 from .unit_changes import UNIT_CHANGE_REFUSED, UnitChange, UnitChangeRefusal, answer, refuse
 
@@ -119,7 +119,13 @@ class Ingredient(IngredientFields):
 
 
 def _recipe_counts(db: DbSession) -> dict[int, int]:
-    return count_by(db, models.RecipeItem.ingredient_id)
+    """Recipes, not lines: an ingredient on two lines of a recipe counts once."""
+    rows = db.execute(
+        select(models.RecipeItem.ingredient_id, func.count(distinct(models.RecipeSection.recipe_id)))
+        .join(models.RecipeSection, models.RecipeSection.id == models.RecipeItem.section_id)
+        .group_by(models.RecipeItem.ingredient_id)
+    )
+    return dict(rows.all())
 
 
 def _source(ingredient: models.Ingredient) -> IngredientSource | None:

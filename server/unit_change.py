@@ -298,6 +298,18 @@ def attribute_converters(attribute: models.Attribute, decimals: int) -> list[Con
     ]
 
 
+def _recipe_lines(ingredient_id: int):
+    """The select of every recipe line of an ingredient with its recipe's
+    name, in recipe, section and line order."""
+    return (
+        select(models.RecipeItem, models.Recipe.name)
+        .join(models.RecipeSection, models.RecipeSection.id == models.RecipeItem.section_id)
+        .join(models.Recipe, models.Recipe.id == models.RecipeSection.recipe_id)
+        .where(models.RecipeItem.ingredient_id == ingredient_id)
+        .order_by(models.Recipe.id, models.RecipeSection.position, models.RecipeItem.position)
+    )
+
+
 def ingredient_converters(ingredient: models.Ingredient, basis: Decimal) -> list[Converter]:
     """The numbers stored in an ingredient's unit: its basis (the one the
     form sends, as `PUT` saves it) and the amounts of every recipe line that
@@ -310,18 +322,16 @@ def ingredient_converters(ingredient: models.Ingredient, basis: Decimal) -> list
         )]
 
     def amounts(db: Session) -> list[Number]:
-        rows = db.execute(
-            select(models.RecipeItem, models.Recipe.name)
-            .join(models.Recipe, models.Recipe.id == models.RecipeItem.recipe_id)
-            .where(models.RecipeItem.ingredient_id == ingredient.id)
-            .order_by(models.RecipeItem.recipe_id)
-        )
+        # Every line, so an ingredient on two lines of a recipe counts two
+        # amounts. In recipe, section and line order, so the refusal names
+        # the first line there.
+        rows = db.execute(_recipe_lines(ingredient.id))
 
         def setter(row: models.RecipeItem):
             return lambda converted: setattr(row, "amount", converted)
 
         return [
-            Number("recipe_amount", row.recipe_id, name, "amount", row.amount, setter(row), positive=True)
+            Number("recipe_amount", row.id, name, "amount", row.amount, setter(row), positive=True)
             for row, name in rows
         ]
 

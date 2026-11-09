@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from server import models
 from server.unit_change import _convert, attribute_converters, convert_number, ingredient_converters, plan
 
-from .conftest import schedule
+from .conftest import recipe_body, schedule
 from .test_plan import goal
 from .test_solve import solve
 
@@ -165,6 +165,48 @@ def test_apply_writes_every_converted_number(client, catalog, db):
     assert db.get(models.Ingredient, oats).basis == D("0.1")
     items = db.scalars(select(models.RecipeItem).where(models.RecipeItem.ingredient_id == oats))
     assert sorted(i.amount for i in items) == [D("0.01"), D("0.03"), D("0.06")]
+
+
+def two_sections(client, name, *amounts_by_section, oats, servings=1):
+    """A recipe with Oats on one line per given amount, each list a section."""
+    sections = [
+        {"name": f"S{i}", "items": [{"ingredient_id": oats, "amount": a, "original_text": f"{a} g"} for a in amounts]}
+        for i, amounts in enumerate(amounts_by_section)
+    ]
+    response = client.post("/api/recipes", json=recipe_body(name, sections=sections, servings=servings))
+    assert response.status_code == 201, response.text
+
+
+def test_a_recipe_with_the_ingredient_on_two_lines_converts_both(client, catalog, db):
+    oats = catalog.ingredient("Oats", "g", "100")
+    two_sections(client, "Porridge", ["40"], ["20"], oats=oats, servings=2)
+    two_sections(client, "Muesli", ["30"], oats=oats)
+    change = ingredient_change(db, oats, "g", "kg")
+    assert change.counts == {"basis": 1, "recipe_amounts": 3}
+    change.apply()
+    db.commit()
+    lines = db.scalars(select(models.RecipeItem).order_by(models.RecipeItem.id)).all()
+    assert [(i.amount, i.original_text) for i in lines] == [
+        (D("0.04"), "40 g"), (D("0.02"), "20 g"), (D("0.03"), "30 g"),
+    ]
+    assert [r.servings for r in db.scalars(select(models.Recipe).order_by(models.Recipe.id))] == [2, 1]
+
+
+def test_the_first_refused_line_is_the_first_in_recipe_section_line_order(client, catalog, db):
+    oats = catalog.ingredient("Oats", "g", "100")
+    # 0.0004 g is 0.0000004 kg, which rounds to 0 and is refused.
+    two_sections(client, "Zed", ["60", "0.0004", "0.0003"], ["0.0002"], oats=oats)
+    two_sections(client, "Alpha", ["0.0001"], oats=oats)
+
+    def first_refused():
+        refusal = ingredient_change(db, oats, "g", "kg").refusal
+        return refusal.type, refusal.name, refusal.number
+
+    # The first recipe (by id), its first section, its first line.
+    assert first_refused() == ("conversion_rounds_to_zero", "Zed", "0.0004")
+    db.delete(db.scalars(select(models.Recipe).where(models.Recipe.name == "Zed")).one())
+    db.commit()
+    assert first_refused() == ("conversion_rounds_to_zero", "Alpha", "0.0001")
 
 
 def test_apply_does_nothing_unless_the_change_converts(client, catalog, db):

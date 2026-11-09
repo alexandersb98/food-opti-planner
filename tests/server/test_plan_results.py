@@ -150,7 +150,7 @@ def test_today_needs_a_date(client):
 def test_a_saved_plan_is_unchanged_by_catalog_edits_and_deletes(client, catalog, porridge):
     plan = saved_plan(client)
     recipe = client.get(f"/api/recipes/{porridge}").json()
-    [first, *_] = recipe["items"]
+    [first, *_] = recipe["sections"][0]["items"]
     edited = recipe_body(
         "Oat porridge", [(first["ingredient_id"], first["amount"])], min_multiplier="1", max_multiplier="1"
     )

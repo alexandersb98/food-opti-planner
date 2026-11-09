@@ -1920,13 +1920,10 @@
             "title": "Id",
             "type": "integer"
           },
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/RecipeItem-Output"
-            },
-            "minItems": 1,
-            "title": "Items",
-            "type": "array"
+          "instructions": {
+            "maxLength": 20000,
+            "title": "Instructions",
+            "type": "string"
           },
           "max_multiplier": {
             "title": "Max Multiplier",
@@ -1942,8 +1939,28 @@
             "title": "Name",
             "type": "string"
           },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/Section-Output"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Sections",
+            "type": "array"
+          },
           "serving_cap_weight": {
             "title": "Serving Cap Weight",
+            "type": "string"
+          },
+          "servings": {
+            "maximum": 1000.0,
+            "minimum": 1.0,
+            "title": "Servings",
+            "type": "integer"
+          },
+          "source_url": {
+            "maxLength": 2000,
+            "title": "Source Url",
             "type": "string"
           },
           "step": {
@@ -1967,7 +1984,10 @@
         },
         "required": [
           "name",
-          "items",
+          "servings",
+          "sections",
+          "instructions",
+          "source_url",
           "extra_tag_ids",
           "min_multiplier",
           "max_multiplier",
@@ -2039,13 +2059,10 @@
             ],
             "title": "Hard Max Multiplier"
           },
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/RecipeItem-Input"
-            },
-            "minItems": 1,
-            "title": "Items",
-            "type": "array"
+          "instructions": {
+            "maxLength": 20000,
+            "title": "Instructions",
+            "type": "string"
           },
           "max_multiplier": {
             "anyOf": [
@@ -2075,6 +2092,15 @@
             "title": "Name",
             "type": "string"
           },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/Section-Input"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Sections",
+            "type": "array"
+          },
           "serving_cap_weight": {
             "anyOf": [
               {
@@ -2085,6 +2111,17 @@
               }
             ],
             "title": "Serving Cap Weight"
+          },
+          "servings": {
+            "maximum": 1000.0,
+            "minimum": 1.0,
+            "title": "Servings",
+            "type": "integer"
+          },
+          "source_url": {
+            "maxLength": 2000,
+            "title": "Source Url",
+            "type": "string"
           },
           "step": {
             "anyOf": [
@@ -2103,7 +2140,10 @@
         },
         "required": [
           "name",
-          "items",
+          "servings",
+          "sections",
+          "instructions",
+          "source_url",
           "extra_tag_ids",
           "min_multiplier",
           "max_multiplier",
@@ -2115,6 +2155,7 @@
         "type": "object"
       },
       "RecipeItem-Input": {
+        "description": "A line of a recipe. The same ingredient may be on several lines.",
         "properties": {
           "amount": {
             "anyOf": [
@@ -2130,16 +2171,23 @@
           "ingredient_id": {
             "title": "Ingredient Id",
             "type": "integer"
+          },
+          "original_text": {
+            "maxLength": 500,
+            "title": "Original Text",
+            "type": "string"
           }
         },
         "required": [
           "ingredient_id",
-          "amount"
+          "amount",
+          "original_text"
         ],
         "title": "RecipeItem",
         "type": "object"
       },
       "RecipeItem-Output": {
+        "description": "A line of a recipe. The same ingredient may be on several lines.",
         "properties": {
           "amount": {
             "title": "Amount",
@@ -2148,11 +2196,17 @@
           "ingredient_id": {
             "title": "Ingredient Id",
             "type": "integer"
+          },
+          "original_text": {
+            "maxLength": 500,
+            "title": "Original Text",
+            "type": "string"
           }
         },
         "required": [
           "ingredient_id",
-          "amount"
+          "amount",
+          "original_text"
         ],
         "title": "RecipeItem",
         "type": "object"
@@ -2374,6 +2428,52 @@
           "percent"
         ],
         "title": "ResultMiss",
+        "type": "object"
+      },
+      "Section-Input": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RecipeItem-Input"
+            },
+            "maxItems": 200,
+            "title": "Items",
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 100,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "items"
+        ],
+        "title": "Section",
+        "type": "object"
+      },
+      "Section-Output": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RecipeItem-Output"
+            },
+            "maxItems": 200,
+            "title": "Items",
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 100,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "items"
+        ],
+        "title": "Section",
         "type": "object"
       },
       "Skip": {

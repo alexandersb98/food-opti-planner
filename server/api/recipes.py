@@ -6,7 +6,7 @@ from fractions import Fraction
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 from sqlalchemy import select
 
 from .. import models, queries, translate
@@ -20,16 +20,39 @@ router = APIRouter(prefix="/recipes", tags=["recipes"])
 NOT_FOUND = {404: {"description": "No such recipe"}}
 
 
+MAX_SERVINGS = 1000
+MAX_SECTIONS = 50
+MAX_LINES = 200  # per section
+
+
 class RecipeItem(BaseModel):
+    """A line of a recipe. The same ingredient may be on several lines."""
+
     ingredient_id: int
-    # For one portion, in the ingredient's unit.
+    # For the whole recipe, in the ingredient's unit.
     amount: Annotated[Number, Field(gt=0)]
+    # The line as imported, empty for one that was typed.
+    original_text: Annotated[str, Field(max_length=models.ORIGINAL_TEXT_LENGTH)]
+
+
+class Section(BaseModel):
+    # Trimmed; may be empty only in a recipe of one section (no heading).
+    name: Annotated[str, StringConstraints(strip_whitespace=True, max_length=models.NAME_LENGTH)]
+    # In the order listed; may be empty while the recipe has a line elsewhere.
+    items: Annotated[list[RecipeItem], Field(max_length=MAX_LINES)]
 
 
 class RecipeFields(BaseModel):
     name: Name
-    # In the order listed, each ingredient at most once.
-    items: Annotated[list[RecipeItem], Field(min_length=1)]
+    # The amounts below are for the whole recipe, which serves this many
+    # portions; the planner's portion is one of them.
+    servings: Annotated[int, Field(ge=1, le=MAX_SERVINGS)]
+    # In the order listed.
+    sections: Annotated[list[Section], Field(min_length=1, max_length=MAX_SECTIONS)]
+    # Free text, line breaks kept.
+    instructions: Annotated[str, Field(max_length=models.INSTRUCTIONS_LENGTH)]
+    # Empty, or a link starting http:// or https://; trimmed.
+    source_url: Annotated[str, StringConstraints(strip_whitespace=True, max_length=models.SOURCE_URL_LENGTH)]
     # Tags added by hand, besides those the ingredients give it.
     extra_tag_ids: list[int]
     # Portion size: from min to max times the portion, above which
@@ -52,7 +75,8 @@ class Recipe(RecipeFields):
     id: int
     # Tags the ingredients give it, by each tag's rule.
     derived_tag_ids: list[int]
-    # Every attribute's total for one portion, in attribute order.
+    # Every attribute's total for one portion (the whole recipe divided by
+    # servings), in attribute order.
     totals: list[Total]
 
 
@@ -76,14 +100,26 @@ class _Responses:
         return Recipe(
             id=row.id,
             name=row.name,
-            items=[RecipeItem(ingredient_id=i.ingredient_id, amount=i.amount) for i in row.items],
+            servings=row.servings,
+            sections=[
+                Section(
+                    name=section.name,
+                    items=[
+                        RecipeItem(ingredient_id=i.ingredient_id, amount=i.amount, original_text=i.original_text)
+                        for i in section.items
+                    ],
+                )
+                for section in row.sections
+            ],
+            instructions=row.instructions,
+            source_url=row.source_url,
             extra_tag_ids=[tag.id for tag in row.extra_tags],
             min_multiplier=row.min_multiplier,
             max_multiplier=row.max_multiplier,
             step=row.step,
             hard_max_multiplier=row.hard_max_multiplier,
             serving_cap_weight=row.serving_cap_weight,
-            derived_tag_ids=self.derived_tag_ids([item.ingredient for item in row.items]),
+            derived_tag_ids=self.derived_tag_ids(list({item.ingredient: None for item in row.lines})),
             totals=[
                 Total(attribute_id=a.id, value=_rounded(_total(row, a), a.decimals))
                 for a in self.attributes
@@ -92,8 +128,9 @@ class _Responses:
 
 
 def _total(row: models.Recipe, attribute: models.Attribute) -> Fraction:
-    """`attribute`'s total for one portion: each amount times that
-    ingredient's value per its basis, summed. A missing value counts as 0.
+    """`attribute`'s total for one portion: each line's amount times that
+    ingredient's value per its basis, summed over all lines and divided by
+    the servings once. A missing value counts as 0.
 
     Summed as whole-number fractions, so it is exact. The library's per-unit
     values divide by the basis in Decimal, which cannot hold a third, and a
@@ -101,15 +138,16 @@ def _total(row: models.Recipe, attribute: models.Attribute) -> Fraction:
     value of 1 per basis 3 is exactly 5.5, but 5.4999... once divided. The
     editor sums the same way (`web/src/totals.ts`), so both always agree.
     """
-    return sum(
+    whole = sum(
         (
             Fraction(item.amount) * Fraction(value.value) / Fraction(item.ingredient.basis)
-            for item in row.items
+            for item in row.lines
             for value in item.ingredient.values
             if value.attribute_id == attribute.id
         ),
         Fraction(0),
     )
+    return whole / row.servings
 
 
 def _rounded(total: Fraction, decimals: int) -> str:
@@ -138,37 +176,63 @@ def _portion_errors(body: RecipeFields) -> list[FieldError]:
     return errors
 
 
+def _recipe_errors(body: RecipeFields) -> list[FieldError]:
+    """The rules that span a recipe's sections, and the source link."""
+    errors = []
+
+    def error(loc: list[str | int], error_type: str, msg: str) -> None:
+        errors.append(FieldError(loc=["body", *loc], type=error_type, msg=msg))
+
+    if len(body.sections) > 1:
+        for i, section in enumerate(body.sections):
+            if not section.name:
+                error(["sections", i, "name"], "name_required", "Every section needs a name")
+    if not any(section.items for section in body.sections):
+        error(["sections"], "no_items", "Add at least one ingredient")
+    if body.source_url and not body.source_url.startswith(("http://", "https://")):
+        error(["source_url"], "invalid_url", "Must start with http:// or https://")
+    return errors
+
+
 def _fill(recipe: models.Recipe, body: RecipeFields, db: DbSession) -> None:
     """Set the recipe's fields from `body`, answering 422 for portion sizes
-    the library would refuse, ingredients given twice and ids that name nothing."""
+    the library would refuse, sections and links that break the rules and ids
+    that name nothing. The sections and their lines are rebuilt."""
     refs = References(db)
-    refs.errors += _portion_errors(body)
-    ingredient_ids = [item.ingredient_id for item in body.items]
-    refs.rows(models.Ingredient, in_list("items", ingredient_ids, "ingredient_id"), "ingredient", unique=True)
+    refs.errors += _portion_errors(body) + _recipe_errors(body)
+    lines = [
+        (["sections", i, "items", j, "ingredient_id"], item.ingredient_id)
+        for i, section in enumerate(body.sections)
+        for j, item in enumerate(section.items)
+    ]
+    refs.rows(models.Ingredient, lines, "ingredient")
     tags = refs.rows(models.Tag, in_list("extra_tag_ids", body.extra_tag_ids), "tag")
     refs.check()
 
-    # Loading the old items and tags must not save the new name early, or a
+    # Loading the old sections and tags must not save the new name early, or a
     # name in use would fail here instead of in commit_named.
     with db.no_autoflush:
         recipe.name = body.name
-        for field in ("min_multiplier", "max_multiplier", "step", "hard_max_multiplier", "serving_cap_weight"):
+        for field in (
+            "servings", "instructions", "source_url",
+            "min_multiplier", "max_multiplier", "step", "hard_max_multiplier", "serving_cap_weight",
+        ):
             setattr(recipe, field, getattr(body, field))
-        by_ingredient = {item.ingredient_id: item for item in recipe.items}
-        recipe.items = [
-            _item(by_ingredient.get(item.ingredient_id), item, position)
-            for position, item in enumerate(body.items)
+        recipe.sections = [
+            models.RecipeSection(
+                position=i,
+                name=section.name,
+                items=[
+                    models.RecipeItem(
+                        position=j, ingredient_id=item.ingredient_id, amount=item.amount,
+                        original_text=item.original_text,
+                    )
+                    for j, item in enumerate(section.items)
+                ],
+            )
+            for i, section in enumerate(body.sections)
         ]
         recipe.extra_tags = [tags[tag_id] for tag_id in sorted(set(body.extra_tag_ids))]
-
-
-def _item(stored: models.RecipeItem | None, fields: RecipeItem, position: int) -> models.RecipeItem:
-    # A stored item is changed rather than replaced, as its primary key stays.
-    if stored is None:
-        stored = models.RecipeItem(ingredient_id=fields.ingredient_id)
-    stored.position = position
-    stored.amount = fields.amount
-    return stored
 
 
 def _read(db: DbSession, recipe_id: int) -> Recipe:

@@ -53,7 +53,13 @@ def test_an_attribute_without_a_value_counts_as_0():
     assert recipe.attribute_total("Energy") == Decimal("194.5")
 
 
-def porridge(**fields) -> models.Recipe:
+def line(**fields) -> models.RecipeItem:
+    return models.RecipeItem(original_text="", **fields)
+
+
+def porridge(sections=None, **fields) -> models.Recipe:
+    """`items` (default Oats and Milk) are one unnamed section, or `sections`
+    gives the sections as lists of lines; servings 1."""
     milk = models.Ingredient(name="Milk", unit="ml", basis=Decimal("100"), values=[], tags=[])
     defaults = {
         "name": "Porridge",
@@ -62,13 +68,26 @@ def porridge(**fields) -> models.Recipe:
         "step": None,
         "hard_max_multiplier": None,
         "serving_cap_weight": Decimal("1"),
-        "items": [
-            models.RecipeItem(ingredient=oats("100", [(ENERGY, "389")]), amount=Decimal("60")),
-            models.RecipeItem(ingredient=milk, amount=Decimal("200")),
-        ],
+        "servings": 1,
+        "instructions": "",
+        "source_url": "",
         "extra_tags": [],
     }
-    return models.Recipe(**{**defaults, **fields})
+    items = fields.pop("items", None) or [
+        line(ingredient=oats("100", [(ENERGY, "389")]), amount=Decimal("60")),
+        line(ingredient=milk, amount=Decimal("200")),
+    ]
+    sections = sections or [items]
+    built = [
+        models.RecipeSection(position=i, name="", items=[replace_position(item, j) for j, item in enumerate(lines)])
+        for i, lines in enumerate(sections)
+    ]
+    return models.Recipe(**{**defaults, "sections": built, **fields})
+
+
+def replace_position(item: models.RecipeItem, position: int) -> models.RecipeItem:
+    item.position = position
+    return item
 
 
 def test_a_tag_keeps_its_name_and_rule():
@@ -81,6 +100,36 @@ def test_a_recipes_items_are_its_ingredients_in_order_with_their_amounts():
     assert [(i.ingredient.name, i.quantity) for i in recipe.items] == [("Oats", 60), ("Milk", 200)]
     assert recipe.items[0].ingredient.attributes == {"Energy": Decimal("3.89")}
     assert recipe.attribute_total("Energy") == Decimal("233.4")
+
+
+def test_amounts_are_the_whole_recipe_divided_by_servings():
+    recipe = translate.recipe(porridge(servings=4))
+    assert [(i.ingredient.name, i.quantity) for i in recipe.items] == [("Oats", 15), ("Milk", 50)]
+
+
+def test_lines_of_one_ingredient_are_summed():
+    grain = oats("100", [(ENERGY, "389")])
+    recipe = translate.recipe(porridge(sections=[
+        [line(ingredient=grain, amount=Decimal("40"))],
+        [line(ingredient=grain, amount=Decimal("20"))],
+    ]))
+    assert [(i.ingredient.name, i.quantity) for i in recipe.items] == [("Oats", 60)]
+
+
+def test_the_ingredients_keep_the_order_of_their_first_line():
+    grain = oats()
+    milk = models.Ingredient(name="Milk", unit="ml", basis=Decimal("100"), values=[], tags=[])
+    salt = models.Ingredient(name="Salt", unit="g", basis=Decimal("100"), values=[], tags=[])
+    recipe = translate.recipe(porridge(sections=[
+        [line(ingredient=milk, amount=Decimal("1")), line(ingredient=grain, amount=Decimal("1"))],
+        [line(ingredient=salt, amount=Decimal("1")), line(ingredient=milk, amount=Decimal("1"))],
+    ]))
+    assert [(i.ingredient.name, i.quantity) for i in recipe.items] == [("Milk", 2), ("Oats", 1), ("Salt", 1)]
+
+
+def test_servings_that_do_not_divide_evenly_stay_exact_enough():
+    recipe = translate.recipe(porridge(servings=3, items=[line(ingredient=oats("1", [(ENERGY, "1")]), amount=Decimal("10"))]))
+    assert abs(recipe.items[0].quantity * 3 - 10) < Decimal("1e-20")
 
 
 def test_tags_added_by_hand_are_extra_tags():
@@ -109,8 +158,8 @@ def test_derived_tags_come_from_the_ingredients_by_each_tags_rule():
     nuts = models.Tag(name="contains-nuts", derive="any")
     almonds = models.Ingredient(name="Almonds", unit="g", basis=Decimal("100"), values=[], tags=[VEGAN, nuts])
     recipe = translate.recipe(porridge(items=[
-        models.RecipeItem(ingredient=oats(tags=[VEGAN]), amount=Decimal("60")),
-        models.RecipeItem(ingredient=almonds, amount=Decimal("10")),
+        line(ingredient=oats(tags=[VEGAN]), amount=Decimal("60")),
+        line(ingredient=almonds, amount=Decimal("10")),
     ]))
     tag_defs = {tag.name: translate.tag(tag) for tag in (VEGAN, nuts)}
     assert recipe.tags(tag_defs) == frozenset({"vegan", "contains-nuts"})
@@ -379,7 +428,7 @@ def filtered(only=(), never=()) -> models.Plan:
 
 
 def test_only_and_never_become_the_required_and_excluded_tags_by_name():
-    vegan_oats = models.RecipeItem(ingredient=oats(tags=[VEGAN]), amount=Decimal("60"))
+    vegan_oats = line(ingredient=oats(tags=[VEGAN]), amount=Decimal("60"))
     recipes = [porridge(items=[vegan_oats], extra_tags=[QUICK])]
     request = translate.plan_request(filtered(only=[VEGAN, QUICK], never=[NUTS]), [ENERGY], [VEGAN, NUTS, QUICK], recipes)
     assert request.require_tags == frozenset({"vegan", "quick"})
@@ -394,7 +443,7 @@ def recipes_to_filter() -> list[models.Recipe]:
     almonds = models.Ingredient(name="Almonds", unit="g", basis=Decimal("100"), values=[], tags=[VEGAN, NUTS])
 
     def made_of(name, *ingredients, extra_tags=()):
-        items = [models.RecipeItem(ingredient=i, amount=Decimal("10")) for i in ingredients]
+        items = [line(ingredient=i, amount=Decimal("10")) for i in ingredients]
         return porridge(name=name, items=items, extra_tags=list(extra_tags))
 
     return [
@@ -509,7 +558,7 @@ def test_a_recipes_extra_tags_go_through_the_names():
 
 
 def test_the_request_has_the_groups_as_tags_and_in_the_filters():
-    seafood_oats = models.RecipeItem(ingredient=oats(tags=[SEAFOOD]), amount=Decimal("60"))
+    seafood_oats = line(ingredient=oats(tags=[SEAFOOD]), amount=Decimal("60"))
     recipes = [porridge(items=[seafood_oats], extra_tags=[FISK])]
     setup = filtered(only=[FISH], never=[VEGAN])
     request = translate.plan_request(setup, [ENERGY], GROUPED, recipes)
@@ -526,7 +575,7 @@ def group_recipes() -> list[models.Recipe]:
         ingredients = [oats(tags=tags) for tags in tag_sets]
         for i, ingredient in enumerate(ingredients):
             ingredient.name = f"{name} {i}"
-        return porridge(name=name, items=[models.RecipeItem(ingredient=i, amount=Decimal("10")) for i in ingredients])
+        return porridge(name=name, items=[line(ingredient=i, amount=Decimal("10")) for i in ingredients])
 
     return [
         made_of("Seafood only", [SEAFOOD]),

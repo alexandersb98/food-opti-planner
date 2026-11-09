@@ -20,6 +20,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .db import Base
 
 NAME_LENGTH = 100
+SOURCE_URL_LENGTH = 2000  # a recipe's source link
+INSTRUCTIONS_LENGTH = 20000  # a recipe's instructions (the column is unbounded text)
+ORIGINAL_TEXT_LENGTH = 500  # a recipe line as typed or imported
 # A goal's generated name: an attribute's name, ", daily average" and " (NNN)",
 # as names typed for other goals can move its number past the goals'.
 GOAL_NAME_LENGTH = 130
@@ -170,45 +173,74 @@ recipe_extra_tags = Table(
 
 
 class Recipe(Base):
-    """A dish of fixed ingredient amounts for one portion (C2), eaten at a
-    multiple of that portion: from `min_multiplier` to `max_multiplier`,
-    above which `serving_cap_weight` penalizes, up to `hard_max_multiplier`
-    (NULL: 3 times `max_multiplier`, the library's default). `step` NULL
-    means any amount, otherwise whole steps."""
+    """A dish (C2): amounts for the whole recipe, which serves `servings`
+    portions, in sections (headings, one of them unnamed in a simple recipe),
+    with `instructions` and a `source_url` (both empty when not given). The
+    planner eats it at a multiple of one portion (the amounts divided by
+    `servings`): from `min_multiplier` to `max_multiplier`, above which
+    `serving_cap_weight` penalizes, up to `hard_max_multiplier` (NULL: 3 times
+    `max_multiplier`, the library's default). `step` NULL means any amount,
+    otherwise whole steps."""
 
     __tablename__ = "recipes"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(NAME_LENGTH), unique=True)
+    servings: Mapped[int]
+    instructions: Mapped[str] = mapped_column(Text)
+    source_url: Mapped[str] = mapped_column(String(SOURCE_URL_LENGTH))
     min_multiplier: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
     max_multiplier: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
     step: Mapped[Decimal | None] = mapped_column(EXACT_NUMBER)
     hard_max_multiplier: Mapped[Decimal | None] = mapped_column(EXACT_NUMBER)
     serving_cap_weight: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
+    sections: Mapped[list["RecipeSection"]] = relationship(
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="RecipeSection.position",
+    )
+    # Tags added by hand; the others come from the ingredients.
+    extra_tags: Mapped[list[Tag]] = relationship(secondary=recipe_extra_tags, order_by=Tag.id)
+
+    @property
+    def lines(self) -> list["RecipeItem"]:
+        """Every line of the recipe in display order: sections in order, each
+        one's lines in order. The one way to read all of a recipe's lines."""
+        return [item for section in self.sections for item in section.items]
+
+
+class RecipeSection(Base):
+    """A part of a recipe under a heading; `name` is empty for an unnamed one."""
+
+    __tablename__ = "recipe_sections"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    recipe_id: Mapped[int] = mapped_column(ForeignKey("recipes.id", ondelete="CASCADE"))
+    # The order the sections are shown in, from 0.
+    position: Mapped[int]
+    name: Mapped[str] = mapped_column(String(NAME_LENGTH))
     items: Mapped[list["RecipeItem"]] = relationship(
         cascade="all, delete-orphan",
         passive_deletes=True,
         order_by="RecipeItem.position",
     )
-    # Tags added by hand; the others come from the ingredients.
-    extra_tags: Mapped[list[Tag]] = relationship(secondary=recipe_extra_tags, order_by=Tag.id)
 
 
 class RecipeItem(Base):
-    """An amount of an ingredient in one portion of a recipe, in the
-    ingredient's unit. An ingredient can't be deleted while a recipe uses it."""
+    """A line of a recipe: an amount of an ingredient in the recipe, for the
+    whole recipe, in the ingredient's unit. The same ingredient may be on
+    several lines. `original_text` is the line as it was imported, empty for
+    a typed one. An ingredient can't be deleted while a recipe uses it."""
 
     __tablename__ = "recipe_items"
 
-    recipe_id: Mapped[int] = mapped_column(
-        ForeignKey("recipes.id", ondelete="CASCADE"), primary_key=True
-    )
-    ingredient_id: Mapped[int] = mapped_column(
-        ForeignKey("ingredients.id", ondelete="RESTRICT"), primary_key=True
-    )
-    # The order the ingredients are listed in, from 0.
+    id: Mapped[int] = mapped_column(primary_key=True)
+    section_id: Mapped[int] = mapped_column(ForeignKey("recipe_sections.id", ondelete="CASCADE"))
+    # The order of the lines in the section, from 0.
     position: Mapped[int]
+    ingredient_id: Mapped[int] = mapped_column(ForeignKey("ingredients.id", ondelete="RESTRICT"))
     amount: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
+    original_text: Mapped[str] = mapped_column(String(ORIGINAL_TEXT_LENGTH))
     ingredient: Mapped[Ingredient] = relationship()
 
 
@@ -565,6 +597,7 @@ __all__ = [
     "Preference",
     "Recipe",
     "RecipeItem",
+    "RecipeSection",
     "SourceColumn",
     "SourceFood",
     "SourceFoodValue",

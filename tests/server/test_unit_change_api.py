@@ -117,7 +117,7 @@ def test_the_ingredient_unit_converts_basis_and_recipe_amounts(client, catalog):
     stored = client.get(f"/api/ingredients/{oats}").json()
     assert (stored["unit"], stored["basis"], stored["values"]) == ("kg", "0.1", [{"attribute_id": iron, "value": "12"}])
     recipes = client.get("/api/recipes").json()
-    assert [[i["amount"] for i in r["items"]] for r in recipes] == [["0.06"], ["0.15"]]
+    assert [[i["amount"] for i in r["sections"][0]["items"]] for r in recipes] == [["0.06"], ["0.15"]]
     assert [r["totals"] for r in recipes] == totals
 
 
@@ -172,7 +172,7 @@ def test_digits_lost_from_ingredient_numbers_are_rounded_and_counted(client, cat
     catalog.recipe("Porridge", {oats: "1.234567"})
     assert preview_ingredient(client, oats, "kg")["rounded"] == 1
     assert client.put(f"/api/ingredients/{oats}", json=ingredient_body(unit="kg")).status_code == 200
-    assert client.get("/api/recipes").json()[0]["items"][0]["amount"] == "0.001235"
+    assert client.get("/api/recipes").json()[0]["sections"][0]["items"][0]["amount"] == "0.001235"
     iron = catalog.attribute("Iron", "mg", 0)
     other = catalog.ingredient("Seeds", "g", "100", values={iron: "0.000123"})
     assert preview_attribute(client, iron, "g")["rounded"] == 1
@@ -264,7 +264,7 @@ def test_a_name_clash_leaves_every_number_as_it_was(client, catalog):
     catalog.recipe("Porridge", {oats: "60"})
     assert client.put(f"/api/ingredients/{oats}", json=ingredient_body(name="Oats", unit="kg")).status_code == 409
     assert client.get(f"/api/ingredients/{oats}").json()["basis"] == "100"
-    assert client.get("/api/recipes").json()[0]["items"][0]["amount"] == "60"
+    assert client.get("/api/recipes").json()[0]["sections"][0]["items"][0]["amount"] == "60"
 
 
 def test_the_previews_404_and_write_nothing(client, catalog):
