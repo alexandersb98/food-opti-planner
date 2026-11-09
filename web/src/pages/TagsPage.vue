@@ -69,6 +69,14 @@ async function startNew() {
   openRow(NEW_ROW, 'new')
 }
 
+/** The list with a new tag in the server's order: after the tags made by
+ * hand, before the source tags. */
+function withNew(created: Tag) {
+  const firstSource = tags.value.findIndex((tag) => tag.source)
+  const at = firstSource === -1 ? tags.value.length : firstSource
+  return [...tags.value.slice(0, at), created, ...tags.value.slice(at)]
+}
+
 /** Save the open row and close it; false if it has to stay open. */
 async function done(): Promise<boolean> {
   if (openId.value === null) return true
@@ -89,7 +97,7 @@ async function done(): Promise<boolean> {
       ? await api.PUT('/api/tags/{tag_id}', { params: { path: { tag_id: current.id } }, body: fields })
       : await api.POST('/api/tags', { body: fields })
     if (data) {
-      tags.value = current ? tags.value.map((tag) => (tag.id === data.id ? data : tag)) : [...tags.value, data]
+      tags.value = current ? tags.value.map((tag) => (tag.id === data.id ? data : tag)) : withNew(data)
       openId.value = null
       return true
     }

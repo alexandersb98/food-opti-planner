@@ -260,3 +260,19 @@ test('a refused save of a source tag shows "Could not save."', async () => {
   expect(wrapper.get('[role="alert"]').text()).toBe('Could not save. Try again.')
   wrapper.unmount()
 })
+
+test('a new tag is listed before the source tags, as the server lists it', async () => {
+  const { wrapper } = await mountPage({
+    'GET /api/tags': { body: [vegan, dairy] },
+    'POST /api/tags': (body) => ({ status: 201, body: tag({ id: 9, ...(body as { name: string }) }) }),
+  })
+  await click(button(wrapper, '+ New tag'))
+  await nameField(wrapper).setValue('organic')
+  await click(button(wrapper, 'Done'))
+  expect(rows(wrapper)).toEqual([
+    expect.stringMatching(/^vegan/),
+    expect.stringMatching(/^organic/),
+    expect.stringMatching(/^TEST Dairy/),
+  ])
+  wrapper.unmount()
+})
