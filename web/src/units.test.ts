@@ -109,3 +109,15 @@ test('offered(null) is the free-text unit st', async () => {
   const { units } = await loaded()
   expect(symbols(units.offered(null))).toEqual(['st'])
 })
+
+test('convertible follows the server rule: same category, or the same free text', async () => {
+  const { units } = await loaded()
+  const yes: [string, string][] = [
+    ['g', 'kg'], ['g', 'mg'], ['kcal', 'kJ'], ['st', 'stycken'], ['dose', 'Dose'], ['gram', 'g'], ['g', 'g'], ['MJ', 'MJ.'],
+  ]
+  const no: [string, string][] = [
+    ['g', 'ml'], ['dose', 'portion'], ['', ''], ['g', ''], ['', 'g'], ['dose', 'g'], ['g', 'dose'], ['MJ', 'J'], ['MJ', 'mJ'], ['kcal', 'g'],
+  ]
+  for (const [a, b] of yes) expect(units.convertible(a, b), `${a} ~ ${b}`).toBe(true)
+  for (const [a, b] of no) expect(units.convertible(a, b), `${a} ~ ${b}`).toBe(false)
+})

@@ -74,7 +74,8 @@
     "ingredients": "no ingredients | 1 ingredient | {n} ingredients",
     "goals": "no goals | 1 goal | {n} goals",
     "recipes": "no recipes | 1 recipe | {n} recipes",
-    "planFilters": "no plan filters | 1 plan filter | {n} plan filters"
+    "planFilters": "no plan filters | 1 plan filter | {n} plan filters",
+    "sourceColumns": "no source columns | 1 source column | {n} source columns"
   },
   "attributes": {
     "intro": "What you track for every ingredient, and can set goals on.",
@@ -88,7 +89,8 @@
     "nameInUse": "An attribute with this name already exists.",
     "decimalsRange": "A whole number from {min} to {max}.",
     "new": "+ New attribute",
-    "deleteRemoves": "This also removes its values from {ingredients} and {goals}."
+    "deleteRemoves": "This also removes its values from {ingredients} and {goals}.",
+    "deleteUnmaps": "Its mapping from {columns} is cleared."
   },
   "tags": {
     "intro": "Yes/no labels on ingredients, which recipes get from their ingredients.",
@@ -412,7 +414,8 @@
       "conversion_needs_decimals": "{subject} ({number} {from}) would need {decimals} decimals as {to}. Raise {attribute}'s decimals first.",
       "conversion_needs_decimals_inexact": "{subject} ({number} {from}) can't be written exactly in {to}.",
       "conversion_too_large": "{subject} ({number} {from}) would be {converted} {to}, which is too large.",
-      "conversion_rounds_to_zero": "{subject} ({number} {from}) would round to 0 in {to}. Use a smaller unit."
+      "conversion_rounds_to_zero": "{subject} ({number} {from}) would round to 0 in {to}. Use a smaller unit.",
+      "unit_mismatch": "{attribute} is mapped from {name} ({source}), which is in {column}, so it can't become {to}. Unmap the column on the data source page first."
     }
   }
 }

@@ -171,6 +171,24 @@ test('delete warns what else it removes, then deletes', async () => {
   wrapper.unmount()
 })
 
+test('delete warns that the mapping from source columns is cleared', async () => {
+  const mapped = attribute({ id: 3, name: 'Fat', unit: 'g', mapping_count: 2 })
+  const both = attribute({ id: 4, name: 'Fibre', unit: 'g', ingredient_count: 2, goal_count: 0, mapping_count: 1 })
+  const { wrapper } = await mountPage({ 'GET /api/attributes': { body: [mapped, both] } })
+
+  await click(wrapper.findAll('.attribute-row')[0]!.get('.q-item'))
+  await click(button(wrapper, 'Delete'))
+  expect(dialog().text).toContain('Its mapping from 2 source columns is cleared.')
+  expect(dialog().text).not.toContain('Nothing else uses it.')
+  expect(dialog().text).not.toContain('removes its values')
+  await dialog().click('Cancel')
+
+  await click(wrapper.findAll('.attribute-row')[1]!.get('.q-item'))
+  await click(button(wrapper, 'Delete'))
+  expect(dialog().text).toContain('This also removes its values from 2 ingredients and no goals. Its mapping from 1 source column is cleared.')
+  wrapper.unmount()
+})
+
 test('an unused attribute says nothing else uses it', async () => {
   const { wrapper } = await mountPage()
   await click(wrapper.findAll('.attribute-row')[0]!.get('.q-item'))
@@ -334,6 +352,33 @@ test('a refusal shows under the unit field, and asking again uses the raised dec
   expect(wrapper.text()).not.toContain('would need')
   await dialog().click('Convert')
   expect(sent).toEqual([{ name: 'Energy', unit: 'kJ', decimals: 4 }])
+  wrapper.unmount()
+})
+
+test('a mapped column that would stop converting is refused under the unit, with no dialog', async () => {
+  const refusal = unitChangeRefusal({ type: 'unit_mismatch', kind: 'source_column', name: 'TEST Protein', source: 'TEST Source', unit: 'g' })
+  const { wrapper, sent } = await openEnergy({ 'POST /api/attributes/1/unit-change': { body: unitChange({ refusal }) } })
+  await field(wrapper, 'Unit').setValue('g')
+  await click(button(wrapper, 'Done'))
+  expect(wrapper.text()).toContain(
+    "Energy is mapped from TEST Protein (TEST Source), which is in g, so it can't become g. Unmap the column on the data source page first.",
+  )
+  expect(document.querySelector('.q-dialog')).toBeNull()
+  expect(sent).toEqual([])
+  wrapper.unmount()
+})
+
+test("a save refused with unit_mismatch shows the server's sentence under the unit", async () => {
+  const { wrapper } = await openEnergy({
+    'PUT /api/attributes/1': {
+      status: 422,
+      body: { detail: [{ loc: ['body', 'unit'], type: 'unit_mismatch', msg: 'Unmap TEST Protein first.' }] },
+    },
+  })
+  await field(wrapper, 'Unit').setValue('kJ')
+  await click(button(wrapper, 'Done'))
+  await dialog().click('Convert')
+  expect(wrapper.text()).toContain('Unmap TEST Protein first.')
   wrapper.unmount()
 })
 

@@ -69,6 +69,31 @@ export function useUnits() {
     return state.units.find((unit) => [unit.symbol, ...unit.aliases].some((spelling) => clean(spelling).toLowerCase() === key))
   }
 
+  /** `findUnit`, except that a capital M before a milli unit ("MJ", "Ml") is
+   * mega, not milli: free text, as the server reads it. A milli unit is one
+   * whose symbol is "m" and the symbol of another unit (mg, ml, mJ). */
+  function unitNamed(text: string): CatalogueUnit | undefined {
+    const unit = findUnit(text)
+    if (!unit || !unit.symbol.startsWith('m') || clean(text)[0] !== 'M') return unit
+    const base = unit.symbol.slice(1)
+    return state.units.some((other) => other.symbol === base) ? undefined : unit
+  }
+
+  /** Whether an amount in `a` converts to `b`: the server's rule
+   * (`units.factor`). Both name catalogue units of the same category, or are
+   * the same unit; or neither names a unit and the cleaned texts are equal
+   * (ignoring case) and not empty. The server stays the authority. */
+  function convertible(a: string, b: string): boolean {
+    const unitA = unitNamed(a)
+    const unitB = unitNamed(b)
+    if (!unitA && !unitB) {
+      const key = clean(a).toLowerCase()
+      return key !== '' && key === clean(b).toLowerCase()
+    }
+    if (!unitA || !unitB) return false
+    return unitA === unitB || (unitA.category !== null && unitA.category === unitB.category)
+  }
+
   /** How a drop-down shows a unit: "kg (kilogram)". */
   function label(unit: CatalogueUnit): string {
     return `${unit.symbol} (${unit.name})`
@@ -81,7 +106,7 @@ export function useUnits() {
     return category === 'mass' || category === 'volume' ? '100' : '1'
   }
 
-  return { ...toRefs(readonly(state)), load, offered, findUnit, label, basisFor }
+  return { ...toRefs(readonly(state)), load, offered, findUnit, convertible, label, basisFor }
 }
 
 /** Forget the catalogue, for tests. */

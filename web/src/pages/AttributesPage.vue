@@ -151,13 +151,21 @@ async function confirmUnitChange(current: Attribute, fields: Fields): Promise<bo
 
 const deleteWarning = computed(() => {
   const attribute = openAttribute.value
-  if (!attribute || (attribute.ingredient_count === 0 && attribute.goal_count === 0)) {
-    return t('common.deleteNothing')
+  const parts: string[] = []
+  if (attribute && (attribute.ingredient_count > 0 || attribute.goal_count > 0)) {
+    parts.push(
+      t('attributes.deleteRemoves', {
+        ingredients: t('count.ingredients', attribute.ingredient_count),
+        goals: t('count.goals', attribute.goal_count),
+      }),
+    )
   }
-  return t('attributes.deleteRemoves', {
-    ingredients: t('count.ingredients', attribute.ingredient_count),
-    goals: t('count.goals', attribute.goal_count),
-  })
+  if (attribute && attribute.mapping_count > 0) {
+    parts.push(
+      t('attributes.deleteUnmaps', { columns: t('count.sourceColumns', attribute.mapping_count) }),
+    )
+  }
+  return parts.length > 0 ? parts.join(' ') : t('common.deleteNothing')
 })
 
 async function confirmDelete() {
