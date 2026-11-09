@@ -1,6 +1,7 @@
 import { reactive, readonly, toRefs } from 'vue'
 import { api } from './api/client'
 import type { CatalogueUnit } from './api/types'
+import { fraction, ONE, over, type Fraction } from './fractions'
 
 // The unit catalogue the server sent (GET /api/units), kept outside any page
 // so every unit field sees it without a refetch. The server holds the rules
@@ -90,6 +91,22 @@ export function useUnits() {
     return unitA === unitB || (unitA.category !== null && unitA.category === unitB.category)
   }
 
+  /** What one `a` makes of `b`, exactly (the server's `units.ratio`): 1 for
+   * the same unit in any spelling, or for equal free texts; the quotient of
+   * the catalogue factors for two units of one category; null otherwise. */
+  function ratio(a: string, b: string): Fraction | null {
+    const unitA = findUnit(a)
+    const unitB = findUnit(b)
+    if (!unitA && !unitB) {
+      const key = clean(a).toLowerCase()
+      return key !== '' && key === clean(b).toLowerCase() ? ONE : null
+    }
+    if (!unitA || !unitB) return null
+    if (unitA === unitB) return ONE
+    if (unitA.category === null || unitA.category !== unitB.category || !unitA.factor || !unitB.factor) return null
+    return over(fraction(unitA.factor), fraction(unitB.factor))
+  }
+
   /** How a drop-down shows a unit: "kg (kilogram)". */
   function label(unit: CatalogueUnit): string {
     return `${unit.symbol} (${unit.name})`
@@ -102,7 +119,7 @@ export function useUnits() {
     return category === 'mass' || category === 'volume' ? '100' : '1'
   }
 
-  return { ...toRefs(readonly(state)), load, offered, findUnit, convertible, label, basisFor }
+  return { ...toRefs(readonly(state)), load, offered, findUnit, convertible, ratio, label, basisFor }
 }
 
 /** Forget the catalogue, for tests. */

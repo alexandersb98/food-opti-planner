@@ -188,7 +188,8 @@
     "noValue": "none",
     "accept": "Accept",
     "keepMine": "Keep mine",
-    "sourceValuesFailed": "Could not save your answer. Try again."
+    "sourceValuesFailed": "Could not save your answer. Try again.",
+    "deleteConversions": "This also removes its {n} conversion. | This also removes its {n} conversions."
   },
   "addFromSource": {
     "button": "Add from data source",
@@ -265,7 +266,16 @@
     "belowMax": "Must be at least To.",
     "notInSteps": "Must be a whole number of steps.",
     "penaltyInvalid": "Enter a number, 0 or more.",
-    "nameInUse": "A recipe with this name already exists."
+    "nameInUse": "A recipe with this name already exists.",
+    "unitOf": "Unit of {name}",
+    "unitGroups": {
+      "own": "Ingredient's unit",
+      "steps": "Other units",
+      "conversions": "Conversions"
+    },
+    "newUnit": "New unit…",
+    "unitNotConvertible": "{unit} of {name} doesn't convert. Pick another unit or add a conversion.",
+    "aiTooltip": "Suggested by AI, not checked by you"
   },
   "clash": {
     "title": "No plan possible",
@@ -481,13 +491,15 @@
       "source_values": "no source values | 1 source value | {n} source values",
       "goals": "no goals | 1 goal | {n} goals",
       "basis": "the basis",
-      "recipe_amounts": "no recipe amounts | 1 recipe amount | {n} recipe amounts"
+      "recipe_amounts": "no recipe amounts | 1 recipe amount | {n} recipe amounts",
+      "conversions": "no conversions | 1 conversion | {n} conversions"
     },
     "fields": {
       "min": "minimum",
       "max": "maximum",
       "zero_reference": "zero reference",
-      "value": "value"
+      "value": "value",
+      "factor": "number"
     },
     "subject": {
       "goal": "The goal {name}'s {field}",
@@ -495,14 +507,47 @@
       "source_value": "The source's {attribute} value of {name}",
       "basis": "The basis of {name}",
       "recipe_amount": "The amount in {name}",
-      "other": "{name}"
+      "other": "{name}",
+      "conversion": "The conversion for {name}"
     },
     "refusal": {
       "conversion_needs_decimals": "{subject} ({number} {from}) would need {decimals} decimals as {to}. Raise {attribute}'s decimals first.",
       "conversion_needs_decimals_inexact": "{subject} ({number} {from}) can't be written exactly in {to}.",
       "conversion_too_large": "{subject} ({number} {from}) would be {converted} {to}, which is too large.",
       "conversion_rounds_to_zero": "{subject} ({number} {from}) would round to 0 in {to}. Use a smaller unit.",
-      "unit_mismatch": "{attribute} is mapped from {name} ({source}), which is in {column}, so it can't become {to}. Unmap the column on the data source page first."
+      "unit_mismatch": "{attribute} is mapped from {name} ({source}), which is in {column}, so it can't become {to}. Unmap the column on the data source page first.",
+      "unit_has_dependents": "{name} has {dependents}, so its unit can't change from {from} to {to}. Delete or change them first.",
+      "conversion_for_new_unit": "{name} has a conversion for {to}. Delete the conversion for {unit} first."
+    },
+    "dependents": {
+      "conversions": "{n} conversion | {n} conversions",
+      "lines": "{n} recipe line in another unit | {n} recipe lines in other units"
     }
+  },
+  "conversions": {
+    "title": "Conversions",
+    "empty": "No conversions yet.",
+    "row": "1 {unit} = {factor} {own}",
+    "add": "+ Add conversion",
+    "addTitle": "New unit",
+    "editTitle": "Edit conversion",
+    "unit": "Unit",
+    "factor": "How many {own} one makes",
+    "unitRequired": "Enter a unit.",
+    "factorInvalid": "Enter a number above 0.",
+    "numberTooLong": "Use at most 9 digits before the point and 6 after.",
+    "unitIsOwn": "That is the ingredient's own unit.",
+    "duplicate": "This ingredient has a conversion for that unit already.",
+    "saveFailed": "Could not save the conversion.",
+    "deleteFailed": "Could not delete the conversion.",
+    "usedIn": "Used in {n} recipe | Used in {n} recipes",
+    "inUse": "Can't be deleted while a recipe uses it.",
+    "unitInUse": "A recipe uses this unit, so only the number can change.",
+    "saveFirst": "Save the ingredient to add conversions.",
+    "deleteTitle": "Delete the conversion for {unit}?",
+    "aiTooltip": "Suggested by AI, not checked by you",
+    "edit": "Edit",
+    "delete": "Delete",
+    "unitLabel": "Unit"
   }
 }

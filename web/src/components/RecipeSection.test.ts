@@ -15,8 +15,8 @@ function section(name = ''): DraftSection {
     key: 1,
     name,
     items: [
-      { key: 11, ingredientId: 1, amount: '60', originalText: '' },
-      { key: 12, ingredientId: 2, amount: '200', originalText: '' },
+      { key: 11, ingredientId: 1, amount: '60', unit: '', originalText: '' },
+      { key: 12, ingredientId: 2, amount: '200', unit: '', originalText: '' },
     ],
   }
 }

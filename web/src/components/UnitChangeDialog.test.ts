@@ -45,6 +45,11 @@ test('an ingredient reads "the basis and 4 recipe amounts"', async () => {
   expect(dialog().text).toContain('Oats: the basis and 4 recipe amounts will be converted from g to kg (× 0.001).')
 })
 
+test('an ingredient with conversions reads "the basis, 1 recipe amount and 2 conversions"', async () => {
+  await ask(unitChange({ factor: '1000', counts: { basis: 1, recipe_amounts: 1, conversions: 2 } }), 'Oats', 'kg', 'g')
+  expect(dialog().text).toContain('Oats: the basis, 1 recipe amount and 2 conversions will be converted from kg to g (× 1000).')
+})
+
 test('digits lost are said when there are any', async () => {
   await ask(unitChange({ rounded: 2 }))
   expect(dialog().text).toContain('2 values will be rounded.')

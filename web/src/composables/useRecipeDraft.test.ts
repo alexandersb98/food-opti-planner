@@ -25,8 +25,8 @@ function draft(changes: Partial<RecipeDraft> = {}): RecipeDraft {
 }
 
 let lineKey = 100
-function line(ingredientId: number, amount: string, originalText = ''): DraftLine {
-  return { key: ++lineKey, ingredientId, amount, originalText }
+function line(ingredientId: number, amount: string, originalText = '', unit = ''): DraftLine {
+  return { key: ++lineKey, ingredientId, amount, unit, originalText }
 }
 
 /** A draft of named sections, each a list of (ingredient id, amount) lines. */
@@ -57,7 +57,7 @@ test('a draft that passes gives the fields to send', () => {
   expect(fields).toEqual({
     name: 'Porridge',
     servings: 1,
-    sections: [{ name: '', items: [{ ingredient_id: 1, amount: '60', original_text: '' }] }],
+    sections: [{ name: '', items: [{ ingredient_id: 1, amount: '60', unit: '', original_text: '' }] }],
     instructions: '',
     source_url: '',
     extra_tag_ids: [1],
@@ -133,8 +133,8 @@ test('a stored recipe is drafted with its sections, lines, original text, servin
     instructions: 'Stir.\nServe.',
     source_url: 'https://example.com/p',
     sections: [
-      { name: 'Base', items: [{ ingredient_id: 1, amount: '60', original_text: '60 g oats' }] },
-      { name: 'Top', items: [{ ingredient_id: 1, amount: '10', original_text: '' }] },
+      { name: 'Base', items: [{ ingredient_id: 1, amount: '60', unit: '', original_text: '60 g oats' }] },
+      { name: 'Top', items: [{ ingredient_id: 1, amount: '10', unit: '', original_text: '' }] },
     ],
   })
   const drafted = draftOf(stored, '0.5')
@@ -293,5 +293,47 @@ test('a recipe opened is not asked about, though its lines are in sections', asy
   await flushPromises()
   expect(calls).toEqual([])
   expect(draft.derivedTagIds.value).toEqual([5])
+  wrapper.unmount()
+})
+
+// Line units.
+
+test('a line keeps its unit and sends it trimmed', () => {
+  const base = draft()
+  const sections = [{ ...base.sections[0]!, items: [line(1, '60'), line(1, '1', '', ' dl ')] }]
+  const { fields, errors } = checkRecipe(draft({ sections }), [], t)
+  expect(hasErrors(errors)).toBe(false)
+  expect(fields.sections[0]!.items.map((i) => i.unit)).toEqual(['', 'dl'])
+  const stored = recipe({
+    id: 7,
+    name: 'Porridge',
+    sections: [{ name: '', items: [{ ingredient_id: 1, amount: '1', unit: 'dl', original_text: '' }] }],
+  })
+  expect(draftOf(stored, '0.5').sections[0]!.items[0]!.unit).toBe('dl')
+})
+
+test('a line whose unit does not convert is refused on its key', () => {
+  const base = draft()
+  const sections = [{ ...base.sections[0]!, items: [line(1, '60'), line(1, '1', '', 'dl')] }]
+  const wrong = draft({ sections })
+  const bad = wrong.sections[0]!.items[1]!
+  const { errors } = checkRecipe(wrong, [], t, (l) => l.unit !== 'dl')
+  expect(errors.unitErrors).toEqual({ [bad.key]: true })
+  expect(hasErrors(errors)).toBe(true)
+})
+
+test("the server's unit errors land on the line", () => {
+  const base = draft()
+  const sections = [{ ...base.sections[0]!, items: [line(1, '60'), line(1, '1', '', 'dl')] }]
+  const wrong = draft({ sections })
+  const key = wrong.sections[0]!.items[1]!.key
+  expect(serverErrors({ 'sections.0.items.1.unit': 'unit_not_convertible' }, wrong, t)).toEqual({ unitErrors: { [key]: true } })
+  expect(serverErrors({ 'sections.0.items.1.unit': 'unit_not_for_ingredient' }, wrong, t)).toEqual({ unitErrors: { [key]: true } })
+})
+
+test('a line added starts in the ingredient\'s own unit', () => {
+  const { wrapper, draft: drafted } = mounted()
+  drafted.addIngredient(0, oats)
+  expect(drafted.draft.sections[0]!.items[0]!.unit).toBe('')
   wrapper.unmount()
 })

@@ -250,6 +250,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ingredients/{ingredient_id}/conversions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Conversion */
+        post: operations["add_conversion_api_ingredients__ingredient_id__conversions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ingredients/{ingredient_id}/conversions/{conversion_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Edit Conversion
+         * @description Only the factor may change while a recipe uses the conversion. A save
+         *     that changes neither unit nor factor keeps the source; one that does is
+         *     the user's.
+         */
+        put: operations["edit_conversion_api_ingredients__ingredient_id__conversions__conversion_id__put"];
+        post?: never;
+        /** Delete Conversion */
+        delete: operations["delete_conversion_api_ingredients__ingredient_id__conversions__conversion_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ingredients/{ingredient_id}/source-values": {
         parameters: {
             query?: never;
@@ -283,7 +323,8 @@ export interface paths {
         put?: never;
         /**
          * Preview Unit Change
-         * @description What changing the unit does to the basis and the recipe amounts. Writes nothing.
+         * @description What changing the unit does to the basis, the recipe amounts and the
+         *     conversions. Writes nothing.
          */
         post: operations["preview_unit_change_api_ingredients__ingredient_id__unit_change_post"];
         delete?: never;
@@ -790,6 +831,29 @@ export interface components {
             /** Attribute Id */
             attribute_id: number | null;
         };
+        /** Conversion */
+        Conversion: {
+            /** Factor */
+            factor: string;
+            /** Id */
+            id: number;
+            /** Recipe Count */
+            recipe_count: number;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "ai" | "user";
+            /** Unit */
+            unit: string;
+        };
+        /** ConversionFields */
+        ConversionFields: {
+            /** Factor */
+            factor: number | string;
+            /** Unit */
+            unit: string;
+        };
         /** Counts */
         Counts: {
             /** Attributes */
@@ -1033,6 +1097,8 @@ export interface components {
         Ingredient: {
             /** Basis */
             basis: string;
+            /** Conversions */
+            conversions: components["schemas"]["Conversion"][];
             /** Id */
             id: number;
             /** Name */
@@ -1425,6 +1491,11 @@ export interface components {
             ingredient_id: number;
             /** Original Text */
             original_text: string;
+            /**
+             * Unit
+             * @default
+             */
+            unit: string;
         };
         /**
          * RecipeItem
@@ -1437,6 +1508,11 @@ export interface components {
             ingredient_id: number;
             /** Original Text */
             original_text: string;
+            /**
+             * Unit
+             * @default
+             */
+            unit: string;
         };
         /** ResultAttribute */
         ResultAttribute: {
@@ -1739,6 +1815,8 @@ export interface components {
         };
         /** UnitChangeRefusal */
         UnitChangeRefusal: {
+            /** Conversions */
+            conversions?: number | null;
             /** Converted */
             converted?: string | null;
             /** Decimals Needed */
@@ -1747,6 +1825,8 @@ export interface components {
             field?: string | null;
             /** Kind */
             kind?: string | null;
+            /** Lines */
+            lines?: number | null;
             /** Msg */
             msg: string;
             /** Name */
@@ -1759,7 +1839,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "conversion_needs_decimals" | "conversion_too_large" | "conversion_rounds_to_zero" | "unit_not_for_ingredient" | "unit_not_for_source" | "unit_mismatch";
+            type: "conversion_needs_decimals" | "conversion_too_large" | "conversion_rounds_to_zero" | "unit_not_for_ingredient" | "unit_not_for_source" | "unit_mismatch" | "unit_has_dependents" | "conversion_for_new_unit";
             /** Unit */
             unit?: string | null;
         };
@@ -2469,6 +2549,142 @@ export interface operations {
                 content?: never;
             };
             /** @description Recipes use the ingredient, so it can't be deleted */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_conversion_api_ingredients__ingredient_id__conversions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ingredient_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConversionFields"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Conversion"];
+                };
+            };
+            /** @description No such ingredient or conversion */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An energy unit, the ingredient's own unit or a unit it has */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+        };
+    };
+    edit_conversion_api_ingredients__ingredient_id__conversions__conversion_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ingredient_id: number;
+                conversion_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConversionFields"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Conversion"];
+                };
+            };
+            /** @description No such ingredient or conversion */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Recipes use the conversion */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An energy unit, the ingredient's own unit or a unit it has */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+        };
+    };
+    delete_conversion_api_ingredients__ingredient_id__conversions__conversion_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ingredient_id: number;
+                conversion_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such ingredient or conversion */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Recipes use the conversion */
             409: {
                 headers: {
                     [name: string]: unknown;

@@ -329,8 +329,8 @@ test('Show lists a recipe that has the ingredient only in a second section', asy
     id: 4,
     name: 'Layered',
     sections: [
-      { name: 'Base', items: [{ ingredient_id: 8, amount: '1', original_text: '' }] },
-      { name: 'Top', items: [{ ingredient_id: 7, amount: '2', original_text: '' }] },
+      { name: 'Base', items: [{ ingredient_id: 8, amount: '1', unit: '', original_text: '' }] },
+      { name: 'Top', items: [{ ingredient_id: 7, amount: '2', unit: '', original_text: '' }] },
     ],
   })
   const { wrapper } = await mountPage('/ingredients/7', {

@@ -12,15 +12,16 @@ import { typedNumber } from '../numbers'
 // the page.
 
 /** A line of a section. `key` identifies it in the editor (the same
- * ingredient may be on several lines); `originalText` is the imported line,
- * kept so a save does not lose it. */
-export type DraftLine = { key: number; ingredientId: number; amount: string; originalText: string }
+ * ingredient may be on several lines); `unit` is the unit the amount is in,
+ * empty for the ingredient's own; `originalText` is the imported line, kept so
+ * a save does not lose it. */
+export type DraftLine = { key: number; ingredientId: number; amount: string; unit: string; originalText: string }
 
 /** A part of the recipe under a heading; `name` is empty for an unnamed one. */
 export type DraftSection = { key: number; name: string; items: DraftLine[] }
 
-/** The fields as typed. Amounts are for the whole recipe, in each
- * ingredient's unit; `servings` is how many portions it makes. */
+/** The fields as typed. Amounts are for the whole recipe, each in its line's
+ * unit; `servings` is how many portions it makes. */
 export type RecipeDraft = {
   name: string
   servings: string
@@ -48,6 +49,7 @@ const noErrors = {
   items: '', // no line anywhere
   sectionNames: {} as Partial<Record<number, string>>, // by section key
   amounts: {} as Partial<Record<number, string>>, // by line key
+  unitErrors: {} as Partial<Record<number, true>>, // by line key: a unit that doesn't convert
   sourceUrl: '',
   min: '',
   max: '',
@@ -86,10 +88,11 @@ export function draftOf(recipe: Recipe, step: string): RecipeDraft {
     sections: recipe.sections.map(({ name, items }) => ({
       key: newKey(),
       name,
-      items: items.map(({ ingredient_id, amount, original_text }) => ({
+      items: items.map(({ ingredient_id, amount, unit, original_text }) => ({
         key: newKey(),
         ingredientId: ingredient_id,
         amount,
+        unit,
         originalText: original_text,
       })),
     })),
@@ -124,6 +127,7 @@ export function hasErrors(errors: RecipeErrors): boolean {
     errors.sourceUrl ||
     Object.keys(errors.sectionNames).length > 0 ||
     Object.keys(errors.amounts).length > 0 ||
+    Object.keys(errors.unitErrors).length > 0 ||
     errors.min ||
     errors.max ||
     errors.step ||
@@ -148,8 +152,15 @@ function linesOf(draft: RecipeDraft): DraftLine[] {
 }
 
 /** The fields to send, and what is wrong with each as typed. `tags` are the
- * tags there are; a hand-added tag no longer among them is left out. */
-export function checkRecipe(draft: RecipeDraft, tags: Tag[], t: Translate): { fields: Fields; errors: RecipeErrors } {
+ * tags there are; a hand-added tag no longer among them is left out.
+ * `converts` says whether a line's unit converts to its ingredient's (the
+ * server refuses the save otherwise); it defaults to yes. */
+export function checkRecipe(
+  draft: RecipeDraft,
+  tags: Tag[],
+  t: Translate,
+  converts: (line: DraftLine) => boolean = () => true,
+): { fields: Fields; errors: RecipeErrors } {
   const servings = servingsOf(draft.servings)
   const fields: Fields = {
     name: draft.name.trim(),
@@ -172,15 +183,18 @@ export function checkRecipe(draft: RecipeDraft, tags: Tag[], t: Translate): { fi
     sourceUrl: fields.source_url === '' || /^https?:\/\/\S+$/.test(fields.source_url) ? '' : t('recipes.sourceInvalid', {}),
     sectionNames: {},
     amounts: {},
+    unitErrors: {},
   }
   for (const section of draft.sections) {
     const name = section.name.trim()
     if (draft.sections.length > 1 && name === '') errors.sectionNames[section.key] = t('recipes.sectionNameRequired', {})
     const items: Fields['sections'][number]['items'] = []
-    for (const { key, ingredientId, amount, originalText } of section.items) {
+    for (const line of section.items) {
+      const { key, ingredientId, amount, unit, originalText } = line
       const number = typedNumber(amount)
       if (number === null || Number(number) <= 0) errors.amounts[key] = t('recipes.amountInvalid', {})
-      else items.push({ ingredient_id: ingredientId, amount: number, original_text: originalText })
+      else items.push({ ingredient_id: ingredientId, amount: number, unit: unit.trim(), original_text: originalText })
+      if (!converts(line)) errors.unitErrors[key] = true
     }
     fields.sections.push({ name, items })
   }
@@ -240,16 +254,19 @@ export function serverErrors(
   }
   const sectionNames: Partial<Record<number, string>> = {}
   const amounts: Partial<Record<number, string>> = {}
+  const unitErrors: Partial<Record<number, true>> = {}
   draft.sections.forEach((section, i) => {
     if (byField[`sections.${i}.name`]) sectionNames[section.key] = t('recipes.sectionNameRequired', {})
     section.items.forEach((line, j) => {
       const text = message(`sections.${i}.items.${j}.amount`, numberTooLong)
       if (text) amounts[line.key] = text
+      if (byField[`sections.${i}.items.${j}.unit`]) unitErrors[line.key] = true
       if (byField[`sections.${i}.items.${j}.ingredient_id`]) errors.save = t('recipes.unknownIngredient', {})
     })
   })
   if (Object.keys(sectionNames).length > 0) errors.sectionNames = sectionNames
   if (Object.keys(amounts).length > 0) errors.amounts = amounts
+  if (Object.keys(unitErrors).length > 0) errors.unitErrors = unitErrors
   return Object.keys(errors).length > 0 ? errors : null
 }
 
@@ -261,7 +278,7 @@ export function useRecipeDraft(id: number | null) {
   const { t } = useI18n()
 
   const draft = reactive(emptyDraft())
-  const errors = reactive<RecipeErrors>({ ...noErrors, sectionNames: {}, amounts: {} })
+  const errors = reactive<RecipeErrors>({ ...noErrors, sectionNames: {}, amounts: {}, unitErrors: {} })
   const saving = ref(false)
   // Open when it holds something other than the defaults, or a mistake.
   const advancedOpen = ref(false)
@@ -290,7 +307,7 @@ export function useRecipeDraft(id: number | null) {
   }
 
   function addIngredient(sectionIndex: number, ingredient: Ingredient) {
-    draft.sections[sectionIndex]?.items.push({ key: newKey(), ingredientId: ingredient.id, amount: '', originalText: '' })
+    draft.sections[sectionIndex]?.items.push({ key: newKey(), ingredientId: ingredient.id, amount: '', unit: '', originalText: '' })
     errors.items = ''
   }
 
@@ -371,10 +388,11 @@ export function useRecipeDraft(id: number | null) {
   }
 
   /** Send the draft, unless a field is wrong, then `done` (such as leaving
-   * the page) while `saving` stays on. `tags` are the tags there are. */
-  async function save(tags: Tag[], done: () => Promise<unknown>) {
+   * the page) while `saving` stays on. `tags` are the tags there are;
+   * `converts` says whether a line's unit converts (`checkRecipe`). */
+  async function save(tags: Tag[], done: () => Promise<unknown>, converts?: (line: DraftLine) => boolean) {
     errors.save = ''
-    const { fields, errors: wrong } = checkRecipe(draft, tags, t)
+    const { fields, errors: wrong } = checkRecipe(draft, tags, t, converts)
     showErrors(wrong)
     if (hasErrors(wrong)) return
     saving.value = true

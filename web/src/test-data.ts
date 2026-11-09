@@ -1,4 +1,4 @@
-import type { Attribute, DataSource, DataSourceSummary, FoodPreview, FoodSummary, IngredientSource, SourceColumn, Goal, Ingredient, Plan, PlanResult, PlanResultSummary, Preferences, Recipe, ResultGoal, ResultMeal, ResultMiss, Tag, UnitCatalogue, UnitChange, UnitChangeRefusal } from './api/types'
+import type { Attribute, Conversion, DataSource, DataSourceSummary, FoodPreview, FoodSummary, IngredientSource, SourceColumn, Goal, Ingredient, Plan, PlanResult, PlanResultSummary, Preferences, Recipe, ResultGoal, ResultMeal, ResultMiss, Tag, UnitCatalogue, UnitChange, UnitChangeRefusal } from './api/types'
 import unitFixture from './test-units.json'
 
 // Rows as the server answers them, for tests: give what the test is about,
@@ -16,7 +16,12 @@ export function tag(fields: Given<Tag, 'id' | 'name'>): Tag {
 }
 
 export function ingredient(fields: Given<Ingredient, 'id' | 'name'>): Ingredient {
-  return { unit: 'g', basis: '100', values: [], tag_ids: [], recipe_count: 0, source: null, updated_values: [], ...fields }
+  return { unit: 'g', basis: '100', values: [], tag_ids: [], recipe_count: 0, source: null, conversions: [], updated_values: [], ...fields }
+}
+
+/** A conversion of an ingredient: "1 dl = 40 g", made by the user. */
+export function conversion(fields: Given<Conversion, 'id'> = { id: 1 }): Conversion {
+  return { unit: 'dl', factor: '40', source: 'user', recipe_count: 0, ...fields }
 }
 
 export function recipe(fields: Given<Recipe, 'id' | 'name'>): Recipe {
@@ -40,7 +45,7 @@ export function recipe(fields: Given<Recipe, 'id' | 'name'>): Recipe {
 /** One unnamed section of lines, from (ingredient id, amount) pairs, for a
  * recipe's `sections`. */
 export function lines(...pairs: [number, string][]): Recipe['sections'] {
-  return [{ name: '', items: pairs.map(([ingredient_id, amount]) => ({ ingredient_id, amount, original_text: '' })) }]
+  return [{ name: '', items: pairs.map(([ingredient_id, amount]) => ({ ingredient_id, amount, unit: '', original_text: '' })) }]
 }
 
 /** A goal, by default Prefer at importance 3, each day, with a minimum and

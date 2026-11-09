@@ -126,3 +126,27 @@ test('convertible follows the server rule: same category, or the same free text'
   for (const [a, b] of yes) expect(units.convertible(a, b), `${a} ~ ${b}`).toBe(true)
   for (const [a, b] of no) expect(units.convertible(a, b), `${a} ~ ${b}`).toBe(false)
 })
+
+test('ratio is exact: one unit of the first makes this much of the second', async () => {
+  const { units } = await loaded()
+  const text = (a: string, b: string) => {
+    const r = units.ratio(a, b)
+    return r === null ? null : `${r.num}/${r.den}`
+  }
+  const value = (a: string, b: string) => {
+    const r = units.ratio(a, b)!
+    return Number(r.num) / Number(r.den)
+  }
+  expect(value('kg', 'g')).toBe(1000)
+  expect(value('g', 'kg')).toBe(0.001)
+  expect(value('oz', 'g')).toBeCloseTo(28.349523125, 12)
+  expect(value('tsk', 'msk')).toBeCloseTo(1 / 3, 12)
+  const cup = units.ratio('US cup', 'dl')!
+  expect(cup.num * 1000000000n).toBe(2365882365n * cup.den)
+  expect(text('g', 'ml')).toBeNull()
+  expect(text('st', 'Stycken')).toBe('1/1')
+  expect(text('Pinch', 'pinch')).toBe('1/1')
+  expect(text('foo', 'bar')).toBeNull()
+  expect(text('', '')).toBeNull()
+  expect(text('g', 'st')).toBeNull()
+})

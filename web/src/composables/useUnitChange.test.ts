@@ -67,3 +67,30 @@ test("a source value that gets too large is named as the source's", () => {
     "The source's Iron value of Oats (999999999 mg) would be 999999999000 µg, which is too large.",
   )
 })
+
+test('a unit change refused for what depends on it counts conversions and lines, leaving out a zero', () => {
+  const both = unitChangeRefusal({ type: 'unit_has_dependents', name: 'Oats', conversions: 2, lines: 3 })
+  expect(refusalText(t, both, { from: 'g', to: 'dl' })).toBe(
+    "Oats has 2 conversions and 3 recipe lines in other units, so its unit can't change from g to dl. Delete or change them first.",
+  )
+  const one = unitChangeRefusal({ type: 'unit_has_dependents', name: 'Oats', conversions: 1, lines: 0 })
+  expect(refusalText(t, one, { from: 'g', to: 'dl' })).toBe(
+    "Oats has 1 conversion, so its unit can't change from g to dl. Delete or change them first.",
+  )
+  const line = unitChangeRefusal({ type: 'unit_has_dependents', name: 'Oats', conversions: 0, lines: 1 })
+  expect(refusalText(t, line, { from: 'g', to: 'dl' })).toBe(
+    "Oats has 1 recipe line in another unit, so its unit can't change from g to dl. Delete or change them first.",
+  )
+})
+
+test('a conversion for the new unit says to delete it first', () => {
+  const refusal = unitChangeRefusal({ type: 'conversion_for_new_unit', name: 'Oats', unit: 'kg' })
+  expect(refusalText(t, refusal, { from: 'g', to: 'kg' })).toBe('Oats has a conversion for kg. Delete the conversion for kg first.')
+})
+
+test('a conversion factor that rounds to zero is named by its unit', () => {
+  const refusal = unitChangeRefusal({ type: 'conversion_rounds_to_zero', kind: 'conversion', name: 'pinch', field: 'factor', number: '0.0004', converted: '0' })
+  expect(refusalText(t, refusal, { from: 'g', to: 'kg' })).toBe(
+    'The conversion for pinch (0.0004 g) would round to 0 in kg. Use a smaller unit.',
+  )
+})

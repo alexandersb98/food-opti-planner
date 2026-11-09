@@ -241,8 +241,8 @@ test('Save sends the fields and returns to the list', async () => {
         {
           name: '',
           items: [
-            { ingredient_id: 1, amount: '60', original_text: '' },
-            { ingredient_id: 2, amount: '250.5', original_text: '' },
+            { ingredient_id: 1, amount: '60', unit: '', original_text: '' },
+            { ingredient_id: 2, amount: '250.5', unit: '', original_text: '' },
           ],
         },
       ],
@@ -278,7 +278,7 @@ test('a new recipe starts with one unnamed section, servings 1 and the default p
     {
       name: 'Oatmeal',
       servings: 1,
-      sections: [{ name: '', items: [{ ingredient_id: 1, amount: '80', original_text: '' }] }],
+      sections: [{ name: '', items: [{ ingredient_id: 1, amount: '80', unit: '', original_text: '' }] }],
       instructions: '',
       source_url: '',
       extra_tag_ids: [],
@@ -441,8 +441,8 @@ const layered = recipe({
   instructions: 'Bake.',
   source_url: 'https://example.com/layered',
   sections: [
-    { name: 'Base', items: [{ ingredient_id: 1, amount: '200', original_text: '200 g oats' }] },
-    { name: 'Topping', items: [{ ingredient_id: 3, amount: '40', original_text: '' }] },
+    { name: 'Base', items: [{ ingredient_id: 1, amount: '200', unit: '', original_text: '200 g oats' }] },
+    { name: 'Topping', items: [{ ingredient_id: 3, amount: '40', unit: '', original_text: '' }] },
   ],
 })
 
@@ -527,8 +527,8 @@ test('Save sends sections, servings, instructions and source, the link trimmed',
     {
       servings: 6,
       sections: [
-        { name: 'Base', items: [{ ingredient_id: 1, amount: '200', original_text: '200 g oats' }] },
-        { name: 'Topping', items: [{ ingredient_id: 3, amount: '40', original_text: '' }] },
+        { name: 'Base', items: [{ ingredient_id: 1, amount: '200', unit: '', original_text: '200 g oats' }] },
+        { name: 'Topping', items: [{ ingredient_id: 3, amount: '40', unit: '', original_text: '' }] },
       ],
       instructions: 'Bake.\nCool.',
       source_url: 'https://example.com/new',
