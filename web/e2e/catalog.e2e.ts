@@ -7,7 +7,9 @@ import { expect, test, type Page } from '@playwright/test'
 // recipe amount convert after a dialog), then make a plan, then one that clashes and is fixed,
 // then map the source's columns to attributes (and create one from a column), and see what
 // that blocks and clears, and finally add an ingredient from a source food (search, preview,
-// the chip on its page, mass units only, the duplicate warning) and unlink it.
+// the chip on its page, mass units only, the duplicate warning) and unlink it, and finally see
+// updated source values: two ingredients added from a food, a column mapped afterwards, the
+// marker and filter on the list, and the banner on each page answered with Accept and Keep mine.
 
 const password = process.env.E2E_PASSWORD
 if (!password) throw new Error('Set E2E_PASSWORD to the login password')
@@ -386,6 +388,69 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await page.reload()
   await expect(page.getByLabel('Name')).toHaveValue('Source oats')
   await expect(page.locator('.source-chip')).toHaveCount(0)
+
+  // Updated values: two ingredients from TEST Oats have no banner. Mapping TEST
+  // Protein afterwards (a new attribute, made from the column) gives them a value
+  // they never had: the list marks them and filters them. Accept copies the number,
+  // Keep mine keeps the ingredient without it, as an explicit 0; neither banner returns.
+  await openPage(page, 'Ingredients')
+  for (const name of ['Linked A', 'Linked B']) {
+    await page.getByRole('button', { name: 'Add from data source' }).click()
+    await fromSource.getByLabel('Search foods').fill('oat')
+    await expect(fromSource.locator('.food-row')).toHaveCount(1)
+    await fromSource.locator('.food-row').click()
+    await fromSource.getByLabel('Name').fill(name)
+    await fromSource.getByRole('button', { name: 'Add', exact: true }).click()
+    await expect(page.getByLabel('Name')).toHaveValue(name)
+    await expect(page.locator('.source-chip')).toHaveText('From TEST Source: TEST Oats')
+    await expect(page.locator('.updated-values')).toHaveCount(0)
+    await page.getByRole('link', { name: 'Back' }).click()
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ingredients')
+  }
+  await openPage(page, 'Settings')
+  await page.locator('.data-sources-card').getByText('TEST Source').click()
+  await attributeSelect('TEST Protein').click()
+  await page.getByRole('option', { name: 'Create attribute…' }).click()
+  await page.getByRole('dialog').getByLabel('Name').fill('Protein')
+  await page.getByRole('dialog').getByLabel('Decimals').fill('1')
+  await page.getByRole('dialog').getByRole('button', { name: 'Add' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(attributeSelect('TEST Protein')).toContainText('Protein')
+
+  await openPage(page, 'Ingredients')
+  const linkedRow = (name: string) => page.locator('.ingredient-row').filter({ hasText: name })
+  await expect(linkedRow('Linked A').locator('.updated-marker')).toHaveText('Updated values available')
+  await expect(linkedRow('Linked B').locator('.updated-marker')).toHaveText('Updated values available')
+  await expect(page.locator('.updated-marker')).toHaveCount(2)
+  await expect(page.locator('.updated-filter')).toHaveText('Only with updated values (2)')
+  await page.locator('.updated-filter').click()
+  await expect(page.locator('.ingredient-row')).toHaveText([/Linked A/, /Linked B/])
+  await page.locator('.updated-filter').click()
+
+  await linkedRow('Linked A').click()
+  await expect(page.locator('.updated-values li')).toHaveText(['Protein none → 13.5 g'])
+  await page.locator('.accept-updates').click()
+  await expect(page.locator('.updated-values')).toHaveCount(0)
+  await expect(page.getByLabel('Protein')).toHaveValue('13.5')
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ingredients')
+  await expect(linkedRow('Linked A')).toContainText('Protein 13.5 g')
+  await expect(linkedRow('Linked A').locator('.updated-marker')).toHaveCount(0)
+
+  await linkedRow('Linked B').click()
+  await page.locator('.keep-updates').click()
+  await expect(page.locator('.updated-values')).toHaveCount(0)
+  await expect(page.getByLabel('Protein')).toHaveValue('0')
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ingredients')
+  await linkedRow('Linked B').click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Edit ingredient')
+  await page.reload()
+  await expect(page.getByLabel('Protein')).toHaveValue('0')
+  await expect(page.locator('.updated-values')).toHaveCount(0)
+  await page.getByRole('link', { name: 'Back' }).click()
+  await expect(page.locator('.updated-filter')).toHaveCount(0)
+  await expect(page.locator('.updated-marker')).toHaveCount(0)
 
   // Designed at phone width: nothing scrolls sideways.
   const scrolls = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)
