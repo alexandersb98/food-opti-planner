@@ -62,7 +62,7 @@ def _check(ingredient: models.Ingredient, fields: ConversionFields, ignore_id: i
     raise invalid_fields([FieldError(loc=["body", "unit"], type=error[0], msg=error[1])])
 
 
-def _conversion(db: DbSession, ingredient: models.Ingredient, conversion_id: int) -> models.IngredientConversion:
+def _conversion(ingredient: models.Ingredient, conversion_id: int) -> models.IngredientConversion:
     for conversion in ingredient.conversions:
         if conversion.id == conversion_id:
             return conversion
@@ -87,7 +87,7 @@ def edit_conversion(ingredient_id: int, conversion_id: int, body: ConversionFiel
     that changes neither unit nor factor keeps the source; one that does is
     the user's."""
     ingredient = get_or_404(db, models.Ingredient, ingredient_id, "ingredient")
-    row = _conversion(db, ingredient, conversion_id)
+    row = _conversion(ingredient, conversion_id)
     _check(ingredient, body, row.id)
     usage = conversions.usage(db)
     unit_changed = units.ratio(body.unit, row.unit) != 1
@@ -110,7 +110,7 @@ def edit_conversion(ingredient_id: int, conversion_id: int, body: ConversionFiel
 )
 def delete_conversion(ingredient_id: int, conversion_id: int, db: DbSession) -> None:
     ingredient = get_or_404(db, models.Ingredient, ingredient_id, "ingredient")
-    row = _conversion(db, ingredient, conversion_id)
+    row = _conversion(ingredient, conversion_id)
     if conversions.usage(db).get(row.id, 0):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Recipes use this conversion")
     db.delete(row)
