@@ -124,9 +124,10 @@ ingredient can appear on several lines.
 | `source` | `ai` or `user` | |
 
 A conversion that a recipe line uses can't be deleted (the API answers
-409, as for a used ingredient). An ingredient's unit can't be changed
-while a recipe line or conversion depends on it; this keeps factors
-meaningful.
+409, as for a used ingredient). An ingredient's unit change converts
+its lines in the own unit and its conversions, and is refused for
+another category or free text while a conversion or a line in another
+unit exists (see "As built in R3").
 
 ### Built-in unit steps
 
@@ -416,8 +417,48 @@ details (the migration is `0014`, the next free number then):
 - **Downgrade of the migration is lossy:** each ingredient's lines of a
   recipe are summed and divided by `servings`; sections, instructions and
   the source link are dropped.
-- **Not in R2:** `recipe_items.unit` and the unit picker per line belong to
-  R3.
+- **Not in R2:** `recipe_items.unit` and the unit picker per line are R3 (see
+  "As built in R3").
+
+## As built in R3
+
+Slice R3 built units on lines and conversions, without AI (migration
+`0015`). Settled details:
+
+- **The routing rule** (`server/line_units.py`, mirrored in
+  `web/src/lineUnits.ts`), for a line's `unit` and an ingredient with own unit
+  `own` and conversions in id order, the first that applies: the unit is empty
+  or the same unit as `own` (factor 1); a stored conversion for the same unit
+  (its factor: a stored conversion wins over a catalogue step); a catalogue
+  step straight to `own`; a catalogue step to the unit of a stored conversion
+  (the first reachable) and on by its factor; otherwise the line does not
+  convert. The factor is an exact `Fraction`. The "Built-in unit steps"
+  table above is replaced by the unit catalogue, as the master plan's overlap 2
+  says: the catalogue is the only unit table.
+- **A line's unit** is stored in one form: empty for the ingredient's own unit
+  (any spelling), a conversion's spelling for its unit, else the catalogue
+  spelling. At most 20 characters, optional in the request (default empty). A
+  line that does not convert is refused 422 `unit_not_convertible` on
+  `sections.{i}.items.{j}.unit`, an energy unit 422 `unit_not_for_ingredient`.
+- **Conversions** have their own endpoints, not part of the ingredient's
+  `PUT`: `POST /api/ingredients/{id}/conversions`, and `PUT` and `DELETE` on
+  `.../conversions/{conversion_id}`. The unit is any catalogue unit but energy,
+  or free text; not the ingredient's own unit and not one it has (in any
+  spelling): 422 `unit_not_for_ingredient`, `unit_is_own_unit`, `duplicate`.
+  A conversion is **used** by a line when the line routes through it; deleting
+  a used conversion, or changing its unit, answers 409 (`conversion_in_use` on
+  `unit`); its factor can change, which fixes every recipe that uses it.
+  Editing makes a conversion `user` only when its unit or factor changes. Every
+  ingredient answer carries its `conversions` with `recipe_count`.
+- **An ingredient's unit change** converts the lines in the own unit (and
+  empties their unit) and every conversion's factor, and leaves lines in other
+  units as written. Another category or free text is refused (422
+  `unit_has_dependents`, with the counts) while a conversion exists or a line
+  has a unit; a conversion for the new unit is refused too (422
+  `conversion_for_new_unit`). This replaces "can't be changed while a recipe
+  line or conversion depends on it".
+- **Not in R3:** AI-suggested factors, the review states and the recipe save
+  taking `new_conversions` belong to R4.
 
 ## Slices
 

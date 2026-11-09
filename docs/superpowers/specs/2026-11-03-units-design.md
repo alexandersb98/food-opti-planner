@@ -178,8 +178,8 @@ out the factor from the old unit to the new.
   data source spec), goal Min and Max, and the zero-bound reference.
   The dialog says, e.g., "Iron: 12 ingredient values and 2 goals will
   be converted from mg to µg (× 1000)."
-- **Ingredient:** its basis and every recipe amount of it, multiplied by
-  the factor. The values stay as they are, as they are per the basis:
+- **Ingredient:** its basis, every recipe amount of it in its own unit and
+  its conversions' factors (slice R3), multiplied by the factor. The values stay as they are, as they are per the basis:
   oats from g to kg makes "per 100 g" "per 0.1 kg", and a recipe's
   150 g becomes 0.15 kg. The dialog: "Oats: the basis and 4 recipe
   amounts will be converted from g to kg (× 0.001)."
@@ -232,6 +232,25 @@ decimals and 15 digits (`EXACT_NUMBER`).
 - Each later slice that stores numbers in a unit adds one converter to
   the list in `server/unit_change.py` and one count text.
 
+**Settled in slice R3.** An ingredient's unit change also converts what
+the recipe lines and conversions store:
+
+- A line **in the own unit** (an empty unit, or the ingredient's unit
+  spelled out) is multiplied by the factor and its unit written empty. A
+  line in another unit keeps its amount and unit; it still means the same
+  quantity, as the conversions it routes through are converted. Counted as
+  "recipe amounts".
+- Every stored conversion's factor is multiplied by the same factor ("1 dl
+  = 40 g" to kg is "1 dl = 0.04 kg"), counted as "conversions", rounded and
+  refused like the other ingredient numbers (`conversion_rounds_to_zero`,
+  `conversion_too_large` naming the conversion's unit).
+- A change of category or to or from free text is refused, 422
+  `unit_has_dependents` with the number of conversions and of lines in other
+  units, while either exists; lines in the own unit never block it.
+- A change within the category is refused, 422 `conversion_for_new_unit`,
+  while a conversion for the new unit exists (it would be a conversion of the
+  own unit): delete it first.
+
 **API.** `POST /api/attributes/{id}/unit-change` and
 `POST /api/ingredients/{id}/unit-change` take `{unit}` and answer what a
 save with it would do: `{kind: "same" | "convert" | "no_convert",
@@ -247,7 +266,9 @@ client that skipped the check can't lose precision.
 | Energy unit on an ingredient | 422 `unit_not_for_ingredient` on `unit` |
 | Converted goal bound needs more decimals | 422 `conversion_needs_decimals` on `unit`, with the goal |
 | Converted number past 15 digits | 422 `conversion_too_large` on `unit` |
-| Converted basis or recipe amount would round to 0 | 422 `conversion_rounds_to_zero` on `unit` |
+| Converted basis, recipe amount or conversion factor would round to 0 | 422 `conversion_rounds_to_zero` on `unit` |
+| Ingredient's category or free text changes while a conversion or a line in another unit exists | 422 `unit_has_dependents` on `unit`, with the counts |
+| Ingredient's unit changes to one it has a conversion for | 422 `conversion_for_new_unit` on `unit` |
 | Unknown preference key or a unit of the wrong category | 422 on that field |
 
 ## Testing

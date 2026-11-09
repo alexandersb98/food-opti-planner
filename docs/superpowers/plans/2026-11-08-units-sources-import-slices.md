@@ -99,6 +99,7 @@ D4 done: see `2026-11-08-slice-d4-add-from-data-source.md`.
 D5 done: see `2026-11-08-slice-d5-updated-values.md`.
 D6 done: see `2026-11-08-slice-d6-tag-groups.md`.
 R2 done: see `2026-11-08-slice-r2-servings-sections-instructions.md`.
+R3 done: see `2026-11-08-slice-r3-line-units-and-conversions.md`.
 R1 built, run pending the owner: see `2026-11-08-slice-r1-model-comparison.md`.
 
 **Dependencies:**

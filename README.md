@@ -31,6 +31,14 @@ deploy to Cloud Run. Recipes have **Serves N** (amounts are for the whole
 recipe, per-portion totals and the planner's portion divide by N), sections
 with optional headings, the same ingredient on several lines, instructions and
 a source link; an ingredient's "Used in N recipes" counts recipes, not lines.
+A recipe line has a unit: the ingredient's own, a catalogue unit that converts to
+it (also through one of its conversions), or the unit of a stored conversion
+("1 dl = 40 g", added on the ingredient's page under Conversions or with **New
+unit…** on the line); the planner and the totals convert every line to the
+ingredient's unit, and a line that does not convert is refused when the recipe is
+saved. Changing an ingredient's unit converts its lines in the own unit and its
+conversions too, and is refused for another category or free text while a
+conversion or a line in another unit exists.
 The AI layer of the planned recipe import is built in
 `server/ai/` (interfaces, prompt and schema, adapters for four providers)
 with a comparison script, `scripts/compare_models.py`, that the owner runs

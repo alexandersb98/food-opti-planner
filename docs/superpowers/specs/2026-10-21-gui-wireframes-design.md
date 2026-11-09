@@ -150,7 +150,11 @@ some ingredient has updates) lists just those.
   the whole recipe ("Amounts are for the whole recipe."); the planner's
   portion is the amounts divided by N.
 - **Ingredients, for N portions:** sections, each an optional heading and
-  its lines: ingredient, amount, its unit, a line menu ("Move to
+  its lines: ingredient, amount, a **unit picker** (the ingredient's own
+  unit, the other units that convert to it, its conversions with ✨ for one
+  the AI suggested, and **New unit…**, which opens the conversion dialog:
+  "1 [unit] = [number] g"; a unit that does not convert is marked and the
+  save refused), a line menu ("Move to
   {section}") and remove, then "+ Add ingredient", which opens a searchable
   picker (not drawn) that offers every ingredient, as the same ingredient
   may be on several lines. One unnamed section shows no heading. "+ Add
@@ -181,11 +185,12 @@ some ingredient has updates) lists just those.
   value divided by the basis. An empty value counts as 0, as in the
   library.
 - **Tags:** on/off buttons → `tags`.
-- **Changing the unit** of a saved ingredient asks first: "Oats: the basis
-  and 4 recipe amounts will be converted from g to kg (× 0.001)." with
+- **Changing the unit** of a saved ingredient asks first: "Oats: the basis,
+  4 recipe amounts and 2 conversions will be converted from g to kg (× 0.001)." with
   **Cancel** and **Convert** (**Change unit** when another category or free
   text keeps the numbers; no dialog for another spelling). A refused
-  conversion shows under **Measured in** and the form stays open.
+  conversion shows under **Measured in** and the form stays open, also a
+  change of category while a conversion or a line in another unit exists.
 - An ingredient made from a data source food has a chip under the name,
   "From Livsmedelsverket: Havregryn", in the source's colour (and "No
   longer in the source" if the food was withdrawn), and **Unlink from
@@ -197,6 +202,12 @@ some ingredient has updates) lists just those.
   13.8 g" ("Protein none → 13.8 g" for a value it never had), with **Keep
   mine** and **Accept**. Either answer hides the banner and keeps other
   unsaved edits; Accept fills the form with the new numbers.
+- **Conversions** (a saved ingredient; a new one says to save first): rows
+  like "1 dl = 100 g" with ✨ and its tooltip "Suggested by AI, not checked by
+  you" for an AI one, **Edit** and **Delete** (disabled while a recipe uses it,
+  with "Used in N recipes"), and **+ Add conversion**, which opens the
+  conversion dialog (unit, "How many g one makes"). Each act is saved at once.
+  Deleting the ingredient says "This also removes its N conversions."
 - **Used in N recipes · Show.** N counts recipes, not lines: an ingredient
   on two lines of one recipe counts once. **Delete** is disabled while any
   recipe uses the ingredient.

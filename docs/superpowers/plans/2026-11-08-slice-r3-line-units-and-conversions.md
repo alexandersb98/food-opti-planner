@@ -60,7 +60,7 @@ Interfaces of earlier slices:
 factor suggestions, the review states, `new_conversions` on the recipe save),
 the import page.
 
-**Status:** Planned; to be built task by task on branch
+**Status:** Built, and reviewed task by task, on branch
 claude/implement-remaining-slices-qwrp83.
 
 ## Global Constraints
@@ -262,6 +262,49 @@ claude/implement-remaining-slices-qwrp83.
     conversions being created, the review states, and the recipe save taking
     `new_conversions`. A recipe save in R3 never creates a conversion.
 
+17. **Built after U3, D1-D6 and R2; built code wins over the names in this
+    text.** The migration is `0015` (`down_revision = "0014"`, R2's). It names
+    the foreign key, the primary key and the unique constraint of
+    `ingredient_conversions` explicitly, as `0014` does, and drops the column
+    with `batch_alter_table` for SQLite. `ingredient_converters(ingredient,
+    basis, new_unit)` builds on R2's private `_recipe_lines(ingredient_id)`.
+18. **Commits.** Tasks 2, 3 and 4 are one commit (every commit passes its
+    checks, and the API tests need the model and the migration); the server
+    commit holds `web/openapi.json` (a server test compares it) and Task 5's
+    commit holds the regenerated `web/src/api/schema.ts` with the code that
+    uses it, as R2 did.
+19. **Two numbers in the plan's test cases were wrong.** "1 msk" in dl is 0.15,
+    so a g ingredient with `dl = 40` gives 6 g per msk, not 240; and 1 US cup
+    is 2.365882365 dl, so through `dl = 40` it is 94.6352946 g (the plan's
+    worked-by-hand literal had a stray factor of 10). The tests use the right
+    values.
+20. **`Conversion.unit` is the catalogue spelling**, so "kilogram" (which the
+    catalogue does not know: free text) is stored as typed, and a conversion
+    for "KG" is stored `kg`; the refusal `conversion_for_new_unit` therefore
+    compares through `units.ratio`, not by text. `refusal.name` is the
+    ingredient's and `refusal.unit` the conversion's for that refusal, and
+    `unit_has_dependents` carries `conversions` and `lines`.
+21. **The web draft marks a line that does not convert with a flag**, not a
+    message: `unitErrors` is `{lineKey: true}` (the server's
+    `unit_not_convertible` and `unit_not_for_ingredient` map to it as well), and
+    the row writes "{unit} of {name} doesn't convert..." from the line, since
+    `serverErrors` has no names. `checkRecipe` takes a `converts(line)`
+    callback (the page's `lineFactor`) instead of the catalogue.
+22. **D4 did not replace the hard-coded list of kinds** in `refusalText`, so
+    `conversion` was added to it. `Translate` in `useUnitChange.ts` takes the
+    plural count as a third argument.
+23. **The picker offers a stored conversion's unit only under Conversions**
+    (`dl`, with "= 40 g"), so the e2e step chooses the option `/^dl/`, not `dl
+    (decilitre)`. The picker's `q-select` has no `use-input`; its accessible name
+    is on the combobox input, "Unit of {name}". Card buttons carry an
+    `aria-label` naming the unit ("Edit the conversion for dl").
+24. **`fractions.ts`** (exact bigint fractions and `same`) holds what
+    `totals.ts` had and `units.ratio` and `lineUnits.ts` need, which avoids a
+    cycle; `Amount` in `totals.ts` has an optional `unit`.
+25. **Not in the plan, kept small:** the ingredient delete confirmation says
+    "This also removes its N conversions." only when there are conversions
+    (delete is off while a recipe uses the ingredient, so they are unused).
+
 ## Tasks
 
 ### Task 1: Server: `line_units.py`, the routing rule
@@ -308,6 +351,9 @@ asserting `(factor, via)`; each of these, with a one-line comment of its rule:
 Verify: `python3 -m pytest tests/server/test_line_units.py -q`.
 
 **Commit:** "server: the rule that turns a recipe line's unit into the ingredient's".
+
+**Checked:** `tests/server/test_line_units.py` (27 cases, each rule and the
+failure cases). Differences: interpretation 19.
 
 ### Task 2: Server: models, migration, translation
 
@@ -385,6 +431,11 @@ tests may be red only where a body or builder needs the new field; fix those in
 this task if they are builders (default `unit=""`), leave API tests for Task 3.
 
 **Commit:** "server: recipe line units and ingredient conversions; migration <n>".
+
+**Checked:** `test_translate.py` and `test_migrations.py` on SQLite and
+Postgres; a manual up, refused down (a line in dl), down and up again on a
+Postgres database with a recipe in it. Differences: interpretations 17 and 18;
+committed with Tasks 3 and 4.
 
 ### Task 3: Server: API for line units and conversions
 
@@ -494,6 +545,11 @@ until Task 5 if the web code reads the changed types; fix only factories here.
 
 **Commit:** "server: recipe lines have units, ingredients have conversions".
 
+**Checked:** the whole root suite on SQLite and `tests/server` on Postgres;
+`test_conversions.py` (31 cases), the new `test_recipes.py` tests, the cascade
+tests. `web/src/test-units.json` came out unchanged. Differences:
+interpretations 18 and 20.
+
 ### Task 4: Server: the ingredient unit change converts lines and conversions
 
 **Files:** modify `server/unit_change.py`, `server/api/unit_changes.py`,
@@ -568,6 +624,12 @@ Then `npm run gen:api` (the refusal types and counts' fields change `schema.ts`)
 (`TEST_DATABASE_URL=... python3 -m pytest -q tests/server`).
 
 **Commit:** "server: an ingredient's unit change converts its line amounts and conversions".
+
+**Checked:** `test_unit_change.py` and `test_unit_change_api.py` (counts,
+round trip g to kg and back, the leftover own-unit line, both refusals, nothing
+applied on a refusal, preview and `PUT` agree for seven units, the totals and a
+solve keep their quantity); the whole suite on both databases. Differences:
+interpretation 20.
 
 ### Task 5: Web: types, unit maths, draft, totals, texts (no pages yet)
 
@@ -666,6 +728,11 @@ Task 6 only if a page reads a changed signature; fix those minimally).
 
 **Commit:** "web: line units, ratios and conversions in the draft and the totals".
 
+**Checked:** `npm run lint`, `npm run typecheck`, `npm test` (676 tests at this
+commit); `lineUnits.test.ts` repeats the cases of `test_line_units.py` against
+`useUnits().ratio` loaded from `test-units.json`. Differences: interpretations
+21, 22 and 24.
+
 ### Task 6: Web: C2's unit picker and **New unit…**
 
 **Files:** create `web/src/components/LineUnitPicker.vue`, `.test.ts`,
@@ -736,6 +803,9 @@ Task 6 only if a page reads a changed signature; fix those minimally).
 
 **Commit:** "web: C2 unit picker per line and New unit".
 
+**Checked:** `npm run lint`, `npm run typecheck`, `npm test`; the picker,
+dialog, section and page tests listed above. Differences: interpretation 23.
+
 ### Task 7: Web: C4's Conversions card and the unit-change texts
 
 **Files:** create `web/src/components/ConversionsCard.vue`, `.test.ts`; modify
@@ -778,6 +848,9 @@ Task 6 only if a page reads a changed signature; fix those minimally).
 
 **Commit:** "web: C4 Conversions card".
 
+**Checked:** `npm run lint`, `npm run typecheck`, `npm test` (724 tests).
+Differences: interpretations 23 and 25.
+
 ### Task 8: End-to-end step
 
 **Files:** `web/e2e/catalog.e2e.ts`.
@@ -815,6 +888,12 @@ kill the server.
 
 **Commit:** "e2e: line units and conversions".
 
+**Checked:** the flow passes on SQLite and on Postgres (`DATA_SOURCES_DIR` as
+the README says). Differences: the step sits after R2's "back to one portion"
+step and before the Tags step; it ends with Oats in g (it was in kg after U3's
+step) and no conversion; the dl option is chosen as `/^dl/` (interpretation
+23).
+
 ### Task 9: Docs
 
 **Files:** `README.md`, the master plan, the import spec, the units spec, the
@@ -845,6 +924,12 @@ wireframes spec, this plan.
 
 **Verify:** the full checks (both suites, lint, typecheck, the Postgres run, the
 e2e) once more.
+
+**Checked:** the full root suite on SQLite (1568 passed), `tests/server` on
+Postgres (1240 passed), `npm run lint`, `npm run typecheck`, `npm test`, and the
+flow on both databases, at the last commit. Differences: the master plan's
+Overview table has no done marks for any slice, so R3's row is not marked
+either; only the "R3 done" line was added.
 
 ## Done when
 
