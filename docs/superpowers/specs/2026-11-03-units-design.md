@@ -197,6 +197,11 @@ decimals and 15 digits (`EXACT_NUMBER`).
   attribute allows refuses the change: "The goal Iron at least 0.5 mg
   would need 4 decimals as g. Raise Iron's decimals first."
 - A number past 15 digits refuses the change, naming the first one.
+- A unit that would stop a mapped data source column converting with the
+  attribute refuses the change (data source spec, decision 7): the facts
+  are the column's name, its source's name and its unit, and the text
+  tells the user to unmap the column first. A change within the category
+  keeps every mapping converting and is allowed.
 
 **Settled in slice U3.**
 

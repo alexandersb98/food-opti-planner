@@ -181,8 +181,10 @@ combo box, with the help text "The amount per the ingredient's basis, e.g.
 g or kcal.") and **Decimals** (→ `precision`). Changing the unit of a saved
 attribute asks first, in the same dialog ("Iron: 12 ingredient values and 2
 goals will be converted from mg to µg (× 1000)."); a refusal, such as a goal
-bound that needs more decimals, shows under **Unit**. Delete warns how many ingredient values
-and goals it removes, then removes them. `accrues_on` is not shown (it
+bound that needs more decimals, or a mapped source column that would stop
+converting (it names the column), shows under **Unit**. Delete warns how many
+ingredient values and goals it removes and how many source columns' mappings it
+clears ("Its mapping from 2 source columns is cleared."), then does so. `accrues_on` is not shown (it
 has no effect yet, decision #28). "+ New attribute".
 
 ### C6 · Tags
@@ -201,17 +203,22 @@ listed first, then the source tags.
 
 Cards: **Preferred units** (mass, volume, energy drop-downs, saved on
 choosing) and **Data sources**, one row per loaded source with a colour dot,
-name and "Version … · N foods", each opening S2; "No data sources loaded."
+name and "Version … · N foods · M of K columns mapped", each opening S2; "No data sources loaded."
 when there are none. The two cards load independently, so one failing never
 hides the other.
 
-### S2 · Data source (read-only until D3)
+### S2 · Data source
 
 A full page with a back arrow to Settings. The source's **Version**,
 **Imported** time and **Attribution** (when it has one); a **Colour**
 picker, saved when the picker closes; and the **Columns**: a count, a search
 box and the list (name, unit), withdrawn columns last, greyed and marked "No
-longer in the source".
+longer in the source". Each row has an **Attribute** drop-down: Not mapped, the
+attributes whose unit converts with the column's (one held by another column of
+the source is disabled, "taken by <column>"), and **Create attribute…**, which
+opens a small dialog (Name empty, Unit starting as the preferred unit of the
+column's category, Decimals 3; **Cancel**, **Add**) and maps the column to the
+new attribute. Choosing saves at once; a failure shows under the row.
 
 ## Importance
 

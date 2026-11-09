@@ -79,7 +79,7 @@ Generic tables, for any source.
 | Table | Columns (besides `id`) | Notes |
 |---|---|---|
 | `data_sources` | key (unique, e.g. `livsmedelsverket`), name, colour, version, attribution (nullable text), imported at | One row per data file loaded. `colour` is `#rrggbb`; a load never changes it. |
-| `source_columns` | source, key (the source's own id, at most 100 characters), name (at most 200), unit, mapped attribute (nullable, from D3), withdrawn | `unit` as normalised by the import script. Unique (source, key); unique (source, mapped attribute): an attribute is fed by at most one column per source. Deleting the attribute sets the mapping to NULL. |
+| `source_columns` | source, key (the source's own id, at most 100 characters), name (at most 200), unit, `attribute_id` (nullable, `ON DELETE SET NULL`; D3), withdrawn | `unit` as normalised by the import script. Unique (source, key); unique (source, mapped attribute): an attribute is fed by at most one column per source. Deleting the attribute sets the mapping to NULL. |
 | `source_foods` | source, key (the source's id, at most 100 characters), name (at most 200), withdrawn | Unique (source, key). |
 | `source_food_values` | food, column, value | `NUMERIC`, per 100 g, in the column's unit. |
 | `source_food_tags` | food, tag | The food's food groups as source tags. |
@@ -230,7 +230,14 @@ mapped. A row opens S2.
     and the unit set to the preferred unit of the column's category
     (the column's own unit when it has no category); on save it is
     mapped.
-- Withdrawn columns are listed last, greyed, and keep their mapping.
+  - An attribute taken by another column is shown disabled, with that
+    column's name ("taken by TEST Protein"); choosing saves at once.
+- Withdrawn columns are listed last, greyed, and keep their mapping,
+  which can still be changed or removed (otherwise an attribute a
+  withdrawn column holds could never be freed).
+- A new data file that gives a mapped column a unit that no longer
+  converts with its attribute clears that mapping (a change within the
+  category keeps it), so every stored mapping converts.
 
 Mapping a column later doesn't change ingredients already added: they
 get **Updated values available** for it (see below).
@@ -323,9 +330,9 @@ list Seafood, not the group).
 
 | Endpoint | For |
 |---|---|
-| `GET /api/data-sources` | The sources, by name: `key, name, colour, version, imported_at, food_count, column_count` (not withdrawn; D3 adds `mapped_count`) (S1). |
-| `GET/PATCH /api/data-sources/{key}` | The summary plus `attribution` and all `columns` (`id, key, name, unit, withdrawn`; active by name, then withdrawn); `PATCH` takes `{"colour": "#rrggbb"}` (S2). |
-| `PUT /api/data-sources/{key}/columns/{id}` | `{attribute_id \| null}` (S2). |
+| `GET /api/data-sources` | The sources, by name: `key, name, colour, version, imported_at, food_count, column_count` (not withdrawn) and `mapped_count`, the not withdrawn columns that are mapped (S1). |
+| `GET/PATCH /api/data-sources/{key}` | The summary plus `attribution` and all `columns` (`id, key, name, unit, withdrawn, attribute_id`; active by name, then withdrawn); `PATCH` takes `{"colour": "#rrggbb"}` (S2). |
+| `PUT /api/data-sources/{key}/columns/{id}` | `{attribute_id \| null}`; answers the column. 404 for an unknown source or column, 422 `unknown_attribute`, `unit_mismatch`, `attribute_taken` (S2). `GET /api/attributes` gains `mapping_count`. |
 | `GET /api/data-sources/{key}/foods?search=&offset=` | The search (C7). |
 | `GET /api/data-sources/{key}/foods/{id}` | A food as it would become an ingredient, with the warning of decision 11 (C7). |
 | `POST /api/ingredients/from-source` | `{food_id, name, tag_ids}` (C7). |
@@ -342,8 +349,9 @@ responses gain `source` and `group` (member ids).
 
 | Case | Answer |
 |---|---|
-| Mapping to an attribute whose unit doesn't convert | 422 `unit_mismatch` |
-| Attribute already mapped from another column of the source | 422 `attribute_taken` |
+| Mapping to an attribute whose unit doesn't convert | 422 `unit_mismatch`, on `attribute_id` |
+| Attribute already mapped from another column of the source | 422 `attribute_taken`, on `attribute_id` |
+| An attribute's unit change that would stop a mapped column converting | 422 `unit_mismatch`, on `unit` (the refusal names the column) |
 | Ingredient name taken | 422 `duplicate` on `name`, as today |
 | Withdrawn food added | 422 `withdrawn` |
 | Rename or delete of a source tag | 422 `source_tag`, on `body.name` (rename) or `path.tag_id` (delete) |

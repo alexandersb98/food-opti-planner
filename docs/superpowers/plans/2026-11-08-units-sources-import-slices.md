@@ -94,6 +94,7 @@ U3 done: see `2026-11-08-slice-u3-unit-change-converts.md`.
 D1 script done: see `2026-11-08-slice-d1-livsmedelsverket-data-file.md`.
 The data file itself is generated and committed by the owner (README).
 D2 done: see `2026-11-08-slice-d2-reference-copy.md`.
+D3 done: see `2026-11-08-slice-d3-column-mapping.md`.
 R1 built, run pending the owner: see `2026-11-08-slice-r1-model-comparison.md`.
 
 **Dependencies:**

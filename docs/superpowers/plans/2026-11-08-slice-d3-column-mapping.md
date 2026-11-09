@@ -47,7 +47,7 @@ Interfaces of earlier slices:
 [`2026-11-08-slice-d2-reference-copy.md`](2026-11-08-slice-d2-reference-copy.md)
 and [`2026-11-08-slice-u3-unit-change-converts.md`](2026-11-08-slice-u3-unit-change-converts.md).
 
-**Status:** Planned; to be built task by task on branch
+**Status:** Built and reviewed task by task on branch
 claude/implement-remaining-slices-qwrp83.
 
 ## Global Constraints
@@ -194,6 +194,27 @@ claude/implement-remaining-slices-qwrp83.
     interpretation 7 and no converter (there is still no stored number in an
     attribute's unit that comes from a source until D4).
 
+16. **The client rule knows "MJ".** The server reads a capital M before a milli
+    unit (`MJ`, `Ml`) as mega, so free text; the app's `findUnit` does not. A
+    `unitNamed` in `units.ts` (also used by the Create attribute dialog) applies
+    that rule on top of `findUnit`, so `convertible` agrees with `units.factor`
+    for `MJ` against `J` (false). `findUnit` itself is unchanged.
+17. **S2's row is a component, `SourceColumnRow.vue`,** with D2's class
+    `column-row` (not `source-column-row`) and a `column-name` label; D2's tests
+    that compared a row's whole text now compare names and captions. It has no
+    test of its own: the page tests drive it.
+18. **S2 loads the unit catalogue** (`useUnits().load()`), as the drop-downs need
+    it; without it only equal spellings convert. A row's error for a refused
+    `attribute_taken` is built after the reload from the holder it shows; if the
+    reload can't name one, the plain "Could not save the mapping.".
+19. **S1's caption** pluralises on the column count: "1 of 1 column mapped".
+20. **Create attribute.** Error text for a failed save is the existing
+    `common.saveFailed` ("Could not save. Try again."); the button key is
+    `dataSource.add`. While the catalogue or preferences load, the dialog's start
+    unit follows them until the user touches the unit.
+21. **D2 follow-up.** The data file reader strips group names and food names, so a
+    source tag's name always equals the trimmed name the tags `PUT` uses.
+
 ## Tasks
 
 ### Task 1: Server: the column, migration, delete clears, loader keeps it valid
@@ -249,6 +270,15 @@ here); create `server/migrations/versions/0011_column_mapping.py`.
 
 **Verify:** the touched test files, then `python3 -m pytest -q`. Commit:
 "server: source columns can hold a mapped attribute, the loader keeps it valid".
+
+**Built.** As written, plus the D2 follow-up, committed first as "server: data
+file group and food names are trimmed" (`source_loader.py` strips group and food
+names, a blank one is refused; test added). The upgrade-from-`0010` pattern did
+not exist in the migration tests; checked by hand instead (a column row made at
+`0010` survives upgrade with `attribute_id` NULL, and downgrade drops it). A
+`two_sources_client` fixture (source `other`) went into `tests/server/conftest.py`.
+`gen:api` already ran here, as `test_openapi` fails otherwise. Checked: root
+suite, lint, typecheck, `npm test`.
 
 ### Task 2: Server: the mapping route, counts and the unit-change refusal
 
@@ -351,6 +381,12 @@ and `schema.ts` (and `test-units.json` not); add `mapping_count: 0` to the
 **Verify:** the touched tests, the root suite, `npm run typecheck`. Commit:
 "server: map data source columns to attributes".
 
+**Built.** As written. The refusal's `source` and `unit` fields are always in
+the answer (null for U3's refusals), so U3's exact-dict test got the two nulls.
+A unit_mismatch refusal and a U3 conversion refusal cannot both apply (a mapping
+breaks only where nothing converts), so "first refusal kept" is not testable;
+the test pins that a conversion refusal inside the category is U3's own.
+
 ### Task 3: Web: the client rule, C5's delete warning and the new refusal
 
 **Files:** modify `web/src/units.ts`, `web/src/units.test.ts`,
@@ -391,6 +427,8 @@ and `schema.ts` (and `test-units.json` not); add `mapping_count: 0` to the
 **Verify:** `npm run lint`, `npm run typecheck`, `npm test` in `web/`. Commit:
 "web: units converts() rule, mapped columns in the attribute delete warning and
 unit refusal".
+
+**Built.** As written, with the rule named `convertible` and one addition (interpretation 16).
 
 ### Task 4: Web: S2's Attribute drop-down and S1's mapped count
 
@@ -456,6 +494,8 @@ as they are; if D2 already made a row component, extend it).
 **Verify:** `npm run lint`, `npm run typecheck`, `npm test`. Commit: "web: attribute
 drop-down per source column, mapped count on the Data sources card".
 
+**Built.** As written, with the differences of interpretations 17 to 19.
+
 ### Task 5: Web: Create attribute from a column
 
 **Files:** create `web/src/components/NewAttributeDialog.vue` (+ `.test.ts`),
@@ -512,6 +552,9 @@ first, its tests unchanged); modify `web/src/pages/DataSourcePage.vue`,
 **Verify:** `npm run lint`, `npm run typecheck`, `npm test`. Commit: "web: Create
 attribute from a data source column".
 
+**Built.** As written; the attribute fields were already a component (interpretation 14), so
+no extraction. Differences: interpretation 20.
+
 ### Task 6: End-to-end step
 
 **Files:** modify `web/e2e/catalog.e2e.ts`.
@@ -544,6 +587,12 @@ a temp SQLite file in the scratchpad with `DATABASE_URL`, `PASSWORD_HASH`,
 paragraph); `E2E_PASSWORD=... E2E_BASE_URL=http://localhost:8000 npm run e2e --
 --trace off`; kill the server. Commit: "e2e: column mapping step".
 
+**Built.** As written, with two differences: the flow has no `µg` attribute, so the
+Energy column is simply offered Energy only; and the unit list is closed with Escape
+before Done. The step caught a real bug, the column rows overflowing a phone's width
+(the select pushed the row wider), fixed by letting the row wrap. Checked: `npx vite
+build`, a server on a temp SQLite file with `DATA_SOURCES_DIR`, the flow green.
+
 ### Task 7: Docs
 
 **Files:** `README.md`, the master plan, the data source spec, the units spec, the
@@ -573,6 +622,9 @@ wireframes spec, this plan.
 
 **Verify:** the full checks (both suites, lint, typecheck) and the e2e run once more.
 Commit: "Docs: slice D3 built, README, data source, units and wireframes specs".
+
+**Built.** As written. Checked: root suite on SQLite and `tests/server` on Postgres
+(927 passed), lint, typecheck, `npm test`, e2e.
 
 ## Done when
 

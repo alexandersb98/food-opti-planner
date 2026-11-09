@@ -97,10 +97,13 @@ async function map(column: SourceColumn, attributeId: number | null): Promise<bo
       await reloadSource()
       const attribute = attributes.value.find((a) => a.id === attributeId)?.name ?? ''
       const holder = takenFor(column).get(attributeId ?? -1)
-      rowErrors[column.id] =
-        problem === 'attribute_taken' && holder !== undefined
-          ? t('dataSource.takenError', { attribute, column: holder })
-          : t('dataSource.mismatchError', { column: column.name, attribute })
+      if (problem === 'unit_mismatch') {
+        rowErrors[column.id] = t('dataSource.mismatchError', { column: column.name, attribute })
+      } else {
+        // Named from the reloaded source; if it can't say who, a plain failure.
+        rowErrors[column.id] =
+          holder === undefined ? t('dataSource.mapFailed') : t('dataSource.takenError', { attribute, column: holder })
+      }
     } else {
       rowErrors[column.id] = t('dataSource.mapFailed')
     }
