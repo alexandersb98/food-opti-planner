@@ -16,8 +16,9 @@ import { expect, test, type Page } from '@playwright/test'
 // Then line units and conversions: a conversion on the ingredient (a duplicate refused), a
 // recipe line in dl through the unit picker, the conversion in use, and a unit change that
 // converts the lines in the ingredient's unit and the conversion (and is refused for another
-// category), then the dl line and the conversion taken out again. Then import from pasted text
-// with the server's fake AI provider (AI_PROVIDER=fake): the menu on Recipes, the two errors,
+// category), then the dl line and the conversion taken out again. Then import from a link
+// (only what is refused before any connection: internal addresses, a bad scheme) and from pasted
+// text with the server's fake AI provider (AI_PROVIDER=fake): the menu on Recipes, the two errors,
 // the review of a draft (a new ingredient made on the spot, a factor accepted, a line skipped),
 // the saved recipe and the conversion it made (✨, then saved as the user's after an edit), and
 // leaving an unsaved draft.
@@ -323,6 +324,33 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Import recipe')
   const pasted = page.getByLabel('Recipe text')
   const importButton = page.getByRole('button', { name: 'Import', exact: true })
+  const pasteSwitch = page.getByRole('switch', { name: 'Paste text' })
+  // I1 opens on the Link field. The e2e server has no internet, so the link is tried only with
+  // what the server refuses before any connection: internal addresses and a bad scheme.
+  const link = page.getByLabel('Link', { exact: true })
+  await expect(link).toBeVisible()
+  await expect(pasted).toHaveCount(0)
+  await expect(importButton).toBeDisabled()
+  await link.fill('http://127.0.0.1:8000/')
+  await importButton.click()
+  await expect(page.getByRole('alert')).toHaveText("Couldn't read this page. Paste the recipe text instead.")
+  await expect(link).toHaveValue('http://127.0.0.1:8000/')
+  await link.fill('http://169.254.169.254/latest/meta-data/')
+  await importButton.click()
+  await expect(page.getByRole('alert')).toHaveText("Couldn't read this page. Paste the recipe text instead.")
+  await link.fill('ftp://example.com/x')
+  await importButton.click()
+  await expect(page.getByRole('alert')).toHaveText('Enter a link that starts with http:// or https://.')
+  await link.fill('')
+  await expect(importButton).toBeDisabled()
+  await link.fill('ftp://example.com/x')
+  // Paste text: the box is empty, the link is kept when flipping back.
+  await pasteSwitch.click()
+  await expect(pasted).toHaveValue('')
+  await expect(link).toHaveCount(0)
+  await pasteSwitch.click()
+  await expect(link).toHaveValue('ftp://example.com/x')
+  await pasteSwitch.click()
   await pasted.fill('[fake:none]')
   await importButton.click()
   await expect(page.getByRole('alert')).toHaveText('No recipe found in this text.')
@@ -437,6 +465,7 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await openPage(page, 'Recipes')
   await page.getByRole('button', { name: 'Add recipe' }).click()
   await page.locator('.q-menu a.q-item', { hasText: 'Import recipe' }).click()
+  await page.getByRole('switch', { name: 'Paste text' }).click()
   await page.getByLabel('Recipe text').fill(porridgeText)
   await page.getByRole('button', { name: 'Import', exact: true }).click()
   await expect(page.locator('.import-banner')).toBeVisible()
