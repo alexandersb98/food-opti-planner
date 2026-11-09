@@ -122,7 +122,28 @@
     },
     "nameInUse": "A tag with this name already exists.",
     "new": "+ New tag",
-    "deleteRemoves": "This also removes it from {ingredients}, {recipes} and {filters}."
+    "deleteRemoves": "This also removes it from {ingredients}, {recipes} and {filters}.",
+    "group": {
+      "equivalent": "Equivalent tags",
+      "equivalentHint": "Filtering on one of them includes recipes whose ingredients have any of them.",
+      "none": "None",
+      "add": "Add equivalent tag",
+      "nowEquivalent": "now equivalent to {names}",
+      "equivalentTo": "equivalent to {names}",
+      "ruleWord": {
+        "all": "all",
+        "any": "any"
+      },
+      "moveQuestion": "{tag} is equivalent to {others}. Move {tag} here?",
+      "switchQuestion": "{tag} gets a recipe tag when {tagRule}; the group uses {groupRule}. Switch {tag} to {groupRule}?",
+      "changeQuestion": "This changes the rule of all {count} tags in the group: {names}.",
+      "move": "Move",
+      "dontMove": "Don't move",
+      "switch": "Switch",
+      "dontAdd": "Don't add",
+      "change": "Change",
+      "cancel": "Cancel"
+    }
   },
   "ingredients": {
     "intro": "What recipes are made of, with their values and tags.",

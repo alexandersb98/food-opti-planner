@@ -3,9 +3,10 @@ import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api } from '../api/client'
 import { fieldErrors } from '../api/errors'
-import type { Tag, TagFields as Fields } from '../api/types'
+import type { GroupQuestion, Tag, TagFields as Fields } from '../api/types'
 import ConfirmDelete from '../components/ConfirmDelete.vue'
 import LoadState from '../components/LoadState.vue'
+import TagGroupQuestions from '../components/TagGroupQuestions.vue'
 import { useLoad } from '../composables/useLoad'
 
 const { t } = useI18n()
@@ -14,10 +15,15 @@ const { data: tags, loading, failed: loadFailed, load } = useLoad(() => api.GET(
 
 // The row open for editing (a tag's id, or 'new'), and its fields as typed.
 const openId = ref<number | 'new' | null>(null)
-const draft = reactive<Fields>({ name: '', derive: 'all' })
+const draft = reactive<Fields & { equivalentIds: number[] }>({ name: '', derive: 'all', equivalentIds: [] })
 const errors = reactive({ name: '', save: '' })
 const saving = ref(false)
 const deleteOpen = ref(false)
+// The questions of a 409 being asked, and the promise their answers settle.
+const questions = ref<GroupQuestion[]>([])
+const questionsOpen = ref(false)
+let answerQuestions: ((yes: boolean[]) => void) | null = null
+const pickerText = ref('')
 
 const NEW_ROW: Tag = {
   id: -1,
@@ -48,14 +54,64 @@ function isOpen(tag: Tag) {
  * A source tag names its source instead: "Livsmedelsverket · When any...". */
 function info(tag: Tag) {
   const rule = t(`tags.rule.${tag.derive}`)
-  if (tag.source) return t('tags.sourceRule', { source: tag.source.name, rule })
-  return tag.ingredient_count === 0 ? `${rule} · ${t('tags.byHand')}` : rule
+  const base = tag.source
+    ? t('tags.sourceRule', { source: tag.source.name, rule })
+    : tag.ingredient_count === 0
+      ? `${rule} · ${t('tags.byHand')}`
+      : rule
+  const others = otherMembers(tag)
+  return others.length ? `${base} · ${t('tags.group.equivalentTo', { names: names(others) })}` : base
+}
+
+/** The ids of a tag's group without the tag itself. */
+function otherMembers(tag: Tag) {
+  return tag.group.filter((id) => id !== tag.id)
+}
+
+function nameOf(id: number) {
+  return tags.value.find((tag) => tag.id === id)?.name ?? ''
+}
+
+function names(ids: number[]) {
+  return ids.map(nameOf).join(', ')
+}
+
+/** The picker's choices: every other tag that is not a chip yet, matching
+ * what was typed; one in another group says which tags it is equivalent to. */
+const pickerOptions = computed(() => {
+  const typed = pickerText.value.trim().toLowerCase()
+  return tags.value
+    .filter((tag) => tag.id !== openId.value && !draft.equivalentIds.includes(tag.id))
+    .filter((tag) => tag.name.toLowerCase().includes(typed))
+    .map((tag) => ({
+      value: tag.id,
+      label: tag.name,
+      caption:
+        tag.group.length > 0 && !tag.group.includes(openId.value as number)
+          ? t('tags.group.nowEquivalent', { names: names(otherMembers(tag)) })
+          : '',
+    }))
+})
+
+function addEquivalent(option: { value: number } | null) {
+  if (option && !draft.equivalentIds.includes(option.value)) draft.equivalentIds.push(option.value)
+  pickerText.value = ''
+}
+
+function removeEquivalent(id: number) {
+  draft.equivalentIds = draft.equivalentIds.filter((other) => other !== id)
+}
+
+function sameIds(a: number[], b: number[]) {
+  return a.length === b.length && a.every((id) => b.includes(id))
 }
 
 function openRow(tag: Tag, id: number | 'new') {
   openId.value = id
   draft.name = tag.name
   draft.derive = tag.derive
+  draft.equivalentIds = otherMembers(tag)
+  pickerText.value = ''
   Object.assign(errors, { name: '', save: '' })
 }
 
@@ -78,6 +134,26 @@ function withNew(created: Tag) {
   return [...tags.value.slice(0, at), created, ...tags.value.slice(at)]
 }
 
+/** Ask the questions of a 409, answers yes or no for each, in order. */
+function ask(list: GroupQuestion[]) {
+  questions.value = list
+  questionsOpen.value = true
+  return new Promise<boolean[]>((resolve) => {
+    answerQuestions = resolve
+  })
+}
+
+/** The tags again, without the list's loading state, as a change to a group
+ * changes other tags too. */
+async function refresh() {
+  try {
+    const { data } = await api.GET('/api/tags')
+    if (data) tags.value = data
+  } catch {
+    // The list we have is only a little stale; the next load puts it right.
+  }
+}
+
 /** Save the open row and close it; false if it has to stay open. */
 async function done(): Promise<boolean> {
   if (openId.value === null) return true
@@ -87,29 +163,65 @@ async function done(): Promise<boolean> {
   if (errors.name) return false
 
   const current = openTag.value
-  if (current && current.name === fields.name && current.derive === fields.derive) {
+  if (
+    current &&
+    current.name === fields.name &&
+    current.derive === fields.derive &&
+    sameIds(draft.equivalentIds, otherMembers(current))
+  ) {
     openId.value = null
     return true
   }
 
   saving.value = true
   try {
-    const { data, error } = current
-      ? await api.PUT('/api/tags/{tag_id}', { params: { path: { tag_id: current.id } }, body: { ...fields, confirm: false } })
-      : await api.POST('/api/tags', { body: fields })
-    if (data) {
-      tags.value = current ? tags.value.map((tag) => (tag.id === data.id ? data : tag)) : withNew(data)
-      openId.value = null
-      return true
-    }
-    if (fieldErrors(error).name === 'name_in_use') errors.name = t('tags.nameInUse')
-    else errors.save = t('common.saveFailed')
+    return await save(current, fields, false)
   } catch {
     errors.save = t('common.saveFailed')
   } finally {
     saving.value = false
   }
   return false
+}
+
+/** Send the draft. A 409 with questions is asked; yes to all sends the same
+ * body again with `confirm`, a no changes the draft and saves it again. */
+async function save(current: Tag | undefined, fields: Fields, confirm: boolean): Promise<boolean> {
+  const { data, error, response } = current
+    ? await api.PUT('/api/tags/{tag_id}', {
+        params: { path: { tag_id: current.id } },
+        body: { ...fields, equivalent_tag_ids: [...draft.equivalentIds], confirm },
+      })
+    : await api.POST('/api/tags', { body: fields })
+  if (data) {
+    tags.value = current ? tags.value.map((tag) => (tag.id === data.id ? data : tag)) : withNew(data)
+    openId.value = null
+    if (current && (current.group.length > 0 || data.group.length > 0)) await refresh()
+    return true
+  }
+  const asked = response.status === 409 && error && 'questions' in error ? error.questions : null
+  if (asked && current) {
+    saving.value = false
+    const yes = await ask(asked)
+    if (yes.every(Boolean)) {
+      saving.value = true
+      return save(current, fields, true)
+    }
+    asked.forEach((question, i) => {
+      if (yes[i]) return
+      if (question.type === 'change_rule') draft.derive = current.derive
+      else removeEquivalent(question.tag_id)
+    })
+    return done()
+  }
+  if (fieldErrors(error).name === 'name_in_use') errors.name = t('tags.nameInUse')
+  else errors.save = t('common.saveFailed')
+  return false
+}
+
+function onAnswer(yes: boolean[]) {
+  answerQuestions?.(yes)
+  answerQuestions = null
 }
 
 const deleteWarning = computed(() => {
@@ -133,6 +245,7 @@ async function confirmDelete() {
     if (response.ok) {
       tags.value = tags.value.filter((other) => other.id !== tag.id)
       openId.value = null
+      if (tag.group.length > 0) await refresh()
     } else {
       errors.save = t('common.deleteFailed')
     }
@@ -212,6 +325,64 @@ async function confirmDelete() {
               :aria-labelledby="`derive-label-${rowKey(tag)}`"
             />
             <div
+              v-if="openId !== 'new'"
+              class="q-mt-md"
+            >
+              <div
+                :id="`equivalent-label-${rowKey(tag)}`"
+                class="text-body2"
+              >
+                {{ $t('tags.group.equivalent') }}
+              </div>
+              <div class="text-caption text-grey-8">
+                {{ $t('tags.group.equivalentHint') }}
+              </div>
+              <div class="row items-center q-gutter-xs q-my-xs">
+                <q-chip
+                  v-for="id in draft.equivalentIds"
+                  :key="id"
+                  removable
+                  class="equivalent-chip"
+                  @remove="removeEquivalent(id)"
+                >
+                  {{ nameOf(id) }}
+                </q-chip>
+                <span
+                  v-if="draft.equivalentIds.length === 0"
+                  class="text-caption text-grey-8"
+                >
+                  {{ $t('tags.group.none') }}
+                </span>
+              </div>
+              <q-select
+                :model-value="null"
+                :options="pickerOptions"
+                :label="$t('tags.group.add')"
+                outlined
+                dense
+                use-input
+                hide-selected
+                input-debounce="0"
+                behavior="menu"
+                @filter="(text: string, update: (fn: () => void) => void) => update(() => (pickerText = text))"
+                @update:model-value="addEquivalent"
+              >
+                <template #option="{ opt, itemProps }">
+                  <q-item v-bind="itemProps">
+                    <q-item-section>
+                      <q-item-label>{{ opt.label }}</q-item-label>
+                      <q-item-label
+                        v-if="opt.caption"
+                        caption
+                      >
+                        {{ opt.caption }}
+                      </q-item-label>
+                    </q-item-section>
+                  </q-item>
+                </template>
+              </q-select>
+            </div>
+            <div
               v-if="errors.save"
               class="text-negative"
               role="alert"
@@ -284,6 +455,12 @@ async function confirmDelete() {
       </q-list>
     </LoadState>
 
+    <TagGroupQuestions
+      v-model="questionsOpen"
+      :questions="questions"
+      :tags="tags"
+      @answer="onAnswer"
+    />
     <ConfirmDelete
       v-model="deleteOpen"
       :name="openTag?.name ?? ''"
