@@ -4,6 +4,10 @@ what `PUT` does (units spec, "Changing a unit")."""
 from decimal import Decimal
 
 import pytest
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from server import models
 
 from .conftest import schedule
 from .test_plan import goal
@@ -72,7 +76,7 @@ def test_the_preview_says_what_put_does(client, catalog):
     iron, zinc, *_ = iron_world(client, catalog)
     before = iron_numbers(client, iron, zinc)
     assert preview_attribute(client, iron, "µg") == {
-        "kind": "convert", "factor": "1000", "counts": {"ingredient_values": 2, "goals": 2},
+        "kind": "convert", "factor": "1000", "counts": {"ingredient_values": 2, "source_values": 0, "goals": 2},
         "rounded": 0, "refusal": None,
     }
     assert iron_numbers(client, iron, zinc) == before
@@ -145,7 +149,7 @@ def test_another_category_or_free_text_converts_nothing(client, catalog, to, kin
     iron, zinc, *_ = iron_world(client, catalog)
     before = iron_numbers(client, iron, zinc)
     assert preview_attribute(client, iron, to) == {
-        "kind": kind, "factor": None, "counts": {"ingredient_values": 2, "goals": 2},
+        "kind": kind, "factor": None, "counts": {"ingredient_values": 2, "source_values": 0, "goals": 2},
         "rounded": 0, "refusal": None,
     }
     assert put_attribute(client, iron, unit=to).status_code == 200
@@ -272,7 +276,7 @@ def test_the_previews_404_and_write_nothing(client, catalog):
 
 def test_the_preview_of_a_first_plan_does_not_create_it(client, catalog):
     iron = catalog.attribute("Iron", "mg", 4)
-    assert preview_attribute(client, iron, "g")["counts"] == {"ingredient_values": 0, "goals": 0}
+    assert preview_attribute(client, iron, "g")["counts"] == {"ingredient_values": 0, "source_values": 0, "goals": 0}
 
 
 def test_the_previews_need_a_session(anonymous_client):
@@ -357,3 +361,76 @@ def test_a_spelling_change_is_not_refused(mapped):
     client, protein, _, _ = mapped
     preview = preview_attribute(client, protein, "gram")
     assert (preview["kind"], preview["refusal"]) == ("same", None)
+
+
+# --- source values copied into ingredients -------------------------------------
+
+
+@pytest.fixture
+def linked(data_client):
+    """Protein in mg (a g column maps to it), two ingredients from TEST Oats and
+    TEST Milk with source values, and an ordinary one with a value."""
+    from .conftest import Catalog
+
+    catalog = Catalog(data_client)
+    protein = catalog.attribute("Protein", "mg", 3)
+    columns = {c["key"]: c["id"] for c in data_client.get("/api/data-sources/testsource").json()["columns"]}
+    assert data_client.put(
+        f"/api/data-sources/testsource/columns/{columns['PROT']}", json={"attribute_id": protein}
+    ).status_code == 200
+    foods = {f["name"]: f["id"] for f in data_client.get("/api/data-sources/testsource/foods").json()["foods"]}
+    for name, food in (("Source oats", "TEST Oats"), ("Source milk", "TEST Milk")):
+        response = data_client.post("/api/ingredients/from-source", json={"food_id": foods[food], "name": name, "tag_ids": []})
+        assert response.status_code == 201, response.text
+    catalog.ingredient("Plain", values={protein: "5"})
+
+    def stored():
+        with Session(data_client.app.state.engine) as db:
+            rows = db.execute(
+                select(models.Ingredient.name, models.IngredientValue.value, models.IngredientValue.source_value)
+                .join(models.IngredientValue)
+                .order_by(models.Ingredient.name)
+            )
+            return {name: (value, source) for name, value, source in rows}
+
+    return data_client, protein, stored
+
+
+def test_the_preview_counts_source_values(linked):
+    client, protein, _ = linked
+    preview = preview_attribute(client, protein, "µg", decimals=3)
+    assert preview["counts"] == {"ingredient_values": 3, "source_values": 2, "goals": 0}
+
+
+def test_put_converts_values_and_source_values_together(linked):
+    client, protein, stored = linked
+    assert stored() == {"Plain": (D("5"), None), "Source milk": (D("3400"), D("3400")), "Source oats": (D("13500"), D("13500"))}
+    response = put_attribute(client, protein, name="Protein", unit="µg", decimals=3)
+    assert response.status_code == 200, response.text
+    assert stored() == {
+        "Plain": (D("5000"), None), "Source milk": (D("3400000"), D("3400000")),
+        "Source oats": (D("13500000"), D("13500000")),
+    }
+
+
+def test_a_refused_put_changes_neither_values_nor_source_values(linked):
+    client, protein, stored = linked
+    with Session(client.app.state.engine) as db:
+        # Not storable after the change: 999999999 mg is 999999999000 µg.
+        row = db.query(models.IngredientValue).filter(models.IngredientValue.source_value == D("13500")).one()
+        row.source_value = D("999999999")
+        db.commit()
+    before = stored()
+    refused = put_attribute(client, protein, name="Protein", unit="µg", decimals=3)
+    assert refused.status_code == 422
+    [error] = refused.json()["detail"]
+    assert (error["loc"], error["type"]) == (["body", "unit"], "conversion_too_large")
+    assert stored() == before
+    refusal = preview_attribute(client, protein, "µg", decimals=3)["refusal"]
+    assert (refusal["kind"], refusal["name"], refusal["field"]) == ("source_value", "Source oats", "source_value")
+
+
+def test_the_mapping_still_refuses_a_category_change_first_and_allows_mg_to_ug(linked):
+    client, protein, _ = linked
+    assert preview_attribute(client, protein, "ml")["refusal"]["type"] == "unit_mismatch"
+    assert preview_attribute(client, protein, "µg")["refusal"] is None

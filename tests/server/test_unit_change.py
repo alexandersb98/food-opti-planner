@@ -113,7 +113,7 @@ def test_a_conversion_within_a_category_converts_and_counts(client, catalog, db)
     iron, *_ = world(client, catalog)
     change = attribute_change(db, iron, "mg", "µg")
     assert (change.kind, change.factor, change.rounded, change.refusal) == ("convert", "1000", 0, None)
-    assert change.counts == {"ingredient_values": 2, "goals": 2}
+    assert change.counts == {"ingredient_values": 2, "source_values": 0, "goals": 2}
 
 
 @pytest.mark.parametrize(
@@ -138,8 +138,8 @@ def test_the_factor_shows_twelve_significant_digits(client, catalog, db):
 
 def test_counts_are_filled_in_for_every_kind(client, catalog, db):
     iron, *_ = world(client, catalog)
-    assert attribute_change(db, iron, "mg", "dl").counts == {"ingredient_values": 2, "goals": 2}
-    assert attribute_change(db, iron, "mg", "mg.").counts == {"ingredient_values": 2, "goals": 2}
+    assert attribute_change(db, iron, "mg", "dl").counts == {"ingredient_values": 2, "source_values": 0, "goals": 2}
+    assert attribute_change(db, iron, "mg", "mg.").counts == {"ingredient_values": 2, "source_values": 0, "goals": 2}
 
 
 def test_an_ingredient_counts_its_basis_and_recipe_amounts(client, catalog, db):
@@ -237,3 +237,78 @@ def test_convert_number_converts_rounds_and_refuses_the_too_large():
     assert convert_number(Decimal("-0.0000005"), Fraction(1)) == Decimal("-0.000001")
     assert convert_number(Decimal("1000"), Fraction(10**6)) is None  # 10^9 does not fit
     assert convert_number(Decimal("999"), Fraction(10**6)) == Decimal("999000000")
+
+
+# Source values: the source's number copied next to an ingredient's value (D4).
+
+def with_source_values(db, iron, **by_ingredient):
+    """Set `source_value` of the named ingredients' value for `iron`."""
+    for name, number in by_ingredient.items():
+        row = db.scalar(
+            select(models.IngredientValue)
+            .join(models.Ingredient)
+            .where(models.IngredientValue.attribute_id == iron, models.Ingredient.name == name)
+        )
+        row.source_value = D(number)
+    db.commit()
+
+
+def source_values(db, iron):
+    rows = db.scalars(select(models.IngredientValue).where(models.IngredientValue.attribute_id == iron))
+    return sorted(row.source_value for row in rows if row.source_value is not None)
+
+
+def test_source_values_are_counted_and_converted_with_the_values(client, catalog, db):
+    iron, other, *_ = world(client, catalog)
+    with_source_values(db, iron, Oats="11", Seeds="0.4")
+    change = attribute_change(db, iron, "mg", "µg")
+    assert change.counts == {"ingredient_values": 2, "source_values": 2, "goals": 2}
+    change.apply()
+    db.commit()
+    assert values(db, iron) == [D("500"), D("12000")]
+    assert source_values(db, iron) == [D("400"), D("11000")]
+    assert source_values(db, other) == []
+
+
+def test_a_value_without_a_source_value_converts_as_before(client, catalog, db):
+    iron, *_ = world(client, catalog)
+    with_source_values(db, iron, Oats="11")
+    change = attribute_change(db, iron, "mg", "µg")
+    assert change.counts["source_values"] == 1
+    change.apply()
+    db.commit()
+    assert values(db, iron) == [D("500"), D("12000")]
+    assert source_values(db, iron) == [D("11000")]
+
+
+def test_a_source_value_that_loses_digits_is_rounded_and_counted(client, catalog, db):
+    iron, *_ = world(client, catalog)
+    with_source_values(db, iron, Oats="0.0000015")
+    assert attribute_change(db, iron, "mg", "g").rounded == 1  # 0.0000000015 g
+    attribute_change(db, iron, "mg", "g").apply()
+    db.commit()
+    assert source_values(db, iron) == [D("0")]
+
+
+def test_a_source_value_that_is_too_large_is_refused_even_when_the_value_converts(client, catalog, db):
+    iron, *_ = world(client, catalog)
+    # mg to µg: the value 12 becomes 12000, but the source value 1000000 would be 10^9.
+    with_source_values(db, iron, Oats="1000000")
+    change = attribute_change(db, iron, "mg", "µg", decimals=4)
+    assert change.refusal.type == "conversion_too_large"
+    assert (change.refusal.kind, change.refusal.name, change.refusal.field) == ("source_value", "Oats", "source_value")
+    change.apply()
+    db.commit()
+    assert values(db, iron) == [D("0.5"), D("12")]
+    assert source_values(db, iron) == [D("1000000")]
+
+
+def test_no_convert_and_same_count_source_values_and_change_nothing(client, catalog, db):
+    iron, *_ = world(client, catalog)
+    with_source_values(db, iron, Oats="11", Seeds="0.4")
+    for new, kind in (("dl", "no_convert"), ("mg.", "same")):
+        change = attribute_change(db, iron, "mg", new)
+        assert (change.kind, change.counts["source_values"]) == (kind, 2)
+        change.apply()
+    db.commit()
+    assert source_values(db, iron) == [D("0.4"), D("11")]

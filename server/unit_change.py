@@ -31,10 +31,10 @@ ROUNDS_TO_ZERO = "conversion_rounds_to_zero"
 class Number:
     """One stored number in the unit that changes."""
 
-    kind: str  # "ingredient_value" | "goal" | "basis" | "recipe_amount"
+    kind: str  # "ingredient_value" | "source_value" | "goal" | "basis" | "recipe_amount"
     row_id: int  # counted once per (kind, row_id): a goal's bounds are one goal
     name: str  # for a refusal: the goal's, ingredient's or recipe's name
-    field: str  # "value" | "min" | "max" | "zero_reference" | "basis" | "amount"
+    field: str  # "value" | "source_value" | "min" | "max" | "zero_reference" | "basis" | "amount"
     value: Decimal
     write: Callable[[Decimal], None]
     decimals: int | None = None  # None: round to VALUE_DECIMALS; n: must fit n decimals exactly
@@ -229,8 +229,9 @@ def mapped_column_refusal(db: Session, attribute: models.Attribute, new_unit: st
 
 
 def attribute_converters(attribute: models.Attribute, decimals: int) -> list[Converter]:
-    """The numbers stored in an attribute's unit: its ingredient values and
-    the live plan's goal bounds and zero references. `decimals` is the
+    """The numbers stored in an attribute's unit: its ingredient values, the
+    source values copied with them, and the live plan's goal bounds and zero
+    references. `decimals` is the
     attribute's decimals as they will be saved. Saved results keep their own
     copy of units and numbers and are not touched."""
 
@@ -247,6 +248,27 @@ def attribute_converters(attribute: models.Attribute, decimals: int) -> list[Con
 
         return [
             Number("ingredient_value", row.ingredient_id, name, "value", row.value, setter(row))
+            for row, name in rows
+        ]
+
+    def source_numbers(db: Session) -> list[Number]:
+        # The source's number remembered next to each copied value (slice D4);
+        # a separate number, so either it or the value can be the one refused.
+        rows = db.execute(
+            select(models.IngredientValue, models.Ingredient.name)
+            .join(models.Ingredient, models.Ingredient.id == models.IngredientValue.ingredient_id)
+            .where(
+                models.IngredientValue.attribute_id == attribute.id,
+                models.IngredientValue.source_value.is_not(None),
+            )
+            .order_by(models.IngredientValue.ingredient_id)
+        )
+
+        def setter(row: models.IngredientValue):
+            return lambda converted: setattr(row, "source_value", converted)
+
+        return [
+            Number("source_value", row.ingredient_id, name, "source_value", row.source_value, setter(row))
             for row, name in rows
         ]
 
@@ -269,7 +291,11 @@ def attribute_converters(attribute: models.Attribute, decimals: int) -> list[Con
                     ))
         return sorted(numbers, key=lambda n: n.row_id)
 
-    return [Converter("ingredient_values", values), Converter("goals", goals)]
+    return [
+        Converter("ingredient_values", values),
+        Converter("source_values", source_numbers),
+        Converter("goals", goals),
+    ]
 
 
 def ingredient_converters(ingredient: models.Ingredient, basis: Decimal) -> list[Converter]:
