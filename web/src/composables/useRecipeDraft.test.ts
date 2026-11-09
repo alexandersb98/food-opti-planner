@@ -360,7 +360,7 @@ function imported() {
 
 test('an imported recipe is filled as typed, with the review state', () => {
   const filled = draftOfImport(imported(), emptyDraft())
-  expect(filled).toMatchObject({ name: 'Imported porridge', servings: '2', instructions: 'Boil.\nStir.', imported: { cut: true }, pending: [] })
+  expect(filled).toMatchObject({ name: 'Imported porridge', servings: '2', instructions: 'Boil.\nStir.', imported: { cut: true, site: '' }, pending: [] })
   const [oats, milk, salt] = filled.sections[0]!.items
   expect(oats).toMatchObject({ ingredientId: 1, amount: '100', unit: '', originalText: '100 g oats', skipped: false, notAnIngredient: false })
   expect(milk).toMatchObject({ ingredientId: 2, unit: 'dl', food: 'milk', suggestedFactor: '50', skipped: false })
@@ -372,7 +372,7 @@ test('fillImported fills the draft of the composable', () => {
   const { wrapper, draft } = mounted()
   draft.fillImported(imported())
   expect(draft.draft.name).toBe('Imported porridge')
-  expect(draft.draft.imported).toEqual({ cut: true })
+  expect(draft.draft.imported).toEqual({ cut: true, site: '' })
   wrapper.unmount()
 })
 

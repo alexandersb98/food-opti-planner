@@ -11,7 +11,10 @@ afterEach(() => {
 
 const health = (ai_configured: boolean) => ({ 'GET /api/health': { body: { database: true, ai_configured } } })
 
-async function mountPage(server: FakeServer = {}, configured = true) {
+/** Mounts I1, flipped to Paste text unless `startInLink` (the page opens on the Link field). */
+type Wrapper = Awaited<ReturnType<typeof mountApp>>['wrapper']
+
+async function mountPage(server: FakeServer = {}, configured = true, startInLink = false) {
   const sent: unknown[] = []
   const calls = fakeServer({
     'GET /api/session': 204,
@@ -27,10 +30,21 @@ async function mountPage(server: FakeServer = {}, configured = true) {
     ...server,
   })
   const { wrapper, router } = await mountApp('/recipes/import')
+  if (!startInLink) await flip(wrapper)
   return { wrapper, router, calls, sent }
 }
 
-type Wrapper = Awaited<ReturnType<typeof mountPage>>['wrapper']
+function switchOf(wrapper: Wrapper) {
+  return wrapper.get('[role="switch"][aria-label="Paste text"]')
+}
+
+async function flip(wrapper: Wrapper) {
+  await click(switchOf(wrapper))
+}
+
+function linkField(wrapper: Wrapper) {
+  return wrapper.get<HTMLInputElement>('input[aria-label="Link"]')
+}
 
 function box(wrapper: Wrapper) {
   return wrapper.get<HTMLTextAreaElement>('textarea[aria-label="Recipe text"]')
@@ -150,5 +164,155 @@ test('opening the page clears an old draft', async () => {
   const { wrapper } = await mountPage()
   expect(takeImportedDraft()).toBeNull()
   expect(button(wrapper, 'Import')).toBeDefined()
+  wrapper.unmount()
+})
+
+// --- the Link field and the switch ---------------------------------------------
+
+test('the page opens on the Link field with its hint and no text box', async () => {
+  const { wrapper } = await mountPage({}, true, true)
+  expect(linkField(wrapper).attributes('type')).toBe('url')
+  expect(linkField(wrapper).attributes('inputmode')).toBe('url')
+  expect(wrapper.text()).toContain("Works for most recipe sites. If a site won't open, paste the recipe text instead.")
+  expect(wrapper.find('textarea').exists()).toBe(false)
+  expect(wrapper.find('[role="switch"][aria-label="Paste text"]').exists()).toBe(true)
+  wrapper.unmount()
+})
+
+test('Import is disabled while the link is blank or spaces', async () => {
+  const { wrapper } = await mountPage({}, true, true)
+  expect(importButton(wrapper).attributes('disabled')).toBeDefined()
+  await linkField(wrapper).setValue('   ')
+  expect(importButton(wrapper).attributes('disabled')).toBeDefined()
+  await linkField(wrapper).setValue('https://ica.se/x')
+  expect(importButton(wrapper).attributes('disabled')).toBeUndefined()
+  wrapper.unmount()
+})
+
+test('a click posts the trimmed link and no text key', async () => {
+  const { wrapper, sent, router } = await mountPage({}, true, true)
+  await linkField(wrapper).setValue('  https://ica.se/recept/x  ')
+  await click(importButton(wrapper))
+  await flushPromises()
+  expect(sent).toEqual([{ url: 'https://ica.se/recept/x' }])
+  expect(router.currentRoute.value.fullPath).toBe('/recipes/new')
+  wrapper.unmount()
+})
+
+test('Enter in the link field posts', async () => {
+  const { wrapper, sent } = await mountPage({}, true, true)
+  await linkField(wrapper).setValue('https://ica.se/x')
+  await linkField(wrapper).trigger('keydown.enter')
+  await wrapper.get('form').trigger('submit')
+  await flushPromises()
+  expect(sent).toEqual([{ url: 'https://ica.se/x' }])
+  wrapper.unmount()
+})
+
+test('Paste text shows the box, hides the field and posts only the text', async () => {
+  const { wrapper, sent } = await mountPage({}, true, true)
+  await linkField(wrapper).setValue('https://ica.se/x')
+  await flip(wrapper)
+  expect(wrapper.find('input[aria-label="Link"]').exists()).toBe(false)
+  await box(wrapper).setValue('Porridge')
+  await click(importButton(wrapper))
+  await flushPromises()
+  expect(sent).toEqual([{ text: 'Porridge' }])
+  wrapper.unmount()
+})
+
+test('both inputs keep their text when flipping back and forth and Import follows the active one', async () => {
+  const { wrapper } = await mountPage({}, true, true)
+  await linkField(wrapper).setValue('https://ica.se/x')
+  await flip(wrapper)
+  expect(box(wrapper).element.value).toBe('')
+  expect(importButton(wrapper).attributes('disabled')).toBeDefined() // the link does not enable text mode
+  await box(wrapper).setValue('Porridge')
+  await flip(wrapper)
+  expect(linkField(wrapper).element.value).toBe('https://ica.se/x')
+  await linkField(wrapper).setValue('')
+  expect(importButton(wrapper).attributes('disabled')).toBeDefined() // the text does not enable link mode
+  await flip(wrapper)
+  expect(box(wrapper).element.value).toBe('Porridge')
+  wrapper.unmount()
+})
+
+const failure = (status: number, type: string) => ({
+  'POST /api/recipe-imports': { status, body: { detail: [{ loc: ['body', 'url'], type, msg: 'x' }] } },
+})
+
+test.each([
+  ['page_unreadable', 422, "Couldn't read this page. Paste the recipe text instead."],
+  ['no_recipe', 422, 'No recipe found on this page. Paste the recipe text instead.'],
+  ['url_required', 422, 'Enter the link to the recipe.'],
+  ['url_invalid', 422, 'Enter a link that starts with http:// or https://.'],
+  ['limit_reached', 429, "Today's import limit is reached."],
+  ['ai_failed', 502, "The AI service didn't answer. Try again."],
+  ['ai_not_configured', 503, 'Needs an AI key.'],
+  ['input_required', 422, 'Could not import the recipe. Try again.'],
+])('link mode: %s shows its sentence and keeps the link and the text', async (type, status, message) => {
+  const { wrapper, router } = await mountPage(failure(status, type), true, true)
+  await flip(wrapper)
+  await box(wrapper).setValue('Porridge')
+  await flip(wrapper)
+  await linkField(wrapper).setValue('https://ica.se/x')
+  await click(importButton(wrapper))
+  expect(wrapper.get('.import-error').text()).toBe(message)
+  expect(linkField(wrapper).element.value).toBe('https://ica.se/x')
+  expect(importButton(wrapper).attributes('disabled')).toBeUndefined()
+  expect(router.currentRoute.value.fullPath).toBe('/recipes/import')
+  await flip(wrapper)
+  expect(box(wrapper).element.value).toBe('Porridge')
+  wrapper.unmount()
+})
+
+test('text mode keeps its own no-recipe sentence', async () => {
+  const { wrapper } = await mountPage(failure(422, 'no_recipe'))
+  await box(wrapper).setValue('Porridge')
+  await click(importButton(wrapper))
+  expect(wrapper.get('.import-error').text()).toBe('No recipe found in this text.')
+  wrapper.unmount()
+})
+
+test('a network error in link mode is the general message', async () => {
+  const { wrapper } = await mountPage(
+    {
+      'POST /api/recipe-imports': () => {
+        throw new Error('offline')
+      },
+    },
+    true,
+    true,
+  )
+  await linkField(wrapper).setValue('https://ica.se/x')
+  await click(importButton(wrapper))
+  expect(wrapper.get('.import-error').text()).toBe('Could not import the recipe. Try again.')
+  wrapper.unmount()
+})
+
+test('while reading, the link is read-only and a double click posts once; the draft keeps the source link', async () => {
+  let release!: () => void
+  const gate = new Promise<void>((resolve) => (release = resolve))
+  const { wrapper, sent, router } = await mountPage(
+    {
+      'POST /api/recipe-imports': async (body) => {
+        sent.push(body)
+        await gate
+        return { body: importedRecipe({ source_url: 'https://www.ica.se/recept/x' }) }
+      },
+    },
+    true,
+    true,
+  )
+  await linkField(wrapper).setValue('https://ica.se/x')
+  await click(importButton(wrapper))
+  expect(importButton(wrapper).text()).toContain('Reading the recipe…')
+  expect(linkField(wrapper).attributes('readonly')).toBeDefined()
+  await click(importButton(wrapper))
+  release()
+  await flushPromises()
+  expect(sent).toHaveLength(1)
+  expect(router.currentRoute.value.fullPath).toBe('/recipes/new')
+  expect(wrapper.text()).toContain('Imported from ica.se.')
   wrapper.unmount()
 })

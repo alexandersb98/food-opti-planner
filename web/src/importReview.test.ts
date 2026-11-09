@@ -1,5 +1,5 @@
 import { beforeAll, expect, test } from 'vitest'
-import { acceptable, suggestedFactorFor, factorSource, ingredientWithPending, lineState, needsYou, pendingKey, type PendingConversion } from './importReview'
+import { acceptable, suggestedFactorFor, factorSource, ingredientWithPending, lineState, needsYou, pendingKey, siteName, type PendingConversion } from './importReview'
 import { fakeServer } from './test-app'
 import { conversion, ingredient, unitCatalogue } from './test-data'
 import { resetUnits, useUnits } from './units'
@@ -106,4 +106,18 @@ test('a suggestion is for the unit it was made for, not for a line that changed 
   expect(suggestedFactorFor({ ingredientId: 3, unit: 'DL' }, [imported])).toBe('50')
   expect(suggestedFactorFor({ ingredientId: 4, unit: 'dl' }, [imported])).toBeNull()
   expect(suggestedFactorFor({ ingredientId: null, unit: 'dl' }, [imported])).toBeNull()
+})
+
+test.each([
+  ['https://www.ica.se/recept/x', 'ica.se'],
+  ['http://Example.COM:8080/a?b#c', 'example.com'],
+  ['https://sub.www.example.org/', 'sub.www.example.org'],
+  ['https://xn--rksmrgs-5wao1o.example/', 'xn--rksmrgs-5wao1o.example'],
+  ['javascript:alert(1)', ''],
+  ['ftp://x/', ''],
+  ['', ''],
+  ['not a url', ''],
+  ['//x', ''],
+])('siteName of %s is %s', (url, expected) => {
+  expect(siteName(url)).toBe(expected)
 })

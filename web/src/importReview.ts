@@ -33,6 +33,18 @@ export function ingredientWithPending(ingredient: Ingredient, pending: readonly 
   return added.length === 0 ? ingredient : { ...ingredient, conversions: [...ingredient.conversions, ...added] }
 }
 
+/** The site a link names, for the banner: its host in lower case without a
+ * leading "www."; empty for anything that is not an http or https link. */
+export function siteName(url: string): string {
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return ''
+    return parsed.hostname.toLowerCase().replace(/^www\./, '')
+  } catch {
+    return ''
+  }
+}
+
 /** An energy unit can never route, and a conversion for it is refused. */
 function isEnergy(ratio: Ratio, unit: string): boolean {
   return ['kcal', 'kj'].some((energy) => ratio(unit, energy) !== null)

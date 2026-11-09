@@ -213,6 +213,13 @@ const needsCount = computed(() =>
 )
 /** An imported recipe can't be saved while a line needs the user. */
 const blocked = computed(() => needsCount.value > 0)
+/** The banner's sentence; the site is plain text (Vue escapes it). */
+const bannerText = computed(() => {
+  const site = draft.imported?.site ?? ''
+  const n = needsCount.value
+  if (site) return n > 0 ? t('recipes.bannerSite', { site, n }, n) : t('recipes.bannerSiteReady', { site })
+  return n > 0 ? t('recipes.banner', { n }, n) : t('recipes.bannerReady')
+})
 
 function stateOf(line: DraftLine) {
   return lineState(line, ingredientOf(line), draft.pending, units.ratio)
@@ -401,7 +408,7 @@ async function confirmDelete() {
           @keydown.space.prevent="scrollToNext"
         >
           <div>
-            {{ needsCount > 0 ? $t('recipes.banner', { n: needsCount }, needsCount) : $t('recipes.bannerReady') }}
+            {{ bannerText }}
           </div>
           <div
             v-if="draft.imported.cut"

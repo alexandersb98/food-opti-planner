@@ -4,7 +4,7 @@ import { api } from '../api/client'
 import { fieldErrors } from '../api/errors'
 import type { ImportedRecipe, Ingredient, Recipe, RecipeFields as Fields, Tag } from '../api/types'
 import type { Translate } from '../goals'
-import { factorSource, pendingKey, type PendingConversion } from '../importReview'
+import { factorSource, pendingKey, siteName, type PendingConversion } from '../importReview'
 import { typedNumber } from '../numbers'
 
 // The recipe editor's draft: the fields as typed, how they are checked before
@@ -51,8 +51,9 @@ export type RecipeDraft = {
   hardMax: string // empty: 3 times max, the library's default
   penalty: string
   // An imported recipe under review (null for any other): whether the text
-  // was cut, and the conversions the user accepted, created with the recipe.
-  imported: { cut: boolean } | null
+  // was cut, the site it came from (empty for pasted text), and the
+  // conversions the user accepted, created with the recipe.
+  imported: { cut: boolean; site: string } | null
   pending: PendingConversion[]
 }
 
@@ -158,7 +159,7 @@ export function draftOfImport(recipe: ImportedRecipe, base: RecipeDraft): Recipe
         suggestedUnit: line.unit,
       })),
     })),
-    imported: { cut: recipe.cut },
+    imported: { cut: recipe.cut, site: siteName(recipe.source_url) },
     pending: [],
   }
 }

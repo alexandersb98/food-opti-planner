@@ -967,6 +967,47 @@ test('a saved imported recipe leaves without asking', async () => {
   wrapper.unmount()
 })
 
+test('a recipe imported from a link names the site in the banner', async () => {
+  const { wrapper } = await mountImported(undefined, {}, { source_url: 'https://www.ica.se/recept/x' })
+  expect(banner(wrapper)).toBe('Imported from ica.se. 2 lines need you.')
+  expect(value(wrapper, 'Source')).toBe('https://www.ica.se/recept/x')
+  wrapper.unmount()
+})
+
+test('the site banner has a ready variant and a singular', async () => {
+  const { wrapper } = await mountImported([porridgeLine], {}, { source_url: 'https://www.ica.se/recept/x' })
+  expect(banner(wrapper)).toBe('Imported from ica.se. All lines are ready.')
+  wrapper.unmount()
+  const one = await mountImported([porridgeLine, milkLine], {}, { source_url: 'https://www.ica.se/recept/x' })
+  expect(banner(one.wrapper)).toBe('Imported from ica.se. 1 line needs you.')
+  one.wrapper.unmount()
+})
+
+test('an imported recipe without a source keeps the pasted-text banner', async () => {
+  const { wrapper } = await mountImported(undefined, {}, { source_url: '' })
+  expect(banner(wrapper)).toBe('Imported from pasted text. 2 lines need you.')
+  wrapper.unmount()
+})
+
+test('saving an imported recipe sends the source link as it is', async () => {
+  const { handler, sent: bodies } = recorder(201, (body) => ({ ...porridge, ...body, id: 8 }))
+  const { wrapper } = await mountImported([porridgeLine], { 'POST /api/recipes': handler }, { source_url: 'https://www.ica.se/recept/x' })
+  await click(saveButton(wrapper))
+  expect(bodies[0]).toMatchObject({ source_url: 'https://www.ica.se/recept/x' })
+  wrapper.unmount()
+})
+
+test('a site that is not a valid link, or has markup in its path, is shown as plain text only', async () => {
+  const bad = await mountImported(undefined, {}, { source_url: 'https://<img src=x onerror=alert(1)>.example' })
+  expect(banner(bad.wrapper)).toBe('Imported from pasted text. 2 lines need you.')
+  expect(bad.wrapper.get('.import-banner').find('img').exists()).toBe(false)
+  bad.wrapper.unmount()
+  const path = await mountImported(undefined, {}, { source_url: 'https://a.example/<b>x</b>' })
+  expect(banner(path.wrapper)).toBe('Imported from a.example. 2 lines need you.')
+  expect(path.wrapper.get('.import-banner').find('b').exists()).toBe(false)
+  path.wrapper.unmount()
+})
+
 test('an ordinary new recipe never asks, and a reload of an import is the empty editor', async () => {
   const { wrapper, router } = await mountPage('/recipes/new')
   expect(wrapper.find('.import-banner').exists()).toBe(false)

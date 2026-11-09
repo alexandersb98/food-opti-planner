@@ -7,11 +7,14 @@ import { errorType } from '../api/errors'
 import EditorHeader from '../components/EditorHeader.vue'
 import { setImportedDraft } from '../importDraft'
 
-// I1: paste a recipe, the AI makes a draft, and the recipe editor opens it
-// for review. Nothing is stored until Save there.
+// I1: give a link to a recipe page or paste the recipe text, the AI makes a
+// draft, and the recipe editor opens it for review. Nothing is stored until
+// Save there. Both inputs keep their text when switching and after an error.
 const { t, te } = useI18n()
 const router = useRouter()
 
+const mode = ref<'link' | 'text'>('link')
+const link = ref('')
 const text = ref('')
 const running = ref(false)
 const error = ref('')
@@ -29,21 +32,26 @@ onMounted(async () => {
   }
 })
 
-const canImport = computed(() => configured.value === true && !running.value && text.value.trim() !== '')
+const pasting = computed(() => mode.value === 'text')
+const active = computed(() => (pasting.value ? text.value : link.value))
+const canImport = computed(() => configured.value === true && !running.value && active.value.trim() !== '')
 
 async function run() {
   if (!canImport.value) return
   running.value = true
   error.value = ''
   try {
-    const { data, error: failure } = await api.POST('/api/recipe-imports', { body: { text: text.value } })
+    const { data, error: failure } = await api.POST('/api/recipe-imports', {
+      body: pasting.value ? { text: text.value } : { url: link.value.trim() },
+    })
     if (data) {
       setImportedDraft(data)
       await router.push('/recipes/new')
       return
     }
     const type = errorType(failure)
-    error.value = type && te(`import.error.${type}`) ? t(`import.error.${type}`) : t('import.error.other')
+    const key = type === 'no_recipe' && !pasting.value ? 'no_recipe_page' : type
+    error.value = key && te(`import.error.${key}`) ? t(`import.error.${key}`) : t('import.error.other')
   } catch {
     error.value = t('import.error.other')
   } finally {
@@ -65,7 +73,29 @@ async function run() {
       class="q-gutter-y-md"
       @submit="run"
     >
+      <q-toggle
+        v-model="mode"
+        class="import-switch"
+        true-value="text"
+        false-value="link"
+        :label="$t('import.pasteText')"
+        :aria-label="$t('import.pasteText')"
+      />
       <q-input
+        v-if="!pasting"
+        v-model="link"
+        class="import-link"
+        type="url"
+        inputmode="url"
+        autocomplete="off"
+        outlined
+        :readonly="running"
+        :aria-label="$t('import.link')"
+        :label="$t('import.link')"
+        :hint="$t('import.linkHint')"
+      />
+      <q-input
+        v-else
         v-model="text"
         class="import-text"
         type="textarea"
