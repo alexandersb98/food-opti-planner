@@ -1,8 +1,9 @@
 import type { Attribute, Ingredient } from './api/types'
 
 // A recipe's per-portion totals, worked out in the editor as the user types
-// (C2). Exact, with the server's rounding, so the editor and the recipe
-// list always show the same numbers.
+// (C2): the whole recipe's lines summed, divided by the servings. Exact, with
+// the server's rounding, so the editor and the recipe list always show the
+// same numbers.
 
 /** A fraction of whole numbers; `den` is above 0. */
 type Fraction = { num: bigint; den: bigint }
@@ -36,8 +37,9 @@ function rounded({ num, den }: Fraction, decimals: number): string {
 export type Amount = { ingredient: Ingredient; amount: string }
 
 /** Each attribute's total for one portion, by attribute id: amount times
- * value per basis, summed; a missing value counts as 0. */
-export function portionTotals(items: readonly Amount[], attributes: readonly Attribute[]) {
+ * value per basis, summed over all lines (amounts are for the whole recipe)
+ * and divided by `servings` once; a missing value counts as 0. */
+export function portionTotals(items: readonly Amount[], attributes: readonly Attribute[], servings = 1) {
   const totals = new Map<number, string>()
   for (const attribute of attributes) {
     let sum: Fraction = { num: 0n, den: 1n }
@@ -47,7 +49,7 @@ export function portionTotals(items: readonly Amount[], attributes: readonly Att
       const [a, v, basis] = [fraction(amount), fraction(value.value), fraction(ingredient.basis)]
       sum = add(sum, { num: a.num * v.num * basis.den, den: a.den * v.den * basis.num })
     }
-    totals.set(attribute.id, rounded(sum, attribute.decimals))
+    totals.set(attribute.id, rounded({ num: sum.num, den: sum.den * BigInt(servings) }, attribute.decimals))
   }
   return totals
 }

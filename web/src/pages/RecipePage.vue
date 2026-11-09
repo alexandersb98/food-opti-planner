@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '../api/client'
 import type { Attribute, Ingredient, Recipe, Tag } from '../api/types'
@@ -7,6 +8,7 @@ import ConfirmDelete from '../components/ConfirmDelete.vue'
 import EditorHeader from '../components/EditorHeader.vue'
 import IngredientPicker from '../components/IngredientPicker.vue'
 import LoadState from '../components/LoadState.vue'
+import RecipeSection from '../components/RecipeSection.vue'
 import { loadAll, useLoad } from '../composables/useLoad'
 import { useRecipeDraft } from '../composables/useRecipeDraft'
 import { valueText } from '../format'
@@ -14,6 +16,7 @@ import { byId } from '../lists'
 import { typedNumber } from '../numbers'
 import { portionTotals } from '../totals'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 
@@ -27,9 +30,13 @@ const {
   advancedOpen,
   derivedTagIds,
   defaultHardMax,
+  servingsNumber,
   fillDraft,
   addIngredient,
-  removeIngredient,
+  removeLine,
+  moveLine,
+  addSection,
+  removeSection,
   hasTag,
   toggleTag,
   save: saveDraft,
@@ -37,6 +44,8 @@ const {
 } = useRecipeDraft(id)
 const deleteOpen = ref(false)
 const pickerOpen = ref(false)
+// The section whose "+ Add ingredient" opened the picker.
+const pickerSection = ref(0)
 
 const { data, loading, failed, load } = useLoad(
   async () => {
@@ -61,16 +70,40 @@ const { data, loading, failed, load } = useLoad(
 )
 
 const ingredients = computed(() => byId(data.value.ingredients))
-const inRecipe = computed(() => new Set(draft.items.map((item) => item.ingredientId)))
 
-/** Live totals for one portion, by attribute; an amount not yet a number counts as 0. */
+/** Live totals for one portion, by attribute: all the lines (amounts are for
+ * the whole recipe) divided by the servings; an amount not yet a number
+ * counts as 0. */
 const totals = computed(() => {
-  const amounts = draft.items.flatMap(({ ingredientId, amount }) => {
-    const ingredient = ingredients.value.get(ingredientId)
-    const number = typedNumber(amount)
-    return ingredient && number !== null ? [{ ingredient, amount: number }] : []
-  })
-  return portionTotals(amounts, data.value.attributes)
+  const amounts = draft.sections.flatMap((section) =>
+    section.items.flatMap(({ ingredientId, amount }) => {
+      const ingredient = ingredients.value.get(ingredientId)
+      const number = typedNumber(amount)
+      return ingredient && number !== null ? [{ ingredient, amount: number }] : []
+    }),
+  )
+  return portionTotals(amounts, data.value.attributes, servingsNumber.value)
+})
+
+/** A section's name, or "Section n" while it has none. */
+function sectionLabel(index: number) {
+  return draft.sections[index]?.name.trim() || t('recipes.sectionN', { n: index + 1 })
+}
+
+/** The other sections a line of section `index` can move to. */
+function movesFrom(index: number) {
+  return draft.sections.flatMap((_, other) => (other === index ? [] : [{ index: other, label: sectionLabel(other) }]))
+}
+
+function askForIngredient(index: number) {
+  pickerSection.value = index
+  pickerOpen.value = true
+}
+
+/** A link the page may offer to open: http(s) only. */
+const sourceLink = computed(() => {
+  const link = draft.sourceUrl.trim()
+  return /^https?:\/\/\S+$/.test(link) ? link : null
 })
 
 function save() {
@@ -111,43 +144,43 @@ async function confirmDelete() {
           hide-bottom-space
         />
 
+        <q-input
+          v-model="draft.servings"
+          class="servings-field"
+          outlined
+          dense
+          inputmode="numeric"
+          :aria-label="$t('recipes.servings')"
+          :label="$t('recipes.servings')"
+          :hint="$t('recipes.servingsHint')"
+          :error="!!errors.servings"
+          :error-message="errors.servings"
+        />
+
         <q-card
           flat
           bordered
         >
-          <q-card-section class="q-gutter-y-sm">
-            <div class="text-subtitle1">
-              {{ $t('recipes.items') }}
-            </div>
-            <div
-              v-for="(item, index) in draft.items"
-              :key="item.ingredientId"
-              class="row items-start no-wrap q-gutter-x-sm recipe-item"
-            >
-              <div class="col item-name">
-                {{ ingredients.get(item.ingredientId)?.name }}
+          <q-card-section class="q-gutter-y-md">
+            <div>
+              <div class="text-subtitle1">
+                {{ $t('recipes.itemsFor', { n: servingsNumber }, servingsNumber) }}
               </div>
-              <q-input
-                v-model="item.amount"
-                class="amount-field"
-                outlined
-                dense
-                inputmode="decimal"
-                :aria-label="$t('recipes.amountOf', { name: ingredients.get(item.ingredientId)?.name })"
-                :suffix="ingredients.get(item.ingredientId)?.unit"
-                :error="!!errors.amounts[item.ingredientId]"
-                :error-message="errors.amounts[item.ingredientId]"
-                hide-bottom-space
-              />
-              <q-btn
-                flat
-                round
-                dense
-                icon="close"
-                :aria-label="$t('recipes.remove', { name: ingredients.get(item.ingredientId)?.name })"
-                @click="removeIngredient(index)"
-              />
             </div>
+            <RecipeSection
+              v-for="(section, index) in draft.sections"
+              :key="section.key"
+              v-model:section="draft.sections[index]!"
+              :index="index"
+              :count="draft.sections.length"
+              :ingredients="ingredients"
+              :errors="{ name: errors.sectionNames[section.key] ?? '', amounts: errors.amounts }"
+              :others="movesFrom(index)"
+              @add="askForIngredient(index)"
+              @remove-line="(lineIndex) => removeLine(index, lineIndex)"
+              @move="(lineIndex, to) => moveLine(index, lineIndex, to)"
+              @remove-section="removeSection(index)"
+            />
             <div
               v-if="errors.items"
               class="text-negative text-caption"
@@ -158,8 +191,8 @@ async function confirmDelete() {
               flat
               no-caps
               color="primary"
-              :label="$t('recipes.addIngredientButton')"
-              @click="pickerOpen = true"
+              :label="$t('recipes.addSection')"
+              @click="addSection"
             />
           </q-card-section>
         </q-card>
@@ -220,6 +253,34 @@ async function confirmDelete() {
               {{ $t('recipes.tagsHint') }}
             </div>
           </template>
+        </div>
+
+        <q-input
+          v-model="draft.instructions"
+          type="textarea"
+          autogrow
+          outlined
+          :label="$t('recipes.instructions')"
+        />
+
+        <div>
+          <q-input
+            v-model="draft.sourceUrl"
+            outlined
+            dense
+            inputmode="url"
+            :label="$t('recipes.source')"
+            :error="!!errors.sourceUrl"
+            :error-message="errors.sourceUrl"
+            hide-bottom-space
+          />
+          <a
+            v-if="sourceLink"
+            class="source-link text-caption"
+            :href="sourceLink"
+            target="_blank"
+            rel="noopener noreferrer"
+          >{{ $t('recipes.openSource') }}</a>
         </div>
 
         <q-card
@@ -349,8 +410,7 @@ async function confirmDelete() {
     <IngredientPicker
       v-model="pickerOpen"
       :ingredients="data.ingredients"
-      :exclude="inRecipe"
-      @pick="addIngredient"
+      @pick="(ingredient) => addIngredient(pickerSection, ingredient)"
     />
     <ConfirmDelete
       v-model="deleteOpen"
@@ -362,11 +422,7 @@ async function confirmDelete() {
 </template>
 
 <style scoped>
-.item-name {
-  padding-top: 8px;
-  overflow-wrap: anywhere;
-}
-.amount-field {
-  width: 8.5em;
+.servings-field {
+  max-width: 12em;
 }
 </style>

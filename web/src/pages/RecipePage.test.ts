@@ -1,7 +1,7 @@
 import { flushPromises } from '@vue/test-utils'
 import { afterEach, expect, test, vi } from 'vitest'
 import { button, click, dialog, fakeServer, field, mountApp, texts, type FakeServer } from '../test-app'
-import { attribute, ingredient, recipe, tag } from '../test-data'
+import { attribute, ingredient, lines, recipe, tag } from '../test-data'
 
 const energy = attribute({ id: 1, name: 'Energy', unit: 'kcal' })
 const protein = attribute({ id: 2, name: 'Protein', unit: 'g', decimals: 1 })
@@ -22,10 +22,7 @@ const almonds = ingredient({ id: 3, name: 'Almonds', values: [{ attribute_id: 2,
 const porridge = recipe({
   id: 7,
   name: 'Porridge',
-  items: [
-    { ingredient_id: 1, amount: '60' },
-    { ingredient_id: 2, amount: '200' },
-  ],
+  sections: lines([1, '60'], [2, '200']),
   extra_tag_ids: [2],
   derived_tag_ids: [],
 })
@@ -171,15 +168,23 @@ test('ingredients are added from a searchable picker and removed, and the server
   wrapper.unmount()
 })
 
-test('the picker leaves out the ingredients already in the recipe', async () => {
+test('the same ingredient can be added on a second line and the picker still offers it', async () => {
   const { wrapper } = await mountPage('/recipes/7')
   await click(button(wrapper, '+ Add ingredient'))
   const rows = [...document.querySelectorAll('.q-dialog .picker-row')].map((r) => r.textContent)
-  expect(rows).toEqual([expect.stringContaining('Almonds')])
-  document.querySelector<HTMLElement>('.q-dialog .picker-row')!.click()
+  expect(rows).toEqual([
+    expect.stringContaining('Almonds'),
+    expect.stringContaining('Milk'),
+    expect.stringContaining('Oats'),
+  ])
+  document.querySelector<HTMLElement>('.q-dialog .picker-row:last-child')!.click()
   await flushPromises()
-  await click(button(wrapper, '+ Add ingredient'))
-  expect(dialog().text).toContain('Every ingredient is in the recipe already.')
+  expect(items(wrapper)).toEqual([
+    ['Oats', '60'],
+    ['Milk', '200'],
+    ['Oats', ''],
+  ])
+  expect(totals(wrapper)).toEqual(['Energy 361 kcal', 'Protein 10.1 g'])
   wrapper.unmount()
 })
 
@@ -231,10 +236,18 @@ test('Save sends the fields and returns to the list', async () => {
   expect(sent).toEqual([
     {
       name: 'Milk porridge',
-      items: [
-        { ingredient_id: 1, amount: '60' },
-        { ingredient_id: 2, amount: '250.5' },
+      servings: 1,
+      sections: [
+        {
+          name: '',
+          items: [
+            { ingredient_id: 1, amount: '60', original_text: '' },
+            { ingredient_id: 2, amount: '250.5', original_text: '' },
+          ],
+        },
       ],
+      instructions: '',
+      source_url: '',
       extra_tag_ids: [2],
       min_multiplier: '1',
       max_multiplier: '3',
@@ -247,12 +260,14 @@ test('Save sends the fields and returns to the list', async () => {
   wrapper.unmount()
 })
 
-test('a new recipe starts with the default portion size', async () => {
+test('a new recipe starts with one unnamed section, servings 1 and the default portion size', async () => {
   const { sent, handler } = recorder(201, (body) => ({ ...porridge, ...body, id: 8 }))
   const derived = { 'POST /api/recipes/derived-tags': { body: [1] } }
   const { wrapper, router } = await mountPage('/recipes/new', { 'POST /api/recipes': handler, ...derived })
   expect(wrapper.get('h1').text()).toBe('New recipe')
   expect(items(wrapper)).toEqual([])
+  expect(value(wrapper, 'Serves')).toBe('1')
+  expect(wrapper.findAll('.section-name')).toHaveLength(0)
   expect(totals(wrapper)).toEqual(['Energy 0 kcal', 'Protein 0 g'])
   expect(wrapper.text()).not.toContain('Delete')
   await field(wrapper, 'Name').setValue('Oatmeal')
@@ -262,7 +277,10 @@ test('a new recipe starts with the default portion size', async () => {
   expect(sent).toEqual([
     {
       name: 'Oatmeal',
-      items: [{ ingredient_id: 1, amount: '80' }],
+      servings: 1,
+      sections: [{ name: '', items: [{ ingredient_id: 1, amount: '80', original_text: '' }] }],
+      instructions: '',
+      source_url: '',
       extra_tag_ids: [],
       min_multiplier: '0.5',
       max_multiplier: '2',
@@ -280,6 +298,7 @@ test('wrong fields are marked and nothing is sent', async () => {
   await click(button(wrapper, 'Save'))
   expect(wrapper.text()).toContain('Enter a name.')
   expect(wrapper.text()).toContain('Add at least one ingredient.')
+  expect(wrapper.text()).not.toContain('Enter a whole number from 1 to 1000.')
 
   await pickIngredient(wrapper, '', 'Oats')
   await field(wrapper, 'Amount of Oats').setValue('0')
@@ -334,7 +353,7 @@ test('a name in use, and portion sizes the server refuses, are shown on their fi
       body: {
         detail: [
           { loc: ['body', 'max_multiplier'], type: 'below_min', msg: 'low' },
-          { loc: ['body', 'items', 1, 'amount'], type: 'decimal_max_digits', msg: 'long' },
+          { loc: ['body', 'sections', 0, 'items', 1, 'amount'], type: 'decimal_max_digits', msg: 'long' },
         ],
       },
     },
@@ -410,5 +429,183 @@ test('back leaves without saving', async () => {
   await click(wrapper.get('[aria-label="Back"]'))
   expect(router.currentRoute.value.fullPath).toBe('/recipes')
   expect(calls).not.toContain('PUT /api/recipes/7')
+  wrapper.unmount()
+})
+
+// Servings, sections, instructions and source
+
+const layered = recipe({
+  id: 7,
+  name: 'Layered',
+  servings: 4,
+  instructions: 'Bake.',
+  source_url: 'https://example.com/layered',
+  sections: [
+    { name: 'Base', items: [{ ingredient_id: 1, amount: '200', original_text: '200 g oats' }] },
+    { name: 'Topping', items: [{ ingredient_id: 3, amount: '40', original_text: '' }] },
+  ],
+})
+
+function sectionNames(wrapper: Wrapper) {
+  return wrapper.findAll<HTMLInputElement>('.section-name input').map((input) => input.element.value)
+}
+
+test('a recipe opens with its sections, servings, instructions and source, the totals divided', async () => {
+  const { wrapper } = await mountPage('/recipes/7', { 'GET /api/recipes/7': { body: layered } })
+  expect(value(wrapper, 'Serves')).toBe('4')
+  expect(wrapper.text()).toContain('Ingredients, for 4 portions')
+  expect(sectionNames(wrapper)).toEqual(['Base', 'Topping'])
+  expect(items(wrapper)).toEqual([
+    ['Oats', '200'],
+    ['Almonds', '40'],
+  ])
+  // 200 g oats is 778 kcal and 33.8 g protein; 40 g almonds 8.4 g protein; over 4 portions.
+  expect(totals(wrapper)).toEqual(['Energy 195 kcal', 'Protein 10.6 g'])
+  expect(wrapper.get('textarea').element.value).toBe('Bake.')
+  expect(value(wrapper, 'Source')).toBe('https://example.com/layered')
+  wrapper.unmount()
+})
+
+test('Serves N divides the per-portion totals as typed and the heading says for N portions', async () => {
+  const { wrapper } = await mountPage('/recipes/7')
+  expect(wrapper.text()).toContain('Ingredients, for 1 portion')
+  expect(wrapper.text()).not.toContain('Ingredients, for 1 portions')
+  await field(wrapper, 'Serves').setValue('2')
+  expect(wrapper.text()).toContain('Ingredients, for 2 portions')
+  expect(totals(wrapper)).toEqual(['Energy 181 kcal', 'Protein 5.1 g'])
+  await field(wrapper, 'Serves').setValue('x')
+  expect(wrapper.text()).toContain('Ingredients, for 1 portion')
+  expect(totals(wrapper)).toEqual(['Energy 361 kcal', 'Protein 10.1 g'])
+  wrapper.unmount()
+})
+
+test('+ Add section shows name fields, saving without a name is refused on the field', async () => {
+  const { wrapper, calls } = await mountPage('/recipes/7')
+  expect(sectionNames(wrapper)).toEqual([])
+  await click(button(wrapper, '+ Add section'))
+  expect(sectionNames(wrapper)).toEqual(['', ''])
+  await click(button(wrapper, 'Save'))
+  expect(wrapper.findAll('.section-name').map((f) => f.text().includes('Name every section.'))).toEqual([true, true])
+  expect(calls).not.toContain('PUT /api/recipes/7')
+  wrapper.unmount()
+})
+
+test('a line moves to another section', async () => {
+  const { wrapper } = await mountPage('/recipes/7', { 'GET /api/recipes/7': { body: layered } })
+  await click(wrapper.get('[aria-label="Line menu for Oats"]'))
+  const entries = [...document.querySelectorAll<HTMLElement>('.q-menu .move-to')]
+  expect(entries.map((e) => e.textContent?.trim())).toEqual(['Move to Topping'])
+  entries[0]!.click()
+  await flushPromises()
+  const rows = wrapper.findAll('.recipe-section').map((section) => section.findAll('.recipe-item').map((r) => r.find('.item-name').text()))
+  expect(rows).toEqual([[], ['Almonds', 'Oats']])
+  wrapper.unmount()
+})
+
+test('removing a section moves its lines up and keeps every line', async () => {
+  const { wrapper } = await mountPage('/recipes/7', { 'GET /api/recipes/7': { body: layered } })
+  await click(wrapper.findAll('button').filter((b) => b.text() === 'Remove section')[1]!)
+  // The heading of the section it joined stays; the lines are all still there.
+  expect(sectionNames(wrapper)).toEqual(['Base'])
+  expect(items(wrapper)).toEqual([
+    ['Oats', '200'],
+    ['Almonds', '40'],
+  ])
+  expect(wrapper.findAll('.recipe-section')).toHaveLength(1)
+  expect(wrapper.findAll('button').filter((b) => b.text() === 'Remove section')).toHaveLength(0)
+  wrapper.unmount()
+})
+
+test('Save sends sections, servings, instructions and source, the link trimmed', async () => {
+  const { sent, handler } = recorder(200, (body) => ({ ...layered, ...body }))
+  const { wrapper } = await mountPage('/recipes/7', { 'GET /api/recipes/7': { body: layered }, 'PUT /api/recipes/7': handler })
+  await field(wrapper, 'Serves').setValue('6')
+  await wrapper.get('textarea').setValue('Bake.\nCool.')
+  await field(wrapper, 'Source').setValue(' https://example.com/new ')
+  await click(button(wrapper, 'Save'))
+  expect(sent).toMatchObject([
+    {
+      servings: 6,
+      sections: [
+        { name: 'Base', items: [{ ingredient_id: 1, amount: '200', original_text: '200 g oats' }] },
+        { name: 'Topping', items: [{ ingredient_id: 3, amount: '40', original_text: '' }] },
+      ],
+      instructions: 'Bake.\nCool.',
+      source_url: 'https://example.com/new',
+    },
+  ])
+  wrapper.unmount()
+})
+
+test('an invalid source and servings are marked and nothing is sent', async () => {
+  const { wrapper, calls } = await mountPage('/recipes/7')
+  await field(wrapper, 'Serves').setValue('0')
+  await field(wrapper, 'Source').setValue('example.com')
+  await click(button(wrapper, 'Save'))
+  expect(labelled(wrapper, 'Serves').text()).toContain('Enter a whole number from 1 to 1000.')
+  expect(wrapper.text()).toContain('Enter a link that starts with http:// or https://.')
+  expect(calls).not.toContain('PUT /api/recipes/7')
+  wrapper.unmount()
+})
+
+test("the server's section, servings and link errors show on their fields", async () => {
+  const { wrapper } = await mountPage('/recipes/7', {
+    'GET /api/recipes/7': { body: layered },
+    'PUT /api/recipes/7': {
+      status: 422,
+      body: {
+        detail: [
+          { loc: ['body', 'servings'], type: 'less_than_equal', msg: 'big' },
+          { loc: ['body', 'source_url'], type: 'invalid_url', msg: 'url' },
+          { loc: ['body', 'sections', 1, 'name'], type: 'name_required', msg: 'name' },
+          { loc: ['body', 'sections', 1, 'items', 0, 'amount'], type: 'decimal_max_digits', msg: 'long' },
+        ],
+      },
+    },
+  })
+  await click(button(wrapper, 'Save'))
+  expect(labelled(wrapper, 'Serves').text()).toContain('Enter a whole number from 1 to 1000.')
+  expect(wrapper.text()).toContain('Enter a link that starts with http:// or https://.')
+  expect(wrapper.findAll('.section-name')[1]!.text()).toContain('Name every section.')
+  expect(wrapper.findAll('.recipe-item')[1]!.text()).toContain('Use at most 9 digits before the point and 6 after.')
+  wrapper.unmount()
+})
+
+test('an ingredient that no longer exists is reported on save', async () => {
+  const { wrapper } = await mountPage('/recipes/7', {
+    'PUT /api/recipes/7': {
+      status: 422,
+      body: { detail: [{ loc: ['body', 'sections', 0, 'items', 1, 'ingredient_id'], type: 'unknown_ingredient', msg: 'x' }] },
+    },
+  })
+  await click(button(wrapper, 'Save'))
+  expect(wrapper.get('[role="alert"]').text()).toBe('An ingredient of this recipe no longer exists. Remove it and save again.')
+  wrapper.unmount()
+})
+
+test('Open source links only a valid link', async () => {
+  const { wrapper } = await mountPage('/recipes/7', { 'GET /api/recipes/7': { body: layered } })
+  const link = wrapper.get('a.source-link')
+  expect([link.text(), link.attributes('href'), link.attributes('target'), link.attributes('rel')]).toEqual([
+    'Open source',
+    'https://example.com/layered',
+    '_blank',
+    'noopener noreferrer',
+  ])
+  await field(wrapper, 'Source').setValue('javascript:alert(1)')
+  expect(wrapper.find('a.source-link').exists()).toBe(false)
+  await field(wrapper, 'Source').setValue('')
+  expect(wrapper.find('a.source-link').exists()).toBe(false)
+  wrapper.unmount()
+})
+
+test('the picker adds to the section whose button was pressed', async () => {
+  const { wrapper } = await mountPage('/recipes/7', { 'GET /api/recipes/7': { body: layered } })
+  await click(wrapper.findAll('button').filter((b) => b.text() === '+ Add ingredient')[1]!)
+  const row = [...document.querySelectorAll<HTMLElement>('.q-dialog .picker-row')].find((r) => r.textContent?.includes('Milk'))!
+  row.click()
+  await flushPromises()
+  const rows = wrapper.findAll('.recipe-section').map((section) => section.findAll('.recipe-item').map((r) => r.find('.item-name').text()))
+  expect(rows).toEqual([['Oats'], ['Almonds', 'Milk']])
   wrapper.unmount()
 })

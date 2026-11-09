@@ -1,0 +1,112 @@
+import { mount } from '@vue/test-utils'
+import { Quasar } from 'quasar'
+import { afterEach, expect, test } from 'vitest'
+import { makeI18n } from '../i18n'
+import { ingredient } from '../test-data'
+import type { DraftSection } from '../composables/useRecipeDraft'
+import RecipeSection from './RecipeSection.vue'
+
+const oats = ingredient({ id: 1, name: 'Oats' })
+const milk = ingredient({ id: 2, name: 'Milk', unit: 'ml' })
+const ingredients = new Map([oats, milk].map((i) => [i.id, i]))
+
+function section(name = ''): DraftSection {
+  return {
+    key: 1,
+    name,
+    items: [
+      { key: 11, ingredientId: 1, amount: '60', originalText: '' },
+      { key: 12, ingredientId: 2, amount: '200', originalText: '' },
+    ],
+  }
+}
+
+function mountSection(props: Partial<InstanceType<typeof RecipeSection>['$props']> & { section?: DraftSection } = {}) {
+  const draft = props.section ?? section()
+  const wrapper = mount(RecipeSection, {
+    attachTo: document.body,
+    props: {
+      section: draft,
+      index: 0,
+      count: 1,
+      ingredients,
+      errors: { name: '', amounts: {} },
+      others: [],
+      ...props,
+    },
+    global: { plugins: [Quasar, makeI18n()] },
+  })
+  return { wrapper, draft }
+}
+
+afterEach(() => {
+  document.body.innerHTML = ''
+})
+
+test('one unnamed section shows no name field, no remove button and no line menu', () => {
+  const { wrapper } = mountSection()
+  expect(wrapper.find('.section-name').exists()).toBe(false)
+  expect(wrapper.text()).not.toContain('Remove section')
+  expect(wrapper.find('[aria-label="Line menu for Oats"]').exists()).toBe(false)
+  expect(wrapper.findAll('.recipe-item')).toHaveLength(2)
+  wrapper.unmount()
+})
+
+test('a name, or more than one section, shows the name field and Remove section', async () => {
+  const { wrapper } = mountSection({ section: section('Base') })
+  expect(wrapper.get<HTMLInputElement>('.section-name input').element.value).toBe('Base')
+  await wrapper.setProps({ section: section(''), count: 2 })
+  expect(wrapper.find('.section-name').exists()).toBe(true)
+  await wrapper.findAll('button').find((b) => b.text() === 'Remove section')!.trigger('click')
+  expect(wrapper.emitted('removeSection')).toHaveLength(1)
+  wrapper.unmount()
+})
+
+test('the line menu lists the other sections and emits move', async () => {
+  const { wrapper } = mountSection({
+    count: 3,
+    others: [
+      { index: 1, label: 'Topping' },
+      { index: 2, label: 'Section 3' },
+    ],
+  })
+  await wrapper.get('[aria-label="Line menu for Milk"]').trigger('click')
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  const entries = [...document.querySelectorAll<HTMLElement>('.q-menu .move-to')]
+  expect(entries.map((e) => e.textContent?.trim())).toEqual(['Move to Topping', 'Move to Section 3'])
+  entries[1]!.click()
+  expect(wrapper.emitted('move')).toEqual([[1, 2]])
+  wrapper.unmount()
+})
+
+test('the amount input edits the draft line, and the buttons emit add and removeLine', async () => {
+  const { wrapper, draft } = mountSection()
+  await wrapper.get('input[aria-label="Amount of Oats"]').setValue('75')
+  expect(draft.items[0]!.amount).toBe('75')
+  expect(wrapper.text()).toContain('ml')
+  await wrapper.get('[aria-label="Remove Milk"]').trigger('click')
+  expect(wrapper.emitted('removeLine')).toEqual([[1]])
+  await wrapper.findAll('button').find((b) => b.text() === '+ Add ingredient')!.trigger('click')
+  expect(wrapper.emitted('add')).toHaveLength(1)
+  wrapper.unmount()
+})
+
+test('the name field edits the section name', async () => {
+  const { wrapper, draft } = mountSection({ section: section('Base'), count: 2 })
+  await wrapper.get('.section-name input').setValue('Topping')
+  expect(draft.name).toBe('Topping')
+  wrapper.unmount()
+})
+
+test('a name error and an amount error show on their fields', () => {
+  const { wrapper } = mountSection({
+    section: section('Base'),
+    count: 2,
+    errors: { name: 'Name every section.', amounts: { 12: 'Enter an amount above 0.' } },
+  })
+  expect(wrapper.get('.section-name').text()).toContain('Name every section.')
+  const rows = wrapper.findAll('.recipe-item')
+  expect(rows[0]!.text()).not.toContain('Enter an amount')
+  expect(rows[1]!.text()).toContain('Enter an amount above 0.')
+  wrapper.unmount()
+})

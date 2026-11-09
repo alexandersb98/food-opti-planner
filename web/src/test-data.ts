@@ -21,7 +21,10 @@ export function ingredient(fields: Given<Ingredient, 'id' | 'name'>): Ingredient
 
 export function recipe(fields: Given<Recipe, 'id' | 'name'>): Recipe {
   return {
-    items: [],
+    servings: 1,
+    instructions: '',
+    source_url: '',
+    sections: [{ name: '', items: [] }],
     extra_tag_ids: [],
     min_multiplier: '0.5',
     max_multiplier: '2',
@@ -32,6 +35,12 @@ export function recipe(fields: Given<Recipe, 'id' | 'name'>): Recipe {
     totals: [],
     ...fields,
   }
+}
+
+/** One unnamed section of lines, from (ingredient id, amount) pairs, for a
+ * recipe's `sections`. */
+export function lines(...pairs: [number, string][]): Recipe['sections'] {
+  return [{ name: '', items: pairs.map(([ingredient_id, amount]) => ({ ingredient_id, amount, original_text: '' })) }]
 }
 
 /** A goal, by default Prefer at importance 3, each day, with a minimum and

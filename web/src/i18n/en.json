@@ -212,7 +212,7 @@
     "withdrawn": "This food is no longer in the source."
   },
   "recipes": {
-    "intro": "Dishes made of ingredients, entered for one portion.",
+    "intro": "Dishes made of ingredients.",
     "empty": "No recipes yet.",
     "noMatch": "No recipes match.",
     "loadFailed": "Could not load the recipes.",
@@ -221,7 +221,22 @@
     "edit": "Edit recipe",
     "totalsLine": "Per portion: {totals}",
     "loadOneFailed": "Could not load the recipe.",
-    "items": "Ingredients, for 1 portion",
+    "itemsFor": "Ingredients, for 1 portion | Ingredients, for {n} portions",
+    "servings": "Serves",
+    "servingsHint": "Amounts are for the whole recipe.",
+    "servingsInvalid": "Enter a whole number from 1 to 1000.",
+    "sectionName": "Section name",
+    "sectionNameRequired": "Name every section.",
+    "addSection": "+ Add section",
+    "removeSection": "Remove section",
+    "moveTo": "Move to {section}",
+    "sectionN": "Section {n}",
+    "lineMenu": "Line menu for {name}",
+    "instructions": "Instructions",
+    "source": "Source",
+    "sourceInvalid": "Enter a link that starts with http:// or https://.",
+    "openSource": "Open source",
+    "unknownIngredient": "An ingredient of this recipe no longer exists. Remove it and save again.",
     "amountOf": "Amount of {name}",
     "remove": "Remove {name}",
     "addIngredientButton": "+ Add ingredient",
@@ -250,8 +265,7 @@
     "belowMax": "Must be at least To.",
     "notInSteps": "Must be a whole number of steps.",
     "penaltyInvalid": "Enter a number, 0 or more.",
-    "nameInUse": "A recipe with this name already exists.",
-    "allIngredientsIn": "Every ingredient is in the recipe already."
+    "nameInUse": "A recipe with this name already exists."
   },
   "clash": {
     "title": "No plan possible",

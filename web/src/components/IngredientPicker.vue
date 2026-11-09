@@ -5,25 +5,20 @@ import type { Ingredient } from '../api/types'
 import { searchByName } from '../lists'
 
 // "+ Add ingredient" in the recipe editor (C2): a searchable list of the
-// ingredients not in the recipe yet; picking one closes it.
+// ingredients (an ingredient may be on several lines of a recipe); picking
+// one closes it.
 const open = defineModel<boolean>({ required: true })
-const props = defineProps<{ ingredients: readonly Ingredient[]; exclude: ReadonlySet<number> }>()
+const props = defineProps<{ ingredients: readonly Ingredient[] }>()
 const emit = defineEmits<{ pick: [ingredient: Ingredient] }>()
 
 const { t } = useI18n()
 const search = ref<string | null>('')
 watch(open, () => (search.value = ''))
 
-const shown = computed(() =>
-  searchByName(
-    props.ingredients.filter((ingredient) => !props.exclude.has(ingredient.id)),
-    search.value,
-  ),
-)
+const shown = computed(() => searchByName(props.ingredients, search.value))
 
 const emptyMessage = computed(() => {
   if (props.ingredients.length === 0) return t('recipes.noIngredients')
-  if (props.ingredients.every((ingredient) => props.exclude.has(ingredient.id))) return t('recipes.allIngredientsIn')
   return t('ingredients.noMatch')
 })
 

@@ -1353,16 +1353,22 @@ export interface components {
             hard_max_multiplier: string | null;
             /** Id */
             id: number;
-            /** Items */
-            items: components["schemas"]["RecipeItem-Output"][];
+            /** Instructions */
+            instructions: string;
             /** Max Multiplier */
             max_multiplier: string;
             /** Min Multiplier */
             min_multiplier: string;
             /** Name */
             name: string;
+            /** Sections */
+            sections: components["schemas"]["Section-Output"][];
             /** Serving Cap Weight */
             serving_cap_weight: string;
+            /** Servings */
+            servings: number;
+            /** Source Url */
+            source_url: string;
             /** Step */
             step: string | null;
             /** Totals */
@@ -1389,32 +1395,48 @@ export interface components {
             extra_tag_ids: number[];
             /** Hard Max Multiplier */
             hard_max_multiplier: number | string | null;
-            /** Items */
-            items: components["schemas"]["RecipeItem-Input"][];
+            /** Instructions */
+            instructions: string;
             /** Max Multiplier */
             max_multiplier: number | string;
             /** Min Multiplier */
             min_multiplier: number | string;
             /** Name */
             name: string;
+            /** Sections */
+            sections: components["schemas"]["Section-Input"][];
             /** Serving Cap Weight */
             serving_cap_weight: number | string;
+            /** Servings */
+            servings: number;
+            /** Source Url */
+            source_url: string;
             /** Step */
             step: number | string | null;
         };
-        /** RecipeItem */
+        /**
+         * RecipeItem
+         * @description A line of a recipe. The same ingredient may be on several lines.
+         */
         "RecipeItem-Input": {
             /** Amount */
             amount: number | string;
             /** Ingredient Id */
             ingredient_id: number;
+            /** Original Text */
+            original_text: string;
         };
-        /** RecipeItem */
+        /**
+         * RecipeItem
+         * @description A line of a recipe. The same ingredient may be on several lines.
+         */
         "RecipeItem-Output": {
             /** Amount */
             amount: string;
             /** Ingredient Id */
             ingredient_id: number;
+            /** Original Text */
+            original_text: string;
         };
         /** ResultAttribute */
         ResultAttribute: {
@@ -1503,6 +1525,20 @@ export interface components {
              * @enum {string}
              */
             side: "below" | "above";
+        };
+        /** Section */
+        "Section-Input": {
+            /** Items */
+            items: components["schemas"]["RecipeItem-Input"][];
+            /** Name */
+            name: string;
+        };
+        /** Section */
+        "Section-Output": {
+            /** Items */
+            items: components["schemas"]["RecipeItem-Output"][];
+            /** Name */
+            name: string;
         };
         /**
          * Skip

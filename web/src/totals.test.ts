@@ -71,3 +71,23 @@ test('a number is rounded to at most so many decimals, half away from zero', () 
   expect(roundedText('80', 2)).toBe('80')
   expect(roundedText('0.001', 2)).toBe('0')
 })
+
+test('the total is divided by the servings once, after the lines are summed', () => {
+  const lines = [
+    { ingredient: oats, amount: '60' },
+    { ingredient: oats, amount: '60' },
+  ]
+  expect(Object.fromEntries(portionTotals(lines, [energy, protein], 2))).toEqual({ 1: '233', 2: '10.1' })
+  expect(totals(lines)).toEqual({ 1: '467', 2: '20.3' })
+})
+
+test('servings of 1 change nothing, and a rounding tie with servings rounds up as the server does', () => {
+  expect(Object.fromEntries(portionTotals([{ ingredient: oats, amount: '60' }], [energy, protein], 1))).toEqual({
+    1: '233',
+    2: '10.1',
+  })
+  // 33 of a value of 1 per basis 3 is 11, served by 2 is exactly 5.5: 6.
+  const third = ingredient({ id: 3, name: 'Third', basis: '3', values: [{ attribute_id: 1, value: '1' }] })
+  expect(Object.fromEntries(portionTotals([{ ingredient: third, amount: '33' }], [energy], 2))).toEqual({ 1: '6' })
+  expect(Object.fromEntries(portionTotals([{ ingredient: third, amount: '33' }], [energy], 3))).toEqual({ 1: '4' })
+})

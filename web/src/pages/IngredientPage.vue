@@ -166,7 +166,7 @@ async function showRecipes() {
     const { data: recipes } = await api.GET('/api/recipes')
     if (!recipes) throw new Error('no recipes')
     usedIn.value = searchByName(
-      recipes.filter((recipe) => recipe.items.some((item) => item.ingredient_id === id)),
+      recipes.filter((recipe) => recipe.sections.some((section) => section.items.some((item) => item.ingredient_id === id))),
       '',
     )
   } catch {

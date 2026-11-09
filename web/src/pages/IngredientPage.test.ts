@@ -13,7 +13,7 @@ import {
   unitRoutes,
   type FakeServer,
 } from '../test-app'
-import { attribute, ingredient, ingredientSource, recipe, tag, unitChange, unitChangeRefusal } from '../test-data'
+import { attribute, ingredient, ingredientSource, lines, recipe, tag, unitChange, unitChangeRefusal } from '../test-data'
 import { resetUnits } from '../units'
 
 const energy = attribute({ id: 1, name: 'Energy', unit: 'kcal', ingredient_count: 1 })
@@ -310,7 +310,7 @@ test('an ingredient recipes use cannot be deleted', async () => {
 
 test('Show lists the recipes that use the ingredient, which open their editor', async () => {
   const uses = (id: number, name: string, ingredientId: number) =>
-    recipe({ id, name, items: [{ ingredient_id: ingredientId, amount: '1' }] })
+    recipe({ id, name, sections: lines([ingredientId, '1']) })
   const { wrapper, router } = await mountPage('/ingredients/7', {
     'GET /api/ingredients/7': { body: { ...oats, recipe_count: 2 } },
     'GET /api/recipes': { body: [uses(1, 'Porridge', 7), uses(2, 'Omelette', 8), uses(3, 'Muesli', 7)] },
@@ -321,6 +321,24 @@ test('Show lists the recipes that use the ingredient, which open their editor', 
   expect(wrapper.text()).not.toContain('Show')
   await click(wrapper.findAll('.used-in .q-item')[0]!)
   expect(router.currentRoute.value.fullPath).toBe('/recipes/3')
+  wrapper.unmount()
+})
+
+test('Show lists a recipe that has the ingredient only in a second section', async () => {
+  const second = recipe({
+    id: 4,
+    name: 'Layered',
+    sections: [
+      { name: 'Base', items: [{ ingredient_id: 8, amount: '1', original_text: '' }] },
+      { name: 'Top', items: [{ ingredient_id: 7, amount: '2', original_text: '' }] },
+    ],
+  })
+  const { wrapper } = await mountPage('/ingredients/7', {
+    'GET /api/ingredients/7': { body: { ...oats, recipe_count: 1 } },
+    'GET /api/recipes': { body: [second] },
+  })
+  await click(button(wrapper, 'Show'))
+  expect(texts(wrapper, '.used-in .q-item__section--main')).toEqual(['Layered'])
   wrapper.unmount()
 })
 
