@@ -177,6 +177,34 @@
         "title": "CatalogueUnit",
         "type": "object"
       },
+      "ChangeRule": {
+        "description": "The rule of `tag_ids` (the tag and every member that stays, in id\norder) would all change to `rule`.",
+        "properties": {
+          "rule": {
+            "title": "Rule",
+            "type": "string"
+          },
+          "tag_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Tag Ids",
+            "type": "array"
+          },
+          "type": {
+            "const": "change_rule",
+            "default": "change_rule",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag_ids",
+          "rule"
+        ],
+        "title": "ChangeRule",
+        "type": "object"
+      },
       "ClashMember": {
         "description": "A rule in the clash: a Must goal, by its id and its name at the solve,\nor a day's meals that must be served (its \"At least\", or all planned).\n`day` (from 0) and its `date` are null for a goal over the whole plan.",
         "properties": {
@@ -906,6 +934,41 @@
         "title": "GoalFields",
         "type": "object"
       },
+      "GroupQuestions": {
+        "description": "The 409 body when a change touches other tags: the facts of every\nquestion it raises, for the app to ask.",
+        "properties": {
+          "questions": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "change_rule": "#/components/schemas/ChangeRule",
+                  "move_tag": "#/components/schemas/MoveTag",
+                  "switch_rule": "#/components/schemas/SwitchRule"
+                },
+                "propertyName": "type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/MoveTag"
+                },
+                {
+                  "$ref": "#/components/schemas/SwitchRule"
+                },
+                {
+                  "$ref": "#/components/schemas/ChangeRule"
+                }
+              ]
+            },
+            "title": "Questions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "questions"
+        ],
+        "title": "GroupQuestions",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1290,6 +1353,34 @@
           "at_least"
         ],
         "title": "Minimum",
+        "type": "object"
+      },
+      "MoveTag": {
+        "description": "`tag_id` is in another group now; joining moves it out of that group,\nwhich keeps `from_tag_ids` (its other members, in id order).",
+        "properties": {
+          "from_tag_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "From Tag Ids",
+            "type": "array"
+          },
+          "tag_id": {
+            "title": "Tag Id",
+            "type": "integer"
+          },
+          "type": {
+            "const": "move_tag",
+            "default": "move_tag",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag_id",
+          "from_tag_ids"
+        ],
+        "title": "MoveTag",
         "type": "object"
       },
       "Plan": {
@@ -2452,6 +2543,36 @@
         "title": "SourceValuesAnswer",
         "type": "object"
       },
+      "SwitchRule": {
+        "description": "`tag_id`, with `tag_rule`, would join a group of `group_rule`: its rule\nwould switch.",
+        "properties": {
+          "group_rule": {
+            "title": "Group Rule",
+            "type": "string"
+          },
+          "tag_id": {
+            "title": "Tag Id",
+            "type": "integer"
+          },
+          "tag_rule": {
+            "title": "Tag Rule",
+            "type": "string"
+          },
+          "type": {
+            "const": "switch_rule",
+            "default": "switch_rule",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag_id",
+          "tag_rule",
+          "group_rule"
+        ],
+        "title": "SwitchRule",
+        "type": "object"
+      },
       "Tag": {
         "properties": {
           "derive": {
@@ -2465,6 +2586,13 @@
           "filter_count": {
             "title": "Filter Count",
             "type": "integer"
+          },
+          "group": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Group",
+            "type": "array"
           },
           "id": {
             "title": "Id",
@@ -2500,6 +2628,7 @@
           "derive",
           "id",
           "source",
+          "group",
           "ingredient_count",
           "recipe_count",
           "filter_count"
@@ -2575,6 +2704,49 @@
           "colour"
         ],
         "title": "TagSource",
+        "type": "object"
+      },
+      "TagUpdate": {
+        "properties": {
+          "confirm": {
+            "default": false,
+            "title": "Confirm",
+            "type": "boolean"
+          },
+          "derive": {
+            "enum": [
+              "all",
+              "any"
+            ],
+            "title": "Derive",
+            "type": "string"
+          },
+          "equivalent_tag_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equivalent Tag Ids"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "derive"
+        ],
+        "title": "TagUpdate",
         "type": "object"
       },
       "TodayPlan": {
@@ -4828,7 +5000,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TagFields"
+                "$ref": "#/components/schemas/TagUpdate"
               }
             }
           },
@@ -4852,11 +5024,19 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FieldErrors"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/FieldErrors"
+                    },
+                    {
+                      "$ref": "#/components/schemas/GroupQuestions"
+                    }
+                  ],
+                  "title": "Response 409 Update Tag Api Tags  Tag Id  Put"
                 }
               }
             },
-            "description": "The name is already in use"
+            "description": "The name is already in use (`detail`), or the change needs answers (`questions`)"
           },
           "422": {
             "content": {

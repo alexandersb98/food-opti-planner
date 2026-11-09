@@ -24,6 +24,7 @@ const NEW_ROW: Tag = {
   name: '',
   derive: 'all',
   source: null,
+  group: [],
   ingredient_count: 0,
   recipe_count: 0,
   filter_count: 0,
@@ -94,7 +95,7 @@ async function done(): Promise<boolean> {
   saving.value = true
   try {
     const { data, error } = current
-      ? await api.PUT('/api/tags/{tag_id}', { params: { path: { tag_id: current.id } }, body: fields })
+      ? await api.PUT('/api/tags/{tag_id}', { params: { path: { tag_id: current.id } }, body: { ...fields, confirm: false } })
       : await api.POST('/api/tags', { body: fields })
     if (data) {
       tags.value = current ? tags.value.map((tag) => (tag.id === data.id ? data : tag)) : withNew(data)

@@ -749,6 +749,22 @@ export interface components {
             symbol: string;
         };
         /**
+         * ChangeRule
+         * @description The rule of `tag_ids` (the tag and every member that stays, in id
+         *     order) would all change to `rule`.
+         */
+        ChangeRule: {
+            /** Rule */
+            rule: string;
+            /** Tag Ids */
+            tag_ids: number[];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "change_rule";
+        };
+        /**
          * ClashMember
          * @description A rule in the clash: a Must goal, by its id and its name at the solve,
          *     or a day's meals that must be served (its "At least", or all planned).
@@ -994,6 +1010,15 @@ export interface components {
             /** Zero Reference */
             zero_reference?: number | string | null;
         };
+        /**
+         * GroupQuestions
+         * @description The 409 body when a change touches other tags: the facts of every
+         *     question it raises, for the app to ask.
+         */
+        GroupQuestions: {
+            /** Questions */
+            questions: (components["schemas"]["MoveTag"] | components["schemas"]["SwitchRule"] | components["schemas"]["ChangeRule"])[];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1123,6 +1148,22 @@ export interface components {
             at_least: number;
             /** Day */
             day: number;
+        };
+        /**
+         * MoveTag
+         * @description `tag_id` is in another group now; joining moves it out of that group,
+         *     which keeps `from_tag_ids` (its other members, in id order).
+         */
+        MoveTag: {
+            /** From Tag Ids */
+            from_tag_ids: number[];
+            /** Tag Id */
+            tag_id: number;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "move_tag";
         };
         /** Plan */
         Plan: {
@@ -1525,6 +1566,24 @@ export interface components {
              */
             answer: "accept" | "keep";
         };
+        /**
+         * SwitchRule
+         * @description `tag_id`, with `tag_rule`, would join a group of `group_rule`: its rule
+         *     would switch.
+         */
+        SwitchRule: {
+            /** Group Rule */
+            group_rule: string;
+            /** Tag Id */
+            tag_id: number;
+            /** Tag Rule */
+            tag_rule: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "switch_rule";
+        };
         /** Tag */
         Tag: {
             /**
@@ -1534,6 +1593,8 @@ export interface components {
             derive: "all" | "any";
             /** Filter Count */
             filter_count: number;
+            /** Group */
+            group: number[];
             /** Id */
             id: number;
             /** Ingredient Count */
@@ -1574,6 +1635,23 @@ export interface components {
             colour: string;
             /** Key */
             key: string;
+            /** Name */
+            name: string;
+        };
+        /** TagUpdate */
+        TagUpdate: {
+            /**
+             * Confirm
+             * @default false
+             */
+            confirm: boolean;
+            /**
+             * Derive
+             * @enum {string}
+             */
+            derive: "all" | "any";
+            /** Equivalent Tag Ids */
+            equivalent_tag_ids?: number[] | null;
             /** Name */
             name: string;
         };
@@ -3284,7 +3362,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["TagFields"];
+                "application/json": components["schemas"]["TagUpdate"];
             };
         };
         responses: {
@@ -3304,13 +3382,13 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The name is already in use */
+            /** @description The name is already in use (`detail`), or the change needs answers (`questions`) */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FieldErrors"];
+                    "application/json": components["schemas"]["FieldErrors"] | components["schemas"]["GroupQuestions"];
                 };
             };
             /** @description A source tag's name can't change and it can't be deleted */

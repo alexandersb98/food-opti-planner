@@ -129,6 +129,22 @@ class Catalog:
     def tag(self, name="vegan", derive="all") -> int:
         return self._create("/api/tags", {"name": name, "derive": derive})
 
+    def group(self, tag: int, *others: int) -> dict:
+        """Make `others` equivalent to `tag` (and to the tags it is equivalent
+        to already) through the API, answering all questions yes. Answers the
+        updated tag; the others take its rule."""
+        current = next(t for t in self.client.get("/api/tags").json() if t["id"] == tag)
+        wanted = [i for i in current["group"] if i != tag] + list(others)
+        body = {
+            "name": current["name"],
+            "derive": current["derive"],
+            "equivalent_tag_ids": wanted,
+            "confirm": True,
+        }
+        response = self.client.put(f"/api/tags/{tag}", json=body)
+        assert response.status_code == 200, response.text
+        return response.json()
+
     def ingredient(self, name="Oats", unit="g", basis="100", values=None, tag_ids=()) -> int:
         """`values` maps attribute ids to values as typed: {energy: "389"}."""
         values = [{"attribute_id": a, "value": v} for a, v in (values or {}).items()]

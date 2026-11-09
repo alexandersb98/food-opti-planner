@@ -70,7 +70,7 @@ test('a row opens in place with the rule, and Done saves the changes', async () 
   await chooseRule(wrapper, 'any ingredient has it')
   await click(button(wrapper, 'Done'))
 
-  expect(saved).toEqual({ name: 'plant-based', derive: 'any' })
+  expect(saved).toEqual({ name: 'plant-based', derive: 'any', confirm: false })
   expect(wrapper.find('input[aria-label="Name"]').exists()).toBe(false)
   expect(rows(wrapper)[0]).toMatch(/plant-based\s*When any ingredient has it/)
   wrapper.unmount()
@@ -221,7 +221,7 @@ test('an open source tag has no Name input and no Delete, and its rule can chang
   await chooseRule(wrapper, 'all ingredients have it')
   await click(button(wrapper, 'Done'))
 
-  expect(saved).toEqual({ name: 'TEST Dairy', derive: 'all' })
+  expect(saved).toEqual({ name: 'TEST Dairy', derive: 'all', confirm: false })
   expect(rows(wrapper)[2]).toMatch(/TEST Dairy\s*TEST Source · When all ingredients have it/)
   wrapper.unmount()
 })
