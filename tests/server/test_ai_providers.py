@@ -39,7 +39,7 @@ def make(provider, reply):
 
 
 def test_adapter_keys():
-    assert sorted(ADAPTERS) == sorted(PROVIDERS) == sorted(KEY_ENV)
+    assert sorted(set(ADAPTERS) - {"fake"}) == sorted(PROVIDERS) == sorted(KEY_ENV)
     assert KEY_ENV["gemini"] == "GEMINI_API_KEY"
 
 
@@ -151,8 +151,10 @@ def test_error_reply_becomes_service_error(provider):
 
 def test_build_chat_returns_the_adapter_and_refuses_unknown():
     for provider in PROVIDERS:
-        chat, _ = make(provider, {})
+        chat, transport = make(provider, {})
         assert type(chat) is ADAPTERS[provider]
+        assert type(chat.transport).__name__ == "KeyScrubbingTransport"
+        assert chat.transport.inner is transport
     with pytest.raises(ValueError, match="anthropic"):
         build_chat("nope", "m", KEY)
 

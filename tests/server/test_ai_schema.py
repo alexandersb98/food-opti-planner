@@ -224,3 +224,20 @@ def test_huge_numbers_are_refused_quickly():
 def test_deeply_nested_json_is_a_bad_answer():
     with pytest.raises(BadAnswerError):
         parse_draft("[" * 200000)
+
+
+@pytest.mark.parametrize("amount", [Decimal("1e-999999"), "1e-999999", "1E-13"])
+def test_tiny_amounts_are_refused(amount):
+    text = json.dumps(answer([line(amount=str(amount))]))
+    with pytest.raises(BadAnswerError, match=r"\$\.sections\[0\]\.lines\[0\]\.amount"):
+        parse_draft(text)
+
+
+@pytest.mark.parametrize("amount", ["1e-12", "0.000001"])
+def test_small_amounts_pass(amount):
+    assert parse_draft(json.dumps(answer([line(amount=amount)]))).lines[0].amount > 0
+
+
+def test_tiny_factor_is_refused():
+    with pytest.raises(BadAnswerError):
+        parse_factor('{"factor": 1e-999999999}')

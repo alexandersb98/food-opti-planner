@@ -1,7 +1,6 @@
 """The prompts: instructions, the schema shown to the model, user messages."""
 
 import json
-import re
 from collections.abc import Sequence
 
 from server.ai.draft import CatalogEntry
@@ -9,7 +8,6 @@ from server.ai.schema import DRAFT_SCHEMA, FACTOR_SCHEMA
 
 MAX_TEXT_CHARS = 20000  # about 5 000 tokens; longer source text is cut
 _CLOSING_TAG = "</recipe_text>"
-_TAG = re.compile(r"<\s*/?\s*recipe_text\s*>", re.IGNORECASE)
 
 CONVERT_SYSTEM = (
     """You turn the text of a recipe into a JSON draft for a meal-planning app.
@@ -45,6 +43,7 @@ amount has "amount": null and "match": null. Every other line has an amount.
 newlines, without step numbers. Leave out tips, stories, ads, ratings, comments \
 and other page furniture.
 11. "name" is the recipe's name.
+12. In the text and the catalog a '<' is written as &lt;. Write it as < in your answer.
 
 Answer with only the JSON object, no other text. The object has this schema:
 """
@@ -67,15 +66,22 @@ greater than 0. The object has this schema:
 )
 
 
+def _escape(text: str) -> str:
+    return text.replace("<", "&lt;")
+
+
 def convert_user(text: str, catalog: Sequence[CatalogEntry]) -> str:
-    """The user message: the catalog, then the recipe text between tags."""
+    """The user message: the catalog, then the recipe text between tags.
+
+    The text is cut first (the limit is on the user's text), then every "<" in
+    it and in the catalog names becomes "&lt;". Pages are attacker-controlled
+    (R5), so no "<" can reach the model except the two tags added here: a
+    closing tag, however it is spelled or nested, cannot end the data early."""
     lines = []
     for entry in catalog:
-        conversions = ", ".join(entry.conversion_units)
-        lines.append(f"{entry.name} | {entry.unit} | conversions: {conversions}")
-    body = text[:MAX_TEXT_CHARS]
-    while _TAG.search(body):  # nested tags ("</rec</recipe_text>ipe_text>") reappear
-        body = _TAG.sub("", body)
+        conversions = ", ".join(_escape(unit) for unit in entry.conversion_units)
+        lines.append(f"{_escape(entry.name)} | {_escape(entry.unit)} | conversions: {conversions}")
+    body = _escape(text[:MAX_TEXT_CHARS])
     return (
         "Catalog (name | unit | conversions):\n"
         + "\n".join(lines)

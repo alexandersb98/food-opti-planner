@@ -45,7 +45,7 @@ from server.ai.chat import ChatProvider, HttpxTransport, MeteredChat, Transport 
 from server.ai.converter import ProviderFactorSuggester, ProviderRecipeConverter  # noqa: E402
 from server.ai.draft import CatalogEntry, Draft, LineDraft  # noqa: E402
 from server.ai.errors import AIError, AIServiceError, NoRecipeFound  # noqa: E402
-from server.ai.providers import ADAPTERS, KEY_ENV, build_chat  # noqa: E402
+from server.ai.providers import KEY_ENV, build_chat  # noqa: E402
 from server.ai.schema import parse_draft  # noqa: E402
 
 DEFAULT_DATA = ROOT / "tests" / "data" / "recipe_import"
@@ -492,8 +492,8 @@ def main(
         provider, sep, model = spec.partition(":")
         if not sep or not provider or not model:
             return fail(2, f"--models entries look like provider:model, got {spec!r}")
-        if provider not in ADAPTERS:
-            return fail(2, f"unknown provider {provider!r}; known: {', '.join(sorted(ADAPTERS))}")
+        if provider not in KEY_ENV:  # not ADAPTERS: that also holds the test-only "fake"
+            return fail(2, f"unknown provider {provider!r}; known: {', '.join(sorted(KEY_ENV))}")
         if not args.replay and not env.get(KEY_ENV[provider]):
             return fail(2, f"no key for {provider}: set {KEY_ENV[provider]}")
         candidates.append((spec, provider, model))

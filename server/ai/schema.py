@@ -97,8 +97,12 @@ MAX_SERVINGS = 1000
 
 
 def _sane(number: Decimal, path: str) -> Decimal:
-    """Refuse NaN, infinity and huge exponents before any arithmetic on them."""
+    """Refuse NaN, infinity and huge or tiny exponents before any arithmetic on them."""
     if not number.is_finite() or number.adjusted() > MAX_DIGITS:
+        raise BadAnswerError(f"{path}: number out of range")
+    # Tiny exponents are as unsafe as huge ones for later arithmetic, and no
+    # amount that small is meaningful.
+    if number != 0 and number.adjusted() < -MAX_DIGITS:
         raise BadAnswerError(f"{path}: number out of range")
     return number
 
