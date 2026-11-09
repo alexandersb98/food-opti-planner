@@ -1,6 +1,13 @@
 # Units, Data Sources and Recipe Import — Vertical Slices
 
-**Status:** Proposed; awaiting the user's review.
+**Status:** Built (all slices U1-U3, D1-D6, R1-R5), each reviewed task by
+task on branch `claude/implement-remaining-slices-qwrp83`, then reviewed as a
+whole. Two things wait for the owner: the D1 data file
+(`server/data_sources/livsmedelsverket.json.gz`) is generated and committed by
+the owner running `scripts/import_livsmedelsverket.py` (the app works without
+it), and the R1 model comparison needs the owner to run
+`scripts/compare_models.py` with real API keys (the default model is
+provisional until then).
 
 **Specs:**
 

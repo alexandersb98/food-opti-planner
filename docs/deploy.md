@@ -308,6 +308,19 @@ If the deploy fails:
   database. Check the database URL secret, and that the Neon project
   is not paused or deleted.
 
+## Data source files
+
+The app reads ingredient data sources from `server/data_sources/*.json.gz`
+(or the folder in `DATA_SOURCES_DIR`) when it starts. The image copies
+`server/`, so a file committed there is deployed with the app. The
+Livsmedelsverket file is not in the repository: you generate it once with
+`python3 scripts/import_livsmedelsverket.py` (it needs network access to
+`dataportal.livsmedelsverket.se`; the README's "Refreshing the Livsmedelsverket
+data file" has the steps), commit
+`server/data_sources/livsmedelsverket.json.gz` and run the workflow again.
+Without the file the app works as before, with no data source to add
+ingredients from.
+
 ## Later changes
 
 To change a secret, add a new version of it, then **Run workflow**

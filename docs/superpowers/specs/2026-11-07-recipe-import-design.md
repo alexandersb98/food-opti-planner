@@ -1,7 +1,8 @@
 # Recipe Import with AI, Sections, Servings and Unit Conversions
 
-**Status:** Agreed with the user section by section; awaiting spec
-review.
+**Status:** Agreed with the user section by section; built (slices R1-R5,
+see the master plan). The R1 model comparison still waits for the owner to run
+it with real keys, so the default model is provisional.
 
 **Path:** Architectural (new tables, new endpoints, a new page, an
 external AI service).
