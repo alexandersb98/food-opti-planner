@@ -213,6 +213,15 @@ A source tag (made from a data source's food group) shows a dot in its
 source's colour and the source's name in its caption; its open form has no
 Name input and no Delete, only the rule and Done. Tags made by hand are
 listed first, then the source tags.
+An existing tag's form has **Equivalent tags**: the other members of its tag
+group as removable chips ("None" when there are none) and an **Add equivalent
+tag** picker (searchable; a tag already in another group says "now equivalent
+to ..."). Done saves the chips with the rest. A row's caption ends "· equivalent
+to Seafood, Fisk och skaldjur". When a change touches other tags a dialog asks,
+one question at a time: **Move** / **Don't move** a tag from another group,
+**Switch** / **Don't add** a tag whose rule differs, **Change** / **Cancel** a
+rule change of a tag already in a group; a no changes the draft (drops the
+chip, restores the rule) and the rest is saved.
 
 ### C7 · Add from data source
 

@@ -45,7 +45,7 @@ Interfaces of the slice this one needs:
 (source tags, `Tag.source_id`, the `source` field of tag responses, the
 `source_tag` refusals, TagsPage's source tag rows).
 
-**Status:** Planned; to be built task by task on branch
+**Status:** Built and reviewed task by task on branch
 claude/implement-remaining-slices-qwrp83.
 
 ## Global Constraints
@@ -172,6 +172,23 @@ claude/implement-remaining-slices-qwrp83.
     saved again (it may raise the remaining questions). Each no removes a chip or
     reverts the rule, so this ends.
 
+13. **Interpretations made while building.** (a) The migration is `0013`
+    (`0013_tag_groups.py`, `down_revision = "0012"`), as D5 used no number; the
+    text above says `0014` where it was written before. (b) `Catalog.group(tag,
+    *others)` is a method of the `Catalog` helper (it has the client), not a
+    function taking the client. (c) `TagGroupQuestions` emits `answer` with a
+    plain `boolean[]` (yes per question, in order) instead of `{yes}` objects,
+    and its dialog is `persistent` so a question can't be dismissed unanswered.
+    (d) `LibraryTags` has `names`, `defs` and `map`; the plan's `of` was a typo
+    for `map`. (e) After a save in a group (or a delete of a grouped tag) the page
+    reads `GET /api/tags` again without the list's loading state (`refresh`), so
+    the list does not flash. (f) A rule change of a grouped tag sent with
+    `equivalent_tag_ids` null still raises the `change_rule` question, as every
+    member stays. (g) The generated TypeScript types make `confirm` required, so
+    the app sends `confirm: false` when it saves a tag. (h) The 409 `switch_rule` text
+    uses the existing `tags.derive.*` phrases ("any ingredient has it") for the
+    tag's rule and `tags.group.ruleWord.*` for the group's.
+
 ## File structure
 
 Server: `server/models.py` (`TagGroup`, `Tag.group_id`),
@@ -214,6 +231,9 @@ enable it and follow suit.)
 **Verify:** `python3 -m pytest tests/server/test_migrations.py
 tests/server/test_delete_cascades.py -q`, then the whole root suite. Commit:
 "server: tag groups table and tags.group_id".
+
+**Built.** Migration `0013`; the migration test and the new cascade test pass, as
+does the whole root suite.
 
 ## Task 2: Server: translating tag groups for the planner
 
@@ -261,6 +281,9 @@ server` that `solve.py` and `plan.py` still pass member names to
 
 **Verify:** `python3 -m pytest tests/server/test_translate.py -q`, then the whole
 root suite. Commit: "server: tag groups become one library tag".
+
+**Built.** As written; `solve.py` and `plan.py` needed no change (checked with
+grep). New translation tests.
 
 ## Task 3: Server: group editing in the tag API
 
@@ -368,6 +391,11 @@ invariant "tags of one group have one rule, every group has two or more tags"):
 []`), `npm run typecheck`, `npm test`, lint. Commit: "server: tag groups, group
 editing and its questions in the tag API".
 
+**Built.** As written, plus the differences of interpretation 13 (b), (f), (g).
+`TagsPage.vue` only got the `confirm: false` the new types need in this commit;
+the editor is Task 4. Checked: root suite, `gen:api` (`test-units.json`
+unchanged), web lint, typecheck and tests.
+
 ## Task 4: Web: Equivalent tags on C6
 
 **Files:** modify `web/src/pages/TagsPage.vue`, `web/src/pages/TagsPage.test.ts`,
@@ -445,6 +473,9 @@ after the last, with the answers in order. `TagsPage.test.ts` (use the existing
 **Verify:** `npm run lint`, `npm run typecheck`, `npm test` in `web/`. Commit:
 "web: equivalent tags on the Tags page, with the three questions".
 
+**Built.** As written, with interpretation 13 (c), (e), (h). The picker is a
+`q-select` with `use-input`; its options are filtered by what is typed.
+
 ## Task 5: End-to-end step
 
 **Files:** modify `web/e2e/catalog.e2e.ts` (and its header comment).
@@ -478,6 +509,11 @@ on a temp SQLite file in the scratchpad with `DATABASE_URL`, `PASSWORD_HASH`,
 `E2E_PASSWORD=... E2E_BASE_URL=http://localhost:8000 npm run e2e -- --trace
 off`; kill the server. Commit: "e2e: equivalent tags step".
 
+**Built.** Tightened to keep the flow short: with Only vegan already saved, the
+count with **Never TEST Grains** is "0 of 1 recipe can be used" while the two
+are equivalent and "1 of 1" after the chip is removed (no filter is saved or
+cleared; the filter page is left unsaved). The flow takes about 34 s on SQLite.
+
 ## Task 6: Docs
 
 **Files:** `README.md`, the master plan, the data source spec, the wireframes
@@ -503,6 +539,9 @@ spec, this plan.
 
 **Verify:** the full checks (both suites, lint, typecheck) and the e2e run once
 more. Commit: "Docs: slice D6 built, README, data source and wireframes specs".
+
+**Built.** Checked: root suite on SQLite and on Postgres, web lint, typecheck and
+tests, and the e2e run on SQLite and on Postgres (see `d6-report.md`).
 
 ## Done when
 

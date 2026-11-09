@@ -303,7 +303,7 @@ It opens a full-screen dialog:
 - The Ingredients list (C3) marks ingredients with updated values and
   can filter on them.
 
-## Tags and tag groups *(proposed)*
+## Tags and tag groups
 
 **On C6 (Tags):**
 
@@ -341,7 +341,15 @@ och skaldjur. The recipe-count endpoint uses the same translation. The
 screens keep showing the members themselves (a recipe's derived tags
 list Seafood, not the group).
 
-## API *(proposed)*
+**As built (slice D6).** The group's library name is `group {id}`, with `*`
+added while a stored tag has that name. The rule is kept on every member,
+kept equal; a tag's `group` field lists every member including the tag itself
+(`[]` for none). A new tag is made equivalent after it is saved: the editor
+shows **Equivalent tags** only for an existing tag. A group left with one tag
+is deleted. On a rename that clashes with another name nothing changes, group
+included.
+
+## API
 
 | Endpoint | For |
 |---|---|
@@ -353,15 +361,15 @@ list Seafood, not the group).
 | `POST /api/ingredients/from-source` | `{food_id, name, tag_ids}`; 201 with the ingredient (C7). |
 | `POST /api/ingredients/{id}/source-values` | `{answer: "accept" \| "keep"}` (C4); answers the ingredient. What is answered is what the server finds now; nothing to answer is a 200 no-op. 404 unknown ingredient; 422 `not_linked` on `path.ingredient_id`. |
 | `POST /api/ingredients/{id}/unlink` | C4; answers the ingredient; unlinking an unlinked one is a no-op. |
-| `PUT /api/tags/{id}` | Gains `equivalent_tag_ids` and a `confirm` flag for the questions above. |
+| `PUT /api/tags/{id}` | Gains `equivalent_tag_ids`, the complete list of the tag's other group members as wanted (omitted or null keeps the group), and `confirm`. A change that needs answers and has no `confirm` changes nothing and answers 409 `{"questions": [...]}`, listing every question of the request in the order moves, switches, rule change: `{type: "move_tag", tag_id, from_tag_ids}`, `{type: "switch_rule", tag_id, tag_rule, group_rule}`, `{type: "change_rule", tag_ids, rule}`. 422 `unknown_tag`, `duplicate`, `own_tag` on `equivalent_tag_ids[i]`. |
 | `GET/PUT /api/preferences` | Preferred units, and `last_data_source` (null until set; `PUT` refuses a key that is not a loaded source: 422 `invalid_data_source`). |
 
 Ingredient responses gain `source` (`key, name, colour, food_id, food_name, withdrawn`, or null)
 and (slice D5) `updated_values`, a list ordered by attribute id of `{attribute_id, value, new_value}`
 (the ingredient's current value, or null, and the proposed one, in its basis; empty without a link). Tag
-responses gain `source` and `group` (member ids).
+responses gain `source` and `group` (the ids of every member of the tag's group, the tag included, in id order; empty for none).
 
-## Errors *(proposed)*
+## Errors
 
 | Case | Answer |
 |---|---|
@@ -372,7 +380,8 @@ responses gain `source` and `group` (member ids).
 | Withdrawn food added | 422 `withdrawn`, on `food_id` |
 | A tag that is not one of the food's source tags | 422 `not_a_food_tag`, on `tag_ids[i]` |
 | Rename or delete of a source tag | 422 `source_tag`, on `body.name` (rename) or `path.tag_id` (delete) |
-| Group change needing an answer, sent without `confirm` | 409 with the question's facts |
+| Group change needing an answer, sent without `confirm` | 409 `{"questions": [...]}` with the facts of every question (a name in use is 409 `{"detail": [...]}`) |
+| `equivalent_tag_ids` naming no tag, a tag twice, or the tag itself | 422 `unknown_tag`, `duplicate`, `own_tag`, on `equivalent_tag_ids[i]` |
 | Linked ingredient changed to a volume or free-text unit | 422 `unit_not_for_source` |
 | Answering updated values of an ingredient with no link | 422 `not_linked`, on `path.ingredient_id` |
 | A data file that fails to load | Logged at startup; the old copy stays. |
