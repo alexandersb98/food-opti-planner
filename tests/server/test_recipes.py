@@ -648,3 +648,116 @@ def test_with_only_stale_recipes_there_is_nothing_to_plan_with_and_no_500(client
     response = client.post("/api/plan/solve", json={"solve_id": "s2"})
     assert response.status_code == 200, response.text
     assert response.json()["failure"] == "no_usable_recipes"
+
+
+# new conversions, made on the import review and saved with the recipe --------
+
+
+def conversion(ingredient, unit="dl", factor="40", source="ai"):
+    return {"ingredient_id": ingredient, "unit": unit, "factor": factor, "source": source}
+
+
+def stored(client, ingredient):
+    found = next(i for i in client.get("/api/ingredients").json() if i["id"] == ingredient)
+    return [(c["unit"], c["factor"], c["source"]) for c in found["conversions"]]
+
+
+def test_a_recipe_saves_new_conversions_with_their_source(client, catalog):
+    oats = with_units(catalog, client)
+    body = fields((oats, "60", ""), (oats, "1", "dl"), new_conversions=[conversion(oats, "dl", "40", "ai")])
+    created = client.post("/api/recipes", json=body)
+    assert created.status_code == 201, created.text
+    assert created.json()["totals"][0]["value"] == "100"  # 60 g + 1 dl of 40 g
+    assert stored(client, oats) == [("dl", "40", "ai")]
+    found = next(i for i in client.get("/api/ingredients").json() if i["id"] == oats)
+    assert found["conversions"][0]["recipe_count"] == 1
+    second = fields((oats, "1", "msk"), name="Two", new_conversions=[conversion(oats, "msk", "10", "user")])
+    assert client.post("/api/recipes", json=second).status_code == 201
+    assert stored(client, oats) == [("dl", "40", "ai"), ("msk", "10", "user")]
+
+
+def test_new_conversions_are_saved_by_put_too(client, catalog):
+    oats = with_units(catalog, client)
+    recipe = create(client, (oats, "60"))
+    body = fields((oats, "1", "dl"), new_conversions=[conversion(oats)])
+    response = client.put(f"/api/recipes/{recipe['id']}", json=body)
+    assert response.status_code == 200, response.text
+    assert stored(client, oats) == [("dl", "40", "ai")]
+
+
+def test_a_line_may_use_a_conversion_made_in_the_same_save(client, catalog):
+    oats = with_units(catalog, client)
+    body = fields((oats, "2", "DL"), new_conversions=[conversion(oats, "dl")])
+    created = client.post("/api/recipes", json=body)
+    assert created.status_code == 201
+    assert saved_units(client, created.json()) == ["dl"]
+
+
+def test_without_the_conversion_the_same_line_is_refused(client, catalog):
+    oats = with_units(catalog, client)
+    response = client.post("/api/recipes", json=fields((oats, "2", "dl")))
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["type"] == "unit_not_convertible"
+
+
+def test_nothing_is_written_when_a_line_is_refused(client, catalog):
+    oats = with_units(catalog, client)
+    body = fields((oats, "2", "kcal"), new_conversions=[conversion(oats)])
+    assert client.post("/api/recipes", json=body).status_code == 422
+    assert stored(client, oats) == []
+    assert client.get("/api/recipes").json() == []
+
+
+def refusals(response):
+    assert response.status_code == 422, response.text
+    return [(e["loc"], e["type"]) for e in response.json()["detail"]]
+
+
+def test_conversions_are_refused_as_the_conversion_endpoints_refuse_them(client, catalog):
+    oats = with_units(catalog, client, dl="40")
+    loc = ["body", "new_conversions", 0, "unit"]
+
+    def save(*new):
+        return client.post("/api/recipes", json=fields((oats, "60"), new_conversions=list(new)))
+
+    assert refusals(save(conversion(oats, "kcal"))) == [(loc, "unit_not_for_ingredient")]
+    assert refusals(save(conversion(oats, "gram"))) == [(loc, "unit_is_own_unit")]
+    assert refusals(save(conversion(oats, "DL"))) == [(loc, "duplicate")]
+    both = save(conversion(oats, "msk"), conversion(oats, "MSK"))
+    assert refusals(both) == [(["body", "new_conversions", 1, "unit"], "duplicate")]
+    assert refusals(save(conversion(999))) == [(["body", "new_conversions", 0, "ingredient_id"], "unknown_ingredient")]
+    assert client.get("/api/recipes").json() == []
+
+
+@pytest.mark.parametrize(
+    ("change", "field"),
+    [
+        ({"factor": "0"}, "factor"),
+        ({"factor": "-1"}, "factor"),
+        ({"factor": "abc"}, "factor"),
+        ({"factor": "0.1234567"}, "factor"),
+        ({"unit": ""}, "unit"),
+        ({"unit": "x" * 21}, "unit"),
+        ({"source": "x"}, "source"),
+    ],
+)
+def test_bad_new_conversion_fields_are_422_at_their_field(client, catalog, change, field):
+    oats = with_units(catalog, client)
+    body = fields((oats, "60"), new_conversions=[{**conversion(oats, "msk"), **change}])
+    assert refusals(client.post("/api/recipes", json=body))[0][0] == ["body", "new_conversions", 0, field]
+
+
+def test_every_error_comes_in_one_422(client, catalog):
+    oats = with_units(catalog, client)
+    body = fields((oats, "60"), (oats, "1", "kcal"), new_conversions=[conversion(oats, "gram")])
+    assert refusals(client.post("/api/recipes", json=body)) == [
+        (["body", "new_conversions", 0, "unit"], "unit_is_own_unit"),
+        (["body", "sections", 0, "items", 1, "unit"], "unit_not_for_ingredient"),
+    ]
+
+
+def test_a_body_without_new_conversions_still_saves(client, catalog):
+    oats = with_units(catalog, client)
+    body = fields((oats, "60"))
+    assert "new_conversions" not in body
+    assert client.post("/api/recipes", json=body).status_code == 201

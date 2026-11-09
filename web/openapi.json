@@ -1640,6 +1640,48 @@
         "title": "MoveTag",
         "type": "object"
       },
+      "NewConversion": {
+        "description": "A conversion made on the import review: \"1 `unit` = `factor` of the\ningredient's own unit\".",
+        "properties": {
+          "factor": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Factor"
+          },
+          "ingredient_id": {
+            "title": "Ingredient Id",
+            "type": "integer"
+          },
+          "source": {
+            "enum": [
+              "ai",
+              "user"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "unit": {
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ingredient_id",
+          "unit",
+          "factor",
+          "source"
+        ],
+        "title": "NewConversion",
+        "type": "object"
+      },
       "Plan": {
         "properties": {
           "days": {
@@ -2299,6 +2341,7 @@
         "type": "object"
       },
       "RecipeFields": {
+        "description": "What a save takes.",
         "properties": {
           "extra_tag_ids": {
             "items": {
@@ -2353,6 +2396,15 @@
             "minLength": 1,
             "title": "Name",
             "type": "string"
+          },
+          "new_conversions": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/NewConversion"
+            },
+            "maxItems": 200,
+            "title": "New Conversions",
+            "type": "array"
           },
           "sections": {
             "items": {

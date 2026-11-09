@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field, StringConstraints
 
 from .. import conversions, models, units
+from ..conversions import DUPLICATE, UNIT_IS_OWN_UNIT, UNIT_NOT_FOR_INGREDIENT  # noqa: F401  (re-exported)
 from ..db import DbSession
 from ..fields import Number
 from .catalog import get_or_404
@@ -18,9 +19,6 @@ router = APIRouter(prefix="/ingredients", tags=["conversions"])
 NOT_FOUND = {404: {"description": "No such ingredient or conversion"}}
 UNPROCESSABLE = {422: {"model": FieldErrors, "description": "An energy unit, the ingredient's own unit or a unit it has"}}
 IN_USE = {409: {"model": FieldErrors, "description": "Recipes use the conversion"}}
-UNIT_NOT_FOR_INGREDIENT = "A conversion is for an amount of food, such as dl or pinch, not for energy."
-UNIT_IS_OWN_UNIT = "That is the ingredient's own unit."
-DUPLICATE = "This ingredient has a conversion for that unit already."
 
 
 class ConversionFields(BaseModel):
@@ -50,16 +48,9 @@ def answer(row: models.IngredientConversion, usage: dict[int, int]) -> Conversio
 def _check(ingredient: models.Ingredient, fields: ConversionFields, ignore_id: int | None) -> None:
     """Answer 422 on the unit: an energy unit, the ingredient's own unit, or a
     unit another conversion has (in any spelling)."""
-    parsed = units.parse(fields.unit)
-    if parsed is not None and parsed.category == "energy":
-        error = ("unit_not_for_ingredient", UNIT_NOT_FOR_INGREDIENT)
-    elif units.ratio(fields.unit, ingredient.unit) == 1:
-        error = ("unit_is_own_unit", UNIT_IS_OWN_UNIT)
-    elif any(c.id != ignore_id and units.ratio(fields.unit, c.unit) == 1 for c in ingredient.conversions):
-        error = ("duplicate", DUPLICATE)
-    else:
-        return
-    raise invalid_fields([FieldError(loc=["body", "unit"], type=error[0], msg=error[1])])
+    error = conversions.unit_error(ingredient, fields.unit, [(c.id, c.unit) for c in ingredient.conversions], ignore_id)
+    if error is not None:
+        raise invalid_fields([FieldError(loc=["body", "unit"], type=error[0], msg=error[1])])
 
 
 def _conversion(ingredient: models.Ingredient, conversion_id: int) -> models.IngredientConversion:

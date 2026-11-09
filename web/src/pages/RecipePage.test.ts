@@ -257,6 +257,7 @@ test('Save sends the fields and returns to the list', async () => {
       step: '0.5',
       hard_max_multiplier: '4',
       serving_cap_weight: '2.5',
+      new_conversions: [],
     },
   ])
   expect(router.currentRoute.value.fullPath).toBe('/recipes')
@@ -290,6 +291,7 @@ test('a new recipe starts with one unnamed section, servings 1 and the default p
       step: null,
       hard_max_multiplier: null,
       serving_cap_weight: '1',
+      new_conversions: [],
     },
   ])
   expect(router.currentRoute.value.fullPath).toBe('/recipes')

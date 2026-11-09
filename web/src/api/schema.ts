@@ -1333,6 +1333,24 @@ export interface components {
              */
             type: "move_tag";
         };
+        /**
+         * NewConversion
+         * @description A conversion made on the import review: "1 `unit` = `factor` of the
+         *     ingredient's own unit".
+         */
+        NewConversion: {
+            /** Factor */
+            factor: number | string;
+            /** Ingredient Id */
+            ingredient_id: number;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "ai" | "user";
+            /** Unit */
+            unit: string;
+        };
         /** Plan */
         Plan: {
             /** Days */
@@ -1559,7 +1577,10 @@ export interface components {
             /** Tag Filters */
             tag_filters: components["schemas"]["TagFilter"][];
         };
-        /** RecipeFields */
+        /**
+         * RecipeFields
+         * @description What a save takes.
+         */
         RecipeFields: {
             /** Extra Tag Ids */
             extra_tag_ids: number[];
@@ -1573,6 +1594,11 @@ export interface components {
             min_multiplier: number | string;
             /** Name */
             name: string;
+            /**
+             * New Conversions
+             * @default []
+             */
+            new_conversions: components["schemas"]["NewConversion"][];
             /** Sections */
             sections: components["schemas"]["Section-Input"][];
             /** Serving Cap Weight */

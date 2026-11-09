@@ -174,6 +174,7 @@ export function checkRecipe(
     step: draft.inSteps ? (typedNumber(draft.step) ?? '') : null,
     hard_max_multiplier: draft.hardMax.trim() === '' ? null : (typedNumber(draft.hardMax) ?? ''),
     serving_cap_weight: typedNumber(draft.penalty) ?? '',
+    new_conversions: [],
   }
   const errors: RecipeErrors = {
     ...noErrors,

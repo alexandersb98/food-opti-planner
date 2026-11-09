@@ -3,7 +3,7 @@ the tags a recipe would get from its ingredients, for the editor."""
 
 from decimal import Decimal
 from fractions import Fraction
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field, StringConstraints
@@ -24,6 +24,7 @@ NOT_FOUND = {404: {"description": "No such recipe"}}
 MAX_SERVINGS = 1000
 MAX_SECTIONS = 50
 MAX_LINES = 200  # per section
+MAX_NEW_CONVERSIONS = 200
 
 
 class RecipeItem(BaseModel):
@@ -40,6 +41,17 @@ class RecipeItem(BaseModel):
     original_text: Annotated[str, Field(max_length=models.ORIGINAL_TEXT_LENGTH)]
 
 
+class NewConversion(BaseModel):
+    """A conversion made on the import review: "1 `unit` = `factor` of the
+    ingredient's own unit"."""
+
+    ingredient_id: int
+    unit: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=models.UNIT_LENGTH)]
+    factor: Annotated[Number, Field(gt=0)]
+    # "ai": the AI's suggestion, accepted as it was; "user": typed or changed.
+    source: Literal["ai", "user"]
+
+
 class Section(BaseModel):
     # Trimmed; may be empty only in a recipe of one section (no heading).
     name: Annotated[str, StringConstraints(strip_whitespace=True, max_length=models.NAME_LENGTH)]
@@ -47,7 +59,7 @@ class Section(BaseModel):
     items: Annotated[list[RecipeItem], Field(max_length=MAX_LINES)]
 
 
-class RecipeFields(BaseModel):
+class RecipeBase(BaseModel):
     name: Name
     # The amounts below are for the whole recipe, which serves this many
     # portions; the planner's portion is one of them.
@@ -70,13 +82,22 @@ class RecipeFields(BaseModel):
     serving_cap_weight: Annotated[Number, Field(ge=0)]
 
 
+class RecipeFields(RecipeBase):
+    """What a save takes."""
+
+    # Conversions to create with the recipe, as accepted on the import review;
+    # created before the lines are routed, so a line may use one. Not answered:
+    # they show on the ingredients.
+    new_conversions: Annotated[list[NewConversion], Field(max_length=MAX_NEW_CONVERSIONS)] = []
+
+
 class Total(BaseModel):
     attribute_id: int
     # Rounded to the attribute's decimals, as the planner counts it.
     value: str
 
 
-class Recipe(RecipeFields):
+class Recipe(RecipeBase):
     id: int
     # Tags the ingredients give it, by each tag's rule.
     derived_tag_ids: list[int]
@@ -212,9 +233,30 @@ def _recipe_errors(body: RecipeFields) -> list[FieldError]:
     return errors
 
 
-def _unit_errors(body: RecipeFields, ingredients: dict[int, models.Ingredient]) -> list[FieldError]:
+def _conversion_errors(body: RecipeFields, ingredients: dict[int, models.Ingredient]) -> list[FieldError]:
+    """Each new conversion must be valid as the conversion endpoints require,
+    also against the ones before it in the same save."""
+    errors = []
+    seen: dict[int, list[tuple[int | None, str]]] = {}
+    for i, new in enumerate(body.new_conversions):
+        ingredient = ingredients.get(new.ingredient_id)
+        if ingredient is None:
+            continue
+        existing = [(c.id, c.unit) for c in ingredient.conversions] + seen.setdefault(ingredient.id, [])
+        error = conversions.unit_error(ingredient, new.unit, existing)
+        if error is None:
+            seen[ingredient.id].append((None, new.unit))
+        else:
+            errors.append(FieldError(loc=["body", "new_conversions", i, "unit"], type=error[0], msg=error[1]))
+    return errors
+
+
+def _unit_errors(
+    body: RecipeFields, ingredients: dict[int, models.Ingredient], new: dict[int, list[tuple[str, Decimal]]]
+) -> list[FieldError]:
     """A line's unit must be one the ingredient can take: not an energy unit,
-    and one that converts to the ingredient's own (`line_units.route`)."""
+    and one that converts to the ingredient's own (`line_units.route`), with
+    the stored conversions and the `new` ones (by ingredient id)."""
     errors = []
     for i, section in enumerate(body.sections):
         for j, item in enumerate(section.items):
@@ -225,7 +267,14 @@ def _unit_errors(body: RecipeFields, ingredients: dict[int, models.Ingredient]) 
             parsed = units.parse(item.unit)
             if parsed is not None and parsed.category == "energy":
                 errors.append(FieldError(loc=loc, type="unit_not_for_ingredient", msg=UNIT_NOT_FOR_INGREDIENT))
-            elif line_units.route(item.unit, ingredient.unit, [(c.unit, c.factor) for c in ingredient.conversions]) is None:
+            elif (
+                line_units.route(
+                    item.unit,
+                    ingredient.unit,
+                    [(c.unit, c.factor) for c in ingredient.conversions] + new.get(ingredient.id, []),
+                )
+                is None
+            ):
                 msg = (
                     f"{plain(item.amount)} {item.unit} of {ingredient.name} doesn't convert to {ingredient.unit}: "
                     f"add a conversion for {item.unit}"
@@ -245,14 +294,28 @@ def _fill(recipe: models.Recipe, body: RecipeFields, db: DbSession) -> None:
         for i, section in enumerate(body.sections)
         for j, item in enumerate(section.items)
     ]
+    lines += [
+        (["new_conversions", i, "ingredient_id"], new.ingredient_id) for i, new in enumerate(body.new_conversions)
+    ]
     ingredients = refs.rows(models.Ingredient, lines, "ingredient")
-    refs.errors += _unit_errors(body, ingredients)
+    refs.errors += _conversion_errors(body, ingredients)
+    new: dict[int, list[tuple[str, Decimal]]] = {}
+    for conversion in body.new_conversions:
+        if conversion.ingredient_id in ingredients:
+            new.setdefault(conversion.ingredient_id, []).append((units.normalise(conversion.unit), conversion.factor))
+    refs.errors += _unit_errors(body, ingredients, new)
     tags = refs.rows(models.Tag, in_list("extra_tag_ids", body.extra_tag_ids), "tag")
     refs.check()
 
     # Loading the old sections and tags must not save the new name early, or a
     # name in use would fail here instead of in commit_named.
     with db.no_autoflush:
+        for conversion in body.new_conversions:
+            ingredients[conversion.ingredient_id].conversions.append(
+                models.IngredientConversion(
+                    unit=units.normalise(conversion.unit), factor=conversion.factor, source=conversion.source
+                )
+            )
         recipe.name = body.name
         for field in (
             "servings", "instructions", "source_url",

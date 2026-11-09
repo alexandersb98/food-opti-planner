@@ -2,6 +2,8 @@
 use each stored conversion, and the form a line's unit is stored in. The
 routing rule itself is `line_units`. No FastAPI."""
 
+from collections.abc import Sequence
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -45,3 +47,23 @@ def canonical_unit(unit: str, ingredient: models.Ingredient) -> str:
         if units.ratio(unit, conversion.unit) == 1:
             return conversion.unit
     return units.normalise(unit)
+
+
+UNIT_NOT_FOR_INGREDIENT = "A conversion is for an amount of food, such as dl or pinch, not for energy."
+UNIT_IS_OWN_UNIT = "That is the ingredient's own unit."
+DUPLICATE = "This ingredient has a conversion for that unit already."
+
+
+def unit_error(ingredient: models.Ingredient, unit: str, existing: Sequence[tuple[int | None, str]], ignore_id: int | None = None) -> tuple[str, str] | None:
+    """Why `unit` can't be a conversion of `ingredient`, as (error type,
+    message), or None: an energy unit, the ingredient's own unit, or a unit
+    that one of `existing` (id, unit) pairs has already, in any spelling.
+    `ignore_id` leaves one of them out (the conversion being edited)."""
+    parsed = units.parse(unit)
+    if parsed is not None and parsed.category == "energy":
+        return "unit_not_for_ingredient", UNIT_NOT_FOR_INGREDIENT
+    if units.ratio(unit, ingredient.unit) == 1:
+        return "unit_is_own_unit", UNIT_IS_OWN_UNIT
+    if any((ignore_id is None or i != ignore_id) and units.ratio(unit, other) == 1 for i, other in existing):
+        return "duplicate", DUPLICATE
+    return None
