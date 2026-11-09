@@ -79,9 +79,14 @@ test.each([
   expect(units.findUnit(text)?.symbol).toBe(symbol)
 })
 
-test.each(['cup', '', '  ', '.', 'kgs'])('findUnit does not know %j', async (text) => {
+test.each(['cup', '', '  ', '.', 'kgs', 'MJ', 'Ml', 'Mg'])('findUnit does not know %j', async (text) => {
   const { units } = await loaded()
   expect(units.findUnit(text)).toBeUndefined()
+})
+
+test.each([['mJ', 'mJ'], ['ml', 'ml'], ['MJ.', undefined]])('findUnit reads %j by the server\'s case rule', async (text, symbol) => {
+  const { units } = await loaded()
+  expect(units.findUnit(text)?.symbol).toBe(symbol)
 })
 
 test('label shows the symbol and the name', async () => {
@@ -113,10 +118,10 @@ test('offered(null) is the free-text unit st', async () => {
 test('convertible follows the server rule: same category, or the same free text', async () => {
   const { units } = await loaded()
   const yes: [string, string][] = [
-    ['g', 'kg'], ['g', 'mg'], ['kcal', 'kJ'], ['st', 'stycken'], ['dose', 'Dose'], ['gram', 'g'], ['g', 'g'], ['MJ', 'MJ.'],
+    ['g', 'kg'], ['g', 'mg'], ['kcal', 'kJ'], ['st', 'stycken'], ['dose', 'Dose'], ['gram', 'g'], ['g', 'g'],
   ]
   const no: [string, string][] = [
-    ['g', 'ml'], ['dose', 'portion'], ['', ''], ['g', ''], ['', 'g'], ['dose', 'g'], ['g', 'dose'], ['MJ', 'J'], ['MJ', 'mJ'], ['kcal', 'g'],
+    ['g', 'ml'], ['dose', 'portion'], ['', ''], ['g', ''], ['', 'g'], ['dose', 'g'], ['g', 'dose'], ['kcal', 'g'],
   ]
   for (const [a, b] of yes) expect(units.convertible(a, b), `${a} ~ ${b}`).toBe(true)
   for (const [a, b] of no) expect(units.convertible(a, b), `${a} ~ ${b}`).toBe(false)

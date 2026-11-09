@@ -59,22 +59,18 @@ export function useUnits() {
     return state.units.filter((unit) => unit.offered && unit.category === category)
   }
 
-  /** The catalogue unit a text names in any spelling, if any. */
+  /** The catalogue unit a text names in any spelling, if any. As the server
+   * reads it, a capital M before a milli unit ("MJ", "Ml") is mega, not milli:
+   * free text, so no unit. A milli unit is one whose symbol is "m" and the
+   * symbol of another unit (mg, ml, mJ). */
   function findUnit(text: string): CatalogueUnit | undefined {
     const cleaned = clean(text)
     if (!cleaned) return undefined
     const exact = state.units.find((unit) => unit.case_sensitive_aliases.some((alias) => clean(alias) === cleaned))
-    if (exact) return exact
     const key = cleaned.toLowerCase()
-    return state.units.find((unit) => [unit.symbol, ...unit.aliases].some((spelling) => clean(spelling).toLowerCase() === key))
-  }
-
-  /** `findUnit`, except that a capital M before a milli unit ("MJ", "Ml") is
-   * mega, not milli: free text, as the server reads it. A milli unit is one
-   * whose symbol is "m" and the symbol of another unit (mg, ml, mJ). */
-  function unitNamed(text: string): CatalogueUnit | undefined {
-    const unit = findUnit(text)
-    if (!unit || !unit.symbol.startsWith('m') || clean(text)[0] !== 'M') return unit
+    const unit =
+      exact ?? state.units.find((unit) => [unit.symbol, ...unit.aliases].some((spelling) => clean(spelling).toLowerCase() === key))
+    if (!unit || !unit.symbol.startsWith('m') || cleaned[0] !== 'M') return unit
     const base = unit.symbol.slice(1)
     return state.units.some((other) => other.symbol === base) ? undefined : unit
   }
@@ -84,8 +80,8 @@ export function useUnits() {
    * the same unit; or neither names a unit and the cleaned texts are equal
    * (ignoring case) and not empty. The server stays the authority. */
   function convertible(a: string, b: string): boolean {
-    const unitA = unitNamed(a)
-    const unitB = unitNamed(b)
+    const unitA = findUnit(a)
+    const unitB = findUnit(b)
     if (!unitA && !unitB) {
       const key = clean(a).toLowerCase()
       return key !== '' && key === clean(b).toLowerCase()
@@ -106,7 +102,7 @@ export function useUnits() {
     return category === 'mass' || category === 'volume' ? '100' : '1'
   }
 
-  return { ...toRefs(readonly(state)), load, offered, findUnit, unitNamed, convertible, label, basisFor }
+  return { ...toRefs(readonly(state)), load, offered, findUnit, convertible, label, basisFor }
 }
 
 /** Forget the catalogue, for tests. */

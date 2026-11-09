@@ -24,7 +24,7 @@ const draft = reactive({ name: '', unit: '', decimals: '' })
 const errors = reactive({ name: '', unit: '', decimals: '', save: '' })
 const saving = ref(false)
 
-const category = computed(() => (props.column ? (units.unitNamed(props.column.unit)?.category ?? null) : null))
+const category = computed(() => (props.column ? (units.findUnit(props.column.unit)?.category ?? null) : null))
 // The units offered: the column's category, or none (a plain text box) for a
 // column in free text.
 const categories = computed(() => (category.value ? [category.value] : []))
@@ -32,7 +32,7 @@ const categories = computed(() => (category.value ? [category.value] : []))
 /** The unit a new attribute starts with: the preferred unit of the column's
  * category, else the column's own unit. */
 function startUnit(column: SourceColumn): string {
-  const found = units.unitNamed(column.unit)?.category
+  const found = units.findUnit(column.unit)?.category
   const preferred = found ? preferences.preferences.value?.[`unit.${found}`] : undefined
   return preferred ?? column.unit
 }
