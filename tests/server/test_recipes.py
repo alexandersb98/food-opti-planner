@@ -761,3 +761,27 @@ def test_a_body_without_new_conversions_still_saves(client, catalog):
     body = fields((oats, "60"))
     assert "new_conversions" not in body
     assert client.post("/api/recipes", json=body).status_code == 201
+
+
+def grouped(catalog, derive):
+    a, b = catalog.tag("Seafood", derive), catalog.tag("Fish", derive)
+    catalog.group(a, b)
+    return a, b
+
+
+def test_a_group_of_tags_under_all_is_derived_when_every_ingredient_has_one_of_its_tags(client, catalog):
+    a, b = grouped(catalog, "all")
+    x = catalog.ingredient("Cod", tag_ids=[a])
+    y = catalog.ingredient("Salmon", tag_ids=[b])
+    plain_ingredient = catalog.ingredient("Oats")
+    both = create(client, (x, "100"), (y, "100"))
+    assert both["derived_tag_ids"] == [a, b]
+    assert create(client, (x, "100"), (plain_ingredient, "100"), name="Mixed")["derived_tag_ids"] == []
+
+
+def test_a_group_of_tags_under_any_is_derived_when_one_ingredient_has_one_of_its_tags(client, catalog):
+    a, b = grouped(catalog, "any")
+    y = catalog.ingredient("Salmon", tag_ids=[b])
+    plain_ingredient = catalog.ingredient("Oats")
+    assert create(client, (y, "100"), (plain_ingredient, "100"))["derived_tag_ids"] == [a, b]
+    assert create(client, (plain_ingredient, "100"), name="Plain")["derived_tag_ids"] == []

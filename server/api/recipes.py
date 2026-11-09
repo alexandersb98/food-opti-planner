@@ -120,11 +120,15 @@ class _Responses:
     def __init__(self, db: DbSession):
         self.attributes = db.scalars(select(models.Attribute).order_by(models.Attribute.id)).all()
         self.tags = db.scalars(select(models.Tag).order_by(models.Tag.id)).all()
+        self.library = translate.library_tags(self.tags)
 
     def derived_tag_ids(self, ingredients: list[models.Ingredient]) -> list[int]:
-        """The tags a dish of these ingredients gets, by the library's rule."""
-        dish = [translate.ingredient(ingredient) for ingredient in ingredients]
-        return [tag.id for tag in self.tags if translate.tag(tag).holds_for(dish)]
+        """The tags a dish of these ingredients gets, by the library's rule. A
+        group is one tag: every member shows as derived while its group's tag
+        holds, as the solver and the plan's recipe count see it."""
+        dish = [translate.ingredient(ingredient, self.library.names) for ingredient in ingredients]
+        held = {d.name for d in self.library.defs if d.holds_for(dish)}
+        return [tag.id for tag in self.tags if self.library.names[tag.name] in held]
 
     def response(self, row: models.Recipe) -> Recipe:
         # Each line's amount in its ingredient's own unit, worked out once; None
