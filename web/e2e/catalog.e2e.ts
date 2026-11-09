@@ -33,10 +33,12 @@ async function openPage(page: Page, name: string) {
 }
 
 // Closes the open q-select list. Typing in the select opens its popup a moment
-// later, so wait for an option before Escape (else Escape finds nothing to
+// later, so wait for the popup before Escape (else Escape finds nothing to
 // close and the popup then covers the page), and for the popup to be gone.
-async function closeSelectList(page: Page) {
-  await expect(page.getByRole('option').first()).toBeVisible()
+// `opens: false` is for a text that matches no unit: the list has nothing to
+// show and never opens.
+async function closeSelectList(page: Page, { opens = true } = {}) {
+  if (opens) await expect(page.locator('.q-menu')).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.locator('.q-menu')).toHaveCount(0)
 }
@@ -680,7 +682,7 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await expect(page.locator('.q-menu .q-item__label--header')).toHaveText(['Mass'])
   await closeSelectList(page)
   await page.getByLabel('Measured in').fill('dl')
-  await closeSelectList(page)
+  await closeSelectList(page, { opens: false }) // a linked ingredient lists mass units only
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(page.getByText(/can only be measured in a mass unit/)).toBeVisible()
   await page.getByLabel('Measured in').fill('g')
