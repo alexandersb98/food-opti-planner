@@ -117,3 +117,42 @@ test('Add from data source is on the page and opens the dialog', async () => {
   expect(document.querySelector('.q-dialog')?.textContent).toContain('No data sources loaded.')
   wrapper.unmount()
 })
+
+// Updated values available: the marker and the filter.
+
+const protein13 = { attribute_id: 2, value: '13.5', new_value: '13.8' }
+const updatedOats = ingredient({ ...oats, name: 'Oats', updated_values: [protein13] })
+const updatedMilk = ingredient({ ...milk, name: 'Milk', updated_values: [protein13] })
+
+test('no marker and no toggle while no ingredient has updated values', async () => {
+  const { wrapper } = await mountPage()
+  expect(wrapper.find('.updated-marker').exists()).toBe(false)
+  expect(wrapper.find('.updated-filter').exists()).toBe(false)
+  wrapper.unmount()
+})
+
+test('rows with updates carry the marker and the toggle counts them', async () => {
+  const { wrapper } = await mountPage({ 'GET /api/ingredients': { body: [updatedOats, egg, updatedMilk] } })
+  const marked = wrapper.findAll('.ingredient-row').filter((row) => row.find('.updated-marker').exists())
+  expect(marked.map((row) => row.get('.q-item__label').text())).toEqual(['Milk', 'Oats'])
+  expect(marked[0].get('.updated-marker').text()).toBe('Updated values available')
+  expect(wrapper.get('.updated-filter').text()).toBe('Only with updated values (2)')
+  wrapper.unmount()
+})
+
+test('the toggle lists only those, the search narrows them, and off lists all', async () => {
+  const { wrapper } = await mountPage({ 'GET /api/ingredients': { body: [updatedOats, egg, updatedMilk] } })
+  await click(wrapper.get('.updated-filter'))
+  expect(wrapper.findAll('.ingredient-row')).toHaveLength(2)
+  expect(rows(wrapper)[0]).toContain('Milk')
+  await field(wrapper, 'Search').setValue('oat')
+  expect(wrapper.findAll('.ingredient-row')).toHaveLength(1)
+  expect(rows(wrapper)[0]).toContain('Oats')
+  await field(wrapper, 'Search').setValue('egg')
+  expect(wrapper.findAll('.ingredient-row')).toHaveLength(0)
+  expect(wrapper.text()).toContain('No ingredients have updated values.')
+  await field(wrapper, 'Search').setValue('')
+  await click(wrapper.get('.updated-filter'))
+  expect(wrapper.findAll('.ingredient-row')).toHaveLength(3)
+  wrapper.unmount()
+})
