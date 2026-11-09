@@ -600,8 +600,8 @@ export interface paths {
         put?: never;
         /**
          * Import Recipe
-         * @description Ask the AI for a draft of the text, checked against the user's own
-         *     ingredients. Writes nothing.
+         * @description Ask the AI for a draft of the pasted text or of the page at the link,
+         *     checked against the user's own ingredients. Writes nothing.
          */
         post: operations["import_recipe_api_recipe_imports_post"];
         delete?: never;
@@ -1610,10 +1610,16 @@ export interface components {
             /** Step */
             step: number | string | null;
         };
-        /** RecipeImportRequest */
+        /**
+         * RecipeImportRequest
+         * @description Exactly one of the two. `text`: trimmed, 1 to 200 000 characters; `url`:
+         *     trimmed, an http or https link. Both are checked by hand for the error shape.
+         */
         RecipeImportRequest: {
             /** Text */
-            text: string;
+            text?: string | null;
+            /** Url */
+            url?: string | null;
         };
         /**
          * RecipeItem
@@ -3464,7 +3470,7 @@ export interface operations {
                     "application/json": components["schemas"]["ImportedRecipe"];
                 };
             };
-            /** @description No text, too much text, or no recipe in it */
+            /** @description No input or both, a bad link, a page that can't be read, too much text, or no recipe in it */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -3524,7 +3530,7 @@ export interface operations {
                     "application/json": components["schemas"]["FactorAnswer"];
                 };
             };
-            /** @description No text, too much text, or no recipe in it */
+            /** @description No input or both, a bad link, a page that can't be read, too much text, or no recipe in it */
             422: {
                 headers: {
                     [name: string]: unknown;

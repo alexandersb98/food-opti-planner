@@ -2469,15 +2469,31 @@
         "type": "object"
       },
       "RecipeImportRequest": {
+        "description": "Exactly one of the two. `text`: trimmed, 1 to 200 000 characters; `url`:\ntrimmed, an http or https link. Both are checked by hand for the error shape.",
         "properties": {
           "text": {
-            "title": "Text",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
           }
         },
-        "required": [
-          "text"
-        ],
         "title": "RecipeImportRequest",
         "type": "object"
       },
@@ -5246,7 +5262,7 @@
     },
     "/api/recipe-imports": {
       "post": {
-        "description": "Ask the AI for a draft of the text, checked against the user's own\ningredients. Writes nothing.",
+        "description": "Ask the AI for a draft of the pasted text or of the page at the link,\nchecked against the user's own ingredients. Writes nothing.",
         "operationId": "import_recipe_api_recipe_imports_post",
         "requestBody": {
           "content": {
@@ -5277,7 +5293,7 @@
                 }
               }
             },
-            "description": "No text, too much text, or no recipe in it"
+            "description": "No input or both, a bad link, a page that can't be read, too much text, or no recipe in it"
           },
           "429": {
             "content": {
@@ -5349,7 +5365,7 @@
                 }
               }
             },
-            "description": "No text, too much text, or no recipe in it"
+            "description": "No input or both, a bad link, a page that can't be read, too much text, or no recipe in it"
           },
           "429": {
             "content": {

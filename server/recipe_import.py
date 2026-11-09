@@ -205,8 +205,11 @@ def suggest_one(db: Session, ingredient_id: int, unit: str, food: str, suggester
     return _suggest(suggester, _entry(ingredient), unit, food)
 
 
-def import_recipe(db: Session, text: str, converter: RecipeConverter, suggester: FactorSuggester) -> ImportedDraft:
-    """The checked draft for pasted text. NoRecipeFound, BadAnswerError (after
+def import_recipe(
+    db: Session, text: str, converter: RecipeConverter, suggester: FactorSuggester, *, source_url: str = ""
+) -> ImportedDraft:
+    """The checked draft for pasted text or a page's text; `source_url` is the
+    page's link, empty for pasted text. NoRecipeFound, BadAnswerError (after
     the retry), AIServiceError and DailyLimitReached pass out."""
     text = text.strip()
     cut = len(text) > MAX_TEXT_CHARS
@@ -219,7 +222,7 @@ def import_recipe(db: Session, text: str, converter: RecipeConverter, suggester:
         name=draft.name.strip()[: models.NAME_LENGTH],
         servings=draft.servings,
         instructions=draft.instructions[: models.INSTRUCTIONS_LENGTH],
-        source_url="",
+        source_url=source_url,
         cut=cut,
         needs_you=needs_you,
         sections=sections,

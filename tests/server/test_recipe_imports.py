@@ -81,8 +81,9 @@ def test_bad_text_is_refused(ai_client, text, error):
     assert error_of(response) == (error, ["body", "text"])
 
 
-def test_a_missing_field_is_422(ai_client):
-    assert ai_client.post(URL, json={}).status_code == 422
+def test_no_input_is_422(ai_client):
+    response = ai_client.post(URL, json={})
+    assert response.status_code == 422 and error_of(response) == ("input_required", ["body"])
 
 
 def test_the_fake_import_answers_a_checked_draft(ai_client):
