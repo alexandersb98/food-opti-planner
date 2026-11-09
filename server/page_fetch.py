@@ -18,15 +18,17 @@ import logging
 import re
 import socket
 import ssl
+import threading
 import time
 from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
 from dataclasses import dataclass
 
+import httpcore
 import httpx
 
-from .address_policy import is_public_text, parse_address
+from .address_policy import is_public, parse_address
 
 log = logging.getLogger(__name__)
 
@@ -42,7 +44,79 @@ _REDIRECTS = (301, 302, 303, 307, 308)
 _HTML_TYPES = ("text/html", "application/xhtml+xml")
 _INTERNAL_SUFFIXES = (".localhost", ".local", ".internal", ".localdomain", ".home.arpa")
 _META_CHARSET = re.compile(r"<meta[^>]+charset\s*=\s*[\"']?([^\"'>\s;/]+)", re.IGNORECASE)
-_lookups = ThreadPoolExecutor(max_workers=4, thread_name_prefix="page-resolver")
+_lookups = ThreadPoolExecutor(max_workers=16, thread_name_prefix="page-resolver")
+
+
+_current = threading.local()  # the running fetch's absolute deadline (time.monotonic), per thread
+
+
+def _time_left() -> float | None:
+    deadline = getattr(_current, "deadline", None)
+    return None if deadline is None else deadline - time.monotonic()
+
+
+def _capped(timeout: float | None, exc: type[Exception]) -> float | None:
+    """`timeout` limited to what is left of the fetch's deadline; raises `exc`
+    when none is left."""
+    left = _time_left()
+    if left is None:
+        return timeout
+    if left <= 0:
+        raise exc("deadline")
+    return left if timeout is None else min(timeout, left)
+
+
+class _DeadlineStream(httpcore.NetworkStream):
+    """A connection whose every read, write and handshake is limited by the
+    fetch's overall deadline, so a server that trickles bytes can't keep a
+    worker beyond it (httpcore's own timeouts restart on every read)."""
+
+    def __init__(self, inner: httpcore.NetworkStream):
+        self._inner = inner
+
+    def read(self, max_bytes, timeout=None):
+        return self._inner.read(max_bytes, timeout=_capped(timeout, httpcore.ReadTimeout))
+
+    def write(self, buffer, timeout=None):
+        return self._inner.write(buffer, timeout=_capped(timeout, httpcore.WriteTimeout))
+
+    def close(self):
+        self._inner.close()
+
+    def start_tls(self, ssl_context, server_hostname=None, timeout=None):
+        return _DeadlineStream(
+            self._inner.start_tls(ssl_context, server_hostname, timeout=_capped(timeout, httpcore.ConnectTimeout))
+        )
+
+    def get_extra_info(self, info):
+        return self._inner.get_extra_info(info)
+
+
+class _DeadlineBackend(httpcore.NetworkBackend):
+    def __init__(self, inner: httpcore.NetworkBackend):
+        self._inner = inner
+
+    def connect_tcp(self, host, port, timeout=None, local_address=None, socket_options=None):
+        stream = self._inner.connect_tcp(
+            host, port, timeout=_capped(timeout, httpcore.ConnectTimeout), local_address=local_address,
+            socket_options=socket_options,
+        )  # fmt: skip
+        return _DeadlineStream(stream)
+
+    def connect_unix_socket(self, path, timeout=None, socket_options=None):
+        raise httpcore.ConnectError("unix sockets are not used")
+
+    def sleep(self, seconds):
+        self._inner.sleep(seconds)
+
+
+def _default_transport() -> httpx.HTTPTransport:
+    """A bare transport (no environment proxies) whose connections obey the
+    fetch's overall deadline."""
+    transport = httpx.HTTPTransport()
+    pool = transport._pool  # httpx pins httpcore's pool here; a test checks it
+    pool._network_backend = _DeadlineBackend(pool._network_backend)
+    return transport
 
 
 class PageUnreadable(Exception):
@@ -91,7 +165,7 @@ class PageFetcher:
         timeout: float = TIMEOUT_SECONDS,
         clock: Callable[[], float] = time.monotonic,
     ):
-        self.transport = transport if transport is not None else httpx.HTTPTransport()
+        self.transport = transport if transport is not None else _default_transport()
         self.resolver: Resolver = resolver or system_resolver
         self.timeout = timeout
         self.clock = clock
@@ -104,6 +178,13 @@ class PageFetcher:
 
     def fetch(self, url: str) -> FetchedPage:
         deadline = self.clock() + self.timeout
+        _current.deadline = time.monotonic() + self.timeout
+        try:
+            return self._fetch(url, deadline)
+        finally:
+            _current.deadline = None
+
+    def _fetch(self, url: str, deadline: float) -> FetchedPage:
         current = url
         for hop in range(MAX_REDIRECTS + 1):
             target = self._check(current, deadline, redirect=hop > 0)
@@ -141,12 +222,12 @@ class PageFetcher:
             raise PageUnreadable(refused or "scheme") from None
         if url.scheme not in ("http", "https"):
             raise PageUnreadable(refused or "scheme")
-        host = url.host.lower()
+        host = url.raw_host.decode("ascii").lower()  # punycode for an IDN name
         if not host:
             raise PageUnreadable(refused or "scheme")
         if url.userinfo:
             raise PageUnreadable(refused or "userinfo")
-        port = url.port or (443 if url.scheme == "https" else 80)
+        port = url.port if url.port is not None else (443 if url.scheme == "https" else 80)
         if port not in ALLOWED_PORTS:
             raise PageUnreadable(refused or "port")
         literal = parse_address(host)
@@ -159,9 +240,10 @@ class PageFetcher:
             addresses = self._resolve(host, port, deadline)
         if not addresses:
             raise PageUnreadable("unresolved")
-        addresses = list(dict.fromkeys(addresses))
-        if not all(is_public_text(address) for address in addresses):
+        parsed = [parse_address(address) for address in dict.fromkeys(addresses)]
+        if not all(address is not None and is_public(address) for address in parsed):
             raise PageUnreadable("refused_address")
+        addresses = list(dict.fromkeys(str(address) for address in parsed))  # exactly what was checked
         return _Target(url, host, port, addresses)
 
     def _resolve(self, host: str, port: int, deadline: float) -> Sequence[str]:
@@ -241,10 +323,12 @@ class PageFetcher:
 
 
 def _known(name: str) -> str | None:
+    """The codec's name if it is a text encoding (not base64, hex, zlib, ...)."""
     try:
-        return codecs.lookup(name.strip()).name
+        info = codecs.lookup(name.strip())
     except (LookupError, ValueError):
         return None
+    return info.name if getattr(info, "_is_text_encoding", True) else None
 
 
 def _decode(body: bytes, content_type: str) -> str:
@@ -258,4 +342,7 @@ def _decode(body: bytes, content_type: str) -> str:
         meta = _META_CHARSET.search(body[:2048].decode("latin-1"))
         if meta:
             encoding = _known(meta.group(1))
-    return body.decode(encoding or "utf-8", errors="replace")
+    try:
+        return body.decode(encoding or "utf-8", errors="replace")
+    except (LookupError, UnicodeError):  # e.g. "undefined", which is a "text" codec that always fails
+        return body.decode("utf-8", errors="replace")

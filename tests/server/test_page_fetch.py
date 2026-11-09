@@ -535,3 +535,86 @@ def test_the_defaults():
 def test_httpcore_still_honours_sni_hostname():
     source = inspect.getsource(httpcore_connection.HTTPConnection._connect)
     assert "sni_hostname" in source and "server_hostname" in source
+
+
+# --- review fixes -----------------------------------------------------------
+
+
+def test_an_idn_host_uses_punycode_for_the_lookup_host_header_and_sni():
+    r = rig(html_response(), hosts={"xn--mnchen-3ya.de": [PUBLIC]})
+    r.fetch("https://münchen.de/rezept")
+    assert r.lookups == [("xn--mnchen-3ya.de", 443)]
+    (request,) = r.requests
+    assert request.headers["Host"] == "xn--mnchen-3ya.de"
+    assert request.extensions["sni_hostname"] == "xn--mnchen-3ya.de"
+
+
+def test_a_redirect_to_an_idn_host():
+    r = rig(redirect("https://räksmörgås.example/x".encode()), html_response(), hosts={"recipes.example": [PUBLIC], "xn--rksmrgs-5wao1o.example": [PUBLIC]})
+    assert r.fetch("https://recipes.example/").url.startswith("https://xn--rksmrgs-5wao1o.example/")
+
+
+@pytest.mark.parametrize("charset", ["base64", "hex", "zlib", "bz2", "rot13", "idna", "undefined", "uu", "quopri"])
+def test_non_text_charsets_fall_back_to_utf8(charset):
+    header = html_response(b"<p>ok \xff</p>", **{"Content-Type": f"text/html; charset={charset}"})
+    assert rig(header).fetch("https://recipes.example/").html == "<p>ok �</p>"
+    meta = html_response(f'<meta charset="{charset}"><p>ok</p>'.encode())
+    assert rig(meta).fetch("https://recipes.example/").html.endswith("<p>ok</p>")
+
+
+def test_a_padded_answer_is_pinned_as_the_checked_address():
+    r = rig(html_response(), hosts={"recipes.example": [f" {PUBLIC} "]})
+    r.fetch("https://recipes.example/")
+    assert r.requests[0].url.host == PUBLIC
+
+
+@pytest.mark.parametrize("url", ["http://recipes.example:0/", "https://recipes.example:0/"])
+def test_port_zero_is_refused(url):
+    refused(rig(), url, "port")
+
+
+def test_the_default_transport_obeys_the_deadline():
+    fetcher = PageFetcher()
+    assert isinstance(fetcher.transport._pool._network_backend, page_fetch._DeadlineBackend)
+    fetcher.close()
+
+
+def test_a_server_that_trickles_its_headers_is_cut_at_the_deadline(monkeypatch):
+    """A real loopback socket and the real transport (the address check is off
+    for this test only, to reach 127.0.0.1)."""
+    import socket
+    import time
+
+    monkeypatch.setattr(page_fetch, "is_public", lambda address: True)
+    server = socket.socket()
+    server.bind(("127.0.0.1", 0))
+    server.listen(1)
+    port = server.getsockname()[1]
+    monkeypatch.setattr(page_fetch, "ALLOWED_PORTS", (80, 443, port))
+    stop = threading.Event()
+
+    def trickle():
+        conn, _ = server.accept()
+        conn.recv(65536)
+        conn.sendall(b"HTTP/1.1 200 OK\r\n")
+        while not stop.is_set():
+            try:
+                conn.sendall(b"X-Slow: 1\r\n")
+            except OSError:
+                break
+            stop.wait(0.2)
+        conn.close()
+
+    thread = threading.Thread(target=trickle, daemon=True)
+    thread.start()
+    fetcher = PageFetcher(timeout=1.0, resolver=lambda host, p: ["127.0.0.1"])
+    start = time.monotonic()
+    try:
+        with pytest.raises(PageUnreadable) as caught:
+            fetcher.fetch(f"http://recipes.example:{port}/")
+        elapsed = time.monotonic() - start
+    finally:
+        stop.set()
+        fetcher.close()
+        server.close()
+    assert caught.value.reason == "timeout" and elapsed < 3.0

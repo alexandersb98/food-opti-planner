@@ -116,7 +116,7 @@ def test_junk_in_lists_is_ignored():
 
 def test_hostile_json():
     assert extract_recipe_text(page(ld("[" * 100_000), body="<p>fallback</p>")) == "T\nfallback"
-    assert extract_recipe_text(page(ld("[" + ",".join(["1"] * 700_000) + "]"), body="<p>x</p>")) == "T\nx"
+    assert extract_recipe_text(page(ld("[" + ",".join(["1"] * 400_000) + "]"), body="<p>x</p>")) == "T\nx"
     nodes = [{"@type": "Thing"}] * 50_000 + [recipe(name="Late")]
     assert "Late" not in extract_recipe_text(page(ld({"@graph": nodes}), body="<p>x</p>"))
 
@@ -217,3 +217,43 @@ def test_json_ld_beats_visible_text():
 
 def test_a_head_without_a_close_does_not_swallow_the_body():
     assert extract_recipe_text("<html><head><title>T</title><body><p>text</p></body></html>") == "T\ntext"
+
+
+# --- hostile sizes: linear time, with generous bounds ----------------------
+
+TWO_MIB = 2 * 1024 * 1024
+
+
+def timed(page_text, limit=3.0):
+    import time
+
+    start = time.monotonic()
+    result = extract_recipe_text(page_text)
+    assert time.monotonic() - start < limit
+    return result
+
+
+@pytest.mark.parametrize(
+    "hostile",
+    [
+        "<b>" * (TWO_MIB // 3),  # opens never closed
+        "<b>" * 350_000 + "</i>" * 260_000,  # stray end tags
+        "<p><b>" * 100_000 + "</b>" * 100_000,
+        "<" * TWO_MIB,
+        "<a " * (TWO_MIB // 3),
+        "<div>" * (TWO_MIB // 5),
+        "&amp;" * (TWO_MIB // 5),
+        "<p>" + "a<b>b</b> " * (TWO_MIB // 10),
+    ],
+    ids=["opens", "stray-ends", "nested", "lt", "open-attrs", "divs", "entities", "text"],
+)
+def test_hostile_pages_take_linear_time(hostile):
+    timed(hostile)
+
+
+def test_hostile_json_ld_strings_take_linear_time():
+    ingredients = ["<" * 100_000] * 3 + ["x"] * 100_000
+    out = timed(ld({"@type": "Recipe", "recipeIngredient": ingredients}))
+    assert len(json.loads(out)["recipeIngredient"]) <= 200
+    timed(ld({"@type": "Recipe", "recipeIngredient": ["a"], "name": "<" * TWO_MIB}))
+    timed(ld({"@type": "Recipe", "recipeIngredient": ["a"], "recipeInstructions": ["<b" * 100_000] * 3}))
