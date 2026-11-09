@@ -5,6 +5,7 @@ it would become"; the preview and the add call it, and so will the comparison
 of later updates. Arithmetic goes through `unit_change.convert_number`, so no
 second rounding rule exists. No FastAPI."""
 
+import logging
 from dataclasses import dataclass
 from decimal import Decimal
 from fractions import Fraction
@@ -16,6 +17,8 @@ from . import models, preferences, unit_change, units
 
 # The food values of a source are per 100 g.
 FOOD_GRAMS = Decimal(100)
+
+log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -51,7 +54,8 @@ def copied_values(db: Session, food: models.SourceFood) -> Copied:
     source that is not withdrawn, is mapped to an attribute and has a value for
     this food, the value converted to the attribute's unit (exact, then rounded
     half up to 6 decimals), by attribute id. A value that would not fit the
-    stored size is left out and its attribute named in `skipped`; zero is a
+    stored size, or whose column no longer converts with its attribute, is left
+    out and its attribute named in `skipped`; zero is a
     value and is kept."""
     rows = db.execute(
         select(models.SourceFoodValue.value, models.SourceColumn, models.Attribute)
@@ -69,8 +73,15 @@ def copied_values(db: Session, food: models.SourceFood) -> Copied:
     for value, column, attribute in rows:
         ratio: Fraction | None = units.ratio(column.unit, attribute.unit)
         if ratio is None:
-            # A mapping always converts (slice D3 keeps it so): this is a bug.
-            raise RuntimeError(f"column {column.name} ({column.unit}) is mapped to {attribute.name} ({attribute.unit})")
+            # A mapping always converts (slice D3 keeps it so), so this is a broken
+            # invariant (a changed unit catalogue, an edited file). Don't block the
+            # food: leave the column out and say so.
+            log.warning(
+                "column %s (%s) is mapped to %s (%s) but does not convert: not copied",
+                column.name, column.unit, attribute.name, attribute.unit,
+            )
+            skipped.append(attribute.name)
+            continue
         converted = unit_change.convert_number(value, ratio)
         if converted is None:
             skipped.append(attribute.name)

@@ -179,7 +179,11 @@ def _value(stored: models.IngredientValue | None, fields: IngredientValue) -> mo
 def list_ingredients(db: DbSession) -> list[Ingredient]:
     ingredients = db.scalars(
         select(models.Ingredient)
-        .options(selectinload(models.Ingredient.source_food).selectinload(models.SourceFood.source))
+        .options(
+            selectinload(models.Ingredient.values),
+            selectinload(models.Ingredient.tags),
+            selectinload(models.Ingredient.source_food).selectinload(models.SourceFood.source),
+        )
         .order_by(models.Ingredient.id)
     )
     recipe_counts = _recipe_counts(db)

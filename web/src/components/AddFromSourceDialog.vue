@@ -26,7 +26,7 @@ const sourcesFailed = ref(false)
 const sourcesLoaded = ref(false)
 const sourceKey = ref<string | null>(null)
 
-const search = ref('')
+const search = ref<string | null>('') // null after the box is cleared
 const foods = ref<FoodSummary[]>([])
 const total = ref(0)
 const searching = ref(false)
@@ -44,6 +44,7 @@ const adding = ref(false)
 let searchRequest = 0
 let previewRequest = 0
 let timer: ReturnType<typeof setTimeout> | undefined
+let skipSearchWatch = false
 
 const sourceOptions = computed(() => sources.value.map((source) => ({ label: source.name, value: source.key })))
 const hasMore = computed(() => foods.value.length < total.value)
@@ -74,7 +75,7 @@ async function runSearch(offset: number) {
   searchFailed.value = false
   try {
     const { data } = await api.GET('/api/data-sources/{key}/foods', {
-      params: { path: { key }, query: { search: search.value, offset } },
+      params: { path: { key }, query: { search: search.value ?? '', offset } },
     })
     if (mine !== searchRequest) return
     if (!data) throw new Error('no foods')
@@ -87,11 +88,23 @@ async function runSearch(offset: number) {
 }
 
 watch(open, (shown) => {
-  if (shown) void start()
+  if (!shown) return
+  // Reopening starts afresh: no chosen food, no old search.
+  backToResults()
+  if (search.value) {
+    skipSearchWatch = true // a reset is not a typed search; start() lists the foods
+    search.value = ''
+  }
+  clearTimeout(timer)
+  void start()
 })
 if (open.value) void start()
 
 watch(search, () => {
+  if (skipSearchWatch) {
+    skipSearchWatch = false
+    return
+  }
   clearTimeout(timer)
   timer = setTimeout(() => void runSearch(0), SEARCH_DELAY)
 })

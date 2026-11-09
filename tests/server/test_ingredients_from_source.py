@@ -238,6 +238,8 @@ def preview(client, made, unit):
 def test_a_linked_ingredient_may_change_to_another_mass_unit(data_client):
     map_columns(data_client)
     made = add(data_client).json()
+    before = source_values(data_client, made["id"])
+    assert before and None not in before.values()
     answer = preview(data_client, made, "kg")
     assert (answer["kind"], answer["refusal"]) == ("convert", None)
     response = put(data_client, made, unit="kg")
@@ -245,7 +247,9 @@ def test_a_linked_ingredient_may_change_to_another_mass_unit(data_client):
     body = response.json()
     assert (body["unit"], body["basis"]) == ("kg", "0.1")
     assert body["source"]["food_name"] == "TEST Oats"
-    assert set(source_values(data_client, made["id"]).values()) != {None}
+    # Values are per 100 g of food, so the unit change leaves them and the source values alone.
+    assert body["values"] == made["values"]
+    assert source_values(data_client, made["id"]) == before
 
 
 @pytest.mark.parametrize("unit", ["dl", "st", "portion"])
@@ -285,3 +289,28 @@ def test_editing_a_value_keeps_the_other_source_values_and_emptying_one_removes_
 def test_creating_an_ordinary_ingredient_has_no_link(client):
     body = client.post("/api/ingredients", json={"name": "Oats", "unit": "dl", "basis": "100", "values": [], "tag_ids": []})
     assert body.json()["source"] is None
+
+
+def test_the_list_does_not_query_more_for_more_ingredients(data_client):
+    from sqlalchemy import event
+
+    map_columns(data_client)
+    grains = food_tags(data_client)["TEST Grains"]
+
+    def statements():
+        count = []
+        engine = data_client.app.state.engine
+        listener = lambda *args: count.append(1)  # noqa: E731
+        event.listen(engine, "before_cursor_execute", listener)
+        try:
+            assert data_client.get("/api/ingredients").status_code == 200
+        finally:
+            event.remove(engine, "before_cursor_execute", listener)
+        return len(count)
+
+    add(data_client, "One", tag_ids=[grains])
+    few = statements()
+    for i in range(4):
+        add(data_client, f"More {i}", "TEST Milk", tag_ids=[])
+        add(data_client, f"Again {i}", tag_ids=[grains])
+    assert statements() == few

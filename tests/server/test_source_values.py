@@ -97,10 +97,14 @@ def test_values_are_ordered_by_attribute_id(db):
     assert [c.attribute.id for c in result.values] == [energy.id, protein.id]
 
 
-def test_a_mapping_that_does_not_convert_is_a_bug(db):
+def test_a_mapping_that_does_not_convert_is_skipped_with_a_warning(db, caplog):
     map_column(db, "PROT", attribute(db, "Wrong", "dl"))
-    with pytest.raises(RuntimeError):
-        source_values.copied_values(db, food(db, "TEST Oats"))
+    map_column(db, "ENERC:kcal", attribute(db, "Energy", "kcal"))
+    with caplog.at_level("WARNING"):
+        result = source_values.copied_values(db, food(db, "TEST Oats"))
+    assert result.skipped == ["Wrong"]
+    assert [c.attribute.name for c in result.values] == ["Energy"]
+    assert "does not convert" in caplog.text
 
 
 def test_the_basis_is_100_g_by_default(db):
