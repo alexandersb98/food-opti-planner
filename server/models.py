@@ -601,7 +601,17 @@ class Preference(Base):
     value: Mapped[str] = mapped_column(String(PREFERENCE_VALUE_LENGTH))
 
 
+class AICallCount(Base):
+    """Model calls made on one UTC day, for the daily limit (slice R4)."""
+
+    __tablename__ = "ai_calls"
+
+    day: Mapped[date] = mapped_column(primary_key=True)
+    calls: Mapped[int]
+
+
 __all__ = [
+    "AICallCount",
     "Attribute",
     "Base",
     "DataSource",

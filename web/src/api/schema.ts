@@ -1090,6 +1090,8 @@ export interface components {
         };
         /** Health */
         Health: {
+            /** Ai Configured */
+            ai_configured: boolean;
             /** Database */
             database: boolean;
         };

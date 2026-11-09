@@ -1048,13 +1048,18 @@
       },
       "Health": {
         "properties": {
+          "ai_configured": {
+            "title": "Ai Configured",
+            "type": "boolean"
+          },
           "database": {
             "title": "Database",
             "type": "boolean"
           }
         },
         "required": [
-          "database"
+          "database",
+          "ai_configured"
         ],
         "title": "Health",
         "type": "object"

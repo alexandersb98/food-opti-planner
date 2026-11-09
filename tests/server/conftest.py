@@ -1,6 +1,7 @@
 """Server test fixtures. Tests use SQLite unless TEST_DATABASE_URL names a
 Postgres database, which CI sets for its second run."""
 
+import json
 import os
 from contextlib import contextmanager
 from dataclasses import replace
@@ -61,11 +62,14 @@ def web_dist(tmp_path):
 
 
 @contextmanager
-def logged_in_client(database_url, web_dist, *, log_in=True, **settings):
+def logged_in_client(database_url, web_dist, *, log_in=True, ai_transport=None, **settings):
     """A client of a fresh app on `database_url`, logged in unless `log_in` is
-    false. `settings` override the test settings. HTTPS, because the session
-    cookie is Secure."""
-    app = create_app(settings_with(database_url=database_url, web_dist=web_dist, **settings))
+    false. `settings` override the test settings; `ai_transport` is the AI
+    transport the app uses (it closes it at shutdown). HTTPS, because the
+    session cookie is Secure."""
+    app = create_app(
+        settings_with(database_url=database_url, web_dist=web_dist, **settings), ai_transport=ai_transport
+    )
     with TestClient(app, base_url="https://testserver") as client:
         if log_in:
             response = client.post("/api/login", json={"password": PASSWORD})
@@ -85,6 +89,40 @@ def client(database_url, web_dist):
     """A logged-in client; most API tests use this one."""
     with logged_in_client(database_url, web_dist) as client:
         yield client
+
+
+def anthropic_reply(answer, input_tokens=100, output_tokens=50) -> dict:
+    """An Anthropic-shaped reply (see tests/data/ai_responses) whose text is
+    `answer`: a draft dict (sent as JSON) or a raw string."""
+    text = answer if isinstance(answer, str) else json.dumps(answer)
+    return {
+        "content": [{"type": "text", "text": text}],
+        "usage": {"input_tokens": input_tokens, "output_tokens": output_tokens},
+    }
+
+
+class ScriptedTransport:
+    """A Transport answering from a list, in order: a dict is the reply, an
+    exception is raised. Records every request (url, headers, body)."""
+
+    def __init__(self, *replies):
+        self.replies = list(replies)
+        self.requests = []
+        self.closed = 0
+
+    @property
+    def calls(self) -> int:
+        return len(self.requests)
+
+    def post_json(self, url, headers, body):
+        self.requests.append((url, dict(headers), body))
+        reply = self.replies.pop(0)
+        if isinstance(reply, Exception):
+            raise reply
+        return reply
+
+    def close(self):
+        self.closed += 1
 
 
 # A recipe's fields besides its name, lines and added tags: the portion

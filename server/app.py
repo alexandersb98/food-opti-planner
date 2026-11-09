@@ -9,14 +9,17 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 
 from . import api, source_loader
+from .ai.chat import Transport
+from .ai_runtime import AIRuntime
 from .auth import Auth
 from .db import make_engine, migrate
 from .settings import Settings
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, *, ai_transport: Transport | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
     _check_login_settings(settings)
+    ai = AIRuntime(settings, ai_transport)  # a bad AI setting stops the app, like a bad login one
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -24,10 +27,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             migrate(settings.database_url)
             source_loader.load_all(app.state.engine, settings.data_sources_dir)
         yield
+        ai.close()
         app.state.engine.dispose()
 
     app = FastAPI(title="Meal planner", lifespan=lifespan)
     app.state.engine = make_engine(settings.database_url)
+    app.state.ai = ai
     app.state.auth = Auth(settings.password_hash, settings.session_key)
     app.state.running_solve = api.solve.RunningSolve()
     app.include_router(api.router)
