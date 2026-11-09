@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory, type RouterHistory } from 'vue-router'
 import { api, setUnauthorizedHandler } from './api/client'
 import MainLayout from './layouts/MainLayout.vue'
+import DataSourcePage from './pages/DataSourcePage.vue'
 import IngredientPage from './pages/IngredientPage.vue'
 import LoginPage from './pages/LoginPage.vue'
 import RecipeFiltersPage from './pages/RecipeFiltersPage.vue'
@@ -25,6 +26,7 @@ export function makeRouter(history: RouterHistory = createWebHistory()) {
         children: [
           ...pages.map(({ path, name, component }) => ({ path, name, component })),
           // Editors, opened from their page's list or card.
+          { path: '/settings/data-sources/:key', name: 'data-source', component: DataSourcePage },
           { path: '/plan/schedule', name: 'schedule', component: SchedulePage },
           { path: '/plan/recipes', name: 'recipe-filters', component: RecipeFiltersPage },
           // A made plan (R1): the unsaved one, or a saved one, opened at

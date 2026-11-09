@@ -2,7 +2,7 @@ import { flushPromises } from '@vue/test-utils'
 import { afterEach, expect, test, vi } from 'vitest'
 import { resetPreferences } from '../preferences'
 import { button, click, fakeServer, mountApp, type FakeServer } from '../test-app'
-import { preferences, unitCatalogue } from '../test-data'
+import { dataSourceSummary, preferences, unitCatalogue } from '../test-data'
 import { resetUnits } from '../units'
 
 afterEach(() => {
@@ -20,6 +20,7 @@ function server(overrides: FakeServer = {}) {
     'GET /api/session': 204,
     'GET /api/units': { body: unitCatalogue() },
     'GET /api/preferences': () => ({ body: saved }),
+    'GET /api/data-sources': { body: [] },
     'PUT /api/preferences': (body) => {
       puts.push(body)
       saved = { ...saved, ...(body as object) }
@@ -215,5 +216,29 @@ test('two quick changes in different selects both save, in order', async () => {
   expect(puts).toEqual([{ 'unit.mass': 'kg' }, { 'unit.energy': 'kJ' }])
   expect(shown(wrapper, 'Mass')).toBe('kg (kilogram)')
   expect(shown(wrapper, 'Energy')).toBe('kJ (kilojoule)')
+  wrapper.unmount()
+})
+
+test('the Data sources card is on the page', async () => {
+  server({ 'GET /api/data-sources': { body: [dataSourceSummary()] } })
+  const wrapper = await mountPage()
+  expect(wrapper.get('.data-sources-card').text()).toContain('TEST Source')
+  wrapper.unmount()
+})
+
+test('when the data sources fail to load, Preferred units still works', async () => {
+  const { puts } = server({ 'GET /api/data-sources': 500 })
+  const wrapper = await mountPage()
+  expect(wrapper.get('.data-sources-card').text()).toContain('Could not load the data sources.')
+  await choose(wrapper, 'Mass', 'kg (kilogram)')
+  expect(puts).toEqual([{ 'unit.mass': 'kg' }])
+  wrapper.unmount()
+})
+
+test('when the preferences fail to load, the Data sources card still shows', async () => {
+  server({ 'GET /api/preferences': 500, 'GET /api/data-sources': { body: [dataSourceSummary()] } })
+  const wrapper = await mountPage()
+  expect(wrapper.text()).toContain('Could not load the settings.')
+  expect(wrapper.get('.data-sources-card').text()).toContain('TEST Source')
   wrapper.unmount()
 })

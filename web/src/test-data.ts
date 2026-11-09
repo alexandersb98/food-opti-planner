@@ -1,4 +1,4 @@
-import type { Attribute, Goal, Ingredient, Plan, PlanResult, PlanResultSummary, Preferences, Recipe, ResultGoal, ResultMeal, ResultMiss, Tag, UnitCatalogue, UnitChange, UnitChangeRefusal } from './api/types'
+import type { Attribute, DataSource, DataSourceSummary, SourceColumn, Goal, Ingredient, Plan, PlanResult, PlanResultSummary, Preferences, Recipe, ResultGoal, ResultMeal, ResultMiss, Tag, UnitCatalogue, UnitChange, UnitChangeRefusal } from './api/types'
 import unitFixture from './test-units.json'
 
 // Rows as the server answers them, for tests: give what the test is about,
@@ -117,6 +117,35 @@ export function planResult(fields: Given<PlanResult, 'id'>): PlanResult {
     meals: Array.from({ length: days }, () => []),
     goals: [],
     misses: [],
+    ...fields,
+  }
+}
+
+/** A data source as the list answers it, by default the fake TEST source. */
+export function dataSourceSummary(fields: Partial<DataSourceSummary> = {}): DataSourceSummary {
+  return {
+    key: 'testsource',
+    name: 'TEST Source',
+    colour: '#1976d2',
+    version: '2026-01-01',
+    imported_at: '2026-01-01T12:00:00Z',
+    food_count: 3,
+    column_count: 3,
+    ...fields,
+  }
+}
+
+/** A column of a data source, by default active, in grams. */
+export function sourceColumn(fields: Given<SourceColumn, 'id' | 'name'>): SourceColumn {
+  return { key: `C${fields.id}`, unit: 'g', withdrawn: false, ...fields }
+}
+
+/** A data source in full, by default with an attribution and no columns. */
+export function dataSource(fields: Partial<DataSource> = {}): DataSource {
+  return {
+    ...dataSourceSummary(fields),
+    attribution: 'TEST data, not real: for tests only.',
+    columns: [],
     ...fields,
   }
 }

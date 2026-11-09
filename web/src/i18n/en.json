@@ -20,7 +20,26 @@
       "mass": "Mass",
       "volume": "Volume",
       "energy": "Energy"
+    },
+    "dataSources": {
+      "title": "Data sources",
+      "empty": "No data sources loaded.",
+      "loadFailed": "Could not load the data sources.",
+      "version": "Version {version}",
+      "foods": "no foods | 1 food | {n} foods"
     }
+  },
+  "dataSource": {
+    "loadFailed": "Could not load the data source.",
+    "version": "Version",
+    "imported": "Imported",
+    "attribution": "Attribution",
+    "colour": "Colour",
+    "columns": "Columns",
+    "columnCount": "no columns | 1 column | {n} columns",
+    "searchColumns": "Search columns",
+    "noColumnMatch": "No columns match.",
+    "withdrawn": "No longer in the source"
   },
   "units": {
     "groups": {

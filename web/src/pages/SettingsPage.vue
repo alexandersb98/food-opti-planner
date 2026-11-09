@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import type { Preferences } from '../api/types'
+import DataSourcesCard from '../components/DataSourcesCard.vue'
 import LoadState from '../components/LoadState.vue'
 import { usePreferences } from '../preferences'
 import { useUnits, type Category } from '../units'
@@ -85,5 +86,7 @@ onMounted(load)
         {{ $t('common.saveFailed') }}
       </p>
     </LoadState>
+
+    <DataSourcesCard class="q-mt-md" />
   </q-page>
 </template>
