@@ -28,7 +28,7 @@ def test_the_list_has_a_row_per_source(data_client):
     assert (row["key"], row["name"], row["version"]) == ("testsource", "TEST Source", "2026-01-01")
     assert (row["food_count"], row["column_count"]) == (3, 3)
     assert len(row["colour"]) == 7 and row["colour"].startswith("#")
-    assert "T" in row["imported_at"]
+    assert row["imported_at"].endswith(("Z", "+00:00"))  # UTC, so the app can show local time
     assert set(row) == {"key", "name", "colour", "version", "imported_at", "food_count", "column_count"}
 
 

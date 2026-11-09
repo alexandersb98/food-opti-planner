@@ -1,7 +1,7 @@
 """/api/data-sources: the data sources the server loaded (S1), and one
 source's page (S2): its columns, and its colour, the one thing to edit."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, status
@@ -70,7 +70,7 @@ def _summary(
         name=source.name,
         colour=source.colour,
         version=source.version,
-        imported_at=source.imported_at,
+        imported_at=source.imported_at.replace(tzinfo=UTC),  # stored as UTC
         food_count=foods.get(source.id, 0),
         column_count=columns.get(source.id, 0),
     )
