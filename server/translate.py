@@ -4,7 +4,8 @@ Pure functions of model objects, with no database or HTTP, so each rule has
 its own plain test.
 """
 
-from collections.abc import Collection, Sequence
+from collections.abc import Collection, Iterable, Mapping, Sequence
+from dataclasses import dataclass
 from decimal import Decimal
 
 from meal_planner import (
@@ -19,15 +20,52 @@ def attribute(row: models.Attribute) -> AttributeDef:
     return AttributeDef(name=row.name, precision=row.decimals)
 
 
-def ingredient(row: models.Ingredient) -> Ingredient:
+@dataclass(frozen=True)
+class LibraryTags:
+    """The tags as the library sees them: every group of equivalent tags
+    (decision 13) is one tag. `names` maps a stored tag's name to its library
+    name (itself when it is in no group); `defs` are the library's tags: the
+    ungrouped ones in tag order, then one per group in group id order."""
+
+    names: Mapping[str, str]
+    defs: tuple[TagDef, ...]
+
+    def map(self, names: Iterable[str]) -> frozenset[str]:
+        """The library names of a set of stored tag names."""
+        return frozenset(self.names.get(name, name) for name in names)
+
+
+def library_tags(tags: Sequence[models.Tag]) -> LibraryTags:
+    """A group's library name is "group {id}", with "*" added while a stored
+    tag has that name, so it can never clash. Its rule is its members' rule,
+    which `server/tag_groups.py` keeps equal."""
+    stored = {row.name for row in tags}
+    names = {row.name: row.name for row in tags}
+    grouped: dict[int, list[models.Tag]] = {}
+    for row in tags:
+        if row.group_id is not None:
+            grouped.setdefault(row.group_id, []).append(row)
+    defs = [tag(row) for row in tags if row.group_id is None]
+    for group_id in sorted(grouped):
+        name = f"group {group_id}"
+        while name in stored:
+            name += "*"
+        for row in grouped[group_id]:
+            names[row.name] = name
+        defs.append(TagDef(name=name, derive=grouped[group_id][0].derive))
+    return LibraryTags(names, tuple(defs))
+
+
+def ingredient(row: models.Ingredient, names: Mapping[str, str] | None = None) -> Ingredient:
     """Values are typed per `basis` units ("per 100 g"); the library's are per
     one unit, so each is divided by the basis. An attribute with no value is
-    left out, which the library counts as 0."""
+    left out, which the library counts as 0. Tag names go through `names`
+    (`LibraryTags.names`) when given, else stay as stored."""
     return Ingredient(
         name=row.name,
         unit=row.unit,
         attributes={v.attribute.name: v.value / row.basis for v in row.values},
-        tags=frozenset(tag.name for tag in row.tags),
+        tags=frozenset((names or {}).get(tag.name, tag.name) for tag in row.tags),
     )
 
 
@@ -35,14 +73,15 @@ def tag(row: models.Tag) -> TagDef:
     return TagDef(name=row.name, derive=row.derive)
 
 
-def recipe(row: models.Recipe) -> Recipe:
+def recipe(row: models.Recipe, names: Mapping[str, str] | None = None) -> Recipe:
     """Amounts are per portion, in each ingredient's unit, as the library's.
     Tags added by hand become `extra_tags`; the others the library derives.
-    No hard upper limit means the library's default, 3 times the soft one."""
+    No hard upper limit means the library's default, 3 times the soft one.
+    Tag names go through `names` as in `ingredient`."""
     return Recipe(
         name=row.name,
-        items=tuple(IngredientAmount(ingredient(item.ingredient), item.amount) for item in row.items),
-        extra_tags=frozenset(tag.name for tag in row.extra_tags),
+        items=tuple(IngredientAmount(ingredient(item.ingredient, names), item.amount) for item in row.items),
+        extra_tags=frozenset((names or {}).get(tag.name, tag.name) for tag in row.extra_tags),
         multiplier_step=row.step,
         min_multiplier=row.min_multiplier,
         max_multiplier=row.max_multiplier,
@@ -57,10 +96,12 @@ def usable_recipes(
     """The recipes left after the filters, in order: those with every tag in
     `only` and none in `never`, tags by name, derived ones too. The library's
     rule (`recipe_passes`), without the whole valid request
-    `PlanRequest.eligible_recipes` needs."""
-    tag_defs = {row.name: tag(row) for row in tags}
-    only, never = frozenset(only), frozenset(never)
-    return [row for row in recipes if recipe_passes(recipe(row).tags(tag_defs), only, never)]
+    `PlanRequest.eligible_recipes` needs. Equivalent tags count as one
+    (`library_tags`)."""
+    library = library_tags(tags)
+    tag_defs = {d.name: d for d in library.defs}
+    only, never = library.map(only), library.map(never)
+    return [row for row in recipes if recipe_passes(recipe(row, library.names).tags(tag_defs), only, never)]
 
 
 def filter_names(plan: models.Plan, mode: str) -> frozenset[str]:
@@ -228,14 +269,16 @@ def plan_request(
 ) -> PlanRequest:
     """The whole catalog, the schedule, the goals, each keyed by its place
     (`constraint_key`), and the recipe filters, Only as `require_tags` and
-    Never as `exclude_tags`."""
+    Never as `exclude_tags`. Every group of equivalent tags is one library
+    tag (`library_tags`), also in the filters."""
+    library = library_tags(tags)
     return PlanRequest(
         attributes=tuple(attribute(row) for row in attributes),
-        tags=tuple(tag(row) for row in tags),
-        recipes=tuple(recipe(row) for row in recipes),
+        tags=library.defs,
+        recipes=tuple(recipe(row, library.names) for row in recipes),
         days=days(plan),
         constraints=tuple(constraint(goal, constraint_key(i)) for i, goal in enumerate(plan.goals)),
-        require_tags=filter_names(plan, "only"),
-        exclude_tags=filter_names(plan, "never"),
+        require_tags=library.map(filter_names(plan, "only")),
+        exclude_tags=library.map(filter_names(plan, "never")),
         solve_time_limit=plan.solve_time_limit,
     )

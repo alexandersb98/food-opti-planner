@@ -5,7 +5,7 @@ from decimal import Decimal
 
 import pytest
 
-from meal_planner import IngredientAmount, Recipe
+from meal_planner import IngredientAmount, Recipe, TagDef
 from server import models, translate
 
 ENERGY = models.Attribute(id=1, name="Energy", unit="kcal", decimals=0)
@@ -441,4 +441,124 @@ def test_the_usable_recipes_are_the_librarys_eligible_ones(only, never):
     rows = recipes_to_filter()
     request = translate.plan_request(filtered(only, never), [ENERGY], tags, rows)
     usable = translate.usable_recipes(rows, tags, [t.name for t in only], [t.name for t in never])
+    assert [row.name for row in usable] == [recipe.name for recipe in request.eligible_recipes()]
+
+
+# Tag groups (equivalent tags)
+
+FISH = models.Tag(id=10, name="Fish", derive="any", group_id=1)
+SEAFOOD = models.Tag(id=11, name="Seafood", derive="any", group_id=1)
+FISK = models.Tag(id=12, name="Fisk och skaldjur", derive="any", group_id=1)
+GROUPED = [VEGAN, FISH, SEAFOOD, FISK]
+
+
+def group_rule(rule):
+    return [models.Tag(id=t.id, name=t.name, derive=rule, group_id=1) for t in (FISH, SEAFOOD, FISK)]
+
+
+def test_without_groups_every_tag_keeps_its_name_and_def():
+    library = translate.library_tags([VEGAN, NUTS])
+    assert library.names == {"vegan": "vegan", "contains-nuts": "contains-nuts"}
+    assert library.defs == (translate.tag(VEGAN), translate.tag(NUTS))
+
+
+def test_a_group_is_one_library_tag_and_its_members_are_none():
+    library = translate.library_tags(GROUPED)
+    assert library.names == {"vegan": "vegan", "Fish": "group 1", "Seafood": "group 1", "Fisk och skaldjur": "group 1"}
+    assert library.defs == (TagDef("vegan", "all"), TagDef("group 1", "any"))
+
+
+def test_the_group_has_its_members_rule():
+    library = translate.library_tags(group_rule("all"))
+    assert library.defs == (TagDef("group 1", "all"),)
+
+
+def test_two_groups_are_named_by_their_ids_after_the_ungrouped_tags():
+    other = [models.Tag(id=20, name="A", derive="all", group_id=2), models.Tag(id=21, name="B", derive="all", group_id=2)]
+    library = translate.library_tags([*other, *GROUPED])
+    assert [d.name for d in library.defs] == ["vegan", "group 1", "group 2"]
+    assert library.names["A"] == library.names["B"] == "group 2"
+
+
+def test_a_group_name_is_checked_against_the_stored_names():
+    clash = models.Tag(id=30, name="group 1", derive="all")
+    assert translate.library_tags([clash, FISH, SEAFOOD]).names["Fish"] == "group 1*"
+    clash2 = models.Tag(id=31, name="group 1*", derive="all")
+    library = translate.library_tags([clash, clash2, FISH, SEAFOOD])
+    assert library.names["Fish"] == "group 1**"
+    assert [d.name for d in library.defs] == ["group 1", "group 1*", "group 1**"]
+
+
+def test_map_gives_the_library_names_of_stored_names():
+    library = translate.library_tags(GROUPED)
+    assert library.map(["Fish", "Seafood", "vegan"]) == frozenset({"group 1", "vegan"})
+
+
+def test_an_ingredients_tags_go_through_the_names():
+    names = translate.library_tags(GROUPED).names
+    assert translate.ingredient(oats(tags=[SEAFOOD]), names).tags == frozenset({"group 1"})
+    assert translate.ingredient(oats(tags=[FISH, SEAFOOD]), names).tags == frozenset({"group 1"})
+    assert translate.ingredient(oats(tags=[VEGAN, FISK]), names).tags == frozenset({"vegan", "group 1"})
+    assert translate.ingredient(oats(tags=[SEAFOOD])).tags == frozenset({"Seafood"})
+
+
+def test_a_recipes_extra_tags_go_through_the_names():
+    names = translate.library_tags(GROUPED).names
+    assert translate.recipe(porridge(extra_tags=[FISK, VEGAN]), names).extra_tags == frozenset({"group 1", "vegan"})
+    assert translate.recipe(porridge(extra_tags=[FISK])).extra_tags == frozenset({"Fisk och skaldjur"})
+
+
+def test_the_request_has_the_groups_as_tags_and_in_the_filters():
+    seafood_oats = models.RecipeItem(ingredient=oats(tags=[SEAFOOD]), amount=Decimal("60"))
+    recipes = [porridge(items=[seafood_oats], extra_tags=[FISK])]
+    setup = filtered(only=[FISH], never=[VEGAN])
+    request = translate.plan_request(setup, [ENERGY], GROUPED, recipes)
+    assert [(t.name, t.derive) for t in request.tags] == [("vegan", "all"), ("group 1", "any")]
+    assert request.require_tags == frozenset({"group 1"})
+    assert request.exclude_tags == frozenset({"vegan"})
+    assert request.recipes[0].extra_tags == frozenset({"group 1"})
+    assert request.recipes[0].items[0].ingredient.tags == frozenset({"group 1"})
+
+
+def group_recipes() -> list[models.Recipe]:
+    def made_of(name, *tag_sets):
+        # One ingredient per recipe and tag set, as the library wants distinct names.
+        ingredients = [oats(tags=tags) for tags in tag_sets]
+        for i, ingredient in enumerate(ingredients):
+            ingredient.name = f"{name} {i}"
+        return porridge(name=name, items=[models.RecipeItem(ingredient=i, amount=Decimal("10")) for i in ingredients])
+
+    return [
+        made_of("Seafood only", [SEAFOOD]),
+        made_of("Fish and nothing", [FISH], []),
+        made_of("Plain", []),
+        made_of("Fisk", [FISK]),
+    ]
+
+
+def usable_in_group(tags, only=(), never=()) -> list[str]:
+    return [r.name for r in translate.usable_recipes(group_recipes(), tags, only, never)]
+
+
+def test_only_a_member_keeps_the_recipes_with_any_member():
+    assert usable_in_group(GROUPED, only=["Fish"]) == ["Seafood only", "Fish and nothing", "Fisk"]
+
+
+def test_never_a_member_drops_the_recipes_with_any_member():
+    assert usable_in_group(GROUPED, never=["Fish"]) == ["Plain"]
+
+
+def test_only_and_never_on_members_of_one_group_leave_nothing():
+    assert usable_in_group(GROUPED, only=["Fish"], never=["Seafood"]) == []
+
+
+def test_the_group_rule_decides_whether_a_recipe_has_the_group_tag():
+    assert usable_in_group(group_rule("any"), only=["Fish"]) == ["Seafood only", "Fish and nothing", "Fisk"]
+    assert usable_in_group(group_rule("all"), only=["Fish"]) == ["Seafood only", "Fisk"]
+
+
+def test_the_usable_recipes_with_groups_are_the_librarys_eligible_ones():
+    rows = group_recipes()
+    request = translate.plan_request(filtered(only=[SEAFOOD], never=[]), [ENERGY], GROUPED, rows)
+    usable = translate.usable_recipes(rows, GROUPED, ["Seafood"], [])
     assert [row.name for row in usable] == [recipe.name for recipe in request.eligible_recipes()]
