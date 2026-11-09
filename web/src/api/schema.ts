@@ -250,6 +250,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ingredients/{ingredient_id}/source-values": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Answer Updated Values
+         * @description Accept the source's new values (copy them) or keep the ingredient's own
+         *     (and remember the source's numbers as answered). What is answered is what
+         *     the server finds now; nothing to answer is a no-op.
+         */
+        post: operations["answer_updated_values_api_ingredients__ingredient_id__source_values_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ingredients/{ingredient_id}/unit-change": {
         parameters: {
             query?: never;
@@ -997,6 +1019,8 @@ export interface components {
             tag_ids: number[];
             /** Unit */
             unit: string;
+            /** Updated Values */
+            updated_values: components["schemas"]["UpdatedValue"][];
             /** Values */
             values: components["schemas"]["IngredientValue-Output"][];
         };
@@ -1490,6 +1514,17 @@ export interface components {
             /** Withdrawn */
             withdrawn: boolean;
         };
+        /**
+         * SourceValuesAnswer
+         * @description Accept the updated values, or keep the ingredient's own.
+         */
+        SourceValuesAnswer: {
+            /**
+             * Answer
+             * @enum {string}
+             */
+            answer: "accept" | "keep";
+        };
         /** Tag */
         Tag: {
             /**
@@ -1613,6 +1648,19 @@ export interface components {
             type: "conversion_needs_decimals" | "conversion_too_large" | "conversion_rounds_to_zero" | "unit_not_for_ingredient" | "unit_not_for_source" | "unit_mismatch";
             /** Unit */
             unit?: string | null;
+        };
+        /**
+         * UpdatedValue
+         * @description A value the source has moved on from: what the ingredient has now (null:
+         *     nothing) and what it would get, both in the ingredient's basis.
+         */
+        UpdatedValue: {
+            /** Attribute Id */
+            attribute_id: number;
+            /** New Value */
+            new_value: string;
+            /** Value */
+            value: string | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -2320,6 +2368,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    answer_updated_values_api_ingredients__ingredient_id__source_values_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ingredient_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SourceValuesAnswer"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ingredient"];
+                };
+            };
+            /** @description No such ingredient */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The ingredient is not from a data source */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
                 };
             };
         };

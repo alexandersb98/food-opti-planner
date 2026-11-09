@@ -1,10 +1,10 @@
 """/api/ingredients: list, read, create, update and delete ingredients (C3, C4),
 add one from a data source's food (C7) and unlink it from its source."""
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
@@ -13,7 +13,7 @@ from .. import models, source_values, unit_change, units
 from ..db import DbSession
 from ..fields import Name, Number
 from .catalog import References, commit_named, count_by, get_or_404, in_list
-from .errors import NAME_IN_USE, FieldErrors
+from .errors import NAME_IN_USE, FieldError, FieldErrors, invalid_fields
 from .unit_changes import UNIT_CHANGE_REFUSED, UnitChange, UnitChangeRefusal, answer, refuse
 
 router = APIRouter(prefix="/ingredients", tags=["ingredients"])
@@ -39,6 +39,7 @@ FROM_SOURCE_UNPROCESSABLE = {
         "or an unknown tag",
     }
 }
+NOT_LINKED = {422: {"model": FieldErrors, "description": "The ingredient is not from a data source"}}
 IN_USE = {409: {"description": "Recipes use the ingredient, so it can't be deleted"}}
 
 
@@ -89,12 +90,32 @@ class IngredientFromSource(BaseModel):
     tag_ids: list[int]
 
 
+class UpdatedValue(BaseModel):
+    """A value the source has moved on from: what the ingredient has now (null:
+    nothing) and what it would get, both in the ingredient's basis."""
+
+    attribute_id: int
+    value: Number | None
+    new_value: Number
+
+
+class SourceValuesAnswer(BaseModel):
+    """Accept the updated values, or keep the ingredient's own."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    answer: Literal["accept", "keep"]
+
+
 class Ingredient(IngredientFields):
     id: int
     # How many recipes use it; it can't be deleted while any does.
     recipe_count: int
     # Null for an ingredient with no link to a source food.
     source: IngredientSource | None
+    # The values of its source that differ from what it last copied or
+    # answered, by attribute id; empty for an ingredient with no link.
+    updated_values: list[UpdatedValue]
 
 
 def _recipe_counts(db: DbSession) -> dict[int, int]:
@@ -127,7 +148,11 @@ def _unit_refusal(ingredient: models.Ingredient, unit: str) -> tuple[str, str] |
     return None
 
 
-def _response(ingredient: models.Ingredient, recipe_counts: dict[int, int]) -> Ingredient:
+def _response(
+    ingredient: models.Ingredient,
+    recipe_counts: dict[int, int],
+    updates: dict[int, list[source_values.Update]],
+) -> Ingredient:
     return Ingredient(
         id=ingredient.id,
         name=ingredient.name,
@@ -137,7 +162,16 @@ def _response(ingredient: models.Ingredient, recipe_counts: dict[int, int]) -> I
         tag_ids=[tag.id for tag in ingredient.tags],
         recipe_count=recipe_counts.get(ingredient.id, 0),
         source=_source(ingredient),
+        updated_values=[
+            UpdatedValue(attribute_id=u.attribute_id, value=u.current, new_value=u.proposed)
+            for u in updates.get(ingredient.id, [])
+        ],
     )
+
+
+def _one(db: DbSession, ingredient: models.Ingredient) -> Ingredient:
+    """The answer for one ingredient, with its updates as they stand now."""
+    return _response(ingredient, _recipe_counts(db), source_values.updates_for(db, [ingredient]))
 
 
 def _fill(ingredient: models.Ingredient, body: IngredientFields, db: DbSession) -> None:
@@ -186,13 +220,14 @@ def list_ingredients(db: DbSession) -> list[Ingredient]:
         )
         .order_by(models.Ingredient.id)
     )
-    recipe_counts = _recipe_counts(db)
-    return [_response(ingredient, recipe_counts) for ingredient in ingredients]
+    ingredients = list(ingredients)
+    recipe_counts, updates = _recipe_counts(db), source_values.updates_for(db, ingredients)
+    return [_response(ingredient, recipe_counts, updates) for ingredient in ingredients]
 
 
 @router.get("/{ingredient_id}", responses=NOT_FOUND)
 def get_ingredient(ingredient_id: int, db: DbSession) -> Ingredient:
-    return _response(get_or_404(db, models.Ingredient, ingredient_id, "ingredient"), _recipe_counts(db))
+    return _one(db, get_or_404(db, models.Ingredient, ingredient_id, "ingredient"))
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, responses={**NAME_IN_USE, **UNPROCESSABLE})
@@ -201,7 +236,7 @@ def create_ingredient(body: IngredientFields, db: DbSession) -> Ingredient:
     _fill(ingredient, body, db)
     db.add(ingredient)
     commit_named(db, ingredient, "An ingredient")
-    return _response(ingredient, _recipe_counts(db))
+    return _one(db, ingredient)
 
 
 @router.post(
@@ -243,7 +278,7 @@ def create_from_source(body: IngredientFromSource, db: DbSession) -> Ingredient:
         value.source_value = value.value
     db.add(ingredient)
     commit_named(db, ingredient, "An ingredient")
-    return _response(ingredient, _recipe_counts(db))
+    return _one(db, ingredient)
 
 
 @router.post("/{ingredient_id}/unlink", responses=NOT_FOUND)
@@ -256,7 +291,22 @@ def unlink_ingredient(ingredient_id: int, db: DbSession) -> Ingredient:
     for value in ingredient.values:
         value.source_value = None
     db.commit()
-    return _response(ingredient, _recipe_counts(db))
+    return _one(db, ingredient)
+
+
+@router.post("/{ingredient_id}/source-values", responses={**NOT_FOUND, **NOT_LINKED})
+def answer_updated_values(ingredient_id: int, body: SourceValuesAnswer, db: DbSession) -> Ingredient:
+    """Accept the source's new values (copy them) or keep the ingredient's own
+    (and remember the source's numbers as answered). What is answered is what
+    the server finds now; nothing to answer is a no-op."""
+    ingredient = get_or_404(db, models.Ingredient, ingredient_id, "ingredient")
+    if ingredient.source_food_id is None:
+        raise invalid_fields(
+            [FieldError(loc=["path", "ingredient_id"], type="not_linked", msg="This ingredient is not from a data source")]
+        )
+    source_values.apply_answer(ingredient, source_values.updates_for(db, [ingredient]).get(ingredient.id, []), body.answer)
+    db.commit()
+    return _one(db, ingredient)
 
 
 @router.post("/{ingredient_id}/unit-change", responses=NOT_FOUND)
@@ -284,7 +334,7 @@ def update_ingredient(ingredient_id: int, body: IngredientFields, db: DbSession)
     refuse(change)
     change.apply()
     commit_named(db, ingredient, "An ingredient")
-    return _response(ingredient, _recipe_counts(db))
+    return _one(db, ingredient)
 
 
 @router.delete("/{ingredient_id}", status_code=status.HTTP_204_NO_CONTENT, responses={**NOT_FOUND, **IN_USE})

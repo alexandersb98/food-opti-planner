@@ -975,6 +975,13 @@
             "title": "Unit",
             "type": "string"
           },
+          "updated_values": {
+            "items": {
+              "$ref": "#/components/schemas/UpdatedValue"
+            },
+            "title": "Updated Values",
+            "type": "array"
+          },
           "values": {
             "items": {
               "$ref": "#/components/schemas/IngredientValue-Output"
@@ -991,7 +998,8 @@
           "tag_ids",
           "id",
           "recipe_count",
-          "source"
+          "source",
+          "updated_values"
         ],
         "title": "Ingredient",
         "type": "object"
@@ -2425,6 +2433,25 @@
         "title": "SourceColumn",
         "type": "object"
       },
+      "SourceValuesAnswer": {
+        "additionalProperties": false,
+        "description": "Accept the updated values, or keep the ingredient's own.",
+        "properties": {
+          "answer": {
+            "enum": [
+              "accept",
+              "keep"
+            ],
+            "title": "Answer",
+            "type": "string"
+          }
+        },
+        "required": [
+          "answer"
+        ],
+        "title": "SourceValuesAnswer",
+        "type": "object"
+      },
       "Tag": {
         "properties": {
           "derive": {
@@ -2783,6 +2810,37 @@
           "msg"
         ],
         "title": "UnitChangeRefusal",
+        "type": "object"
+      },
+      "UpdatedValue": {
+        "description": "A value the source has moved on from: what the ingredient has now (null:\nnothing) and what it would get, both in the ingredient's basis.",
+        "properties": {
+          "attribute_id": {
+            "title": "Attribute Id",
+            "type": "integer"
+          },
+          "new_value": {
+            "title": "New Value",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "attribute_id",
+          "value",
+          "new_value"
+        ],
+        "title": "UpdatedValue",
         "type": "object"
       },
       "ValidationError": {
@@ -3670,6 +3728,62 @@
           }
         },
         "summary": "Update Ingredient",
+        "tags": [
+          "ingredients"
+        ]
+      }
+    },
+    "/api/ingredients/{ingredient_id}/source-values": {
+      "post": {
+        "description": "Accept the source's new values (copy them) or keep the ingredient's own\n(and remember the source's numbers as answered). What is answered is what\nthe server finds now; nothing to answer is a no-op.",
+        "operationId": "answer_updated_values_api_ingredients__ingredient_id__source_values_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ingredient_id",
+            "required": true,
+            "schema": {
+              "title": "Ingredient Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SourceValuesAnswer"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ingredient"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such ingredient"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "The ingredient is not from a data source"
+          }
+        },
+        "summary": "Answer Updated Values",
         "tags": [
           "ingredients"
         ]
