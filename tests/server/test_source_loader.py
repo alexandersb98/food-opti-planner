@@ -227,6 +227,23 @@ def test_a_food_with_several_groups_has_them_all(db, tmp_path):
     assert tag_names_of(db, "1") == ["A", "B"]
 
 
+def test_group_and_food_names_are_trimmed(db, tmp_path):
+    # The tags PUT trims names, so a source tag must carry the trimmed name.
+    data = test_source()
+    data["foods"][0]["name"] = "  TEST Oats "
+    data["foods"][0]["groups"] = [" TEST Grains ", "TEST Grains", " "]
+    data["foods"][1]["groups"] = ["TEST Dairy  "]
+
+    with pytest.raises(DataFileError, match="non-empty"):
+        read_file(write(tmp_path, data))
+    data["foods"][0]["groups"] = [" TEST Grains ", "TEST Grains"]
+    load(db, tmp_path, data)
+
+    assert foods(db)["1"].name == "TEST Oats"
+    assert tag_names_of(db, "1") == ["TEST Grains"]
+    assert tag_names_of(db, "2") == ["TEST Dairy"]
+
+
 def test_a_failed_load_changes_nothing_and_load_all_goes_on(db, engine, tmp_path, caplog):
     load(db, tmp_path / "bad", test_source())
     # Both names version 2's new group could get are taken by user tags: only

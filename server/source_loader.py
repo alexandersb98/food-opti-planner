@@ -155,7 +155,9 @@ def _foods(raw: Any, column_keys: set[str]) -> list[FileFood]:
         if key in seen:
             raise DataFileError(f"{where}: duplicate food key")
         seen.add(key)
-        name = _text(item, "name", where, low=1, high=models.SOURCE_ITEM_NAME_LENGTH)
+        name = _text(item, "name", where, low=1, high=models.SOURCE_ITEM_NAME_LENGTH).strip()
+        if not name:
+            raise DataFileError(f"{where}: `name` must not be blank")
         foods.append(
             FileFood(key, name, _groups(item.get("groups"), where), _values(item.get("values"), where, column_keys))
         )
@@ -167,6 +169,9 @@ def _groups(raw: Any, where: str) -> list[str]:
         raise DataFileError(f"{where}: `groups` must be a list")
     groups = []
     for group in raw:
+        # Trimmed, as the tags API trims a name: the source tag then always
+        # matches the name a PUT of the tag would send.
+        group = group.strip() if isinstance(group, str) else group
         if not isinstance(group, str) or not group:
             raise DataFileError(f"{where}: a group name must be non-empty text")
         if len(group) > GROUP_LENGTH:
