@@ -9,7 +9,9 @@ import { expect, test, type Page } from '@playwright/test'
 // that blocks and clears, and finally add an ingredient from a source food (search, preview,
 // the chip on its page, mass units only, the duplicate warning) and unlink it, and finally see
 // updated source values: two ingredients added from a food, a column mapped afterwards, the
-// marker and filter on the list, and the banner on each page answered with Accept and Keep mine.
+// marker and filter on the list, and the banner on each page answered with Accept and Keep mine,
+// and finally make vegan equivalent to a source tag (the rule question, the count of the
+// recipe filters) and take it out again.
 
 const password = process.env.E2E_PASSWORD
 if (!password) throw new Error('Set E2E_PASSWORD to the login password')
@@ -451,6 +453,41 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await page.getByRole('link', { name: 'Back' }).click()
   await expect(page.locator('.updated-filter')).toHaveCount(0)
   await expect(page.locator('.updated-marker')).toHaveCount(0)
+
+  // Equivalent tags: vegan (all) and the source tag TEST Grains (any). Adding it asks to switch
+  // its rule; the filters then treat them as one, and removing the chip undoes that.
+  await openPage(page, 'Tags')
+  const tagRow = (name: RegExp) => page.locator('.tag-row').filter({ hasText: name })
+  await tagRow(/^vegan/).click()
+  await page.getByLabel('Add equivalent tag').click()
+  await page.getByRole('option', { name: 'TEST Grains' }).click()
+  await expect(page.locator('.equivalent-chip .q-chip__content')).toHaveText(['TEST Grains'])
+  await page.getByRole('button', { name: 'Done' }).click()
+  await expect(page.getByRole('dialog')).toContainText(
+    'TEST Grains gets a recipe tag when any ingredient has it; the group uses all. Switch TEST Grains to all?',
+  )
+  await page.getByRole('dialog').getByRole('button', { name: 'Switch' }).click()
+  await expect(tagRow(/^vegan/)).toContainText('When all ingredients have it · equivalent to TEST Grains')
+  await expect(tagRow(/^TEST Grains/)).toContainText('When all ingredients have it · equivalent to vegan')
+
+  // Only vegan is saved, so Never TEST Grains contradicts it; a recipe fails that only if the two
+  // are one tag. Unsaved: the page is left again.
+  const filterCount = async (mode: string) => {
+    await openPage(page, 'Plan')
+    await page.locator('.recipes-card').getByRole('link', { name: 'Edit' }).click()
+    await page.getByLabel('Filter for TEST Grains').getByRole('button', { name: mode }).click()
+  }
+  await filterCount('Never')
+  await expect(page.locator('.count-line')).toHaveText('0 of 1 recipe can be used')
+
+  await openPage(page, 'Tags')
+  await tagRow(/^TEST Grains/).click()
+  await page.locator('.equivalent-chip').filter({ hasText: 'vegan' }).locator('.q-chip__icon--remove').click()
+  await page.getByRole('button', { name: 'Done' }).click()
+  await expect(tagRow(/^vegan/)).not.toContainText('equivalent to')
+  await expect(tagRow(/^TEST Grains/)).not.toContainText('equivalent to')
+  await filterCount('Never')
+  await expect(page.locator('.count-line')).toHaveText('1 of 1 recipe can be used')
 
   // Designed at phone width: nothing scrolls sideways.
   const scrolls = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)
