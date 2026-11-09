@@ -192,6 +192,26 @@ gets this tag when **all ingredients have it** / **any ingredient has
 it**" → `TagDef.derive` `"all"` / `"any"` (decision #37). Tags no
 ingredient has are labelled "added by hand". Delete warns, then removes
 the tag from ingredients, recipes and plan filters. "+ New tag".
+A source tag (made from a data source's food group) shows a dot in its
+source's colour and the source's name in its caption; its open form has no
+Name input and no Delete, only the rule and Done. Tags made by hand are
+listed first, then the source tags.
+
+### S1 · Settings
+
+Cards: **Preferred units** (mass, volume, energy drop-downs, saved on
+choosing) and **Data sources**, one row per loaded source with a colour dot,
+name and "Version … · N foods", each opening S2; "No data sources loaded."
+when there are none. The two cards load independently, so one failing never
+hides the other.
+
+### S2 · Data source (read-only until D3)
+
+A full page with a back arrow to Settings. The source's **Version**,
+**Imported** time and **Attribution** (when it has one); a **Colour**
+picker, saved when the picker closes; and the **Columns**: a count, a search
+box and the list (name, unit), withdrawn columns last, greyed and marked "No
+longer in the source".
 
 ## Importance
 

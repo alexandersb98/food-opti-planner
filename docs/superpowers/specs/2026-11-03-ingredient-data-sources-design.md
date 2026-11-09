@@ -78,9 +78,9 @@ Generic tables, for any source.
 
 | Table | Columns (besides `id`) | Notes |
 |---|---|---|
-| `data_sources` | key (unique, e.g. `livsmedelsverket`), name, colour, version, imported at | One row per data file loaded. |
-| `source_columns` | source, key (the source's own id), name, unit, mapped attribute (nullable), withdrawn | `unit` as normalised by the import script. Unique (source, key); unique (source, mapped attribute): an attribute is fed by at most one column per source. Deleting the attribute sets the mapping to NULL. |
-| `source_foods` | source, key (the source's id), name, withdrawn | Unique (source, key). |
+| `data_sources` | key (unique, e.g. `livsmedelsverket`), name, colour, version, attribution (nullable text), imported at | One row per data file loaded. `colour` is `#rrggbb`; a load never changes it. |
+| `source_columns` | source, key (the source's own id, at most 100 characters), name (at most 200), unit, mapped attribute (nullable, from D3), withdrawn | `unit` as normalised by the import script. Unique (source, key); unique (source, mapped attribute): an attribute is fed by at most one column per source. Deleting the attribute sets the mapping to NULL. |
+| `source_foods` | source, key (the source's id, at most 100 characters), name (at most 200), withdrawn | Unique (source, key). |
 | `source_food_values` | food, column, value | `NUMERIC`, per 100 g, in the column's unit. |
 | `source_food_tags` | food, tag | The food's food groups as source tags. |
 | `tag_groups` | — | Just an id. A group left with one member is deleted. |
@@ -90,7 +90,7 @@ Changes to existing tables:
 
 | Table | New column | Notes |
 |---|---|---|
-| `tags` | source (nullable), group (nullable) | `source` set: a source tag (decision 12). |
+| `tags` | `source_id` (nullable), group (nullable, from D6) | `source_id` set: a source tag (decision 12). |
 | `ingredients` | source food (nullable) | The link (decision 1). Deleting is never needed, as source foods are never deleted. |
 | `ingredient_values` | source value (nullable) | The source's value when last copied or answered, converted to the attribute's unit. Drives decision 4. Converted with the value when the attribute's unit changes (units spec). |
 
@@ -120,7 +120,8 @@ the source's API and writes
   and kcal), each of those columns gets the key `<key>:<unit>`
   (`ENERC:kJ`, `ENERC:kcal`) and a name made distinct by the unit.
 - `attribution` is the credit line S2 shows; the loader treats it as
-  optional text.
+  optional text. Absent, a given `licence` becomes `Licence: <licence>`;
+  else S2 shows no attribution.
 
 - `version` is the source's own version, or the download date when it
   has none.
@@ -130,6 +131,20 @@ the source's API and writes
   written.
 - Values are written as decimal strings, never floats.
 - The script never touches a database.
+
+**File validation (D2).** The loader checks a file fully before it writes
+anything, and refuses it with a message naming what and where: gzip, UTF-8
+JSON, an object with `key` (`[a-z0-9][a-z0-9_-]*`, at most 50), `name`
+(1-100), `version` (1-50), columns with unique keys, foods with unique keys,
+`groups` as non-empty names of at most 100 characters, and `values` as
+decimal strings of known columns (no JSON numbers, no exponents; more than 6
+decimals are rounded, more than 9 digits before the point are refused).
+
+**Source tag names (D2).** A tag is named as its food group. If another tag
+has that name (one made by hand, or a group of another source) the source
+tag is named `<group> (<source name>)`; if that is taken too the file's load
+fails (logged, rolled back). Later loads find the source's own tag by either
+name. A group that leaves the file keeps its tag.
 
 **Loading at startup**, after the migrations: for each data file whose
 version differs from `data_sources.version` (or that has no row yet),
@@ -271,7 +286,8 @@ It opens a full-screen dialog:
 **On C6 (Tags):**
 
 - Source tags show in their source's colour with the source's name, and
-  have no rename or delete.
+  have no rename or delete; their rule can be changed (decision 12). New
+  source tags default to the Any rule.
 - The tag editor gets **Equivalent tags**: the other members of its
   group, as chips, and a picker to add a tag.
   - Adding a tag that is in no group puts it in this tag's group,
@@ -307,8 +323,8 @@ list Seafood, not the group).
 
 | Endpoint | For |
 |---|---|
-| `GET /api/data-sources` | The sources with colour, version, counts (S1). |
-| `GET/PATCH /api/data-sources/{key}` | One source with its columns; colour (S2). |
+| `GET /api/data-sources` | The sources, by name: `key, name, colour, version, imported_at, food_count, column_count` (not withdrawn; D3 adds `mapped_count`) (S1). |
+| `GET/PATCH /api/data-sources/{key}` | The summary plus `attribution` and all `columns` (`id, key, name, unit, withdrawn`; active by name, then withdrawn); `PATCH` takes `{"colour": "#rrggbb"}` (S2). |
 | `PUT /api/data-sources/{key}/columns/{id}` | `{attribute_id \| null}` (S2). |
 | `GET /api/data-sources/{key}/foods?search=&offset=` | The search (C7). |
 | `GET /api/data-sources/{key}/foods/{id}` | A food as it would become an ingredient, with the warning of decision 11 (C7). |
@@ -330,7 +346,7 @@ responses gain `source` and `group` (member ids).
 | Attribute already mapped from another column of the source | 422 `attribute_taken` |
 | Ingredient name taken | 422 `duplicate` on `name`, as today |
 | Withdrawn food added | 422 `withdrawn` |
-| Rename or delete of a source tag | 422 `source_tag` |
+| Rename or delete of a source tag | 422 `source_tag`, on `body.name` (rename) or `path.tag_id` (delete) |
 | Group change needing an answer, sent without `confirm` | 409 with the question's facts |
 | Linked ingredient changed to a volume or free-text unit | 422 `unit_not_for_source` |
 | A data file that fails to load | Logged at startup; the old copy stays. |

@@ -46,7 +46,7 @@ the file format and its optional `attribution` key from
 screen S1 in the units spec, C6 in
 [`2026-10-21-gui-wireframes-design.md`](../specs/2026-10-21-gui-wireframes-design.md).
 
-**Status:** Planned; to be built task by task on branch
+**Status:** Built and reviewed task by task on branch
 claude/implement-remaining-slices-qwrp83.
 
 ## Global Constraints
@@ -189,6 +189,21 @@ claude/implement-remaining-slices-qwrp83.
     (D6). `source_food_values` has no index on its column id (nothing queries by
     column yet; D5's check can add one).
 
+16. **Added while building.** (a) The loader logs through Uvicorn's own logger
+    (`uvicorn.error`): it is the only logger the server's runner configures, so
+    a module logger's info line ("no data files") would never reach the
+    container's log. (b) `imported_at` is stored as naive UTC and answered with
+    a UTC marker, like the plan results' times, so the browser shows local
+    time. (c) On the Tags page a tag created in the app is inserted before the
+    first source tag, as the server lists them (the end-to-end run found the
+    plain append out of order until a reload). (d) `QInput` has no `color` in
+    its `type` typings, so the page casts the constant; tests set the colour
+    with `input` events and `change`, as VTU's `setValue` fires both.
+    (e) `withdrawn` has `server_default=false()` (portable, no SQLite-only SQL).
+    (f) The tags helper `logged_in_client` and a `data_sources_dir` / `data_client`
+    pair of fixtures sit in `tests/server/conftest.py`; the helper already
+    existed (commit e17a50e).
+
 ## Tasks
 
 ### Task 1: Server: tables, migration, settings
@@ -236,6 +251,11 @@ default ends with `server/data_sources`, `from_env` reads `DATA_SOURCES_DIR`.
 tests/server/test_settings.py -q`, then the whole root suite; on Postgres if a
 `TEST_DATABASE_URL` is available (CI does it otherwise). Commit: "server: tables
 for the data source reference copy".
+
+**Built.** As written. Checked: the migration test failed before the migration
+and passes after; `0010` upgrades, downgrades to `0009` and upgrades again on
+SQLite; settings tests for the default directory and `DATA_SOURCES_DIR`; root
+suite green. Not run on Postgres here (CI does).
 
 ### Task 2: Server: the data file reader and the loader
 
@@ -336,6 +356,11 @@ migrated database from `database_url`, a `Session`; files written into `tmp_path
 **Verify:** `python3 -m pytest tests/server/test_source_loader.py -q`, then the
 root suite. Commit: "server: read and load data files into the reference copy".
 
+**Built.** As written. Checked: `tests/server/test_source_loader.py` (36 tests
+plus the benchmark); the benchmark on SQLite loaded 2 500 foods x 55 values in
+about 1.4 s (first) and 2.0 s (update). Difference: the loader also rejects a
+tag name over 100 characters with a `DataFileError`.
+
 ### Task 3: Server: load at startup, with a committed fixture file
 
 **Files:** modify `server/app.py`; create `tests/data/data_sources/testsource.json.gz`
@@ -376,6 +401,10 @@ modify `tests/server/conftest.py` (a fixture).
 
 **Verify:** the new file, then the root suite. Commit: "server: load data files
 at startup".
+
+**Built.** As written, using the existing `logged_in_client` helper;
+`tests/data/data_sources/testsource.json.gz` is the helper's file, and a test
+keeps the two equal. Checked: `tests/server/test_data_sources_startup.py`, root suite.
 
 ### Task 4: Server: data source API and source tags
 
@@ -457,6 +486,10 @@ types must not break existing code: `Tag` now has `source`, which
 `web/src/test-data.ts`'s `tag()` defaults must supply: add `source: null`). Commit:
 "server: data source API, source tags protected".
 
+**Built.** As written; `imported_at` answered as UTC (interpretation 16).
+`npm run gen:api` changed only `openapi.json` and `schema.ts`; `test-units.json`
+was unchanged. Checked: the two test files, root suite, `npm run typecheck`.
+
 ### Task 5: Web: S1's Data sources card and S2
 
 **Files:** modify `web/src/api/types.ts`, `web/src/pages/SettingsPage.vue`,
@@ -525,6 +558,8 @@ types must not break existing code: `Tag` now has `source`, which
 **Verify:** `npm run lint`, `npm run typecheck`, `npm test` in `web/`. Commit: "web:
 Data sources card on Settings and the read-only source page".
 
+**Built.** As written. Checked: lint, typecheck, `npm test`.
+
 ### Task 6: Web: C6 shows source tags
 
 **Files:** modify `web/src/pages/TagsPage.vue`, `web/src/i18n/en.json`,
@@ -557,6 +592,9 @@ tags and "+ New tag" is last; a failing `PUT` with a `source_tag` 422 shows
 
 **Verify:** `npm run lint`, `npm run typecheck`, `npm test`. Commit: "web: source
 tags on the Tags page, in the source's colour and protected".
+
+**Built.** As written, plus the insertion order of a created tag (interpretation
+16c, with a test). Checked: lint, typecheck, `npm test`.
 
 ### Task 7: End-to-end step, CI and run instructions
 
@@ -593,6 +631,12 @@ default directory (absent) to see the log line "no data files" and that
 `/api/health` and `/api/data-sources` (logged in) answer. Commit: "e2e, CI: data
 source step with the fixture file".
 
+**Built.** As written. Checked: `npx vite build`, a server on a temp SQLite file
+with `DATA_SOURCES_DIR=tests/data/data_sources`, `npm run e2e` green; a second
+start with the default (absent) directory logged `no data files in ...; no data
+sources loaded` and answered `/api/health` and `/api/data-sources` (`[]`). The CI
+change (a read-only volume and `DATA_SOURCES_DIR`) is untested until CI runs.
+
 ### Task 8: Docs
 
 **Files:** `README.md`, the master plan, the data source spec, the wireframes spec,
@@ -623,6 +667,8 @@ this plan.
 
 **Verify:** the full checks (both suites, lint, typecheck) and the e2e run once
 more. Commit: "Docs: slice D2 built, README, data source and wireframes specs".
+
+**Built.** As written.
 
 ## Done when
 
