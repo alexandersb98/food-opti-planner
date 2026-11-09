@@ -80,7 +80,7 @@ jobs:
           docker run -d --name app --network host -e PORT=8080 \
             -v "$PWD/tests/data/data_sources:/data_sources:ro" -e DATA_SOURCES_DIR=/data_sources \
             -e DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/planner_e2e \
-            -e PASSWORD_HASH="$hash" -e SESSION_KEY=e2e meal-planner
+            -e PASSWORD_HASH="$hash" -e SESSION_KEY=e2e -e AI_PROVIDER=fake meal-planner
           curl --fail --silent --show-error --retry 10 --retry-delay 2 --retry-all-errors \
             http://localhost:8080/api/health
       - uses: actions/setup-node@v4

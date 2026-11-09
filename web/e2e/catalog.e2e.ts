@@ -16,7 +16,11 @@ import { expect, test, type Page } from '@playwright/test'
 // Then line units and conversions: a conversion on the ingredient (a duplicate refused), a
 // recipe line in dl through the unit picker, the conversion in use, and a unit change that
 // converts the lines in the ingredient's unit and the conversion (and is refused for another
-// category), then the dl line and the conversion taken out again.
+// category), then the dl line and the conversion taken out again. Then import from pasted text
+// with the server's fake AI provider (AI_PROVIDER=fake): the menu on Recipes, the two errors,
+// the review of a draft (a new ingredient made on the spot, a factor accepted, a line skipped),
+// the saved recipe and the conversion it made (✨, then saved as the user's after an edit), and
+// leaving an unsaved draft.
 
 const password = process.env.E2E_PASSWORD
 if (!password) throw new Error('Set E2E_PASSWORD to the login password')
@@ -131,7 +135,8 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   // from the ingredient.
   await openPage(page, 'Recipes')
   await expect(page.getByText('No recipes yet.')).toBeVisible()
-  await page.getByRole('link', { name: 'New recipe' }).click()
+  await page.getByRole('button', { name: 'Add recipe' }).click()
+  await page.locator('.q-menu a.q-item', { hasText: 'New recipe' }).click()
   await page.getByLabel('Name').fill('Porridge')
   await page.getByRole('button', { name: '+ Add ingredient' }).click()
   await page.getByRole('dialog').getByText('Oats').click()
@@ -306,6 +311,123 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click()
   await expect(page.locator('.conversions-card')).toContainText('No conversions yet.')
   await page.getByRole('link', { name: 'Back' }).click()
+
+  // Import from pasted text (the server runs with AI_PROVIDER=fake). The round + opens a
+  // menu; Import recipe is enabled because the fake provider needs no key. The catalogue
+  // holds Oats only (no Milk, no honey).
+  await openPage(page, 'Recipes')
+  await page.getByRole('button', { name: 'Add recipe' }).click()
+  await expect(page.locator('.q-menu a.q-item', { hasText: 'New recipe' })).toBeVisible()
+  await expect(page.locator('.q-menu a.q-item', { hasText: 'Import recipe' })).toBeVisible()
+  await page.locator('.q-menu a.q-item', { hasText: 'Import recipe' }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Import recipe')
+  const pasted = page.getByLabel('Recipe text')
+  const importButton = page.getByRole('button', { name: 'Import', exact: true })
+  await pasted.fill('[fake:none]')
+  await importButton.click()
+  await expect(page.getByRole('alert')).toHaveText('No recipe found in this text.')
+  await expect(pasted).toHaveValue('[fake:none]')
+  await pasted.fill('[fake:broken]')
+  await importButton.click()
+  await expect(page.getByRole('alert')).toHaveText("The AI service didn't answer. Try again.")
+  const porridgeText = 'Porridge for two: 100 g oats, 3 dl milk, 2 tbsp honey. Boil.'
+  await pasted.fill(porridgeText)
+  await importButton.click()
+
+  // C2 opens the draft unsaved, in review: the banner counts the two lines that need
+  // the user, each line shows its source line, oats is ready, the pepper line is greyed
+  // and Save waits.
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('New recipe')
+  await expect(page.getByLabel('Name')).toHaveValue('Imported porridge')
+  await expect(page.getByLabel('Serves')).toHaveValue('2')
+  await expect(page.getByLabel('Instructions')).toHaveValue('Boil the oats in the milk.\nStir in the honey.')
+  const banner = page.locator('.import-banner')
+  await expect(banner).toHaveText('Imported from pasted text. 2 lines need you.')
+  await expect(page.locator('.source-line')).toHaveText(['100 g oats', '3 dl milk', '2 tbsp honey', 'salt and pepper to taste'])
+  const lines = page.locator('.recipe-item')
+  await expect(lines.nth(0)).not.toHaveClass(/needs-you/)
+  await expect(lines.nth(3)).toHaveClass(/line-skipped/)
+  await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled()
+
+  // Milk is made on the spot: Pick ingredient searches "milk", + New ingredient opens the
+  // form with the name filled in. The line then asks the AI for a factor: 1 dl = [50] g ✨.
+  await lines.nth(1).getByRole('button', { name: 'Pick ingredient' }).click()
+  await expect(page.getByRole('dialog').locator('input').first()).toHaveValue('milk')
+  await page.getByRole('button', { name: '+ New ingredient' }).click()
+  const newIngredient = page.locator('.new-ingredient-dialog')
+  await expect(newIngredient.getByLabel('Name')).toHaveValue('Milk')
+  await newIngredient.getByLabel('Energy').fill('42')
+  await newIngredient.getByRole('button', { name: 'Save' }).click()
+  await expect(newIngredient).toHaveCount(0)
+  await expect(lines.nth(1).locator('.item-name')).toHaveText('Milk')
+  const factor = lines.nth(1).locator('.factor-row')
+  await expect(factor.getByLabel('How many g one dl makes')).toHaveValue('50')
+  await expect(factor.locator('.ai-mark')).toBeVisible()
+  await factor.getByRole('button', { name: 'Accept' }).click()
+  await expect(factor).toContainText('50 g')
+  await expect(banner).toHaveText('Imported from pasted text. 1 line needs you.')
+
+  // Honey is skipped, so every line is ready: Save is enabled and makes the recipe, whose
+  // per portion total is (100 g oats x 389 + 3 dl x 50 g milk x 42) / 100 / 2 servings = 226.
+  await lines.nth(2).getByRole('button', { name: 'Skip' }).click()
+  await expect(banner).toHaveText('Imported from pasted text. All lines are ready.')
+  await expect(page.getByRole('button', { name: 'Save' })).toBeEnabled()
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.locator('.recipe-row').filter({ hasText: 'Imported porridge' })).toHaveText(
+    /Imported porridge\s*Per portion: Energy 226 kcal/,
+  )
+
+  // The review's conversion was saved with the recipe, marked as the AI's, and is in use.
+  // Editing its number saves it as the user's (no ✨) and the recipe's total follows:
+  // (389 + 3 x 55 x 0.42) / 2 = 229.
+  await openPage(page, 'Ingredients')
+  await page.locator('.ingredient-row').filter({ hasText: 'Milk' }).click()
+  const milkConversion = page.locator('.conversion-row')
+  await expect(milkConversion).toHaveText(/1 dl = 50 g/)
+  await expect(milkConversion.locator('.ai-mark')).toBeVisible()
+  await expect(milkConversion).toContainText('Used in 1 recipe')
+  await milkConversion.getByRole('button', { name: 'Edit the conversion for dl' }).click()
+  await page.getByRole('dialog').getByLabel('How many g one makes').fill('55')
+  await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click()
+  await expect(milkConversion).toHaveText(/1 dl = 55 g/)
+  await expect(milkConversion.locator('.ai-mark')).toHaveCount(0)
+  await page.getByRole('link', { name: 'Back' }).click()
+  await openPage(page, 'Recipes')
+  await expect(page.locator('.recipe-row').filter({ hasText: 'Imported porridge' })).toHaveText(
+    /Imported porridge\s*Per portion: Energy 229 kcal/,
+  )
+
+  // Clean up so the steps after this are unchanged: the imported recipe, Milk's
+  // conversion and Milk are deleted; Porridge is the only recipe again.
+  await page.locator('.recipe-row').filter({ hasText: 'Imported porridge' }).click()
+  await page.getByRole('button', { name: 'Delete' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click()
+  await expect(page.locator('.recipe-row')).toHaveText([/Porridge\s*Per portion: Energy 233 kcal/])
+  await openPage(page, 'Ingredients')
+  await page.locator('.ingredient-row').filter({ hasText: 'Milk' }).click()
+  await page.getByRole('button', { name: 'Delete the conversion for dl' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click()
+  await expect(page.locator('.conversions-card')).toContainText('No conversions yet.')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Delete', exact: true }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click()
+  await expect(page.locator('.ingredient-row')).toHaveText([/Oats\s*per 100 g/])
+
+  // Leaving an unsaved import asks first: Keep editing stays, Discard leaves with nothing saved.
+  await openPage(page, 'Recipes')
+  await page.getByRole('button', { name: 'Add recipe' }).click()
+  await page.locator('.q-menu a.q-item', { hasText: 'Import recipe' }).click()
+  await page.getByLabel('Recipe text').fill(porridgeText)
+  await page.getByRole('button', { name: 'Import', exact: true }).click()
+  await expect(page.locator('.import-banner')).toBeVisible()
+  await page.getByRole('link', { name: 'Back' }).click()
+  await expect(page.getByRole('dialog')).toContainText('Discard this recipe?')
+  await page.getByRole('dialog').getByRole('button', { name: 'Keep editing' }).click()
+  await expect(page.locator('.import-banner')).toBeVisible()
+  await page.getByRole('link', { name: 'Back' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Discard' }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Recipes')
+  await expect(page.locator('.recipe-row')).toHaveText([/Porridge\s*Per portion: Energy 233 kcal/])
 
   // The tag is no longer "added by hand", and deleting the attribute warns
   // about the ingredient value.
