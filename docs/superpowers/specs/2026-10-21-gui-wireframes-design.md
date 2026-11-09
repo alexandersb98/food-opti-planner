@@ -146,11 +146,19 @@ some ingredient has updates) lists just those.
 ### C2 · Edit recipe
 
 - **Name.**
-- **Ingredients, for 1 portion:** ingredient, amount, its unit, remove.
-  "+ Add ingredient" opens a searchable picker (not drawn). → `items`
-  (`IngredientAmount`).
-- **Per portion:** attribute totals at 1×, worked out live and
-  read-only (decision #22).
+- **Serves [N]:** a whole number from 1 to 1000, default 1. Amounts are for
+  the whole recipe ("Amounts are for the whole recipe."); the planner's
+  portion is the amounts divided by N.
+- **Ingredients, for N portions:** sections, each an optional heading and
+  its lines: ingredient, amount, its unit, a line menu ("Move to
+  {section}") and remove, then "+ Add ingredient", which opens a searchable
+  picker (not drawn) that offers every ingredient, as the same ingredient
+  may be on several lines. One unnamed section shows no heading. "+ Add
+  section" gives every section a name field (all required) and **Remove
+  section** (the lines move to the section above). → `items`
+  (`IngredientAmount`, an ingredient's lines summed and divided by N).
+- **Per portion:** attribute totals at 1×, worked out live (all lines,
+  divided by N) and read-only (decision #22).
 - **Tags:** on/off buttons, as on the ingredient (C4). Tags from the
   ingredients (derived by each tag's rule) are on and can't be turned
   off; the others are added by hand → `extra_tags`.
@@ -159,6 +167,9 @@ some ingredient has updates) lists just those.
   any amount). Advanced: the hard upper limit (`hard_max_multiplier`,
   default 3× the soft one, decision #38) and the over-size penalty
   (`serving_cap_weight`).
+- **Instructions:** a text box, line breaks kept.
+- **Source:** a link (http:// or https://), with **Open source** beside it
+  when it is a valid link.
 - **Delete recipe.**
 
 ### C4 · Edit ingredient
@@ -186,8 +197,9 @@ some ingredient has updates) lists just those.
   13.8 g" ("Protein none → 13.8 g" for a value it never had), with **Keep
   mine** and **Accept**. Either answer hides the banner and keeps other
   unsaved edits; Accept fills the form with the new numbers.
-- **Used in N recipes · Show.** **Delete** is disabled while any recipe
-  uses the ingredient.
+- **Used in N recipes · Show.** N counts recipes, not lines: an ingredient
+  on two lines of one recipe counts once. **Delete** is disabled while any
+  recipe uses the ingredient.
 
 ### C5 · Attributes
 
@@ -297,6 +309,6 @@ and not discussed further:
 
 - Deleting an ingredient in use is blocked; deleting an attribute or a
   tag in use is allowed after a warning and cascades.
-- Recipes are entered for one portion; a "serves N" field is a future
-  feature.
+- Recipes have a "serves N" field (slice R2); amounts are for the whole
+  recipe.
 - The importance scale above.

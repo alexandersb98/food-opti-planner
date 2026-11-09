@@ -388,13 +388,45 @@ No automated test calls a real AI service or the internet.
   sections, and C4's conversions. The Playwright flow gets an import
   step using the fake converter.
 
+## As built in R2
+
+Slice R2 built the data model without units and without AI. Settled
+details (the migration is `0014`, the next free number then):
+
+- **API.** A recipe is `{id, name, servings, instructions, source_url,
+  sections: [{name, items: [{ingredient_id, amount, original_text}]}],
+  extra_tag_ids, ...portion fields, derived_tag_ids, totals}`; `items` of
+  the flat shape is gone, with no compatibility shim. A save rebuilds the
+  sections and lines, so a line's `id` is not known to the client.
+- **Limits.** `servings` is an integer from 1 to 1000. `instructions` at
+  most 20000 characters (kept as sent). `source_url` at most 2000
+  characters, empty or starting `http://` or `https://` (422 `invalid_url`
+  on `source_url`), trimmed. `original_text` at most 500 characters, always
+  sent. At most 50 sections and 200 lines per section.
+- **Section names** are trimmed, 0 to 100 characters. With more than one
+  section every section needs a name (422 `name_required` on
+  `sections.{i}.name`); one section may be unnamed. A section may be empty,
+  but a recipe needs at least one line (422 `no_items` on `sections`).
+- **Planner amounts and totals.** An ingredient's lines are summed exactly,
+  then divided once by `servings`; the library still gets one amount per
+  ingredient, for one portion. Totals are exact fractions, divided once,
+  rounded half away from zero, in the server and in the editor.
+- **`recipe_count`** of an ingredient counts distinct recipes. Deleting an
+  ingredient a recipe uses is still refused.
+- **Downgrade of the migration is lossy:** each ingredient's lines of a
+  recipe are summed and divided by `servings`; sections, instructions and
+  the source link are dropped.
+- **Not in R2:** `recipe_items.unit` and the unit picker per line belong to
+  R3.
+
 ## Slices
 
 1. **Model comparison:** the script and the test recipes (built; run
    pending, see Model comparison).
-2. **Data model, C2 and C4 without AI:** sections, servings, units,
-   conversions, instructions, source link. Useful on its own for typing
-   in cookbook recipes.
+2. **Data model, C2 and C4 without AI:** built as R2 (sections,
+   servings, instructions, source link) and R3 (units, conversions, the
+   unit picker per line). R2 alone is useful for typing in cookbook
+   recipes.
 3. **Import:** I1, page fetching, the converter, factor suggestions, and
    C2's review states.
 

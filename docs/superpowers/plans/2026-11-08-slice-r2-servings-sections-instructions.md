@@ -43,7 +43,7 @@ Not in this slice: `recipe_items.unit` and conversions (R3), the unit picker
 per line (R3), anything with AI, the import page and the import review states
 (R4, R5), the source-line display (R4).
 
-**Status:** Planned; to be built task by task on branch
+**Status:** Built, and reviewed task by task, on branch
 claude/implement-remaining-slices-qwrp83.
 
 ## Global Constraints
@@ -191,6 +191,33 @@ built, keep its shape and only repair the select, the ordering and `row_id`.
 15. **The import spec's wording is brought into line** in Task 6: "Slices 2"
     now says R2 and R3; the per-line unit and the unit picker are R3.
 
+16. **Built after U3 and D1-D6; built code wins over the names in this text.**
+    The migration is `0014` (not `0010`: 0010 to 0013 were taken by D-slices),
+    `down_revision = "0013"`; wherever the text says `0010` or revision "0009"
+    it means these. The migration steps the old `recipe_items` aside
+    (`recipe_items_old`), creates the new table under the final name with
+    named constraints, copies, and drops the old one, instead of creating
+    `recipe_items_new` and renaming it: on Postgres a rename left the id
+    sequence named `recipe_items_new_id_seq`. The tests start from "0013".
+17. **Commits.** Tasks 1 and 2 are one commit and Tasks 3 and 4 are one commit,
+    so every commit passes its checks. The regenerated `web/src/api/schema.ts`
+    is in the Tasks 3 and 4 commit, with the code that uses it
+    (`web/openapi.json` is in the Tasks 1 and 2 commit, as the server test
+    that compares it needs).
+18. **Test helpers.** `recipe_body` (U-era refactoring, already in
+    `tests/server/conftest.py`) is the one place that knows the new body
+    shape; `fixed_portion_recipe` passes extra changes (such as `servings`)
+    through to it. Tests that read a response use
+    `recipe["sections"][0]["items"]`. The refusal for the same ingredient
+    given twice (`duplicate`) no longer exists.
+19. **`serverErrors` takes the draft, not the fields sent**, to map
+    `sections.{i}.items.{j}.amount` back to line keys (the fields carry no
+    keys). The server's `unknown_ingredient` on a line is shown as the save
+    message, as planned.
+20. **The e2e step** types the second Oats line as `0.01` (kg), not `10`: the
+    unit change before it left Oats in kg. `openPage` in the flow matches the
+    "Menu" button exactly, since the line menus are named "Line menu for ...".
+
 ## Tasks
 
 ### Task 1: Server: model, migration `0010`, translation
@@ -281,6 +308,12 @@ red until Task 2; do not run it yet.
 **Commit:** "server: recipe sections, servings and own-id lines; migration 0010".
 (The tree is red between Tasks 1 and 2 only for the API tests; if the
 implementer prefers a green history, Tasks 1 and 2 are committed together.)
+
+**Checked:** `test_translate.py` and `test_migrations.py` on SQLite and Postgres
+(the data test upgrades a database at 0013 with a recipe of two items inserted
+in reverse order and compares the library `Recipe`; the downgrade test sums two
+lines and divides by 2); the migration's constraint and sequence names on
+Postgres. Differences: interpretation 16; committed with Task 2.
 
 ### Task 2: Server: `/api/recipes`, ingredient counts, U3 converter
 
@@ -378,6 +411,14 @@ takes the first line from `recipe["sections"][0]["items"][:1]`.
 **Commit:** "server: recipes have servings, sections and instructions" (include
 the regenerated `web/openapi.json` and `web/src/api/schema.ts`).
 
+**Checked:** the whole root suite on SQLite and `tests/server` on Postgres;
+`npm run gen:api` changed `openapi.json` and `schema.ts` and left
+`test-units.json` as it was. U3's tests pass unchanged apart from the body
+shape; the converter's select is `_recipe_lines(ingredient_id)`, with
+`Number.row_id` the line's own id. Differences: interpretations 17 and 18; the
+rule for the solve test is in `test_recipes.py` through
+`fixed_portion_recipe`.
+
 ### Task 3: Web: draft, totals, data helpers, i18n (no page yet)
 
 **Files:** modify `web/src/totals.ts`, `web/src/totals.test.ts`,
@@ -453,6 +494,11 @@ src/totals.test.ts src/composables src/pages/IngredientPage.test.ts`).
 **Commit:** with Task 4 (the app does not build between them), or as "web:
 recipe draft with sections, servings, instructions" if typecheck is green.
 
+**Checked:** `totals.test.ts`, `useRecipeDraft.test.ts` and
+`IngredientPage.test.ts`, then the whole web suite with Task 4. Differences:
+interpretation 19; the composable's helpers `servingsNumber` and `lineCount`
+are computed as planned.
+
 ### Task 4: Web: `RecipeSection` and the recipe editor (C2)
 
 **Files:** create `web/src/components/RecipeSection.vue` and
@@ -514,6 +560,11 @@ and `python3 -m pytest -q` once more.
 
 **Commit:** "web: C2 with Serves N, sections, instructions and source".
 
+**Checked:** `npm run lint`, `npm run typecheck`, `npm test` (651 tests).
+Differences: `RecipeSection` takes the section as a `v-model:section` (so the
+name and amounts edit in place without mutating a prop); `Remove section` on
+the second of two named sections leaves the first with its heading.
+
 ### Task 5: End-to-end step
 
 **Files:** `web/e2e/catalog.e2e.ts`.
@@ -543,6 +594,10 @@ uvicorn on an empty SQLite file in the scratchpad with `PASSWORD_HASH` and
 `SESSION_KEY`; `E2E_PASSWORD=... E2E_BASE_URL=http://localhost:8000 npm run e2e
 -- --trace off`; kill the server.
 
+**Checked:** the run above passes (Serves 2 reads `Energy 117 kcal`, two
+sections give `Energy 136 kcal`, back to `Energy 233 kcal`). Differences:
+interpretation 20.
+
 ### Task 6: Docs
 
 **Files:** `README.md`, the master plan, the import spec, the wireframes spec,
@@ -567,6 +622,9 @@ uvicorn on an empty SQLite file in the scratchpad with `PASSWORD_HASH` and
 
 **Verify:** the full checks (both suites, lint, typecheck) and the e2e run once
 more.
+
+**Checked:** see the report of the slice. Differences: the import spec's
+"As built in R2" note also says the migration is `0014`.
 
 ## Done when
 

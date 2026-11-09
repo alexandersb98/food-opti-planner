@@ -27,7 +27,11 @@ allowed; a new ingredient starts in the preferred mass unit), a unit
 change within its category that converts the stored numbers after a
 dialog (ingredient values, goal bounds and references, basis, recipe
 amounts; another category or free text only changes the unit), and a
-deploy to Cloud Run. The AI layer of the planned recipe import is built in
+deploy to Cloud Run. Recipes have **Serves N** (amounts are for the whole
+recipe, per-portion totals and the planner's portion divide by N), sections
+with optional headings, the same ingredient on several lines, instructions and
+a source link; an ingredient's "Used in N recipes" counts recipes, not lines.
+The AI layer of the planned recipe import is built in
 `server/ai/` (interfaces, prompt and schema, adapters for four providers)
 with a comparison script, `scripts/compare_models.py`, that the owner runs
 by hand to choose a model; the import itself is not available yet.
