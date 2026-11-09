@@ -183,6 +183,7 @@ def test_a_goal_bound_needing_more_decimals_is_refused_until_they_are_raised(cli
     assert preview["refusal"] == {
         "type": "conversion_needs_decimals", "msg": preview["refusal"]["msg"], "kind": "goal",
         "name": "Iron per day", "field": "min", "number": "0.5", "converted": "0.0005", "decimals_needed": 4,
+        "source": None, "unit": None,
     }
     response = put_attribute(client, iron, unit="g", decimals=3)
     assert response.status_code == 422
@@ -277,3 +278,82 @@ def test_the_preview_of_a_first_plan_does_not_create_it(client, catalog):
 def test_the_previews_need_a_session(anonymous_client):
     for path in ("/api/attributes/1/unit-change", "/api/ingredients/1/unit-change"):
         assert anonymous_client.post(path, json={"unit": "g"}).status_code == 401
+
+
+# --- a unit change must keep mapped source columns converting ----------------
+
+
+@pytest.fixture
+def mapped(data_client):
+    """Attribute Protein in g with an ingredient value, mapped from the TEST
+    Protein column (g) of the TEST source."""
+    from .conftest import Catalog
+
+    catalog = Catalog(data_client)
+    protein = catalog.attribute("Protein", "g", 3)
+    oats = catalog.ingredient("Oats", "g", "100", values={protein: "13.5"})
+    columns = data_client.get("/api/data-sources/testsource").json()["columns"]
+    column = {c["key"]: c["id"] for c in columns}["PROT"]
+    response = data_client.put(
+        f"/api/data-sources/testsource/columns/{column}", json={"attribute_id": protein}
+    )
+    assert response.status_code == 200
+    return data_client, protein, oats, column
+
+
+def protein_body(unit, **changes):
+    return attribute_body(name="Protein", unit=unit, decimals=3, **changes)
+
+
+@pytest.mark.parametrize("unit", ["kg", "mg", "µg", "gram"])
+def test_a_unit_change_within_the_category_keeps_the_mapping(mapped, unit):
+    client, protein, _, _ = mapped
+    assert preview_attribute(client, protein, unit)["refusal"] is None
+    response = client.put(f"/api/attributes/{protein}", json=protein_body(unit))
+    assert response.status_code == 200, response.text
+
+
+@pytest.mark.parametrize("unit", ["kcal", "portion", "ml"])
+def test_a_unit_change_that_breaks_a_mapping_is_refused(mapped, unit):
+    client, protein, oats, column = mapped
+    refusal = preview_attribute(client, protein, unit)["refusal"]
+    assert refusal == {
+        "type": "unit_mismatch", "msg": refusal["msg"], "kind": "source_column", "name": "TEST Protein",
+        "source": "TEST Source", "unit": "g", "field": None, "number": None, "converted": None,
+        "decimals_needed": None,
+    }
+    assert "Unmap the column" in refusal["msg"]
+
+    response = client.put(f"/api/attributes/{protein}", json=protein_body(unit))
+    assert response.status_code == 422
+    [error] = response.json()["detail"]
+    assert (error["loc"], error["type"]) == (["body", "unit"], "unit_mismatch")
+    stored = client.get("/api/attributes").json()[0]
+    assert (stored["name"], stored["unit"], stored["mapping_count"]) == ("Protein", "g", 1)
+    assert client.get(f"/api/ingredients/{oats}").json()["values"][0]["value"] == "13.5"
+
+
+def test_the_same_change_is_allowed_once_the_column_is_unmapped(mapped):
+    client, protein, _, column = mapped
+    client.put(f"/api/data-sources/testsource/columns/{column}", json={"attribute_id": None})
+    assert preview_attribute(client, protein, "kcal")["kind"] == "no_convert"
+    assert preview_attribute(client, protein, "kcal")["refusal"] is None
+    assert client.put(f"/api/attributes/{protein}", json=protein_body("kcal")).status_code == 200
+
+
+def test_a_conversion_refusal_is_unchanged_by_a_mapping(mapped):
+    # The two refusals can't both apply (a mapping breaks only where nothing
+    # converts), so a conversion refusal inside the category is U3's own.
+    client, protein, _, _ = mapped
+    from .test_plan import goal
+
+    schedule(client, goals=[goal(protein, min="0.5")])
+    refusal = preview_attribute(client, protein, "kg", decimals=3)["refusal"]
+    assert refusal["type"] == "conversion_needs_decimals"
+    assert refusal["kind"] == "goal"
+
+
+def test_a_spelling_change_is_not_refused(mapped):
+    client, protein, _, _ = mapped
+    preview = preview_attribute(client, protein, "gram")
+    assert (preview["kind"], preview["refusal"]) == ("same", None)

@@ -60,6 +60,15 @@ def _response(attribute: models.Attribute, counts: dict[str, dict[int, int]]) ->
     )
 
 
+def _keep_mappings(
+    db: DbSession, attribute: models.Attribute, new_unit: str, change: unit_change.Change
+) -> None:
+    """Refuse (after any refusal the conversion itself has) a unit that would
+    stop a mapped source column converting."""
+    if new_unit != attribute.unit:
+        change.refusal = change.refusal or unit_change.mapped_column_refusal(db, attribute, new_unit)
+
+
 @router.get("")
 def list_attributes(db: DbSession) -> list[Attribute]:
     attributes = db.scalars(select(models.Attribute).order_by(models.Attribute.id))
@@ -81,7 +90,9 @@ def preview_unit_change(attribute_id: int, body: AttributeUnitChange, db: DbSess
     attribute = get_or_404(db, models.Attribute, attribute_id, "attribute")
     decimals = attribute.decimals if body.decimals is None else body.decimals
     converters = unit_change.attribute_converters(attribute, decimals)
-    return answer(unit_change.plan(db, attribute.unit, body.unit, converters))
+    change = unit_change.plan(db, attribute.unit, body.unit, converters)
+    _keep_mappings(db, attribute, body.unit, change)
+    return answer(change)
 
 
 @router.put("/{attribute_id}", responses={**NOT_FOUND, **NAME_IN_USE, **UNIT_CHANGE_REFUSED})
@@ -91,6 +102,7 @@ def update_attribute(attribute_id: int, body: AttributeFields, db: DbSession) ->
     # refusals of the preview; planned before anything is changed.
     converters = unit_change.attribute_converters(attribute, body.decimals)
     change = unit_change.plan(db, attribute.unit, body.unit, converters)
+    _keep_mappings(db, attribute, body.unit, change)
     refuse(change)
     for field, value in body.model_dump().items():
         setattr(attribute, field, value)

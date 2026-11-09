@@ -12,17 +12,22 @@ from .errors import FieldError, FieldErrors, invalid_fields
 class UnitChangeRefusal(BaseModel):
     type: Literal[
         "conversion_needs_decimals", "conversion_too_large",
-        "conversion_rounds_to_zero", "unit_not_for_ingredient",
+        "conversion_rounds_to_zero", "unit_not_for_ingredient", "unit_mismatch",
     ]
     msg: str
     # The number that can't be converted: "goal", "ingredient_value",
-    # "basis" or "recipe_amount"; its owner's name and its field.
+    # "basis" or "recipe_amount"; its owner's name and its field. Or the
+    # "source_column" that would stop converting; its name.
     kind: str | None = None
     name: str | None = None
     field: str | None = None
     number: str | None = None  # as stored, in the old unit
     converted: str | None = None  # what the conversion would give
     decimals_needed: int | None = None  # null: no number of decimals fits
+    # For a "source_column" (unit_mismatch): its data source's name, and the
+    # column's own unit.
+    source: str | None = None
+    unit: str | None = None
 
 
 class UnitChange(BaseModel):

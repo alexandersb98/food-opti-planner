@@ -59,6 +59,10 @@ class Refusal:
     number: str | None = None
     converted: str | None = None
     decimals_needed: int | None = None
+    # For a mapped source column that would stop converting: its source's name
+    # and its own unit.
+    source: str | None = None
+    unit: str | None = None
 
 
 @dataclass
@@ -191,6 +195,30 @@ def plan(db: Session, old_unit: str, new_unit: str, converters: list[Converter])
         kind, _factor_text(ratio) if kind == "convert" and ratio is not None else None,
         counts, rounded, refusal, writes,
     )
+
+
+def mapped_column_refusal(db: Session, attribute: models.Attribute, new_unit: str) -> Refusal | None:
+    """The first column (by source, then column id) mapped to the attribute
+    that would no longer convert with `new_unit`, or None. A mapping must keep
+    converting (data source spec, decision 7), so such a change is refused."""
+    rows = db.execute(
+        select(models.SourceColumn, models.DataSource.name)
+        .join(models.DataSource, models.DataSource.id == models.SourceColumn.source_id)
+        .where(models.SourceColumn.attribute_id == attribute.id)
+        .order_by(models.SourceColumn.source_id, models.SourceColumn.id)
+    )
+    for column, source in rows:
+        if units.factor(column.unit, new_unit) is None:
+            return Refusal(
+                type="unit_mismatch",
+                msg=(
+                    f"{attribute.name} is mapped from {column.name} ({source}), which is in "
+                    f"{column.unit or 'no unit'}, so it can't become {new_unit}. "
+                    "Unmap the column on the data source page first."
+                ),
+                kind="source_column", name=column.name, source=source, unit=column.unit,
+            )
+    return None
 
 
 def attribute_converters(attribute: models.Attribute, decimals: int) -> list[Converter]:

@@ -131,13 +131,14 @@ export function dataSourceSummary(fields: Partial<DataSourceSummary> = {}): Data
     imported_at: '2026-01-01T12:00:00Z',
     food_count: 3,
     column_count: 3,
+    mapped_count: 0,
     ...fields,
   }
 }
 
 /** A column of a data source, by default active, in grams. */
 export function sourceColumn(fields: Given<SourceColumn, 'id' | 'name'>): SourceColumn {
-  return { key: `C${fields.id}`, unit: 'g', withdrawn: false, ...fields }
+  return { key: `C${fields.id}`, unit: 'g', withdrawn: false, attribute_id: null, ...fields }
 }
 
 /** A data source in full, by default with an attribution and no columns. */

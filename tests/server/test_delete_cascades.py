@@ -152,3 +152,19 @@ def test_deleting_an_attribute_clears_the_mappings_and_keeps_the_columns(two_sou
     assert mapping(client, test["PROT"]) is None and mapping(client, other["PROT"]) is None
     assert mapping(client, test["ENERC:kcal"]) == energy
     assert set(column_ids(client, "testsource")) == {"PROT", "ENERC:kcal", "VITD"}
+
+
+def test_mapping_through_the_api_is_counted_and_deleting_clears_it(data_client):
+    protein = Catalog(data_client).attribute("Protein", "g", 1)
+    column = column_ids(data_client, "testsource")["PROT"]
+    url = f"/api/data-sources/testsource/columns/{column}"
+
+    data_client.put(url, json={"attribute_id": protein})
+    assert by_name(data_client, "/api/attributes", "mapping_count") == {"Protein": 1}
+    data_client.put(url, json={"attribute_id": None})
+    assert by_name(data_client, "/api/attributes", "mapping_count") == {"Protein": 0}
+    data_client.put(url, json={"attribute_id": protein})
+    assert data_client.delete(f"/api/attributes/{protein}").status_code == 204
+
+    columns = data_client.get("/api/data-sources/testsource").json()["columns"]
+    assert {c["key"]: c["attribute_id"] for c in columns}["PROT"] is None

@@ -244,6 +244,27 @@
         "title": "ClashMember",
         "type": "object"
       },
+      "ColumnMapping": {
+        "additionalProperties": false,
+        "properties": {
+          "attribute_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attribute Id"
+          }
+        },
+        "required": [
+          "attribute_id"
+        ],
+        "title": "ColumnMapping",
+        "type": "object"
+      },
       "Counts": {
         "properties": {
           "attributes": {
@@ -313,6 +334,10 @@
             "title": "Key",
             "type": "string"
           },
+          "mapped_count": {
+            "title": "Mapped Count",
+            "type": "integer"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -330,6 +355,7 @@
           "imported_at",
           "food_count",
           "column_count",
+          "mapped_count",
           "attribution",
           "columns"
         ],
@@ -374,6 +400,10 @@
             "title": "Key",
             "type": "string"
           },
+          "mapped_count": {
+            "title": "Mapped Count",
+            "type": "integer"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -390,7 +420,8 @@
           "version",
           "imported_at",
           "food_count",
-          "column_count"
+          "column_count",
+          "mapped_count"
         ],
         "title": "DataSourceSummary",
         "type": "object"
@@ -2026,6 +2057,17 @@
       },
       "SourceColumn": {
         "properties": {
+          "attribute_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attribute Id"
+          },
           "id": {
             "title": "Id",
             "type": "integer"
@@ -2052,7 +2094,8 @@
           "key",
           "name",
           "unit",
-          "withdrawn"
+          "withdrawn",
+          "attribute_id"
         ],
         "title": "SourceColumn",
         "type": "object"
@@ -2375,15 +2418,38 @@
             ],
             "title": "Number"
           },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
           "type": {
             "enum": [
               "conversion_needs_decimals",
               "conversion_too_large",
               "conversion_rounds_to_zero",
-              "unit_not_for_ingredient"
+              "unit_not_for_ingredient",
+              "unit_mismatch"
             ],
             "title": "Type",
             "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
           }
         },
         "required": [
@@ -2808,6 +2874,71 @@
           }
         },
         "summary": "Update Data Source",
+        "tags": [
+          "data sources"
+        ]
+      }
+    },
+    "/api/data-sources/{key}/columns/{column_id}": {
+      "put": {
+        "description": "Map a column to an attribute (or, with null, to none). The attribute's\nunit must convert with the column's, and one column of a source feeds an\nattribute at most (data source spec, decisions 5 to 7).",
+        "operationId": "map_column_api_data_sources__key__columns__column_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "column_id",
+            "required": true,
+            "schema": {
+              "title": "Column Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ColumnMapping"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceColumn"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such data source or column"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "Unknown, taken or non-converting attribute"
+          }
+        },
+        "summary": "Map Column",
         "tags": [
           "data sources"
         ]

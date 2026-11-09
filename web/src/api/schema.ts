@@ -112,6 +112,28 @@ export interface paths {
         patch: operations["update_data_source_api_data_sources__key__patch"];
         trace?: never;
     };
+    "/api/data-sources/{key}/columns/{column_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Map Column
+         * @description Map a column to an attribute (or, with null, to none). The attribute's
+         *     unit must convert with the column's, and one column of a source feeds an
+         *     attribute at most (data source spec, decisions 5 to 7).
+         */
+        put: operations["map_column_api_data_sources__key__columns__column_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -642,6 +664,11 @@ export interface components {
             /** Name */
             name: string | null;
         };
+        /** ColumnMapping */
+        ColumnMapping: {
+            /** Attribute Id */
+            attribute_id: number | null;
+        };
         /** Counts */
         Counts: {
             /** Attributes */
@@ -672,6 +699,8 @@ export interface components {
             imported_at: string;
             /** Key */
             key: string;
+            /** Mapped Count */
+            mapped_count: number;
             /** Name */
             name: string;
             /** Version */
@@ -697,6 +726,8 @@ export interface components {
             imported_at: string;
             /** Key */
             key: string;
+            /** Mapped Count */
+            mapped_count: number;
             /** Name */
             name: string;
             /** Version */
@@ -1244,6 +1275,8 @@ export interface components {
         };
         /** SourceColumn */
         SourceColumn: {
+            /** Attribute Id */
+            attribute_id: number | null;
             /** Id */
             id: number;
             /** Key */
@@ -1369,11 +1402,15 @@ export interface components {
             name?: string | null;
             /** Number */
             number?: string | null;
+            /** Source */
+            source?: string | null;
             /**
              * Type
              * @enum {string}
              */
-            type: "conversion_needs_decimals" | "conversion_too_large" | "conversion_rounds_to_zero" | "unit_not_for_ingredient";
+            type: "conversion_needs_decimals" | "conversion_too_large" | "conversion_rounds_to_zero" | "unit_not_for_ingredient" | "unit_mismatch";
+            /** Unit */
+            unit?: string | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -1704,6 +1741,49 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    map_column_api_data_sources__key__columns__column_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+                column_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ColumnMapping"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceColumn"];
+                };
+            };
+            /** @description No such data source or column */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown, taken or non-converting attribute */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
                 };
             };
         };
