@@ -4,8 +4,9 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '../api/client'
 import { conversionRefusal, fieldErrors } from '../api/errors'
-import type { Attribute, Ingredient, IngredientFields as Fields, Recipe, Tag } from '../api/types'
+import type { Attribute, Conversion, Ingredient, IngredientFields as Fields, Recipe, Tag } from '../api/types'
 import ConfirmDelete from '../components/ConfirmDelete.vue'
+import ConversionsCard from '../components/ConversionsCard.vue'
 import EditorHeader from '../components/EditorHeader.vue'
 import LoadState from '../components/LoadState.vue'
 import SourceChip from '../components/SourceChip.vue'
@@ -155,6 +156,17 @@ async function answerUpdates(answer: 'accept' | 'keep') {
 }
 
 const inUse = computed(() => (data.value.ingredient?.recipe_count ?? 0) > 0)
+
+/** The conversions as the card changed them (each act is saved at once). */
+function conversionsChanged(conversions: Conversion[]) {
+  if (data.value.ingredient) data.value.ingredient.conversions = conversions
+}
+
+/** What deleting says besides the name: the conversions that go with it. */
+const deleteWarning = computed(() => {
+  const count = data.value.ingredient?.conversions.length ?? 0
+  return count > 0 ? t('ingredients.deleteConversions', { n: count }, count) : t('common.deleteNothing')
+})
 
 // "Used in 2 recipes · Show": the recipes, loaded when asked for.
 const usedIn = ref<Recipe[] | null>(null)
@@ -444,6 +456,18 @@ async function confirmDelete() {
           </div>
         </div>
 
+        <ConversionsCard
+          v-if="data.ingredient"
+          :ingredient="data.ingredient"
+          @changed="conversionsChanged"
+        />
+        <div
+          v-else
+          class="conversions-save-first text-grey-8"
+        >
+          {{ $t('conversions.saveFirst') }}
+        </div>
+
         <div v-if="data.ingredient">
           <div class="row items-center q-gutter-x-sm text-grey-8">
             <span>{{ $t('ingredients.usedIn', { recipes: $t('count.recipes', data.ingredient.recipe_count) }) }}</span>
@@ -520,7 +544,7 @@ async function confirmDelete() {
     <ConfirmDelete
       v-model="deleteOpen"
       :name="data.ingredient?.name ?? ''"
-      :warning="$t('common.deleteNothing')"
+      :warning="deleteWarning"
       @confirm="confirmDelete"
     />
   </q-page>

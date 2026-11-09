@@ -544,10 +544,11 @@
     "inUse": "Can't be deleted while a recipe uses it.",
     "unitInUse": "A recipe uses this unit, so only the number can change.",
     "saveFirst": "Save the ingredient to add conversions.",
-    "deleteTitle": "Delete the conversion for {unit}?",
     "aiTooltip": "Suggested by AI, not checked by you",
     "edit": "Edit",
     "delete": "Delete",
-    "unitLabel": "Unit"
+    "deleteName": "the conversion for {unit}",
+    "editOf": "Edit the conversion for {unit}",
+    "deleteOf": "Delete the conversion for {unit}"
   }
 }

@@ -13,7 +13,7 @@ import {
   unitRoutes,
   type FakeServer,
 } from '../test-app'
-import { attribute, ingredient, ingredientSource, lines, recipe, tag, unitChange, unitChangeRefusal } from '../test-data'
+import { attribute, conversion, ingredient, ingredientSource, lines, recipe, tag, unitChange, unitChangeRefusal } from '../test-data'
 import { resetUnits } from '../units'
 
 const energy = attribute({ id: 1, name: 'Energy', unit: 'kcal', ingredient_count: 1 })
@@ -764,5 +764,100 @@ test('the buttons are disabled while the answer is sent and a second click sends
   release()
   await click(wrapper.get('h1'))
   expect(posts).toHaveLength(1)
+  wrapper.unmount()
+})
+
+
+// Conversions (slice R3).
+
+const oatsWithConversions = ingredient({
+  ...oats,
+  conversions: [conversion({ id: 1, unit: 'dl', factor: '40' }), conversion({ id: 2, unit: 'pinch', factor: '0.3' })],
+})
+
+test('a saved ingredient shows its Conversions card and a new one says to save first', async () => {
+  const saved = await mountPage('/ingredients/7', { 'GET /api/ingredients/7': { body: oatsWithConversions } })
+  expect(saved.wrapper.get('.conversions-card').text()).toContain('Conversions')
+  expect(texts(saved.wrapper, '.conversion-text')).toEqual(['1 dl = 40 g', '1 pinch = 0.3 g'])
+  expect(saved.wrapper.find('.conversions-save-first').exists()).toBe(false)
+  saved.wrapper.unmount()
+  const fresh = await mountPage('/ingredients/new')
+  expect(fresh.wrapper.find('.conversions-card').exists()).toBe(false)
+  expect(fresh.wrapper.get('.conversions-save-first').text()).toBe('Save the ingredient to add conversions.')
+  fresh.wrapper.unmount()
+})
+
+test('a conversion added on the card shows at once', async () => {
+  const made = conversion({ id: 5, unit: 'msk', factor: '10' })
+  const { wrapper } = await mountPage('/ingredients/7', {
+    'POST /api/ingredients/7/conversions': { status: 201, body: made },
+  })
+  expect(wrapper.text()).toContain('No conversions yet.')
+  await click(button(wrapper, '+ Add conversion'))
+  const unit = document.querySelector<HTMLInputElement>('.conversion-dialog input[aria-label="Unit"]')!
+  unit.value = 'msk'
+  unit.dispatchEvent(new Event('input', { bubbles: true }))
+  const factor = document.querySelector<HTMLInputElement>('.conversion-dialog input[aria-label="How many g one makes"]')!
+  factor.value = '10'
+  factor.dispatchEvent(new Event('input', { bubbles: true }))
+  await dialog().click('Save')
+  expect(texts(wrapper, '.conversion-text')).toEqual(['1 msk = 10 g'])
+  wrapper.unmount()
+})
+
+test('a unit change with conversions asks with the conversions counted and Convert saves', async () => {
+  const preview = unitChange({ factor: '1000', counts: { basis: 1, recipe_amounts: 1, conversions: 2 } })
+  const { sent, handler } = recorder(200, (body) => ({ ...oatsWithConversions, ...body }))
+  const { wrapper } = await mountPage('/ingredients/7', {
+    'GET /api/ingredients/7': { body: ingredient({ ...oatsWithConversions, unit: 'kg', basis: '0.1' }) },
+    'POST /api/ingredients/7/unit-change': { body: preview },
+    'PUT /api/ingredients/7': handler,
+  })
+  await chooseUnit(wrapper, 'Measured in', 'g (gram)')
+  await click(button(wrapper, 'Save'))
+  expect(dialog().text).toContain('Oats: the basis, 1 recipe amount and 2 conversions will be converted from kg to g (× 1000).')
+  await dialog().click('Convert')
+  expect(sent).toEqual([expect.objectContaining({ unit: 'g' })])
+  wrapper.unmount()
+})
+
+test.each([
+  [
+    unitChangeRefusal({ type: 'unit_has_dependents', name: 'Oats', conversions: 2, lines: 3 }),
+    "Oats has 2 conversions and 3 recipe lines in other units, so its unit can't change from g to dl. Delete or change them first.",
+  ],
+  [
+    unitChangeRefusal({ type: 'conversion_for_new_unit', name: 'Oats', unit: 'dl' }),
+    'Oats has a conversion for dl. Delete the conversion for dl first.',
+  ],
+])('the refusal %# shows under Measured in, the form stays and nothing is saved', async (refusal, message) => {
+  const { sent, handler } = recorder(200, () => oatsWithConversions)
+  const { wrapper, router } = await mountPage('/ingredients/7', {
+    'GET /api/ingredients/7': { body: oatsWithConversions },
+    'POST /api/ingredients/7/unit-change': { body: unitChange({ kind: 'no_convert', factor: null, refusal }) },
+    'PUT /api/ingredients/7': handler,
+  })
+  await chooseUnit(wrapper, 'Measured in', 'dl (decilitre)')
+  await click(button(wrapper, 'Save'))
+  expect(wrapper.text()).toContain(message)
+  expect(document.querySelector('.q-dialog')).toBeNull()
+  expect(sent).toEqual([])
+  expect(router.currentRoute.value.fullPath).toBe('/ingredients/7')
+  wrapper.unmount()
+})
+
+test('the delete confirmation names the conversions that go with the ingredient', async () => {
+  const { wrapper } = await mountPage('/ingredients/7', { 'GET /api/ingredients/7': { body: oatsWithConversions } })
+  const deletes = wrapper.findAll('button').filter((b) => b.text() === 'Delete')
+  await click(deletes.at(-1)!)
+  expect(dialog().text).toContain('Delete Oats?')
+  expect(dialog().text).toContain('This also removes its 2 conversions.')
+  wrapper.unmount()
+})
+
+test('with no conversions the delete confirmation says nothing else uses it', async () => {
+  const { wrapper } = await mountPage('/ingredients/7')
+  await click(button(wrapper, 'Delete'))
+  expect(dialog().text).toContain('Nothing else uses it.')
   wrapper.unmount()
 })
