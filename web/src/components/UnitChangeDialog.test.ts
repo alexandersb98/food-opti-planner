@@ -66,14 +66,19 @@ test('with nothing stored in the unit the dialog still asks', async () => {
 })
 
 test('a count without text of its own still shows, by its key', async () => {
-  await ask(unitChange({ counts: { ingredient_values: 3, source_values: 5 } }))
-  expect(dialog().text).toContain('Iron: 3 ingredient values and 5 source_values will be converted')
+  await ask(unitChange({ counts: { ingredient_values: 3, recipe_lines: 5 } }))
+  expect(dialog().text).toContain('Iron: 3 ingredient values and 5 recipe_lines will be converted')
   expect(dialog().text).not.toContain('unitChange')
+})
+
+test('ingredient values and copied source values are both counted', async () => {
+  await ask(unitChange({ counts: { ingredient_values: 3, source_values: 2 }, factor: '1000' }), 'Iron', 'mg', 'µg')
+  expect(dialog().text).toContain('Iron: 3 ingredient values and 2 source values will be converted from mg to µg (× 1000).')
 })
 
 test('every count key the server sends has text of its own', () => {
   // The keys of the converters in server/unit_change.py; a slice that adds one adds it here too.
-  for (const key of ['ingredient_values', 'goals', 'basis', 'recipe_amounts']) {
+  for (const key of ['ingredient_values', 'source_values', 'goals', 'basis', 'recipe_amounts']) {
     expect(Object.keys(en.unitChange.counts)).toContain(key)
   }
 })

@@ -137,6 +137,7 @@
     "loadOneFailed": "Could not load the ingredient.",
     "measuredIn": "Measured in",
     "unitNotForIngredient": "An ingredient is measured in an amount of food, such as g, dl or pieces.",
+    "unitNotForSource": "An ingredient from a data source can only be measured in a mass unit such as g or kg, as the source's values are per 100 g of food.",
     "valuesPer": "Values per",
     "basis": "Value basis",
     "valuesHint": "Leave a value empty if it is 0.",
@@ -405,6 +406,7 @@
     "changeUnit": "Change unit",
     "counts": {
       "ingredient_values": "no ingredient values | 1 ingredient value | {n} ingredient values",
+      "source_values": "no source values | 1 source value | {n} source values",
       "goals": "no goals | 1 goal | {n} goals",
       "basis": "the basis",
       "recipe_amounts": "no recipe amounts | 1 recipe amount | {n} recipe amounts"
@@ -418,6 +420,7 @@
     "subject": {
       "goal": "The goal {name}'s {field}",
       "ingredient_value": "The {attribute} value of {name}",
+      "source_value": "The source's {attribute} value of {name}",
       "basis": "The basis of {name}",
       "recipe_amount": "The amount in {name}",
       "other": "{name}"

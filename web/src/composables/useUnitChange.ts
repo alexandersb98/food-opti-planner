@@ -53,6 +53,7 @@ export function refusalText(
   context: RefusalContext,
 ): string {
   if (refusal.type === 'unit_not_for_ingredient') return t('ingredients.unitNotForIngredient')
+  if (refusal.type === 'unit_not_for_source') return t('ingredients.unitNotForSource')
   const name = refusal.name ?? ''
   const attribute = context.attribute ?? ''
   if (refusal.type === 'unit_mismatch') {
@@ -61,7 +62,7 @@ export function refusalText(
     })
   }
   const field = t(`unitChange.fields.${refusal.field ?? 'value'}`)
-  const kind = ['goal', 'ingredient_value', 'basis', 'recipe_amount'].includes(refusal.kind ?? '') ? refusal.kind : 'other'
+  const kind = ['goal', 'ingredient_value', 'source_value', 'basis', 'recipe_amount'].includes(refusal.kind ?? '') ? refusal.kind : 'other'
   const subject = t(`unitChange.subject.${kind}`, { name, field, attribute })
   const facts = {
     subject,

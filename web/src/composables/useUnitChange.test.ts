@@ -54,3 +54,16 @@ test('an energy unit for an ingredient reuses the ingredient form text', () => {
     'An ingredient is measured in an amount of food, such as g, dl or pieces.',
   )
 })
+
+test('a linked ingredient refused a unit that is not mass says why', () => {
+  expect(refusalText(t, unitChangeRefusal({ type: 'unit_not_for_source' }), { from: 'g', to: 'dl' })).toBe(
+    "An ingredient from a data source can only be measured in a mass unit such as g or kg, as the source's values are per 100 g of food.",
+  )
+})
+
+test("a source value that gets too large is named as the source's", () => {
+  const refusal = unitChangeRefusal({ type: 'conversion_too_large', kind: 'source_value', name: 'Oats', field: 'source_value', number: '999999999', converted: '999999999000', decimals_needed: null })
+  expect(refusalText(t, refusal, { from: 'mg', to: 'µg', attribute: 'Iron' })).toBe(
+    "The source's Iron value of Oats (999999999 mg) would be 999999999000 µg, which is too large.",
+  )
+})
