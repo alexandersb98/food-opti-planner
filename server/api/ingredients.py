@@ -1,4 +1,5 @@
-"""/api/ingredients: list, read, create, update and delete ingredients (C3, C4)."""
+"""/api/ingredients: list, read, create, update and delete ingredients (C3, C4),
+add one from a data source's food (C7) and unlink it from its source."""
 
 from typing import Annotated
 
@@ -6,12 +7,13 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field, StringConstraints
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 
-from .. import models, unit_change, units
+from .. import models, source_values, unit_change, units
 from ..db import DbSession
 from ..fields import Name, Number
 from .catalog import References, commit_named, count_by, get_or_404, in_list
-from .errors import NAME_IN_USE
+from .errors import NAME_IN_USE, FieldErrors
 from .unit_changes import UNIT_CHANGE_REFUSED, UnitChange, UnitChangeRefusal, answer, refuse
 
 router = APIRouter(prefix="/ingredients", tags=["ingredients"])
@@ -21,11 +23,22 @@ UNPROCESSABLE = {422: {"description": "An energy unit, or an unknown attribute o
 UPDATE_UNPROCESSABLE = {
     422: {
         **UNIT_CHANGE_REFUSED[422],
-        "description": "An energy unit, an unknown attribute or tag, or a conversion that would "
-        "lose precision or a number's range",
+        "description": "An energy unit, a non-mass unit for an ingredient from a data source, "
+        "an unknown attribute or tag, or a conversion that would lose precision or a number's range",
     }
 }
 UNIT_NOT_FOR_INGREDIENT = "An ingredient is measured in an amount of food, such as g, dl or pieces."
+UNIT_NOT_FOR_SOURCE = (
+    "An ingredient from a data source can only be measured in a mass unit such as g or kg, "
+    "as the source's values are per 100 g of food."
+)
+FROM_SOURCE_UNPROCESSABLE = {
+    422: {
+        "model": FieldErrors,
+        "description": "An unknown or withdrawn food, a tag that is not one of the food's, "
+        "or an unknown tag",
+    }
+}
 IN_USE = {409: {"description": "Recipes use the ingredient, so it can't be deleted"}}
 
 
@@ -55,14 +68,63 @@ class IngredientUnitChange(BaseModel):
     basis: Annotated[Number, Field(gt=0)] | None = None
 
 
+class IngredientSource(BaseModel):
+    """The data source food an ingredient is linked to."""
+
+    key: str
+    name: str
+    colour: str
+    food_id: int
+    food_name: str
+    withdrawn: bool
+
+
+class IngredientFromSource(BaseModel):
+    """Add from data source: the food and what the user chose in the preview.
+    The unit, basis and values are the server's to work out."""
+
+    food_id: int
+    name: Name
+    # Only source tags of the food: the ones the user left on.
+    tag_ids: list[int]
+
+
 class Ingredient(IngredientFields):
     id: int
     # How many recipes use it; it can't be deleted while any does.
     recipe_count: int
+    # Null for an ingredient with no link to a source food.
+    source: IngredientSource | None
 
 
 def _recipe_counts(db: DbSession) -> dict[int, int]:
     return count_by(db, models.RecipeItem.ingredient_id)
+
+
+def _source(ingredient: models.Ingredient) -> IngredientSource | None:
+    food = ingredient.source_food
+    if food is None:
+        return None
+    return IngredientSource(
+        key=food.source.key,
+        name=food.source.name,
+        colour=food.source.colour,
+        food_id=food.id,
+        food_name=food.name,
+        withdrawn=food.withdrawn,
+    )
+
+
+def _unit_refusal(ingredient: models.Ingredient, unit: str) -> tuple[str, str] | None:
+    """The type and message of the rule `unit` breaks for this ingredient, if
+    any: an energy unit (one refusal per field, so first), or a linked
+    ingredient's unit that is not a mass unit (its values are per 100 g)."""
+    parsed = units.parse(unit)
+    if parsed is not None and parsed.category == "energy":
+        return "unit_not_for_ingredient", UNIT_NOT_FOR_INGREDIENT
+    if ingredient.source_food_id is not None and (parsed is None or parsed.category != "mass"):
+        return "unit_not_for_source", UNIT_NOT_FOR_SOURCE
+    return None
 
 
 def _response(ingredient: models.Ingredient, recipe_counts: dict[int, int]) -> Ingredient:
@@ -74,19 +136,21 @@ def _response(ingredient: models.Ingredient, recipe_counts: dict[int, int]) -> I
         values=[IngredientValue(attribute_id=v.attribute_id, value=v.value) for v in ingredient.values],
         tag_ids=[tag.id for tag in ingredient.tags],
         recipe_count=recipe_counts.get(ingredient.id, 0),
+        source=_source(ingredient),
     )
 
 
 def _fill(ingredient: models.Ingredient, body: IngredientFields, db: DbSession) -> None:
     """Set the ingredient's fields from `body`, answering 422 for an energy
-    unit, attributes given twice and attribute or tag ids that name nothing."""
+    unit, a unit a linked ingredient can't have, attributes given twice and
+    attribute or tag ids that name nothing."""
     refs = References(db)
     attribute_ids = [v.attribute_id for v in body.values]
     refs.rows(models.Attribute, in_list("values", attribute_ids, "attribute_id"), "attribute", unique=True)
     tags = refs.rows(models.Tag, in_list("tag_ids", body.tag_ids), "tag")
-    parsed = units.parse(body.unit)
-    if parsed is not None and parsed.category == "energy":
-        refs.error(["unit"], "unit_not_for_ingredient", UNIT_NOT_FOR_INGREDIENT)
+    refused = _unit_refusal(ingredient, body.unit)
+    if refused:
+        refs.error(["unit"], *refused)
     refs.check()
 
     # Loading the old values and tags must not save the new name early, or a
@@ -113,7 +177,11 @@ def _value(stored: models.IngredientValue | None, fields: IngredientValue) -> mo
 
 @router.get("")
 def list_ingredients(db: DbSession) -> list[Ingredient]:
-    ingredients = db.scalars(select(models.Ingredient).order_by(models.Ingredient.id))
+    ingredients = db.scalars(
+        select(models.Ingredient)
+        .options(selectinload(models.Ingredient.source_food).selectinload(models.SourceFood.source))
+        .order_by(models.Ingredient.id)
+    )
     recipe_counts = _recipe_counts(db)
     return [_response(ingredient, recipe_counts) for ingredient in ingredients]
 
@@ -132,6 +200,61 @@ def create_ingredient(body: IngredientFields, db: DbSession) -> Ingredient:
     return _response(ingredient, _recipe_counts(db))
 
 
+@router.post(
+    "/from-source", status_code=status.HTTP_201_CREATED, responses={**NAME_IN_USE, **FROM_SOURCE_UNPROCESSABLE}
+)
+def create_from_source(body: IngredientFromSource, db: DbSession) -> Ingredient:
+    """Make an ingredient from a source food: its name and chosen source tags
+    are the user's, the unit, basis and values come from the food as the
+    mapping and preferences stand now. It stays linked to the food, and each
+    value remembers the source's number."""
+    refs = References(db)
+    found = refs.rows(models.SourceFood, [(["food_id"], body.food_id)], "food")
+    refs.check()
+    food = found[body.food_id]
+    if food.withdrawn:
+        refs.error(["food_id"], "withdrawn", "This food is no longer in the source")
+        refs.check()
+    food_tags = set(
+        db.scalars(select(models.source_food_tags.c.tag_id).where(models.source_food_tags.c.food_id == food.id))
+    )
+    existing = set(db.scalars(select(models.Tag.id).where(models.Tag.id.in_(body.tag_ids))))
+    for i, tag_id in enumerate(body.tag_ids):
+        if tag_id in existing and tag_id not in food_tags:
+            refs.error(["tag_ids", i], "not_a_food_tag", "This tag is not one of the food's source tags")
+    refs.check()
+
+    unit, basis = source_values.food_basis(db)
+    copied = source_values.copied_values(db, food)
+    fields = IngredientFields(
+        name=body.name,
+        unit=unit,
+        basis=basis,
+        values=[IngredientValue(attribute_id=c.attribute.id, value=c.value) for c in copied.values],
+        tag_ids=body.tag_ids,
+    )
+    ingredient = models.Ingredient(source_food_id=food.id)
+    _fill(ingredient, fields, db)
+    for value in ingredient.values:
+        value.source_value = value.value
+    db.add(ingredient)
+    commit_named(db, ingredient, "An ingredient")
+    return _response(ingredient, _recipe_counts(db))
+
+
+@router.post("/{ingredient_id}/unlink", responses=NOT_FOUND)
+def unlink_ingredient(ingredient_id: int, db: DbSession) -> Ingredient:
+    """Cut the link to the source food and forget the source's numbers. The
+    values, tags and basis stay. An unlinked ingredient is answered as it is."""
+    ingredient = get_or_404(db, models.Ingredient, ingredient_id, "ingredient")
+    ingredient.source_food_id = None
+    ingredient.source_food = None
+    for value in ingredient.values:
+        value.source_value = None
+    db.commit()
+    return _response(ingredient, _recipe_counts(db))
+
+
 @router.post("/{ingredient_id}/unit-change", responses=NOT_FOUND)
 def preview_unit_change(ingredient_id: int, body: IngredientUnitChange, db: DbSession) -> UnitChange:
     """What changing the unit does to the basis and the recipe amounts. Writes nothing."""
@@ -139,9 +262,9 @@ def preview_unit_change(ingredient_id: int, body: IngredientUnitChange, db: DbSe
     basis = ingredient.basis if body.basis is None else body.basis
     converters = unit_change.ingredient_converters(ingredient, basis)
     preview = answer(unit_change.plan(db, ingredient.unit, body.unit, converters))
-    parsed = units.parse(body.unit)
-    if parsed is not None and parsed.category == "energy":
-        preview.refusal = UnitChangeRefusal(type="unit_not_for_ingredient", msg=UNIT_NOT_FOR_INGREDIENT)
+    refused = _unit_refusal(ingredient, body.unit)
+    if refused:
+        preview.refusal = UnitChangeRefusal(type=refused[0], msg=refused[1])  # type: ignore[arg-type]
     return preview
 
 

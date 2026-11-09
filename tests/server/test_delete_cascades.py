@@ -168,3 +168,23 @@ def test_mapping_through_the_api_is_counted_and_deleting_clears_it(data_client):
 
     columns = data_client.get("/api/data-sources/testsource").json()["columns"]
     assert {c["key"]: c["attribute_id"] for c in columns}["PROT"] is None
+
+
+def test_deleting_an_attribute_removes_copied_values_with_their_source_values_and_keeps_the_link(data_client):
+    from .test_ingredients_from_source import add, map_columns, source_values
+
+    made_attributes = map_columns(data_client, {"PROT": ("Protein", "g"), "ENERC:kcal": ("Energy", "kcal")})
+    made = add(data_client).json()
+    protein = made_attributes["PROT"]
+    assert data_client.delete(f"/api/attributes/{protein}").status_code == 204
+    assert list(source_values(data_client, made["id"])) == [made_attributes["ENERC:kcal"]]
+    assert data_client.get(f"/api/ingredients/{made['id']}").json()["source"]["food_name"] == "TEST Oats"
+
+
+def test_deleting_a_linked_ingredient_leaves_the_source_food(data_client):
+    from .test_ingredients_from_source import add
+
+    made = add(data_client).json()
+    assert data_client.delete(f"/api/ingredients/{made['id']}").status_code == 204
+    foods = data_client.get("/api/data-sources/testsource/foods").json()
+    assert foods["total"] == 3

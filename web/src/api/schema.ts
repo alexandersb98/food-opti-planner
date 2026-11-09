@@ -208,6 +208,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ingredients/from-source": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create From Source
+         * @description Make an ingredient from a source food: its name and chosen source tags
+         *     are the user's, the unit, basis and values come from the food as the
+         *     mapping and preferences stand now. It stays linked to the food, and each
+         *     value remembers the source's number.
+         */
+        post: operations["create_from_source_api_ingredients_from_source_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ingredients/{ingredient_id}": {
         parameters: {
             query?: never;
@@ -241,6 +264,27 @@ export interface paths {
          * @description What changing the unit does to the basis and the recipe amounts. Writes nothing.
          */
         post: operations["preview_unit_change_api_ingredients__ingredient_id__unit_change_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ingredients/{ingredient_id}/unlink": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unlink Ingredient
+         * @description Cut the link to the source food and forget the source's numbers. The
+         *     values, tags and basis stay. An unlinked ingredient is answered as it is.
+         */
+        post: operations["unlink_ingredient_api_ingredients__ingredient_id__unlink_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -948,6 +992,7 @@ export interface components {
             name: string;
             /** Recipe Count */
             recipe_count: number;
+            source: components["schemas"]["IngredientSource"] | null;
             /** Tag Ids */
             tag_ids: number[];
             /** Unit */
@@ -967,6 +1012,37 @@ export interface components {
             unit: string;
             /** Values */
             values: components["schemas"]["IngredientValue-Input"][];
+        };
+        /**
+         * IngredientFromSource
+         * @description Add from data source: the food and what the user chose in the preview.
+         *     The unit, basis and values are the server's to work out.
+         */
+        IngredientFromSource: {
+            /** Food Id */
+            food_id: number;
+            /** Name */
+            name: string;
+            /** Tag Ids */
+            tag_ids: number[];
+        };
+        /**
+         * IngredientSource
+         * @description The data source food an ingredient is linked to.
+         */
+        IngredientSource: {
+            /** Colour */
+            colour: string;
+            /** Food Id */
+            food_id: number;
+            /** Food Name */
+            food_name: string;
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+            /** Withdrawn */
+            withdrawn: boolean;
         };
         /** IngredientUnitChange */
         IngredientUnitChange: {
@@ -1534,7 +1610,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "conversion_needs_decimals" | "conversion_too_large" | "conversion_rounds_to_zero" | "unit_not_for_ingredient" | "unit_mismatch";
+            type: "conversion_needs_decimals" | "conversion_too_large" | "conversion_rounds_to_zero" | "unit_not_for_ingredient" | "unit_not_for_source" | "unit_mismatch";
             /** Unit */
             unit?: string | null;
         };
@@ -2074,6 +2150,48 @@ export interface operations {
             };
         };
     };
+    create_from_source_api_ingredients_from_source_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IngredientFromSource"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ingredient"];
+                };
+            };
+            /** @description The name is already in use */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+            /** @description An unknown or withdrawn food, a tag that is not one of the food's, or an unknown tag */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+        };
+    };
     get_ingredient_api_ingredients__ingredient_id__get: {
         parameters: {
             query?: never;
@@ -2152,7 +2270,7 @@ export interface operations {
                     "application/json": components["schemas"]["FieldErrors"];
                 };
             };
-            /** @description An energy unit, an unknown attribute or tag, or a conversion that would lose precision or a number's range */
+            /** @description An energy unit, a non-mass unit for an ingredient from a data source, an unknown attribute or tag, or a conversion that would lose precision or a number's range */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -2228,6 +2346,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UnitChange"];
+                };
+            };
+            /** @description No such ingredient */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unlink_ingredient_api_ingredients__ingredient_id__unlink_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ingredient_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ingredient"];
                 };
             };
             /** @description No such ingredient */

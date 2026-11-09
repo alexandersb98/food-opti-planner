@@ -16,7 +16,7 @@ export function tag(fields: Given<Tag, 'id' | 'name'>): Tag {
 }
 
 export function ingredient(fields: Given<Ingredient, 'id' | 'name'>): Ingredient {
-  return { unit: 'g', basis: '100', values: [], tag_ids: [], recipe_count: 0, ...fields }
+  return { unit: 'g', basis: '100', values: [], tag_ids: [], recipe_count: 0, source: null, ...fields }
 }
 
 export function recipe(fields: Given<Recipe, 'id' | 'name'>): Recipe {

@@ -952,6 +952,16 @@
             "title": "Recipe Count",
             "type": "integer"
           },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IngredientSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "tag_ids": {
             "items": {
               "type": "integer"
@@ -980,7 +990,8 @@
           "values",
           "tag_ids",
           "id",
-          "recipe_count"
+          "recipe_count",
+          "source"
         ],
         "title": "Ingredient",
         "type": "object"
@@ -1033,6 +1044,74 @@
           "tag_ids"
         ],
         "title": "IngredientFields",
+        "type": "object"
+      },
+      "IngredientFromSource": {
+        "description": "Add from data source: the food and what the user chose in the preview.\nThe unit, basis and values are the server's to work out.",
+        "properties": {
+          "food_id": {
+            "title": "Food Id",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "tag_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Tag Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "food_id",
+          "name",
+          "tag_ids"
+        ],
+        "title": "IngredientFromSource",
+        "type": "object"
+      },
+      "IngredientSource": {
+        "description": "The data source food an ingredient is linked to.",
+        "properties": {
+          "colour": {
+            "title": "Colour",
+            "type": "string"
+          },
+          "food_id": {
+            "title": "Food Id",
+            "type": "integer"
+          },
+          "food_name": {
+            "title": "Food Name",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "withdrawn": {
+            "title": "Withdrawn",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "colour",
+          "food_id",
+          "food_name",
+          "withdrawn"
+        ],
+        "title": "IngredientSource",
         "type": "object"
       },
       "IngredientUnitChange": {
@@ -2681,6 +2760,7 @@
               "conversion_too_large",
               "conversion_rounds_to_zero",
               "unit_not_for_ingredient",
+              "unit_not_for_source",
               "unit_mismatch"
             ],
             "title": "Type",
@@ -3396,6 +3476,58 @@
         ]
       }
     },
+    "/api/ingredients/from-source": {
+      "post": {
+        "description": "Make an ingredient from a source food: its name and chosen source tags\nare the user's, the unit, basis and values come from the food as the\nmapping and preferences stand now. It stays linked to the food, and each\nvalue remembers the source's number.",
+        "operationId": "create_from_source_api_ingredients_from_source_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngredientFromSource"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ingredient"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "The name is already in use"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "An unknown or withdrawn food, a tag that is not one of the food's, or an unknown tag"
+          }
+        },
+        "summary": "Create From Source",
+        "tags": [
+          "ingredients"
+        ]
+      }
+    },
     "/api/ingredients/{ingredient_id}": {
       "delete": {
         "operationId": "delete_ingredient_api_ingredients__ingredient_id__delete",
@@ -3534,7 +3666,7 @@
                 }
               }
             },
-            "description": "An energy unit, an unknown attribute or tag, or a conversion that would lose precision or a number's range"
+            "description": "An energy unit, a non-mass unit for an ingredient from a data source, an unknown attribute or tag, or a conversion that would lose precision or a number's range"
           }
         },
         "summary": "Update Ingredient",
@@ -3594,6 +3726,52 @@
           }
         },
         "summary": "Preview Unit Change",
+        "tags": [
+          "ingredients"
+        ]
+      }
+    },
+    "/api/ingredients/{ingredient_id}/unlink": {
+      "post": {
+        "description": "Cut the link to the source food and forget the source's numbers. The\nvalues, tags and basis stay. An unlinked ingredient is answered as it is.",
+        "operationId": "unlink_ingredient_api_ingredients__ingredient_id__unlink_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ingredient_id",
+            "required": true,
+            "schema": {
+              "title": "Ingredient Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ingredient"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such ingredient"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unlink Ingredient",
         "tags": [
           "ingredients"
         ]
