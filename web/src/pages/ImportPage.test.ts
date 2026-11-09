@@ -98,7 +98,7 @@ test('a success posts the text, shows the wait, hands the draft over and opens a
   await click(importButton(wrapper))
   expect(importButton(wrapper).text()).toContain('Reading the recipe…')
   // visible, not the hidden label Quasar keeps under its spinner
-  expect(importButton(wrapper).get('.absolute-full').text()).toContain('Reading the recipe…')
+  expect(importButton(wrapper).text()).toContain('Reading the recipe…')
   expect(box(wrapper).attributes('readonly')).toBeDefined()
   await click(importButton(wrapper)) // a second click does nothing
   release()

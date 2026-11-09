@@ -332,7 +332,27 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await expect(page.getByRole('alert')).toHaveText("The AI service didn't answer. Try again.")
   const porridgeText = 'Porridge for two: 100 g oats, 3 dl milk, 2 tbsp honey. Boil.'
   await pasted.fill(porridgeText)
+  // A slow answer: while it waits the button shows the spinner and the whole label
+  // "Reading the recipe…" inside its own box (at phone width).
+  await page.route(
+    '**/api/recipe-imports',
+    async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+      await route.continue()
+    },
+    { times: 1 },
+  )
   await importButton.click()
+  await expect(page.getByRole('button', { name: /Reading the recipe/ })).toBeVisible()
+  const fits = await page.getByRole('button', { name: /Reading the recipe/ }).evaluate((button) => {
+    const range = document.createRange()
+    range.selectNodeContents(button)
+    const text = range.getBoundingClientRect()
+    const box = button.getBoundingClientRect()
+    return text.left >= box.left - 0.5 && text.right <= box.right + 0.5 && button.scrollWidth <= button.clientWidth + 1
+  })
+  expect(fits).toBe(true)
+  if (process.env.E2E_SCREENSHOT) await page.screenshot({ path: process.env.E2E_SCREENSHOT })
 
   // C2 opens the draft unsaved, in review: the banner counts the two lines that need
   // the user, each line shows its source line, oats is ready, the pepper line is greyed

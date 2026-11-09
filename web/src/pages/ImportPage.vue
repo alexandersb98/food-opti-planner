@@ -93,12 +93,13 @@ async function run() {
         color="primary"
         no-caps
         :disable="!canImport"
-        :loading="running"
-        :label="$t('import.run')"
       >
-        <template #loading>
+        <template v-if="running">
           <q-spinner class="q-mr-sm" />
           {{ $t('import.reading') }}
+        </template>
+        <template v-else>
+          {{ $t('import.run') }}
         </template>
       </q-btn>
     </q-form>

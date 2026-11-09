@@ -405,6 +405,9 @@ export function useRecipeDraft(id: number | null) {
     const line = lineAt(sectionIndex, lineIndex)
     if (!line) return
     line.ingredientId = ingredient.id
+    // a number the AI gave was for the text's own ingredient and unit
+    line.suggestedFactor = null
+    line.suggestedUnit = undefined
     delete errors.lineIngredients[line.key]
   }
 
