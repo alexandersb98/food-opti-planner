@@ -99,6 +99,8 @@
       "any": "When any ingredient has it"
     },
     "byHand": "added by hand",
+    "sourceRule": "{source} · {rule}",
+    "sourceTagNote": "From {source}. It can't be renamed or deleted.",
     "deriveLabel": "A recipe gets this tag when",
     "derive": {
       "all": "all ingredients have it",

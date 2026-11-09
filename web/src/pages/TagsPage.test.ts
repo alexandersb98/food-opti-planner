@@ -186,3 +186,77 @@ test('a failed load offers to try again', async () => {
   expect(rows(wrapper)).toHaveLength(1)
   wrapper.unmount()
 })
+
+const dairy = tag({
+  id: 3,
+  name: 'TEST Dairy',
+  derive: 'any',
+  source: { key: 'testsource', name: 'TEST Source', colour: '#ff0000' },
+})
+
+test('a source tag shows its source and colour, not "added by hand"', async () => {
+  const { wrapper } = await mountPage({ 'GET /api/tags': { body: [vegan, quick, dairy] } })
+  expect(rows(wrapper)[2]).toMatch(/TEST Dairy\s*TEST Source · When any ingredient has it/)
+  expect(rows(wrapper)[2]).not.toContain('added by hand')
+  const dots = wrapper.findAll('.tag-row .source-dot')
+  expect(dots).toHaveLength(1)
+  expect(dots[0]!.attributes('style')).toContain('rgb(255, 0, 0)')
+  wrapper.unmount()
+})
+
+test('an open source tag has no Name input and no Delete, and its rule can change', async () => {
+  let saved: unknown
+  const { wrapper } = await mountPage({
+    'GET /api/tags': { body: [vegan, quick, dairy] },
+    'PUT /api/tags/3': (body) => {
+      saved = body
+      return { body: { ...dairy, ...(body as object) } }
+    },
+  })
+  await click(wrapper.findAll('.tag-row')[2]!.get('.q-item'))
+  expect(wrapper.find('input[aria-label="Name"]').exists()).toBe(false)
+  expect(wrapper.findAll('button').some((b) => b.text() === 'Delete')).toBe(false)
+  expect(wrapper.text()).toContain("From TEST Source. It can't be renamed or deleted.")
+
+  await chooseRule(wrapper, 'all ingredients have it')
+  await click(button(wrapper, 'Done'))
+
+  expect(saved).toEqual({ name: 'TEST Dairy', derive: 'all' })
+  expect(rows(wrapper)[2]).toMatch(/TEST Dairy\s*TEST Source · When all ingredients have it/)
+  wrapper.unmount()
+})
+
+test('a tag made by hand keeps its Name input and Delete next to source tags', async () => {
+  const { wrapper } = await mountPage({ 'GET /api/tags': { body: [vegan, dairy] } })
+  await click(wrapper.findAll('.tag-row')[0]!.get('.q-item'))
+  expect(nameField(wrapper).element.value).toBe('vegan')
+  expect(button(wrapper, 'Delete')).toBeDefined()
+  wrapper.unmount()
+})
+
+test('the server order is kept and + New tag stays last', async () => {
+  const { wrapper } = await mountPage({ 'GET /api/tags': { body: [vegan, quick, dairy] } })
+  expect(rows(wrapper)).toEqual([
+    expect.stringMatching(/^vegan/),
+    expect.stringMatching(/^quick/),
+    expect.stringMatching(/^TEST Dairy/),
+  ])
+  const items = wrapper.findAll('.q-list > .q-item, .q-list > div')
+  expect(items.at(-1)!.text()).toBe('+ New tag')
+  wrapper.unmount()
+})
+
+test('a refused save of a source tag shows "Could not save."', async () => {
+  const { wrapper } = await mountPage({
+    'GET /api/tags': { body: [vegan, quick, dairy] },
+    'PUT /api/tags/3': {
+      status: 422,
+      body: { detail: [{ loc: ['body', 'name'], type: 'source_tag', msg: "A source tag can't be renamed" }] },
+    },
+  })
+  await click(wrapper.findAll('.tag-row')[2]!.get('.q-item'))
+  await chooseRule(wrapper, 'all ingredients have it')
+  await click(button(wrapper, 'Done'))
+  expect(wrapper.get('[role="alert"]').text()).toBe('Could not save. Try again.')
+  wrapper.unmount()
+})

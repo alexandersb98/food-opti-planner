@@ -43,9 +43,11 @@ function isOpen(tag: Tag) {
   return rowKey(tag) === openId.value
 }
 
-/** "When all ingredients have it · added by hand": no ingredient has the tag. */
+/** "When all ingredients have it · added by hand": no ingredient has the tag.
+ * A source tag names its source instead: "Livsmedelsverket · When any...". */
 function info(tag: Tag) {
   const rule = t(`tags.rule.${tag.derive}`)
+  if (tag.source) return t('tags.sourceRule', { source: tag.source.name, rule })
   return tag.ingredient_count === 0 ? `${rule} · ${t('tags.byHand')}` : rule
 }
 
@@ -168,7 +170,16 @@ async function confirmDelete() {
             class="q-pa-md q-gutter-y-sm"
             @submit="done"
           >
+            <template v-if="tag.source">
+              <div class="text-subtitle1">
+                {{ tag.name }}
+              </div>
+              <div class="text-caption text-grey-8">
+                {{ $t('tags.sourceTagNote', { source: tag.source.name }) }}
+              </div>
+            </template>
             <q-input
+              v-else
               v-model="draft.name"
               outlined
               dense
@@ -207,7 +218,7 @@ async function confirmDelete() {
                 @click="openId = null"
               />
               <q-btn
-                v-else
+                v-else-if="!tag.source"
                 class="col"
                 outline
                 color="negative"
@@ -230,6 +241,16 @@ async function confirmDelete() {
             clickable
             @click="open(tag)"
           >
+            <q-item-section
+              v-if="tag.source"
+              avatar
+            >
+              <span
+                class="source-dot"
+                aria-hidden="true"
+                :style="{ backgroundColor: tag.source.colour }"
+              />
+            </q-item-section>
             <q-item-section>
               <q-item-label>{{ tag.name }}</q-item-label>
               <q-item-label caption>
@@ -262,3 +283,12 @@ async function confirmDelete() {
     />
   </q-page>
 </template>
+
+<style scoped>
+.source-dot {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+}
+</style>
