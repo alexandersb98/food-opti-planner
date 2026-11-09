@@ -41,13 +41,13 @@ export function usePreferences() {
   }
 
   /** Save one preference. The state becomes the server's answer (which has
-   * the unit spelled as the catalogue does). False, with the state as it
+   * a unit spelled as the catalogue does). False, with the state as it
    * was, if the server refuses or can't be reached. */
-  function set(key: keyof Preferences, unit: string): Promise<boolean> {
+  function set(key: keyof Preferences, value: string): Promise<boolean> {
     const mine = generation
     const save = saves.then(async () => {
       try {
-        const { data } = await api.PUT('/api/preferences', { body: { [key]: unit } })
+        const { data } = await api.PUT('/api/preferences', { body: { [key]: value } })
         if (!data) return false
         if (mine === generation) state.preferences = data
         return true

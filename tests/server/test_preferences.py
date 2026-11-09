@@ -2,7 +2,7 @@ import pytest
 
 from .conftest import logged_in_client
 
-DEFAULTS = {"unit.mass": "g", "unit.volume": "dl", "unit.energy": "kcal"}
+DEFAULTS = {"unit.mass": "g", "unit.volume": "dl", "unit.energy": "kcal", "last_data_source": None}
 
 
 def put(client, body):
@@ -82,3 +82,33 @@ def test_preferences_survive_a_restart(client, database_url, web_dist):
     put(client, {"unit.energy": "kJ"})
     with logged_in_client(database_url, web_dist) as again:
         assert again.get("/api/preferences").json()["unit.energy"] == "kJ"
+
+
+def test_last_data_source_is_saved_read_back_and_survives_a_unit_change(data_client):
+    assert data_client.get("/api/preferences").json()["last_data_source"] is None
+    answer = put(data_client, {"last_data_source": "testsource"})
+    assert answer.status_code == 200
+    assert answer.json() == {**DEFAULTS, "last_data_source": "testsource"}
+    assert put(data_client, {"unit.mass": "kg"}).json()["last_data_source"] == "testsource"
+    assert data_client.get("/api/preferences").json() == {
+        **DEFAULTS, "unit.mass": "kg", "last_data_source": "testsource"
+    }
+
+
+@pytest.mark.parametrize("value", ["nope", None])
+def test_a_last_data_source_that_names_no_source_is_refused(data_client, value):
+    response = put(data_client, {"last_data_source": value})
+    assert response.status_code == 422
+    [error] = response.json()["detail"]
+    assert (error["loc"], error["type"]) == (["body", "last_data_source"], "invalid_data_source")
+    assert data_client.get("/api/preferences").json() == DEFAULTS
+
+
+def test_a_number_is_not_a_last_data_source(data_client):
+    assert put(data_client, {"last_data_source": 5}).status_code == 422
+    assert data_client.get("/api/preferences").json() == DEFAULTS
+
+
+def test_a_refused_source_saves_nothing_with_a_valid_unit(data_client):
+    assert put(data_client, {"unit.mass": "kg", "last_data_source": "nope"}).status_code == 422
+    assert data_client.get("/api/preferences").json() == DEFAULTS

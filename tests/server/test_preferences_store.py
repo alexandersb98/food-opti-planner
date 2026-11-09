@@ -49,3 +49,9 @@ def test_canonical_spells_units_and_refuses_what_refusals_would():
     for changes in ({"unit.mass": "dl"}, {"unit.mass": None}, {"unit.other": "g"}):
         with pytest.raises(ValueError):
             preferences.canonical(changes)
+
+
+def test_last_data_source_reads_only_when_stored(db):
+    assert "last_data_source" not in preferences.read(db)
+    preferences.save(db, {"last_data_source": "testsource"})
+    assert preferences.read(db)["last_data_source"] == "testsource"

@@ -1060,6 +1060,8 @@ export interface components {
          *     is saved as the catalogue's.
          */
         PreferenceChanges: {
+            /** Last Data Source */
+            last_data_source?: string | null;
             /** Unit.Energy */
             "unit.energy"?: string | null;
             /** Unit.Mass */
@@ -1069,6 +1071,8 @@ export interface components {
         };
         /** Preferences */
         Preferences: {
+            /** Last Data Source */
+            last_data_source?: string | null;
             /** Unit.Energy */
             "unit.energy": string;
             /** Unit.Mass */
@@ -2512,7 +2516,7 @@ export interface operations {
                     "application/json": components["schemas"]["Preferences"];
                 };
             };
-            /** @description A unit that is not offered for its preference */
+            /** @description A unit that is not offered for its preference, or a last_data_source that is not the key of a loaded data source */
             422: {
                 headers: {
                     [name: string]: unknown;

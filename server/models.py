@@ -106,7 +106,9 @@ ingredient_tags = Table(
 
 class Ingredient(Base):
     """Something recipes are made of (C4). `basis` is GUI-only: values are
-    typed per `basis` units ("per 100 g"); the library's value is value / basis."""
+    typed per `basis` units ("per 100 g"); the library's value is value / basis.
+    `source_food_id` set means the ingredient was made from that food of a
+    data source and is still linked to it (decision 1); Unlink clears it."""
 
     __tablename__ = "ingredients"
 
@@ -114,6 +116,9 @@ class Ingredient(Base):
     name: Mapped[str] = mapped_column(String(NAME_LENGTH), unique=True)
     unit: Mapped[str] = mapped_column(String(UNIT_LENGTH))
     basis: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
+    # Source foods are never deleted, so no cascade: deleting a linked food is refused.
+    source_food_id: Mapped[int | None] = mapped_column(ForeignKey("source_foods.id"), index=True)
+    source_food: Mapped["SourceFood | None"] = relationship()
     # Only the values typed in; an attribute without one counts as 0.
     values: Mapped[list["IngredientValue"]] = relationship(
         cascade="all, delete-orphan",
@@ -135,6 +140,10 @@ class IngredientValue(Base):
         ForeignKey("attributes.id", ondelete="CASCADE"), primary_key=True
     )
     value: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
+    # The source's value when last copied or answered, converted to the
+    # attribute's unit (decision 1); NULL for an unlinked ingredient or a
+    # value the source never gave.
+    source_value: Mapped[Decimal | None] = mapped_column(EXACT_NUMBER)
     attribute: Mapped[Attribute] = relationship()
 
 
@@ -485,6 +494,7 @@ class SourceFood(Base):
     key: Mapped[str] = mapped_column(String(SOURCE_ITEM_KEY_LENGTH))
     name: Mapped[str] = mapped_column(String(SOURCE_ITEM_NAME_LENGTH))
     withdrawn: Mapped[bool] = mapped_column(default=False, server_default=false())
+    source: Mapped[DataSource] = relationship()
 
 
 class SourceFoodValue(Base):

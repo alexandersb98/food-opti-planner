@@ -12,6 +12,10 @@ UNIT_KEYS: dict[str, Category] = {
     "unit.energy": "energy",
 }
 DEFAULTS: dict[str, str] = {"unit.mass": "g", "unit.volume": "dl", "unit.energy": "kcal"}
+# Preferences that are plain text, with no default: absent until first set.
+# `last_data_source` is the key of the data source Add from data source used last.
+TEXT_KEYS = {"last_data_source"}
+UNSET: object = object()  # "not sent", for a text key whose sent value may be null
 
 for _key, _category in UNIT_KEYS.items():
     _default = units.parse(DEFAULTS[_key])
@@ -20,11 +24,12 @@ for _key, _category in UNIT_KEYS.items():
 
 
 def read(db: Session) -> dict[str, str]:
-    """Every known preference: the stored value, else the default. Stored
-    rows for keys this version does not know are ignored."""
+    """Every known preference: the stored value, else the default (a text
+    key only when stored). Stored rows for keys this version does not know are
+    ignored."""
     values = dict(DEFAULTS)
     for row in db.scalars(select(models.Preference)):
-        if row.key in DEFAULTS:
+        if row.key in DEFAULTS or row.key in TEXT_KEYS:
             values[row.key] = row.value
     return values
 

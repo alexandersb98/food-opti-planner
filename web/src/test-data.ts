@@ -159,7 +159,7 @@ export function unitCatalogue(): UnitCatalogue {
 
 /** The preferences as a fresh database answers them. */
 export function preferences(fields: Partial<Preferences> = {}): Preferences {
-  return { 'unit.mass': 'g', 'unit.volume': 'dl', 'unit.energy': 'kcal', ...fields }
+  return { 'unit.mass': 'g', 'unit.volume': 'dl', 'unit.energy': 'kcal', last_data_source: null, ...fields }
 }
 
 /** A unit-change preview as the server answers: converting, 12 values and 2 goals. */

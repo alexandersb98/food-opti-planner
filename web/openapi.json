@@ -1405,6 +1405,17 @@
         "additionalProperties": false,
         "description": "Any subset of the preferences. A unit may be typed in any spelling and\nis saved as the catalogue's.",
         "properties": {
+          "last_data_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Data Source"
+          },
           "unit.energy": {
             "anyOf": [
               {
@@ -1444,6 +1455,17 @@
       },
       "Preferences": {
         "properties": {
+          "last_data_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Data Source"
+          },
           "unit.energy": {
             "title": "Unit.Energy",
             "type": "string"
@@ -3756,7 +3778,7 @@
             "description": "Successful Response"
           },
           "422": {
-            "description": "A unit that is not offered for its preference"
+            "description": "A unit that is not offered for its preference, or a last_data_source that is not the key of a loaded data source"
           }
         },
         "summary": "Put Preferences",
