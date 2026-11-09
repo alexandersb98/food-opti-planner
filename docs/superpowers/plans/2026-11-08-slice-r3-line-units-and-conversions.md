@@ -305,6 +305,19 @@ claude/implement-remaining-slices-qwrp83.
     "This also removes its N conversions." only when there are conversions
     (delete is off while a recipe uses the ingredient, so they are unused).
 
+26. **A stale line degrades, not 500s (review I1).** `translate.recipe` still
+    raises `UnconvertibleLine` (a bug if it ever does), but nothing reaches it
+    with a stale recipe: `translate.converts(recipe)` says whether every line
+    converts; Make plan (`api/solve._read`) and the recipe count leave such
+    recipes out (all stale: `no_usable_recipes`), and a recipe answer carries
+    `unconvertible: bool` and counts a stale line as 0 in its totals, so the
+    list and the editor still open and the user can fix the unit (the picker
+    marks the line) and save. `_total` works out each line's amount once
+    (`translate.line_amount`, None for a stale one). The conversion delete's
+    409 is now the same `conversion_in_use` field-error list as the edit's
+    (`loc` `["path", "conversion_id"]`). With no catalogue loaded the editor
+    skips its own convert check and the server decides.
+
 ## Tasks
 
 ### Task 1: Server: `line_units.py`, the routing rule

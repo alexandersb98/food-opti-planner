@@ -185,7 +185,8 @@ def test_a_used_conversion_cannot_be_deleted(client, oats):
     save_recipe(client, oats, "1", "dl")
     response = client.delete(url(oats, conversion))
     assert response.status_code == 409
-    assert response.json()["detail"] == "Recipes use this conversion"
+    [error] = response.json()["detail"]
+    assert (error["loc"], error["type"]) == (["path", "conversion_id"], "conversion_in_use")
     assert len(client.get(f"/api/ingredients/{oats}").json()["conversions"]) == 1
 
 

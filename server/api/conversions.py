@@ -17,7 +17,7 @@ router = APIRouter(prefix="/ingredients", tags=["conversions"])
 
 NOT_FOUND = {404: {"description": "No such ingredient or conversion"}}
 UNPROCESSABLE = {422: {"model": FieldErrors, "description": "An energy unit, the ingredient's own unit or a unit it has"}}
-IN_USE = {409: {"description": "Recipes use the conversion"}}
+IN_USE = {409: {"model": FieldErrors, "description": "Recipes use the conversion"}}
 UNIT_NOT_FOR_INGREDIENT = "A conversion is for an amount of food, such as dl or pinch, not for energy."
 UNIT_IS_OWN_UNIT = "That is the ingredient's own unit."
 DUPLICATE = "This ingredient has a conversion for that unit already."
@@ -112,6 +112,7 @@ def delete_conversion(ingredient_id: int, conversion_id: int, db: DbSession) -> 
     ingredient = get_or_404(db, models.Ingredient, ingredient_id, "ingredient")
     row = _conversion(ingredient, conversion_id)
     if conversions.usage(db).get(row.id, 0):
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Recipes use this conversion")
+        error = FieldError(loc=["path", "conversion_id"], type="conversion_in_use", msg="Recipes use this conversion")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=[error.model_dump()])
     db.delete(row)
     db.commit()

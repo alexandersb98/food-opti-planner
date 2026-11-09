@@ -37,6 +37,7 @@ export function recipe(fields: Given<Recipe, 'id' | 'name'>): Recipe {
     hard_max_multiplier: null,
     serving_cap_weight: '1',
     derived_tag_ids: [],
+    unconvertible: false,
     totals: [],
     ...fields,
   }

@@ -164,12 +164,14 @@ def _read(db: DbSession) -> _Setup | Failure:
     plan = queries.plan(db)
     attributes = db.scalars(select(models.Attribute).order_by(models.Attribute.id)).all()
     tags = db.scalars(select(models.Tag).order_by(models.Tag.id)).all()
-    rows = db.scalars(queries.recipes().order_by(models.Recipe.id)).all()
+    stored = db.scalars(queries.recipes().order_by(models.Recipe.id)).all()
+    # A recipe with a line that does not convert is left out (`translate.converts`).
+    rows = [row for row in stored if translate.converts(row)]
     only, never = translate.filter_names(plan, "only"), translate.filter_names(plan, "never")
     setup: _Setup | Failure
-    if not rows:
+    if not stored:
         setup = "no_recipes"
-    elif not translate.usable_recipes(rows, tags, only, never):
+    elif not rows or not translate.usable_recipes(rows, tags, only, never):
         # The library refuses such a request.
         setup = "no_usable_recipes"
     else:

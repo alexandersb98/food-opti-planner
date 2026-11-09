@@ -88,8 +88,10 @@ function factorOf(ingredient: Ingredient, unit: string) {
   return lineFactor(units.ratio, ingredient, unit)
 }
 
-/** Whether a line's unit converts to its ingredient's. */
+/** Whether a line's unit converts to its ingredient's. Without the catalogue
+ * (a failed load) the page can't tell, so the server decides. */
 function converts(line: DraftLine) {
+  if (units.units.value.length === 0) return true
   const ingredient = ingredients.value.get(line.ingredientId)
   return !ingredient || factorOf(ingredient, line.unit) !== null
 }

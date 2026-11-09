@@ -750,3 +750,17 @@ test('with the catalogue not loaded the page still works for own-unit lines', as
   expect(put.sent).toHaveLength(1)
   wrapper.unmount()
 })
+
+test('with the catalogue not loaded a saved line in a catalogue unit still saves, the server deciding', async () => {
+  const inKg = recipe({ id: 7, name: 'Porridge', sections: sections([{ ingredient_id: 1, amount: '1', unit: 'kg' }]) })
+  const put = recorder(200, () => inKg)
+  const { wrapper } = await mountPage('/recipes/7', {
+    'GET /api/units': 500,
+    'GET /api/recipes/7': { body: inKg },
+    'PUT /api/recipes/7': put.handler,
+  })
+  await click(button(wrapper, 'Save'))
+  expect(put.sent).toHaveLength(1)
+  expect(wrapper.find('.unit-error').exists()).toBe(false)
+  wrapper.unmount()
+})

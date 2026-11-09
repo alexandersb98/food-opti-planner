@@ -2052,6 +2052,10 @@
             },
             "title": "Totals",
             "type": "array"
+          },
+          "unconvertible": {
+            "title": "Unconvertible",
+            "type": "boolean"
           }
         },
         "required": [
@@ -2068,6 +2072,7 @@
           "serving_cap_weight",
           "id",
           "derived_tag_ids",
+          "unconvertible",
           "totals"
         ],
         "title": "Recipe",
@@ -4199,6 +4204,13 @@
             "description": "No such ingredient or conversion"
           },
           "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
             "description": "Recipes use the conversion"
           },
           "422": {
@@ -4265,6 +4277,13 @@
             "description": "No such ingredient or conversion"
           },
           "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
             "description": "Recipes use the conversion"
           },
           "422": {

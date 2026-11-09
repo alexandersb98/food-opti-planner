@@ -83,11 +83,30 @@ class UnconvertibleLine(ValueError):
 def own_unit_amount(item: models.RecipeItem) -> Fraction:
     """The line's amount in its ingredient's own unit, exactly: the amount
     times the factor of `line_units.route`."""
+    amount = line_amount(item)
+    if amount is None:
+        ingredient = item.ingredient
+        raise UnconvertibleLine(f"{item.amount} {item.unit} of {ingredient.name} does not convert to {ingredient.unit}")
+    return amount
+
+
+def line_amount(item: models.RecipeItem) -> Fraction | None:
+    """`own_unit_amount`, or None for a line that does not convert."""
     ingredient = item.ingredient
     found = line_units.route(item.unit, ingredient.unit, [(c.unit, c.factor) for c in ingredient.conversions])
-    if found is None:
-        raise UnconvertibleLine(f"{item.amount} {item.unit} of {ingredient.name} does not convert to {ingredient.unit}")
-    return Fraction(item.amount) * found.factor
+    return None if found is None else Fraction(item.amount) * found.factor
+
+
+def converts(row: models.Recipe) -> bool:
+    """Whether every line of the recipe converts to its ingredient's unit. A
+    saved recipe always does; one that does not (a catalogue unit changed in a
+    deploy, a restored or hand-edited database) is left out of plans and shown
+    as needing attention, instead of failing everything."""
+    return all(
+        line_units.route(line.unit, line.ingredient.unit, [(c.unit, c.factor) for c in line.ingredient.conversions])
+        is not None
+        for line in row.lines
+    )
 
 
 def _decimal(exact: Fraction) -> Decimal:

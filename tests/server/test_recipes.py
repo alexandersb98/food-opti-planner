@@ -60,6 +60,7 @@ def test_a_created_recipe_is_listed_with_its_tags_and_totals(client, catalog):
         "hard_max_multiplier": None,
         "serving_cap_weight": "1",
         "derived_tag_ids": [vegan],
+        "unconvertible": False,
         "totals": [{"attribute_id": energy, "value": "233"}, {"attribute_id": protein, "value": "10.1"}],
     }
     assert client.get("/api/recipes").json() == [created]
@@ -593,3 +594,57 @@ def test_the_same_line_unit_survives_a_second_save(client, catalog):
     again = client.put(f"/api/recipes/{created['id']}", json={**created, "sections": created["sections"]})
     assert again.status_code == 200, again.text
     assert saved_units(client, again.json()) == saved_units(client, created) == ["msk", "dl"]
+
+
+# A line that no longer converts (a catalogue change in a deploy, a restored or
+# hand-edited database) degrades instead of failing everything.
+def stale_line(client, database_url, catalog):
+    """Two recipes of Oats; the first has a line stored in a unit that does not
+    convert, forced through the database. Answers the two recipe ids."""
+    energy = catalog.attribute()
+    oats = catalog.ingredient(values={energy: "100"})
+    bad = create(client, (oats, "60"), (oats, "1", "oz"), name="Bad")["id"]
+    good = create(client, (oats, "60"), name="Good")["id"]
+    engine = create_engine(database_url)
+    with engine.begin() as c:
+        c.execute(text("UPDATE recipe_items SET unit = 'dl' WHERE unit = 'oz'"))
+    engine.dispose()
+    return bad, good
+
+
+def test_a_stale_line_is_flagged_and_counts_0_while_the_list_answers_200(client, database_url, catalog):
+    bad, good = stale_line(client, database_url, catalog)
+    listed = {r["id"]: r for r in client.get("/api/recipes").json()}
+    assert (listed[bad]["unconvertible"], listed[good]["unconvertible"]) == (True, False)
+    assert listed[bad]["totals"][0]["value"] == "60"
+    assert [i["unit"] for i in listed[bad]["sections"][0]["items"]] == ["", "dl"]
+    assert client.get(f"/api/recipes/{bad}").json()["unconvertible"] is True
+
+
+def test_a_stale_recipe_can_be_fixed_and_saved(client, database_url, catalog):
+    bad, _ = stale_line(client, database_url, catalog)
+    body = client.get(f"/api/recipes/{bad}").json()
+    body["sections"][0]["items"][1]["unit"] = "oz"
+    fixed = client.put(f"/api/recipes/{bad}", json=body)
+    assert fixed.status_code == 200, fixed.text
+    assert fixed.json()["unconvertible"] is False
+
+
+def test_a_stale_recipe_is_left_out_of_the_plan_and_the_count(client, database_url, catalog):
+    stale_line(client, database_url, catalog)
+    schedule(client, start_date="2026-10-26", days=1, meals=[{"name": "Lunch"}], skips=[], minimums=[], solve_time_limit=10)
+    counted = client.post("/api/plan/recipe-count", json={"tag_filters": []})
+    assert counted.status_code == 200 and counted.json() == {"usable": 1, "total": 2}
+    response = client.post("/api/plan/solve", json={"solve_id": "s1"})
+    assert response.status_code == 200, response.text
+    items = response.json()["plan"]["meals"][0][0]["items"]
+    assert [i["ingredient"] for i in items] == ["Oats"]
+
+
+def test_with_only_stale_recipes_there_is_nothing_to_plan_with_and_no_500(client, database_url, catalog):
+    bad, good = stale_line(client, database_url, catalog)
+    assert client.delete(f"/api/recipes/{good}").status_code == 204
+    schedule(client, start_date="2026-10-26", days=1, meals=[{"name": "Lunch"}], skips=[], minimums=[], solve_time_limit=10)
+    response = client.post("/api/plan/solve", json={"solve_id": "s2"})
+    assert response.status_code == 200, response.text
+    assert response.json()["failure"] == "no_usable_recipes"

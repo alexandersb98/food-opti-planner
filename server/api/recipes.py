@@ -80,6 +80,10 @@ class Recipe(RecipeFields):
     id: int
     # Tags the ingredients give it, by each tag's rule.
     derived_tag_ids: list[int]
+    # True when a line's unit does not convert to its ingredient's (only after
+    # a catalogue change or a hand-edited database): the recipe is left out of
+    # plans and its totals count that line as 0; fix the unit and save.
+    unconvertible: bool
     # Every attribute's total for one portion (the whole recipe divided by
     # servings), in attribute order.
     totals: list[Total]
@@ -102,6 +106,9 @@ class _Responses:
         return [tag.id for tag in self.tags if translate.tag(tag).holds_for(dish)]
 
     def response(self, row: models.Recipe) -> Recipe:
+        # Each line's amount in its ingredient's own unit, worked out once; None
+        # for a line that does not convert, which counts 0.
+        amounts = {item.id: translate.line_amount(item) for item in row.lines}
         return Recipe(
             id=row.id,
             name=row.name,
@@ -127,17 +134,19 @@ class _Responses:
             step=row.step,
             hard_max_multiplier=row.hard_max_multiplier,
             serving_cap_weight=row.serving_cap_weight,
+            unconvertible=any(amount is None for amount in amounts.values()),
             derived_tag_ids=self.derived_tag_ids(list({item.ingredient: None for item in row.lines})),
             totals=[
-                Total(attribute_id=a.id, value=_rounded(_total(row, a), a.decimals))
+                Total(attribute_id=a.id, value=_rounded(_total(row, a, amounts), a.decimals))
                 for a in self.attributes
             ],
         )
 
 
-def _total(row: models.Recipe, attribute: models.Attribute) -> Fraction:
+def _total(row: models.Recipe, attribute: models.Attribute, amounts: dict[int, Fraction | None]) -> Fraction:
     """`attribute`'s total for one portion: each line's amount (in the
-    ingredient's own unit, `translate.own_unit_amount`) times that
+    ingredient's own unit, `translate.line_amount`, by line id; a line that
+    does not convert counts 0) times that
     ingredient's value per its basis, summed over all lines and divided by
     the servings once. A missing value counts as 0.
 
@@ -149,10 +158,10 @@ def _total(row: models.Recipe, attribute: models.Attribute) -> Fraction:
     """
     whole = sum(
         (
-            translate.own_unit_amount(item) * Fraction(value.value) / Fraction(item.ingredient.basis)
+            amounts[item.id] * Fraction(value.value) / Fraction(item.ingredient.basis)
             for item in row.lines
             for value in item.ingredient.values
-            if value.attribute_id == attribute.id
+            if value.attribute_id == attribute.id and amounts[item.id] is not None
         ),
         Fraction(0),
     )

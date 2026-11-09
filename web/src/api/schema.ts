@@ -1439,6 +1439,8 @@ export interface components {
             step: string | null;
             /** Totals */
             totals: components["schemas"]["Total"][];
+            /** Unconvertible */
+            unconvertible: boolean;
         };
         /**
          * RecipeCount
@@ -2645,7 +2647,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
             };
             /** @description An energy unit, the ingredient's own unit or a unit it has */
             422: {
@@ -2689,7 +2693,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
             };
             /** @description Validation Error */
             422: {
