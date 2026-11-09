@@ -1,5 +1,6 @@
+import { flushPromises } from '@vue/test-utils'
 import { afterEach, expect, test, vi } from 'vitest'
-import { button, click, fakeServer, field, mountApp, texts, type FakeServer } from '../test-app'
+import { button, click, fakeServer, field, mountApp, settleMenu, texts, type FakeServer } from '../test-app'
 import { attribute, recipe, tag } from '../test-data'
 
 const energy = attribute({ id: 1, name: 'Energy', unit: 'kcal' })
@@ -39,6 +40,7 @@ async function mountPage(server: FakeServer = {}) {
     'GET /api/recipes': { body: [porridge, omelette, salad] },
     'GET /api/attributes': { body: [energy, protein] },
     'GET /api/tags': { body: [vegan, quick, unused] },
+    'GET /api/health': { body: { database: true, ai_configured: true } },
     ...server,
   })
   const { wrapper, router } = await mountApp('/recipes')
@@ -109,16 +111,58 @@ test('an empty list says so, without search or chips', async () => {
   wrapper.unmount()
 })
 
-test('a row opens its editor, and the round button a new one', async () => {
+test('a row opens its editor', async () => {
   const { wrapper, router } = await mountPage({
     'GET /api/ingredients': { body: [] },
     'GET /api/recipes/1': { body: porridge },
   })
   await click(wrapper.findAll('.recipe-row')[1]!)
   expect(router.currentRoute.value.fullPath).toBe('/recipes/1')
-  await router.push('/recipes')
-  await click(wrapper.get('[aria-label="New recipe"]'))
+  wrapper.unmount()
+})
+
+function menuRows() {
+  return [...document.querySelectorAll<HTMLElement>('.q-menu .q-item')]
+}
+
+async function openAddMenu(wrapper: Wrapper) {
+  await wrapper.get('[aria-label="Add recipe"]').trigger('click')
+  await settleMenu()
+  return menuRows()
+}
+
+test('the round button opens a menu: New recipe goes to the empty editor', async () => {
+  const { wrapper, router } = await mountPage({ 'GET /api/ingredients': { body: [] } })
+  const items = await openAddMenu(wrapper)
+  expect(items.map((r) => r.textContent?.trim())).toEqual(['New recipe', 'Import recipe'])
+  items[0]!.click()
+  await flushPromises()
   expect(router.currentRoute.value.fullPath).toBe('/recipes/new')
+  wrapper.unmount()
+})
+
+test('Import recipe is enabled with an AI key and goes to the import page', async () => {
+  const { wrapper, router } = await mountPage()
+  const items = await openAddMenu(wrapper)
+  expect(items[1]!.getAttribute('aria-disabled')).not.toBe('true')
+  items[1]!.click()
+  await flushPromises()
+  expect(router.currentRoute.value.fullPath).toBe('/recipes/import')
+  wrapper.unmount()
+})
+
+test.each([
+  ['no AI key', { 'GET /api/health': { body: { database: true, ai_configured: false } } }],
+  ['a health call that fails', { 'GET /api/health': 500 }],
+])('Import recipe is disabled with %s, and the page still lists recipes', async (_name, server) => {
+  const { wrapper, router } = await mountPage(server as FakeServer)
+  const items = await openAddMenu(wrapper)
+  expect(items[1]!.getAttribute('aria-disabled')).toBe('true')
+  expect(items[1]!.textContent).toContain('Needs an AI key')
+  items[1]!.click()
+  await flushPromises()
+  expect(router.currentRoute.value.fullPath).toBe('/recipes')
+  expect(rows(wrapper).length).toBe(3)
   wrapper.unmount()
 })
 

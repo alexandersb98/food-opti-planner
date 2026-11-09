@@ -2,6 +2,7 @@ import { createRouter, createWebHistory, type RouterHistory } from 'vue-router'
 import { api, setUnauthorizedHandler } from './api/client'
 import MainLayout from './layouts/MainLayout.vue'
 import DataSourcePage from './pages/DataSourcePage.vue'
+import ImportPage from './pages/ImportPage.vue'
 import IngredientPage from './pages/IngredientPage.vue'
 import LoginPage from './pages/LoginPage.vue'
 import RecipeFiltersPage from './pages/RecipeFiltersPage.vue'
@@ -34,6 +35,7 @@ export function makeRouter(history: RouterHistory = createWebHistory()) {
           { path: '/plans/new', name: 'new-plan', component: ResultsPage },
           { path: '/plans/:id(\\d+)', name: 'saved-plan', component: ResultsPage },
           { path: '/recipes/new', name: 'new-recipe', component: RecipePage },
+          { path: '/recipes/import', name: 'import-recipe', component: ImportPage },
           { path: '/recipes/:id(\\d+)', name: 'recipe', component: RecipePage },
           { path: '/ingredients/new', name: 'new-ingredient', component: IngredientPage },
           { path: '/ingredients/:id(\\d+)', name: 'ingredient', component: IngredientPage },
