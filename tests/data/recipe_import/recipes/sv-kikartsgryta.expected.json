@@ -1,0 +1,105 @@
+{
+  "name": "Kikärtsgryta med kokos",
+  "servings": 4,
+  "instructions": "Hacka löken och skär morötterna i tärningar. Fräs dem mjuka i en kastrull tillsammans med currypastan i ett par minuter.\nHäll i kikärtorna (skölj dem först), kokosmjölken och de krossade tomaterna. Låt det sjuda under lock i 25 minuter och smaka av med salt och peppar.\nKoka riset enligt anvisningen på paketet. Hacka koriandern och dela limen i klyftor.\nServera grytan över riset med yoghurt, koriander och en klyfta lime.",
+  "sections": [
+    {
+      "name": "Gryta",
+      "lines": [
+        {
+          "original_text": "1 gul lök",
+          "amount": 1,
+          "unit": "",
+          "food": "gul lök",
+          "match": "Gul lök",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "2 morötter",
+          "amount": 2,
+          "unit": "",
+          "food": "morötter",
+          "match": "Morötter",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 burk (400 g) kikärtor",
+          "amount": 1,
+          "unit": "burk",
+          "food": "kikärtor",
+          "match": "Kikärtor",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 burk kokosmjölk",
+          "amount": 1,
+          "unit": "burk",
+          "food": "kokosmjölk",
+          "match": "Kokosmjölk",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "2 msk röd currypasta",
+          "amount": 2,
+          "unit": "msk",
+          "food": "röd currypasta",
+          "match": "Röd currypasta",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "ca 2 dl krossade tomater",
+          "amount": 2,
+          "unit": "dl",
+          "food": "krossade tomater",
+          "match": "Krossade tomater",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "salt och peppar efter smak",
+          "amount": null,
+          "unit": "",
+          "food": "salt och peppar",
+          "match": null,
+          "not_an_ingredient": true
+        }
+      ]
+    },
+    {
+      "name": "Till servering",
+      "lines": [
+        {
+          "original_text": "2 dl basmatiris",
+          "amount": 2,
+          "unit": "dl",
+          "food": "basmatiris",
+          "match": "Basmatiris",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 kruka koriander",
+          "amount": 1,
+          "unit": "kruka",
+          "food": "koriander",
+          "match": "Koriander",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 dl yoghurt naturell",
+          "amount": 1,
+          "unit": "dl",
+          "food": "yoghurt naturell",
+          "match": "Yoghurt naturell",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 lime",
+          "amount": 1,
+          "unit": "",
+          "food": "lime",
+          "match": "Lime",
+          "not_an_ingredient": false
+        }
+      ]
+    }
+  ]
+}

@@ -21,6 +21,10 @@
             "title": "Ingredient Count",
             "type": "integer"
           },
+          "mapping_count": {
+            "title": "Mapping Count",
+            "type": "integer"
+          },
           "name": {
             "maxLength": 100,
             "minLength": 1,
@@ -39,7 +43,8 @@
           "decimals",
           "id",
           "ingredient_count",
-          "goal_count"
+          "goal_count",
+          "mapping_count"
         ],
         "title": "Attribute",
         "type": "object"
@@ -70,6 +75,134 @@
           "decimals"
         ],
         "title": "AttributeFields",
+        "type": "object"
+      },
+      "AttributeUnitChange": {
+        "properties": {
+          "decimals": {
+            "anyOf": [
+              {
+                "maximum": 6.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decimals"
+          },
+          "unit": {
+            "maxLength": 20,
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "unit"
+        ],
+        "title": "AttributeUnitChange",
+        "type": "object"
+      },
+      "CatalogueUnit": {
+        "properties": {
+          "aliases": {
+            "description": "Other spellings, matched ignoring case",
+            "items": {
+              "type": "string"
+            },
+            "title": "Aliases",
+            "type": "array"
+          },
+          "case_sensitive_aliases": {
+            "description": "Other spellings, matched exactly",
+            "items": {
+              "type": "string"
+            },
+            "title": "Case Sensitive Aliases",
+            "type": "array"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "enum": [
+                  "mass",
+                  "volume",
+                  "energy"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None for a known free-text unit (st)",
+            "title": "Category"
+          },
+          "factor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Of one unit in the category's base unit (g for mass, l for volume, J for energy), exact, as a plain decimal. None without a category.",
+            "title": "Factor"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "offered": {
+            "description": "Whether the unit drop-downs list it",
+            "title": "Offered",
+            "type": "boolean"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symbol",
+          "name",
+          "category",
+          "factor",
+          "aliases",
+          "case_sensitive_aliases",
+          "offered"
+        ],
+        "title": "CatalogueUnit",
+        "type": "object"
+      },
+      "ChangeRule": {
+        "description": "The rule of `tag_ids` (the tag and every member that stays, in id\norder) would all change to `rule`.",
+        "properties": {
+          "rule": {
+            "title": "Rule",
+            "type": "string"
+          },
+          "tag_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Tag Ids",
+            "type": "array"
+          },
+          "type": {
+            "const": "change_rule",
+            "default": "change_rule",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag_ids",
+          "rule"
+        ],
+        "title": "ChangeRule",
         "type": "object"
       },
       "ClashMember": {
@@ -139,6 +272,91 @@
         "title": "ClashMember",
         "type": "object"
       },
+      "ColumnMapping": {
+        "additionalProperties": false,
+        "properties": {
+          "attribute_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attribute Id"
+          }
+        },
+        "required": [
+          "attribute_id"
+        ],
+        "title": "ColumnMapping",
+        "type": "object"
+      },
+      "Conversion": {
+        "properties": {
+          "factor": {
+            "title": "Factor",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "recipe_count": {
+            "title": "Recipe Count",
+            "type": "integer"
+          },
+          "source": {
+            "enum": [
+              "ai",
+              "user"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "unit",
+          "factor",
+          "source",
+          "recipe_count"
+        ],
+        "title": "Conversion",
+        "type": "object"
+      },
+      "ConversionFields": {
+        "properties": {
+          "factor": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Factor"
+          },
+          "unit": {
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "unit",
+          "factor"
+        ],
+        "title": "ConversionFields",
+        "type": "object"
+      },
       "Counts": {
         "properties": {
           "attributes": {
@@ -165,6 +383,197 @@
           "tags"
         ],
         "title": "Counts",
+        "type": "object"
+      },
+      "DataSource": {
+        "properties": {
+          "attribution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attribution"
+          },
+          "colour": {
+            "title": "Colour",
+            "type": "string"
+          },
+          "column_count": {
+            "title": "Column Count",
+            "type": "integer"
+          },
+          "columns": {
+            "items": {
+              "$ref": "#/components/schemas/SourceColumn"
+            },
+            "title": "Columns",
+            "type": "array"
+          },
+          "food_count": {
+            "title": "Food Count",
+            "type": "integer"
+          },
+          "imported_at": {
+            "format": "date-time",
+            "title": "Imported At",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "mapped_count": {
+            "title": "Mapped Count",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "colour",
+          "version",
+          "imported_at",
+          "food_count",
+          "column_count",
+          "mapped_count",
+          "attribution",
+          "columns"
+        ],
+        "title": "DataSource",
+        "type": "object"
+      },
+      "DataSourceChanges": {
+        "additionalProperties": false,
+        "properties": {
+          "colour": {
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "title": "Colour",
+            "type": "string"
+          }
+        },
+        "required": [
+          "colour"
+        ],
+        "title": "DataSourceChanges",
+        "type": "object"
+      },
+      "DataSourceSummary": {
+        "properties": {
+          "colour": {
+            "title": "Colour",
+            "type": "string"
+          },
+          "column_count": {
+            "title": "Column Count",
+            "type": "integer"
+          },
+          "food_count": {
+            "title": "Food Count",
+            "type": "integer"
+          },
+          "imported_at": {
+            "format": "date-time",
+            "title": "Imported At",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "mapped_count": {
+            "title": "Mapped Count",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "colour",
+          "version",
+          "imported_at",
+          "food_count",
+          "column_count",
+          "mapped_count"
+        ],
+        "title": "DataSourceSummary",
+        "type": "object"
+      },
+      "ExistingIngredient": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ExistingIngredient",
+        "type": "object"
+      },
+      "FactorAnswer": {
+        "properties": {
+          "factor": {
+            "title": "Factor",
+            "type": "string"
+          }
+        },
+        "required": [
+          "factor"
+        ],
+        "title": "FactorAnswer",
+        "type": "object"
+      },
+      "FactorRequest": {
+        "properties": {
+          "food": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Food",
+            "type": "string"
+          },
+          "ingredient_id": {
+            "title": "Ingredient Id",
+            "type": "integer"
+          },
+          "unit": {
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ingredient_id",
+          "unit",
+          "food"
+        ],
+        "title": "FactorRequest",
         "type": "object"
       },
       "FieldError": {
@@ -214,6 +623,138 @@
           "detail"
         ],
         "title": "FieldErrors",
+        "type": "object"
+      },
+      "FoodPage": {
+        "properties": {
+          "foods": {
+            "items": {
+              "$ref": "#/components/schemas/FoodSummary"
+            },
+            "title": "Foods",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "foods",
+          "total",
+          "offset",
+          "limit"
+        ],
+        "title": "FoodPage",
+        "type": "object"
+      },
+      "FoodPreview": {
+        "description": "The ingredient a food would become: what Add from data source copies.",
+        "properties": {
+          "basis": {
+            "title": "Basis",
+            "type": "string"
+          },
+          "existing": {
+            "items": {
+              "$ref": "#/components/schemas/ExistingIngredient"
+            },
+            "title": "Existing",
+            "type": "array"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/PreviewGroup"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "skipped": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Skipped",
+            "type": "array"
+          },
+          "source": {
+            "$ref": "#/components/schemas/PreviewSource"
+          },
+          "suggested_name": {
+            "title": "Suggested Name",
+            "type": "string"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "values": {
+            "items": {
+              "$ref": "#/components/schemas/PreviewValue"
+            },
+            "title": "Values",
+            "type": "array"
+          },
+          "withdrawn": {
+            "title": "Withdrawn",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "withdrawn",
+          "source",
+          "suggested_name",
+          "unit",
+          "basis",
+          "values",
+          "skipped",
+          "groups",
+          "existing"
+        ],
+        "title": "FoodPreview",
+        "type": "object"
+      },
+      "FoodSummary": {
+        "properties": {
+          "groups": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "groups"
+        ],
+        "title": "FoodSummary",
         "type": "object"
       },
       "Goal": {
@@ -497,6 +1038,41 @@
         "title": "GoalFields",
         "type": "object"
       },
+      "GroupQuestions": {
+        "description": "The 409 body when a change touches other tags: the facts of every\nquestion it raises, for the app to ask.",
+        "properties": {
+          "questions": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "change_rule": "#/components/schemas/ChangeRule",
+                  "move_tag": "#/components/schemas/MoveTag",
+                  "switch_rule": "#/components/schemas/SwitchRule"
+                },
+                "propertyName": "type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/MoveTag"
+                },
+                {
+                  "$ref": "#/components/schemas/SwitchRule"
+                },
+                {
+                  "$ref": "#/components/schemas/ChangeRule"
+                }
+              ]
+            },
+            "title": "Questions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "questions"
+        ],
+        "title": "GroupQuestions",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -512,15 +1088,160 @@
       },
       "Health": {
         "properties": {
+          "ai_configured": {
+            "title": "Ai Configured",
+            "type": "boolean"
+          },
           "database": {
             "title": "Database",
             "type": "boolean"
           }
         },
         "required": [
-          "database"
+          "database",
+          "ai_configured"
         ],
         "title": "Health",
+        "type": "object"
+      },
+      "ImportedLine": {
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "food": {
+            "title": "Food",
+            "type": "string"
+          },
+          "ingredient_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ingredient Id"
+          },
+          "original_text": {
+            "title": "Original Text",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "unmatched",
+              "not_an_ingredient",
+              "own_unit",
+              "built_in_step",
+              "stored_conversion",
+              "needs_factor",
+              "bad_unit"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "suggested_factor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested Factor"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "original_text",
+          "food",
+          "amount",
+          "unit",
+          "ingredient_id",
+          "status",
+          "suggested_factor"
+        ],
+        "title": "ImportedLine",
+        "type": "object"
+      },
+      "ImportedRecipe": {
+        "properties": {
+          "cut": {
+            "title": "Cut",
+            "type": "boolean"
+          },
+          "instructions": {
+            "title": "Instructions",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "needs_you": {
+            "title": "Needs You",
+            "type": "integer"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/ImportedSection"
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "servings": {
+            "title": "Servings",
+            "type": "integer"
+          },
+          "source_url": {
+            "title": "Source Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "servings",
+          "instructions",
+          "source_url",
+          "cut",
+          "needs_you",
+          "sections"
+        ],
+        "title": "ImportedRecipe",
+        "type": "object"
+      },
+      "ImportedSection": {
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/ImportedLine"
+            },
+            "title": "Lines",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "lines"
+        ],
+        "title": "ImportedSection",
         "type": "object"
       },
       "Ingredient": {
@@ -528,6 +1249,13 @@
           "basis": {
             "title": "Basis",
             "type": "string"
+          },
+          "conversions": {
+            "items": {
+              "$ref": "#/components/schemas/Conversion"
+            },
+            "title": "Conversions",
+            "type": "array"
           },
           "id": {
             "title": "Id",
@@ -543,6 +1271,16 @@
             "title": "Recipe Count",
             "type": "integer"
           },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IngredientSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "tag_ids": {
             "items": {
               "type": "integer"
@@ -555,6 +1293,13 @@
             "minLength": 1,
             "title": "Unit",
             "type": "string"
+          },
+          "updated_values": {
+            "items": {
+              "$ref": "#/components/schemas/UpdatedValue"
+            },
+            "title": "Updated Values",
+            "type": "array"
           },
           "values": {
             "items": {
@@ -571,7 +1316,10 @@
           "values",
           "tag_ids",
           "id",
-          "recipe_count"
+          "recipe_count",
+          "source",
+          "conversions",
+          "updated_values"
         ],
         "title": "Ingredient",
         "type": "object"
@@ -624,6 +1372,103 @@
           "tag_ids"
         ],
         "title": "IngredientFields",
+        "type": "object"
+      },
+      "IngredientFromSource": {
+        "description": "Add from data source: the food and what the user chose in the preview.\nThe unit, basis and values are the server's to work out.",
+        "properties": {
+          "food_id": {
+            "title": "Food Id",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "tag_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Tag Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "food_id",
+          "name",
+          "tag_ids"
+        ],
+        "title": "IngredientFromSource",
+        "type": "object"
+      },
+      "IngredientSource": {
+        "description": "The data source food an ingredient is linked to.",
+        "properties": {
+          "colour": {
+            "title": "Colour",
+            "type": "string"
+          },
+          "food_id": {
+            "title": "Food Id",
+            "type": "integer"
+          },
+          "food_name": {
+            "title": "Food Name",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "withdrawn": {
+            "title": "Withdrawn",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "colour",
+          "food_id",
+          "food_name",
+          "withdrawn"
+        ],
+        "title": "IngredientSource",
+        "type": "object"
+      },
+      "IngredientUnitChange": {
+        "properties": {
+          "basis": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Basis"
+          },
+          "unit": {
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "unit"
+        ],
+        "title": "IngredientUnitChange",
         "type": "object"
       },
       "IngredientValue-Input": {
@@ -765,6 +1610,76 @@
           "at_least"
         ],
         "title": "Minimum",
+        "type": "object"
+      },
+      "MoveTag": {
+        "description": "`tag_id` is in another group now; joining moves it out of that group,\nwhich keeps `from_tag_ids` (its other members, in id order).",
+        "properties": {
+          "from_tag_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "From Tag Ids",
+            "type": "array"
+          },
+          "tag_id": {
+            "title": "Tag Id",
+            "type": "integer"
+          },
+          "type": {
+            "const": "move_tag",
+            "default": "move_tag",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag_id",
+          "from_tag_ids"
+        ],
+        "title": "MoveTag",
+        "type": "object"
+      },
+      "NewConversion": {
+        "description": "A conversion made on the import review: \"1 `unit` = `factor` of the\ningredient's own unit\".",
+        "properties": {
+          "factor": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Factor"
+          },
+          "ingredient_id": {
+            "title": "Ingredient Id",
+            "type": "integer"
+          },
+          "source": {
+            "enum": [
+              "ai",
+              "user"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "unit": {
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ingredient_id",
+          "unit",
+          "factor",
+          "source"
+        ],
+        "title": "NewConversion",
         "type": "object"
       },
       "Plan": {
@@ -1113,6 +2028,166 @@
         "title": "PlanResults",
         "type": "object"
       },
+      "PreferenceChanges": {
+        "additionalProperties": false,
+        "description": "Any subset of the preferences. A unit may be typed in any spelling and\nis saved as the catalogue's.",
+        "properties": {
+          "last_data_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Data Source"
+          },
+          "unit.energy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit.Energy"
+          },
+          "unit.mass": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit.Mass"
+          },
+          "unit.volume": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit.Volume"
+          }
+        },
+        "title": "PreferenceChanges",
+        "type": "object"
+      },
+      "Preferences": {
+        "properties": {
+          "last_data_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Data Source"
+          },
+          "unit.energy": {
+            "title": "Unit.Energy",
+            "type": "string"
+          },
+          "unit.mass": {
+            "title": "Unit.Mass",
+            "type": "string"
+          },
+          "unit.volume": {
+            "title": "Unit.Volume",
+            "type": "string"
+          }
+        },
+        "required": [
+          "unit.mass",
+          "unit.volume",
+          "unit.energy"
+        ],
+        "title": "Preferences",
+        "type": "object"
+      },
+      "PreviewGroup": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "tag_id": {
+            "title": "Tag Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "tag_id",
+          "name"
+        ],
+        "title": "PreviewGroup",
+        "type": "object"
+      },
+      "PreviewSource": {
+        "properties": {
+          "colour": {
+            "title": "Colour",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "colour"
+        ],
+        "title": "PreviewSource",
+        "type": "object"
+      },
+      "PreviewValue": {
+        "properties": {
+          "attribute_id": {
+            "title": "Attribute Id",
+            "type": "integer"
+          },
+          "attribute_name": {
+            "title": "Attribute Name",
+            "type": "string"
+          },
+          "attribute_unit": {
+            "title": "Attribute Unit",
+            "type": "string"
+          },
+          "column_name": {
+            "title": "Column Name",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "attribute_id",
+          "attribute_name",
+          "attribute_unit",
+          "column_name",
+          "value"
+        ],
+        "title": "PreviewValue",
+        "type": "object"
+      },
       "Recipe": {
         "properties": {
           "derived_tag_ids": {
@@ -1144,13 +2219,10 @@
             "title": "Id",
             "type": "integer"
           },
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/RecipeItem-Output"
-            },
-            "minItems": 1,
-            "title": "Items",
-            "type": "array"
+          "instructions": {
+            "maxLength": 20000,
+            "title": "Instructions",
+            "type": "string"
           },
           "max_multiplier": {
             "title": "Max Multiplier",
@@ -1166,8 +2238,28 @@
             "title": "Name",
             "type": "string"
           },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/Section-Output"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Sections",
+            "type": "array"
+          },
           "serving_cap_weight": {
             "title": "Serving Cap Weight",
+            "type": "string"
+          },
+          "servings": {
+            "maximum": 1000.0,
+            "minimum": 1.0,
+            "title": "Servings",
+            "type": "integer"
+          },
+          "source_url": {
+            "maxLength": 2000,
+            "title": "Source Url",
             "type": "string"
           },
           "step": {
@@ -1187,11 +2279,18 @@
             },
             "title": "Totals",
             "type": "array"
+          },
+          "unconvertible": {
+            "title": "Unconvertible",
+            "type": "boolean"
           }
         },
         "required": [
           "name",
-          "items",
+          "servings",
+          "sections",
+          "instructions",
+          "source_url",
           "extra_tag_ids",
           "min_multiplier",
           "max_multiplier",
@@ -1200,6 +2299,7 @@
           "serving_cap_weight",
           "id",
           "derived_tag_ids",
+          "unconvertible",
           "totals"
         ],
         "title": "Recipe",
@@ -1241,6 +2341,7 @@
         "type": "object"
       },
       "RecipeFields": {
+        "description": "What a save takes.",
         "properties": {
           "extra_tag_ids": {
             "items": {
@@ -1263,13 +2364,10 @@
             ],
             "title": "Hard Max Multiplier"
           },
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/RecipeItem-Input"
-            },
-            "minItems": 1,
-            "title": "Items",
-            "type": "array"
+          "instructions": {
+            "maxLength": 20000,
+            "title": "Instructions",
+            "type": "string"
           },
           "max_multiplier": {
             "anyOf": [
@@ -1299,6 +2397,24 @@
             "title": "Name",
             "type": "string"
           },
+          "new_conversions": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/NewConversion"
+            },
+            "maxItems": 200,
+            "title": "New Conversions",
+            "type": "array"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/Section-Input"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Sections",
+            "type": "array"
+          },
           "serving_cap_weight": {
             "anyOf": [
               {
@@ -1309,6 +2425,17 @@
               }
             ],
             "title": "Serving Cap Weight"
+          },
+          "servings": {
+            "maximum": 1000.0,
+            "minimum": 1.0,
+            "title": "Servings",
+            "type": "integer"
+          },
+          "source_url": {
+            "maxLength": 2000,
+            "title": "Source Url",
+            "type": "string"
           },
           "step": {
             "anyOf": [
@@ -1327,7 +2454,10 @@
         },
         "required": [
           "name",
-          "items",
+          "servings",
+          "sections",
+          "instructions",
+          "source_url",
           "extra_tag_ids",
           "min_multiplier",
           "max_multiplier",
@@ -1338,7 +2468,37 @@
         "title": "RecipeFields",
         "type": "object"
       },
+      "RecipeImportRequest": {
+        "description": "Exactly one of the two. `text`: trimmed, 1 to 200 000 characters; `url`:\ntrimmed, an http or https link. Both are checked by hand for the error shape.",
+        "properties": {
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "title": "RecipeImportRequest",
+        "type": "object"
+      },
       "RecipeItem-Input": {
+        "description": "A line of a recipe. The same ingredient may be on several lines.",
         "properties": {
           "amount": {
             "anyOf": [
@@ -1354,16 +2514,29 @@
           "ingredient_id": {
             "title": "Ingredient Id",
             "type": "integer"
+          },
+          "original_text": {
+            "maxLength": 500,
+            "title": "Original Text",
+            "type": "string"
+          },
+          "unit": {
+            "default": "",
+            "maxLength": 20,
+            "title": "Unit",
+            "type": "string"
           }
         },
         "required": [
           "ingredient_id",
-          "amount"
+          "amount",
+          "original_text"
         ],
         "title": "RecipeItem",
         "type": "object"
       },
       "RecipeItem-Output": {
+        "description": "A line of a recipe. The same ingredient may be on several lines.",
         "properties": {
           "amount": {
             "title": "Amount",
@@ -1372,11 +2545,23 @@
           "ingredient_id": {
             "title": "Ingredient Id",
             "type": "integer"
+          },
+          "original_text": {
+            "maxLength": 500,
+            "title": "Original Text",
+            "type": "string"
+          },
+          "unit": {
+            "default": "",
+            "maxLength": 20,
+            "title": "Unit",
+            "type": "string"
           }
         },
         "required": [
           "ingredient_id",
-          "amount"
+          "amount",
+          "original_text"
         ],
         "title": "RecipeItem",
         "type": "object"
@@ -1600,6 +2785,52 @@
         "title": "ResultMiss",
         "type": "object"
       },
+      "Section-Input": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RecipeItem-Input"
+            },
+            "maxItems": 200,
+            "title": "Items",
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 100,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "items"
+        ],
+        "title": "Section",
+        "type": "object"
+      },
+      "Section-Output": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RecipeItem-Output"
+            },
+            "maxItems": 200,
+            "title": "Items",
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 100,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "items"
+        ],
+        "title": "Section",
+        "type": "object"
+      },
       "Skip": {
         "description": "A skipped cell. `meal` is the meal's position in `meals`.",
         "properties": {
@@ -1703,6 +2934,100 @@
         "title": "SolveOutcome",
         "type": "object"
       },
+      "SourceColumn": {
+        "properties": {
+          "attribute_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attribute Id"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "withdrawn": {
+            "title": "Withdrawn",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "name",
+          "unit",
+          "withdrawn",
+          "attribute_id"
+        ],
+        "title": "SourceColumn",
+        "type": "object"
+      },
+      "SourceValuesAnswer": {
+        "additionalProperties": false,
+        "description": "Accept the updated values, or keep the ingredient's own.",
+        "properties": {
+          "answer": {
+            "enum": [
+              "accept",
+              "keep"
+            ],
+            "title": "Answer",
+            "type": "string"
+          }
+        },
+        "required": [
+          "answer"
+        ],
+        "title": "SourceValuesAnswer",
+        "type": "object"
+      },
+      "SwitchRule": {
+        "description": "`tag_id`, with `tag_rule`, would join a group of `group_rule`: its rule\nwould switch.",
+        "properties": {
+          "group_rule": {
+            "title": "Group Rule",
+            "type": "string"
+          },
+          "tag_id": {
+            "title": "Tag Id",
+            "type": "integer"
+          },
+          "tag_rule": {
+            "title": "Tag Rule",
+            "type": "string"
+          },
+          "type": {
+            "const": "switch_rule",
+            "default": "switch_rule",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag_id",
+          "tag_rule",
+          "group_rule"
+        ],
+        "title": "SwitchRule",
+        "type": "object"
+      },
       "Tag": {
         "properties": {
           "derive": {
@@ -1716,6 +3041,13 @@
           "filter_count": {
             "title": "Filter Count",
             "type": "integer"
+          },
+          "group": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Group",
+            "type": "array"
           },
           "id": {
             "title": "Id",
@@ -1734,12 +3066,24 @@
           "recipe_count": {
             "title": "Recipe Count",
             "type": "integer"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TagSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
           "name",
           "derive",
           "id",
+          "source",
+          "group",
           "ingredient_count",
           "recipe_count",
           "filter_count"
@@ -1794,6 +3138,72 @@
         "title": "TagFilter",
         "type": "object"
       },
+      "TagSource": {
+        "properties": {
+          "colour": {
+            "title": "Colour",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "colour"
+        ],
+        "title": "TagSource",
+        "type": "object"
+      },
+      "TagUpdate": {
+        "properties": {
+          "confirm": {
+            "default": false,
+            "title": "Confirm",
+            "type": "boolean"
+          },
+          "derive": {
+            "enum": [
+              "all",
+              "any"
+            ],
+            "title": "Derive",
+            "type": "string"
+          },
+          "equivalent_tag_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equivalent Tag Ids"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "derive"
+        ],
+        "title": "TagUpdate",
+        "type": "object"
+      },
       "TodayPlan": {
         "description": "The plan used for `date` and that day's meals; `day` is from 0.",
         "properties": {
@@ -1843,6 +3253,245 @@
           "value"
         ],
         "title": "Total",
+        "type": "object"
+      },
+      "UnitCatalogue": {
+        "properties": {
+          "units": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogueUnit"
+            },
+            "title": "Units",
+            "type": "array"
+          }
+        },
+        "required": [
+          "units"
+        ],
+        "title": "UnitCatalogue",
+        "type": "object"
+      },
+      "UnitChange": {
+        "properties": {
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Counts",
+            "type": "object"
+          },
+          "factor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Factor"
+          },
+          "kind": {
+            "enum": [
+              "same",
+              "convert",
+              "no_convert"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "refusal": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UnitChangeRefusal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rounded": {
+            "title": "Rounded",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind",
+          "factor",
+          "counts",
+          "rounded",
+          "refusal"
+        ],
+        "title": "UnitChange",
+        "type": "object"
+      },
+      "UnitChangeRefusal": {
+        "properties": {
+          "conversions": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversions"
+          },
+          "converted": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Converted"
+          },
+          "decimals_needed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decimals Needed"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "lines": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lines"
+          },
+          "msg": {
+            "title": "Msg",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Number"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "type": {
+            "enum": [
+              "conversion_needs_decimals",
+              "conversion_too_large",
+              "conversion_rounds_to_zero",
+              "unit_not_for_ingredient",
+              "unit_not_for_source",
+              "unit_mismatch",
+              "unit_has_dependents",
+              "conversion_for_new_unit"
+            ],
+            "title": "Type",
+            "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          }
+        },
+        "required": [
+          "type",
+          "msg"
+        ],
+        "title": "UnitChangeRefusal",
+        "type": "object"
+      },
+      "UpdatedValue": {
+        "description": "A value the source has moved on from: what the ingredient has now (null:\nnothing) and what it would get, both in the ingredient's basis.",
+        "properties": {
+          "attribute_id": {
+            "title": "Attribute Id",
+            "type": "integer"
+          },
+          "new_value": {
+            "title": "New Value",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "attribute_id",
+          "value",
+          "new_value"
+        ],
+        "title": "UpdatedValue",
         "type": "object"
       },
       "ValidationError": {
@@ -2055,6 +3704,62 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "The conversion would lose precision or a number's range"
+          }
+        },
+        "summary": "Update Attribute",
+        "tags": [
+          "attributes"
+        ]
+      }
+    },
+    "/api/attributes/{attribute_id}/unit-change": {
+      "post": {
+        "description": "What changing the unit does to the numbers stored in it. Writes nothing.",
+        "operationId": "preview_unit_change_api_attributes__attribute_id__unit_change_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attribute_id",
+            "required": true,
+            "schema": {
+              "title": "Attribute Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttributeUnitChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnitChange"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such attribute"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
@@ -2062,7 +3767,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Update Attribute",
+        "summary": "Preview Unit Change",
         "tags": [
           "attributes"
         ]
@@ -2084,6 +3789,315 @@
           }
         },
         "summary": "Counts"
+      }
+    },
+    "/api/data-sources": {
+      "get": {
+        "operationId": "list_data_sources_api_data_sources_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DataSourceSummary"
+                  },
+                  "title": "Response List Data Sources Api Data Sources Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Data Sources",
+        "tags": [
+          "data sources"
+        ]
+      }
+    },
+    "/api/data-sources/{key}": {
+      "get": {
+        "operationId": "get_data_source_api_data_sources__key__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataSource"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such data source"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Data Source",
+        "tags": [
+          "data sources"
+        ]
+      },
+      "patch": {
+        "operationId": "update_data_source_api_data_sources__key__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DataSourceChanges"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataSource"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such data source"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Data Source",
+        "tags": [
+          "data sources"
+        ]
+      }
+    },
+    "/api/data-sources/{key}/columns/{column_id}": {
+      "put": {
+        "description": "Map a column to an attribute (or, with null, to none). The attribute's\nunit must convert with the column's, and one column of a source feeds an\nattribute at most (data source spec, decisions 5 to 7).",
+        "operationId": "map_column_api_data_sources__key__columns__column_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "column_id",
+            "required": true,
+            "schema": {
+              "title": "Column Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ColumnMapping"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceColumn"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such data source or column"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "Unknown, taken or non-converting attribute"
+          }
+        },
+        "summary": "Map Column",
+        "tags": [
+          "data sources"
+        ]
+      }
+    },
+    "/api/data-sources/{key}/foods": {
+      "get": {
+        "description": "The source's foods (not withdrawn) whose name contains `search`, ignoring\ncase, 20 at a time: names starting with it first, then by name. Matched in\nPython on the case-folded name, as SQLite's lower() knows only ASCII.",
+        "operationId": "search_foods_api_data_sources__key__foods_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Search",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoodPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such data source"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search Foods",
+        "tags": [
+          "data sources"
+        ]
+      }
+    },
+    "/api/data-sources/{key}/foods/{food_id}": {
+      "get": {
+        "operationId": "get_food_api_data_sources__key__foods__food_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "food_id",
+            "required": true,
+            "schema": {
+              "title": "Food Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoodPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such data source or food"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Food",
+        "tags": [
+          "data sources"
+        ]
       }
     },
     "/api/health": {
@@ -2162,17 +4176,62 @@
             "description": "The name is already in use"
           },
           "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
+            "description": "An energy unit, or an unknown attribute or tag"
           }
         },
         "summary": "Create Ingredient",
+        "tags": [
+          "ingredients"
+        ]
+      }
+    },
+    "/api/ingredients/from-source": {
+      "post": {
+        "description": "Make an ingredient from a source food: its name and chosen source tags\nare the user's, the unit, basis and values come from the food as the\nmapping and preferences stand now. It stays linked to the food, and each\nvalue remembers the source's number.",
+        "operationId": "create_from_source_api_ingredients_from_source_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngredientFromSource"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ingredient"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "The name is already in use"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "An unknown or withdrawn food, a tag that is not one of the food's, or an unknown tag"
+          }
+        },
+        "summary": "Create From Source",
         "tags": [
           "ingredients"
         ]
@@ -2312,6 +4371,118 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "An energy unit, a non-mass unit for an ingredient from a data source, an unknown attribute or tag, or a conversion that would lose precision or a number's range"
+          }
+        },
+        "summary": "Update Ingredient",
+        "tags": [
+          "ingredients"
+        ]
+      }
+    },
+    "/api/ingredients/{ingredient_id}/conversions": {
+      "post": {
+        "operationId": "add_conversion_api_ingredients__ingredient_id__conversions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ingredient_id",
+            "required": true,
+            "schema": {
+              "title": "Ingredient Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConversionFields"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Conversion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such ingredient or conversion"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "An energy unit, the ingredient's own unit or a unit it has"
+          }
+        },
+        "summary": "Add Conversion",
+        "tags": [
+          "conversions"
+        ]
+      }
+    },
+    "/api/ingredients/{ingredient_id}/conversions/{conversion_id}": {
+      "delete": {
+        "operationId": "delete_conversion_api_ingredients__ingredient_id__conversions__conversion_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ingredient_id",
+            "required": true,
+            "schema": {
+              "title": "Ingredient Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "conversion_id",
+            "required": true,
+            "schema": {
+              "title": "Conversion Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such ingredient or conversion"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "Recipes use the conversion"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
@@ -2319,7 +4490,238 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Update Ingredient",
+        "summary": "Delete Conversion",
+        "tags": [
+          "conversions"
+        ]
+      },
+      "put": {
+        "description": "Only the factor may change while a recipe uses the conversion. A save\nthat changes neither unit nor factor keeps the source; one that does is\nthe user's.",
+        "operationId": "edit_conversion_api_ingredients__ingredient_id__conversions__conversion_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ingredient_id",
+            "required": true,
+            "schema": {
+              "title": "Ingredient Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "conversion_id",
+            "required": true,
+            "schema": {
+              "title": "Conversion Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConversionFields"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Conversion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such ingredient or conversion"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "Recipes use the conversion"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "An energy unit, the ingredient's own unit or a unit it has"
+          }
+        },
+        "summary": "Edit Conversion",
+        "tags": [
+          "conversions"
+        ]
+      }
+    },
+    "/api/ingredients/{ingredient_id}/source-values": {
+      "post": {
+        "description": "Accept the source's new values (copy them) or keep the ingredient's own\n(and remember the source's numbers as answered). What is answered is what\nthe server finds now; nothing to answer is a no-op.",
+        "operationId": "answer_updated_values_api_ingredients__ingredient_id__source_values_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ingredient_id",
+            "required": true,
+            "schema": {
+              "title": "Ingredient Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SourceValuesAnswer"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ingredient"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such ingredient"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "The ingredient is not from a data source"
+          }
+        },
+        "summary": "Answer Updated Values",
+        "tags": [
+          "ingredients"
+        ]
+      }
+    },
+    "/api/ingredients/{ingredient_id}/unit-change": {
+      "post": {
+        "description": "What changing the unit does to the basis, the recipe amounts and the\nconversions. Writes nothing.",
+        "operationId": "preview_unit_change_api_ingredients__ingredient_id__unit_change_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ingredient_id",
+            "required": true,
+            "schema": {
+              "title": "Ingredient Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngredientUnitChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnitChange"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such ingredient"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Unit Change",
+        "tags": [
+          "ingredients"
+        ]
+      }
+    },
+    "/api/ingredients/{ingredient_id}/unlink": {
+      "post": {
+        "description": "Cut the link to the source food and forget the source's numbers. The\nvalues, tags and basis stay. An unlinked ingredient is answered as it is.",
+        "operationId": "unlink_ingredient_api_ingredients__ingredient_id__unlink_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ingredient_id",
+            "required": true,
+            "schema": {
+              "title": "Ingredient Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ingredient"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such ingredient"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unlink Ingredient",
         "tags": [
           "ingredients"
         ]
@@ -2805,6 +5207,203 @@
         ]
       }
     },
+    "/api/preferences": {
+      "get": {
+        "operationId": "get_preferences_api_preferences_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preferences"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Preferences",
+        "tags": [
+          "preferences"
+        ]
+      },
+      "put": {
+        "operationId": "put_preferences_api_preferences_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreferenceChanges"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preferences"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "A unit that is not offered for its preference, or a last_data_source that is not the key of a loaded data source"
+          }
+        },
+        "summary": "Put Preferences",
+        "tags": [
+          "preferences"
+        ]
+      }
+    },
+    "/api/recipe-imports": {
+      "post": {
+        "description": "Ask the AI for a draft of the pasted text or of the page at the link,\nchecked against the user's own ingredients. Writes nothing.",
+        "operationId": "import_recipe_api_recipe_imports_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecipeImportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportedRecipe"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "No input or both, a bad link, a page that can't be read, too much text, or no recipe in it"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "Today's limit of model calls is reached"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "The AI service didn't give a usable answer"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "No AI key is set"
+          }
+        },
+        "summary": "Import Recipe",
+        "tags": [
+          "recipe imports"
+        ]
+      }
+    },
+    "/api/recipe-imports/factor": {
+      "post": {
+        "description": "The AI's guess at how many of the ingredient's own unit one `unit` of\n`food` makes.",
+        "operationId": "suggest_factor_api_recipe_imports_factor_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FactorRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactorAnswer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "No input or both, a bad link, a page that can't be read, too much text, or no recipe in it"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "Today's limit of model calls is reached"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "The AI service didn't give a usable answer"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "No AI key is set"
+          }
+        },
+        "summary": "Suggest Factor",
+        "tags": [
+          "recipe imports"
+        ]
+      }
+    },
     "/api/recipes": {
       "get": {
         "operationId": "list_recipes_api_recipes_get",
@@ -3180,11 +5779,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/FieldErrors"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "A source tag's name can't change and it can't be deleted"
           }
         },
         "summary": "Delete Tag",
@@ -3209,7 +5808,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TagFields"
+                "$ref": "#/components/schemas/TagUpdate"
               }
             }
           },
@@ -3233,26 +5832,55 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FieldErrors"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/FieldErrors"
+                    },
+                    {
+                      "$ref": "#/components/schemas/GroupQuestions"
+                    }
+                  ],
+                  "title": "Response 409 Update Tag Api Tags  Tag Id  Put"
                 }
               }
             },
-            "description": "The name is already in use"
+            "description": "The name is already in use (`detail`), or the change needs answers (`questions`)"
           },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/FieldErrors"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "A source tag's name can't change and it can't be deleted"
           }
         },
         "summary": "Update Tag",
         "tags": [
           "tags"
+        ]
+      }
+    },
+    "/api/units": {
+      "get": {
+        "operationId": "get_units_api_units_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnitCatalogue"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Units",
+        "tags": [
+          "units"
         ]
       }
     }

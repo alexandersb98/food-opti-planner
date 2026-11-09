@@ -25,6 +25,7 @@ def test_a_created_attribute_is_listed_with_what_deleting_it_removes(client):
         "unit": "g",
         "decimals": 1,
         "ingredient_count": 0,
+        "mapping_count": 0,
         "goal_count": 0,
     }
     assert client.get("/api/attributes").json() == [created]
@@ -143,3 +144,8 @@ def test_counts_for_the_menu(client):
     create(client)
     create(client, name="Fat")
     assert client.get("/api/counts").json()["attributes"] == 2
+
+
+@pytest.mark.parametrize("unit", ["kcal", "g", "dl", "IU"])
+def test_attributes_still_accept_every_unit(client, unit):
+    assert create(client, unit=unit)["unit"] == unit

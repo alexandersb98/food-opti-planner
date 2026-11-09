@@ -1,0 +1,401 @@
+"""Changing a unit converts the numbers stored in it (units spec, "Changing a
+unit"). The one place the rule lives: the exact arithmetic, the refusals, and
+a list of converters per entity. A converter is a named source of stored
+numbers; `plan` asks each for its numbers, multiplies them all by one exact
+ratio and answers a `Change` that `apply` writes or a preview reports. A
+later slice that stores more numbers in an attribute's or ingredient's unit
+adds one converter to a list here. No FastAPI."""
+
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from decimal import Context, Decimal
+from fractions import Fraction
+from typing import Literal
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from . import line_units, models, queries, translate, units
+from .fields import plain
+
+# A converted number must stay below 10^9: 15 digits with 6 decimals.
+LIMIT = 10 ** (models.VALUE_DIGITS - models.VALUE_DECIMALS)
+FACTOR_DIGITS = 12  # significant digits of the factor shown to the user
+
+NEEDS_DECIMALS = "conversion_needs_decimals"
+TOO_LARGE = "conversion_too_large"
+ROUNDS_TO_ZERO = "conversion_rounds_to_zero"
+
+
+@dataclass
+class Number:
+    """One stored number in the unit that changes."""
+
+    kind: str  # "ingredient_value" | "source_value" | "goal" | "basis" | "recipe_amount" | "conversion"
+    row_id: int  # counted once per (kind, row_id): a goal's bounds are one goal
+    name: str  # for a refusal: the goal's, ingredient's or recipe's name
+    field: str  # "value" | "source_value" | "min" | "max" | "zero_reference" | "basis" | "amount" | "factor"
+    value: Decimal
+    write: Callable[[Decimal], None]
+    decimals: int | None = None  # None: round to VALUE_DECIMALS; n: must fit n decimals exactly
+    positive: bool = False  # must stay above 0 after rounding
+
+
+@dataclass(frozen=True)
+class Converter:
+    key: str  # the count's key in the answer
+    numbers: Callable[[Session], list[Number]]  # in row id order
+    # A refusal that is not about a number: asked, for a change of any kind
+    # but `same`, before the converter's numbers.
+    blocks: Callable[[Session, str], "Refusal | None"] | None = None
+
+
+@dataclass(frozen=True)
+class Refusal:
+    """The facts of the first refused number."""
+
+    type: str
+    msg: str
+    kind: str | None = None
+    name: str | None = None
+    field: str | None = None
+    number: str | None = None
+    converted: str | None = None
+    decimals_needed: int | None = None
+    # For a mapped source column that would stop converting: its source's name
+    # and its own unit.
+    source: str | None = None
+    unit: str | None = None
+    # For an ingredient whose unit can't change while conversions or recipe
+    # lines in other units depend on it: how many of each.
+    conversions: int | None = None
+    lines: int | None = None
+
+
+@dataclass
+class Change:
+    kind: Literal["same", "convert", "no_convert"]
+    factor: str | None
+    counts: dict[str, int]
+    rounded: int
+    refusal: Refusal | None
+    _writes: list[tuple[Number, Decimal]] = field(default_factory=list, repr=False)
+
+    def apply(self) -> None:
+        """Write every converted number. Only a `convert` without a refusal
+        has any; the caller commits."""
+        if self.kind != "convert" or self.refusal is not None:
+            return
+        for number, converted in self._writes:
+            number.write(converted)
+
+
+@dataclass(frozen=True)
+class _Converted:
+    value: Decimal | None = None
+    rounded: bool = False
+    refusal: str | None = None
+    decimals_needed: int | None = None
+
+
+def _decimals_needed(exact: Fraction) -> int | None:
+    """How many decimals write `exact`, or None when no number of them does."""
+    denominator = exact.denominator
+    twos = fives = 0
+    while denominator % 2 == 0:
+        denominator //= 2
+        twos += 1
+    while denominator % 5 == 0:
+        denominator //= 5
+        fives += 1
+    return max(twos, fives) if denominator == 1 else None
+
+
+def _to_decimal(exact: Fraction, places: int) -> tuple[Decimal, bool]:
+    """`exact` rounded half away from zero to `places` decimals, and whether
+    digits were lost."""
+    magnitude = abs(exact)
+    scaled = magnitude * 10**places
+    units_ = (2 * scaled.numerator + scaled.denominator) // (2 * scaled.denominator)
+    rounded = Fraction(units_, 10**places) != magnitude
+    return Decimal(-units_ if exact < 0 else units_).scaleb(-places), rounded
+
+
+def _convert(value: Decimal, ratio: Fraction, decimals: int | None, positive: bool) -> _Converted:
+    """`value` times `ratio`: the new number and whether it lost digits, or
+    the type of the refusal. With `decimals` the result must fit that many
+    exactly; without it the result rounds to 6 decimals."""
+    exact = Fraction(value) * ratio
+    if decimals is not None:
+        needed = _decimals_needed(exact)
+        if needed is None or needed > decimals:
+            return _Converted(refusal=NEEDS_DECIMALS, decimals_needed=needed)
+    places = models.VALUE_DECIMALS if decimals is None else decimals
+    converted, rounded = _to_decimal(exact, places)
+    if abs(converted) >= LIMIT:
+        return _Converted(refusal=TOO_LARGE)
+    if positive and converted <= 0:
+        return _Converted(refusal=ROUNDS_TO_ZERO)
+    return _Converted(value=converted, rounded=rounded)
+
+
+def _shown(exact: Fraction) -> str:
+    """A converted number for a message: exact where it terminates."""
+    needed = _decimals_needed(exact)
+    return plain(_to_decimal(exact, models.VALUE_DECIMALS if needed is None else needed)[0])
+
+
+def _factor_text(ratio: Fraction) -> str:
+    context = Context(prec=FACTOR_DIGITS)
+    return plain(context.divide(Decimal(ratio.numerator), Decimal(ratio.denominator)))
+
+
+def _refusal(number: Number, result: _Converted, ratio: Fraction, old: str, new: str) -> Refusal:
+    exact = Fraction(number.value) * ratio
+    shown, was = plain(number.value), _shown(exact)
+    subject = f"{number.name}, {number.field}"
+    if result.refusal == NEEDS_DECIMALS:
+        if result.decimals_needed is None:
+            msg = f"{subject}: {shown} {old} can't be written exactly in {new}."
+        else:
+            msg = f"{subject}: {shown} {old} would need {result.decimals_needed} decimals as {new}."
+    elif result.refusal == TOO_LARGE:
+        msg = f"{subject}: {shown} {old} would be {was} {new}, which is too large."
+    else:
+        msg = f"{subject}: {shown} {old} would round to 0 {new}, which is not allowed."
+    return Refusal(
+        type=result.refusal or "", msg=msg, kind=number.kind, name=number.name, field=number.field,
+        number=shown, converted=was, decimals_needed=result.decimals_needed,
+    )
+
+
+def plan(db: Session, old_unit: str, new_unit: str, converters: list[Converter]) -> Change:
+    """What changing `old_unit` to `new_unit` does to the numbers the
+    converters name. Reads only. Counts are filled in for every kind; the
+    refusal is the first problem, going through the converters in order and
+    each one's rows as it gives them."""
+    ratio = units.ratio(old_unit, new_unit)
+    if units.normalise(old_unit) == units.normalise(new_unit) or ratio == 1:
+        kind: Literal["same", "convert", "no_convert"] = "same"
+    elif ratio is None:
+        kind = "no_convert"
+    else:
+        kind = "convert"
+
+    counts: dict[str, int] = {}
+    writes: list[tuple[Number, Decimal]] = []
+    refusal: Refusal | None = None
+    rounded = 0
+    for converter in converters:
+        if kind != "same" and converter.blocks is not None:
+            refusal = refusal or converter.blocks(db, kind)
+        numbers = converter.numbers(db)
+        counts[converter.key] = len({(n.kind, n.row_id) for n in numbers})
+        if kind != "convert" or ratio is None:
+            continue
+        for number in numbers:
+            result = _convert(number.value, ratio, number.decimals, number.positive)
+            if result.refusal is not None:
+                refusal = refusal or _refusal(number, result, ratio, old_unit, new_unit)
+            elif result.value is not None:
+                rounded += result.rounded
+                writes.append((number, result.value))
+    return Change(
+        kind, _factor_text(ratio) if kind == "convert" and ratio is not None else None,
+        counts, rounded, refusal, writes,
+    )
+
+
+def convert_number(value: Decimal, ratio: Fraction) -> Decimal | None:
+    """`value` times `ratio`, rounded half away from zero to 6 decimals, by the
+    same rule an attribute's unit change applies; None when the result reaches
+    the stored maximum (10^9). The one public way to convert a single number."""
+    return _convert(value, ratio, None, False).value
+
+
+def mapped_column_refusal(db: Session, attribute: models.Attribute, new_unit: str) -> Refusal | None:
+    """The first column (by source, then column id) mapped to the attribute
+    that would no longer convert with `new_unit`, or None. A mapping must keep
+    converting (data source spec, decision 7), so such a change is refused."""
+    rows = db.execute(
+        select(models.SourceColumn, models.DataSource.name)
+        .join(models.DataSource, models.DataSource.id == models.SourceColumn.source_id)
+        .where(models.SourceColumn.attribute_id == attribute.id)
+        .order_by(models.SourceColumn.source_id, models.SourceColumn.id)
+    )
+    for column, source in rows:
+        if units.factor(column.unit, new_unit) is None:
+            return Refusal(
+                type="unit_mismatch",
+                msg=(
+                    f"{attribute.name} is mapped from {column.name} ({source}), which is in "
+                    f"{column.unit or 'no unit'}, so it can't become {new_unit}. "
+                    "Unmap the column on the data source page first."
+                ),
+                kind="source_column", name=column.name, source=source, unit=column.unit,
+            )
+    return None
+
+
+def attribute_converters(attribute: models.Attribute, decimals: int) -> list[Converter]:
+    """The numbers stored in an attribute's unit: its ingredient values, the
+    source values copied with them, and the live plan's goal bounds and zero
+    references. `decimals` is the
+    attribute's decimals as they will be saved. Saved results keep their own
+    copy of units and numbers and are not touched."""
+
+    def values(db: Session) -> list[Number]:
+        rows = db.execute(
+            select(models.IngredientValue, models.Ingredient.name)
+            .join(models.Ingredient, models.Ingredient.id == models.IngredientValue.ingredient_id)
+            .where(models.IngredientValue.attribute_id == attribute.id)
+            .order_by(models.IngredientValue.ingredient_id)
+        )
+
+        def setter(row: models.IngredientValue):
+            return lambda converted: setattr(row, "value", converted)
+
+        return [
+            Number("ingredient_value", row.ingredient_id, name, "value", row.value, setter(row))
+            for row, name in rows
+        ]
+
+    def source_numbers(db: Session) -> list[Number]:
+        # The source's number remembered next to each copied value (slice D4);
+        # a separate number, so either it or the value can be the one refused.
+        rows = db.execute(
+            select(models.IngredientValue, models.Ingredient.name)
+            .join(models.Ingredient, models.Ingredient.id == models.IngredientValue.ingredient_id)
+            .where(
+                models.IngredientValue.attribute_id == attribute.id,
+                models.IngredientValue.source_value.is_not(None),
+            )
+            .order_by(models.IngredientValue.ingredient_id)
+        )
+
+        def setter(row: models.IngredientValue):
+            return lambda converted: setattr(row, "source_value", converted)
+
+        return [
+            Number("source_value", row.ingredient_id, name, "source_value", row.source_value, setter(row))
+            for row, name in rows
+        ]
+
+    def goals(db: Session) -> list[Number]:
+        # Not queries.plan: a preview must not create the default plan.
+        setup = db.get(models.Plan, queries.PLAN_ID)
+        if setup is None:
+            return []
+        numbers: list[Number] = []
+        for goal, name in translate.named_goals(sorted(setup.goals, key=lambda g: g.position)):
+            if goal.attribute_id != attribute.id:
+                continue
+            for bound in ("min", "max", "zero_reference"):
+                current = getattr(goal, bound)
+                if current is not None:
+                    numbers.append(Number(
+                        "goal", goal.id, name, bound, current,
+                        lambda converted, goal=goal, bound=bound: setattr(goal, bound, converted),
+                        decimals=decimals,
+                    ))
+        return sorted(numbers, key=lambda n: n.row_id)
+
+    return [
+        Converter("ingredient_values", values),
+        Converter("source_values", source_numbers),
+        Converter("goals", goals),
+    ]
+
+
+def _recipe_lines(ingredient_id: int):
+    """The select of every recipe line of an ingredient with its recipe's
+    name, in recipe, section and line order."""
+    return (
+        select(models.RecipeItem, models.Recipe.name)
+        .join(models.RecipeSection, models.RecipeSection.id == models.RecipeItem.section_id)
+        .join(models.Recipe, models.Recipe.id == models.RecipeSection.recipe_id)
+        .where(models.RecipeItem.ingredient_id == ingredient_id)
+        .order_by(models.Recipe.id, models.RecipeSection.position, models.RecipeItem.position)
+    )
+
+
+def _plural(n: int, one: str, many: str) -> str:
+    return f"{n} {one if n == 1 else many}"
+
+
+def ingredient_converters(ingredient: models.Ingredient, basis: Decimal, new_unit: str) -> list[Converter]:
+    """The numbers stored in an ingredient's unit: its basis (the one the
+    form sends, as `PUT` saves it), the amounts of the recipe lines in that
+    unit, and the factors of its stored conversions (a conversion's factor is
+    how many of the unit one of its unit makes). Lines in another unit and the
+    ingredient's values stay as they are. `new_unit` is the unit it changes
+    to, for the two refusals that are not about a number. The old unit is the
+    ingredient's now, before the save changes the row."""
+    old = ingredient.unit
+
+    def basis_number(db: Session) -> list[Number]:
+        return [Number(
+            "basis", ingredient.id, ingredient.name, "basis", basis,
+            lambda converted: setattr(ingredient, "basis", converted), positive=True,
+        )]
+
+    def amounts(db: Session) -> list[Number]:
+        # Every line in the own unit, so an ingredient on two lines of a recipe
+        # counts two amounts. In recipe, section and line order, so the refusal
+        # names the first line there. Written in the new unit, which is the
+        # line's own unit again: the line's unit is emptied with it.
+        rows = db.execute(_recipe_lines(ingredient.id))
+
+        def setter(row: models.RecipeItem):
+            def write(converted: Decimal) -> None:
+                row.amount = converted
+                row.unit = ""
+            return write
+
+        return [
+            Number("recipe_amount", row.id, name, "amount", row.amount, setter(row), positive=True)
+            for row, name in rows
+            if line_units.is_own(row.unit, old)
+        ]
+
+    def conversion_numbers(db: Session) -> list[Number]:
+        def setter(row: models.IngredientConversion):
+            return lambda converted: setattr(row, "factor", converted)
+
+        return [
+            Number("conversion", row.id, row.unit, "factor", row.factor, setter(row), positive=True)
+            for row in ingredient.conversions
+        ]
+
+    def blocks(db: Session, kind: str) -> Refusal | None:
+        if kind == "convert":
+            # A conversion for the new unit would be one for the own unit.
+            for conversion in ingredient.conversions:
+                if units.ratio(conversion.unit, new_unit) == 1:
+                    return Refusal(
+                        type="conversion_for_new_unit",
+                        msg=f"{ingredient.name} has a conversion for {conversion.unit}. Delete it first.",
+                        name=ingredient.name, unit=conversion.unit,
+                    )
+            return None
+        # Another category or free text: only lines in the own unit keep their meaning.
+        conversions = len(ingredient.conversions)
+        lines = sum(1 for row, _ in db.execute(_recipe_lines(ingredient.id)) if row.unit != "")
+        if not conversions and not lines:
+            return None
+        parts = []
+        if conversions:
+            parts.append(_plural(conversions, "conversion", "conversions"))
+        if lines:
+            parts.append(_plural(lines, "recipe line", "recipe lines") + " in another unit")
+        return Refusal(
+            type="unit_has_dependents",
+            msg=f"{ingredient.name} has {' and '.join(parts)}, so its unit can't change to {new_unit}.",
+            name=ingredient.name, conversions=conversions, lines=lines,
+        )
+
+    return [
+        Converter("basis", basis_number),
+        Converter("recipe_amounts", amounts),
+        Converter("conversions", conversion_numbers, blocks),
+    ]

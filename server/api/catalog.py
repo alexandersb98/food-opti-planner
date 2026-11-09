@@ -48,9 +48,9 @@ class References:
         seen = set()
         for loc, row_id in refs:
             if row_id not in found:
-                self._error(loc, f"unknown_{what}", f"No such {what}")
+                self.error(loc, f"unknown_{what}", f"No such {what}")
             elif unique and row_id in seen:
-                self._error(loc, "duplicate", f"This {what} is given twice")
+                self.error(loc, "duplicate", f"This {what} is given twice")
             seen.add(row_id)
         return found
 
@@ -59,7 +59,7 @@ class References:
         if self.errors:
             raise invalid_fields(self.errors)
 
-    def _error(self, loc: Loc, error_type: str, msg: str) -> None:
+    def error(self, loc: Loc, error_type: str, msg: str) -> None:
         self.errors.append(FieldError(loc=["body", *loc], type=error_type, msg=msg))
 
 

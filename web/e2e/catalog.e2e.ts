@@ -1,16 +1,46 @@
 import { expect, test, type Page } from '@playwright/test'
 
 // One flow through the app, growing with each slice that changes it:
-// log in, build a small catalog and a recipe from it, then make a plan,
-// then one that clashes and is fixed.
+// log in, set a preferred unit, look at the data source the server loaded from its fixture file
+// (its card, page and colour), build a small catalog and a recipe from it (the unit fields are
+// combo boxes over the unit catalogue), change the unit of an ingredient in use (its basis and
+// recipe amount convert after a dialog), then make a plan, then one that clashes and is fixed,
+// then map the source's columns to attributes (and create one from a column), and see what
+// that blocks and clears, and finally add an ingredient from a source food (search, preview,
+// the chip on its page, mass units only, the duplicate warning) and unlink it, and finally see
+// updated source values: two ingredients added from a food, a column mapped afterwards, the
+// marker and filter on the list, and the banner on each page answered with Accept and Keep mine,
+// and finally make vegan equivalent to a source tag (the rule question, the count of the
+// recipe filters) and take it out again. The recipe also gets servings, instructions and a
+// source link, then sections with the same ingredient on two lines, which are taken out again.
+// Then line units and conversions: a conversion on the ingredient (a duplicate refused), a
+// recipe line in dl through the unit picker, the conversion in use, and a unit change that
+// converts the lines in the ingredient's unit and the conversion (and is refused for another
+// category), then the dl line and the conversion taken out again. Then import from a link
+// (only what is refused before any connection: internal addresses, a bad scheme) and from pasted
+// text with the server's fake AI provider (AI_PROVIDER=fake): the menu on Recipes, the two errors,
+// the review of a draft (a new ingredient made on the spot, a factor accepted, a line skipped),
+// the saved recipe and the conversion it made (✨, then saved as the user's after an edit), and
+// leaving an unsaved draft.
 
 const password = process.env.E2E_PASSWORD
 if (!password) throw new Error('Set E2E_PASSWORD to the login password')
 
 async function openPage(page: Page, name: string) {
-  await page.getByRole('button', { name: 'Menu' }).click()
+  await page.getByRole('button', { name: 'Menu', exact: true }).click()
   await page.locator('.q-drawer').getByText(name, { exact: true }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(name)
+}
+
+// Closes the open q-select list. Typing in the select opens its popup a moment
+// later, so wait for the popup before Escape (else Escape finds nothing to
+// close and the popup then covers the page), and for the popup to be gone.
+// `opens: false` is for a text that matches no unit: the list has nothing to
+// show and never opens.
+async function closeSelectList(page: Page, { opens = true } = {}) {
+  if (opens) await expect(page.locator('.q-menu')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.q-menu')).toHaveCount(0)
 }
 
 test('log in, build a catalog of an attribute, a tag and an ingredient, and a recipe', async ({ page }) => {
@@ -20,10 +50,52 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await page.getByRole('button', { name: 'Log in' }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Plan')
 
+  // Settings: the preferred units start at the defaults, and a change is
+  // saved, not just shown. It ends as it started: the Oats ingredient below
+  // starts in the preferred mass unit and is expected in g.
+  await openPage(page, 'Settings')
+  const mass = page.locator('.preferred-units-card .q-select').filter({ hasText: 'Mass' })
+  await expect(mass).toContainText('g (gram)')
+  await expect(page.locator('.preferred-units-card .q-select').filter({ hasText: 'Volume' })).toContainText('dl (decilitre)')
+  await expect(page.locator('.preferred-units-card .q-select').filter({ hasText: 'Energy' })).toContainText('kcal (kilocalorie)')
+  await mass.click()
+  await page.getByRole('option', { name: 'kg (kilogram)' }).click()
+  await expect(mass).toContainText('kg (kilogram)')
+  await page.reload()
+  await expect(mass).toContainText('kg (kilogram)')
+  await mass.click()
+  await page.getByRole('option', { name: 'g (gram)', exact: true }).click()
+  await expect(mass).toContainText('g (gram)')
+
+  // The Data sources card lists the fixture's fake source (the server is
+  // started with DATA_SOURCES_DIR=tests/data/data_sources). Its page shows the
+  // attribution and columns, and a colour that is saved, not just shown.
+  const card = page.locator('.data-sources-card')
+  await expect(card.locator('.source-row')).toHaveText([/TEST Source\s*Version 2026-01-01 · 3 foods/])
+  await card.getByText('TEST Source').click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('TEST Source')
+  await expect(page.getByText('TEST data, not real: for tests only.')).toBeVisible()
+  await expect(page.locator('.column-row')).toHaveText([/TEST Energy/, /TEST Protein/, /TEST Vitamin D/])
+  await page.getByLabel('Search columns').fill('vit')
+  await expect(page.locator('.column-row')).toHaveText([/TEST Vitamin D/])
+  await page.getByLabel('Colour').fill('#ff0000')
+  await expect(page.getByLabel('Colour')).toHaveValue('#ff0000')
+  await page.reload()
+  await expect(page.getByLabel('Colour')).toHaveValue('#ff0000')
+  await page.getByRole('link', { name: 'Back' }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Settings')
+
   await openPage(page, 'Attributes')
   await page.getByText('+ New attribute').click()
   await page.getByLabel('Name').fill('Energy')
-  await page.getByLabel('Unit').fill('kcal')
+  // The unit list: mass, volume and energy, not the piece unit; a chosen
+  // unit is stored in its catalogue spelling.
+  await page.getByLabel('Unit').click()
+  const list = page.getByRole('listbox')
+  for (const group of ['Mass', 'Volume', 'Energy']) await expect(list.getByText(group, { exact: true })).toBeVisible()
+  await expect(page.getByRole('option', { name: 'st (piece)' })).toHaveCount(0)
+  await page.getByRole('option', { name: 'kcal (kilocalorie)' }).click()
+  await expect(page.getByText("The amount per the ingredient's basis, e.g. g or kcal.")).toBeVisible()
   await page.getByLabel('Decimals').fill('0')
   await page.getByRole('button', { name: 'Done' }).click()
   await expect(page.locator('.attribute-row')).toHaveText([/Energy\s*\(kcal\)/])
@@ -32,13 +104,33 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await page.getByText('+ New tag').click()
   await page.getByLabel('Name').fill('vegan')
   await page.getByRole('button', { name: 'Done' }).click()
-  await expect(page.locator('.tag-row')).toHaveText([/vegan.*added by hand/])
+  // The source's food groups are tags too, after the ones made by hand, in the
+  // source's colour, without Delete or a Name field.
+  const tagRows = page.locator('.tag-row')
+  await expect(tagRows).toHaveCount(3)
+  await expect(tagRows.first()).toHaveText(/vegan.*added by hand/)
+  for (const name of ['TEST Grains', 'TEST Dairy']) {
+    const row = tagRows.filter({ hasText: name })
+    await expect(row).toContainText('TEST Source')
+    await expect(row).not.toContainText('added by hand')
+  }
+  await tagRows.filter({ hasText: 'TEST Dairy' }).click()
+  await expect(page.getByRole('button', { name: 'Delete' })).toHaveCount(0)
+  await expect(page.getByLabel('Name')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Done' }).click()
 
   await openPage(page, 'Ingredients')
   await expect(page.getByText('No ingredients yet.')).toBeVisible()
   await page.getByRole('link', { name: 'New ingredient' }).click()
   await page.getByLabel('Name').fill('Oats')
+  // A new ingredient starts in the preferred mass unit; the list offers
+  // pieces but no energy unit.
+  await expect(page.getByLabel('Measured in')).toHaveValue('g')
   await expect(page.getByLabel('Value basis')).toHaveValue('100')
+  await page.getByLabel('Measured in').click()
+  await expect(page.getByRole('option', { name: 'st (piece)' })).toBeVisible()
+  await expect(page.getByRole('option', { name: 'kcal (kilocalorie)' })).toHaveCount(0)
+  await closeSelectList(page)
   await page.getByLabel('Energy').fill('389')
   await page.getByRole('button', { name: 'vegan' }).click()
   await page.getByRole('button', { name: 'Save' }).click()
@@ -55,7 +147,8 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   // from the ingredient.
   await openPage(page, 'Recipes')
   await expect(page.getByText('No recipes yet.')).toBeVisible()
-  await page.getByRole('link', { name: 'New recipe' }).click()
+  await page.getByRole('button', { name: 'Add recipe' }).click()
+  await page.locator('.q-menu a.q-item', { hasText: 'New recipe' }).click()
   await page.getByLabel('Name').fill('Porridge')
   await page.getByRole('button', { name: '+ Add ingredient' }).click()
   await page.getByRole('dialog').getByText('Oats').click()
@@ -77,10 +170,329 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Edit recipe')
   await page.getByRole('link', { name: 'Back' }).click()
 
+  // Changing the unit converts what is stored in it, after a dialog: Cancel
+  // changes nothing, Convert changes the unit, the basis and the recipe's
+  // amount together, so the recipe's total stays the same.
+  await openPage(page, 'Ingredients')
+  await page.locator('.ingredient-row').click()
+  await page.getByLabel('Measured in').click()
+  await page.getByRole('option', { name: 'kg (kilogram)' }).click()
+  await page.getByRole('button', { name: 'Save' }).click()
+  const unitDialog = page.getByRole('dialog')
+  await expect(unitDialog).toContainText('Oats: the basis and 1 recipe amount will be converted from g to kg (× 0.001).')
+  await unitDialog.getByRole('button', { name: 'Cancel' }).click()
+  await expect(page.getByLabel('Measured in')).toHaveValue('kg')
+  await page.getByRole('button', { name: 'Save' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Convert' }).click()
+  await expect(page.locator('.ingredient-row')).toHaveText([/Oats\s*per 0\.1 kg · Energy 389 kcal/])
+  await openPage(page, 'Recipes')
+  await page.locator('.recipe-row').click()
+  await expect(page.getByLabel('Amount of Oats')).toHaveValue('0.06')
+  await expect(page.locator('.portion-total')).toHaveText(['Energy 233 kcal'])
+  await page.getByRole('link', { name: 'Back' }).click()
+
+  // Servings, instructions and a source link: Serves 2 halves the per-portion
+  // total (the amount is read in kg, as the unit change left it), and all
+  // three are saved, not just shown.
+  await page.locator('.recipe-row').click()
+  await page.getByLabel('Serves').fill('2')
+  await expect(page.locator('.portion-total')).toHaveText(['Energy 117 kcal'])
+  await page.getByLabel('Instructions').fill('Simmer the oats.')
+  await page.getByLabel('Source').fill('https://example.com/porridge')
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.locator('.recipe-row')).toHaveText([/Porridge\s*Per portion: Energy 117 kcal/])
+  await page.locator('.recipe-row').click()
+  await expect(page.getByLabel('Serves')).toHaveValue('2')
+  await expect(page.getByLabel('Instructions')).toHaveValue('Simmer the oats.')
+  await expect(page.getByLabel('Source')).toHaveValue('https://example.com/porridge')
+  await expect(page.getByRole('link', { name: 'Open source' })).toHaveAttribute('href', 'https://example.com/porridge')
+
+  // Sections: adding one shows a name field on each; the same ingredient goes
+  // on a second line in Topping, and the heading and total follow.
+  await expect(page.getByLabel('Section name')).toHaveCount(0)
+  await page.getByRole('button', { name: '+ Add section' }).click()
+  await page.getByLabel('Section name').nth(0).fill('Porridge')
+  await page.getByLabel('Section name').nth(1).fill('Topping')
+  await page.getByRole('button', { name: '+ Add ingredient' }).nth(1).click()
+  await page.getByRole('dialog').getByText('Oats').click()
+  await page.getByLabel('Amount of Oats').nth(1).fill('0.01')
+  await expect(page.getByText('Ingredients, for 2 portions')).toBeVisible()
+  await expect(page.locator('.portion-total')).toHaveText(['Energy 136 kcal'])
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.locator('.recipe-row')).toHaveText([/Porridge\s*Per portion: Energy 136 kcal/])
+  await page.locator('.recipe-row').click()
+  await expect(page.getByLabel('Section name')).toHaveCount(2)
+  await expect(page.getByLabel('Section name').nth(1)).toHaveValue('Topping')
+  await expect(page.getByLabel('Amount of Oats')).toHaveCount(2)
+  await expect(page.getByLabel('Amount of Oats').nth(1)).toHaveValue('0.01')
+  await page.getByRole('link', { name: 'Back' }).click()
+
+  // Two lines of one recipe are one recipe for the ingredient.
+  await openPage(page, 'Ingredients')
+  await page.locator('.ingredient-row').click()
+  await expect(page.getByText('Used in 1 recipe')).toBeVisible()
+  await page.getByRole('link', { name: 'Back' }).click()
+
+  // Back to one portion in one section, as the steps below expect: removing
+  // Topping moves its line up, which is then removed.
+  await openPage(page, 'Recipes')
+  await page.locator('.recipe-row').click()
+  await page.getByRole('button', { name: 'Remove section' }).nth(1).click()
+  await expect(page.getByLabel('Amount of Oats')).toHaveCount(2)
+  await page.getByRole('button', { name: 'Remove Oats' }).nth(1).click()
+  await page.getByLabel('Serves').fill('1')
+  await page.getByLabel('Instructions').fill('')
+  await page.getByLabel('Source').fill('')
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.locator('.recipe-row')).toHaveText([/Porridge\s*Per portion: Energy 233 kcal/])
+
+  // Conversions and line units. Oats is in kg now (the unit change above): "1 dl
+  // = 0.04 kg" is added on its page, and a second one for dl is refused. A
+  // second Oats line in Porridge is in dl through the picker, which offers
+  // other units and the conversion, and the total is the same as 100 g.
+  await openPage(page, 'Ingredients')
+  await page.locator('.ingredient-row').click()
+  const conversions = page.locator('.conversions-card')
+  await expect(conversions).toContainText('No conversions yet.')
+  await conversions.getByRole('button', { name: '+ Add conversion' }).click()
+  const conversionDialog = page.getByRole('dialog')
+  await conversionDialog.getByLabel('Unit', { exact: true }).fill('dl')
+  await conversionDialog.getByLabel('How many kg one makes').fill('0.04')
+  await conversionDialog.getByRole('button', { name: 'Save' }).click()
+  await expect(page.locator('.conversion-row')).toHaveText([/1 dl = 0\.04 kg/])
+  await conversions.getByRole('button', { name: '+ Add conversion' }).click()
+  await conversionDialog.getByLabel('Unit', { exact: true }).fill('dl')
+  await conversionDialog.getByLabel('How many kg one makes').fill('0.04')
+  await conversionDialog.getByRole('button', { name: 'Save' }).click()
+  await expect(conversionDialog).toContainText('This ingredient has a conversion for that unit already.')
+  await conversionDialog.getByRole('button', { name: 'Cancel' }).click()
+  await page.getByRole('link', { name: 'Back' }).click()
+
+  await openPage(page, 'Recipes')
+  await page.locator('.recipe-row').click()
+  await page.getByRole('button', { name: '+ Add ingredient' }).click()
+  await page.getByRole('dialog').getByText('Oats').click()
+  await page.getByLabel('Amount of Oats').nth(1).fill('1')
+  await page.getByLabel('Unit of Oats').nth(1).click()
+  await expect(page.getByRole('option', { name: 'oz (ounce)' })).toBeVisible()
+  await expect(page.getByRole('option', { name: 'msk (tablespoon)' })).toBeVisible()
+  await page.getByRole('option', { name: /^dl/ }).click()
+  await expect(page.locator('.portion-total')).toHaveText(['Energy 389 kcal'])
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.locator('.recipe-row')).toHaveText([/Porridge\s*Per portion: Energy 389 kcal/])
+
+  // The conversion is used now: it says so and can't be deleted. A change of
+  // category is refused while it and the dl line exist, the form staying open;
+  // kg to g converts the own-unit line and the conversion, and leaves the dl
+  // line as written.
+  await openPage(page, 'Ingredients')
+  await page.locator('.ingredient-row').click()
+  await expect(page.locator('.conversion-row')).toContainText('Used in 1 recipe')
+  await expect(page.getByRole('button', { name: 'Delete the conversion for dl' })).toBeDisabled()
+  await page.getByLabel('Measured in').click()
+  await page.getByRole('option', { name: 'st (piece)' }).click()
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByText('Oats has 1 conversion and 1 recipe line in another unit')).toBeVisible()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.getByLabel('Measured in').click()
+  await page.getByRole('option', { name: 'g (gram)', exact: true }).click()
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByRole('dialog')).toContainText(
+    'Oats: the basis, 1 recipe amount and 1 conversion will be converted from kg to g (× 1000).',
+  )
+  await page.getByRole('dialog').getByRole('button', { name: 'Convert' }).click()
+  await expect(page.locator('.ingredient-row')).toHaveText([/Oats\s*per 100 g · Energy 389 kcal/])
+  await page.locator('.ingredient-row').click()
+  await expect(page.locator('.conversion-row')).toHaveText([/1 dl = 40 g/])
+  await page.getByRole('link', { name: 'Back' }).click()
+
+  // Porridge reads as before in total: 60 g, then 1 dl as written. Taking the
+  // dl line out frees the conversion, which is then deleted.
+  await openPage(page, 'Recipes')
+  await page.locator('.recipe-row').click()
+  await expect(page.getByLabel('Amount of Oats').nth(0)).toHaveValue('60')
+  await expect(page.getByLabel('Amount of Oats').nth(1)).toHaveValue('1')
+  await expect(page.locator('.line-unit .q-field__native').nth(1)).toHaveText('dl')
+  await expect(page.locator('.portion-total')).toHaveText(['Energy 389 kcal'])
+  await page.getByRole('button', { name: 'Remove Oats' }).nth(1).click()
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.locator('.recipe-row')).toHaveText([/Porridge\s*Per portion: Energy 233 kcal/])
+  await openPage(page, 'Ingredients')
+  await page.locator('.ingredient-row').click()
+  await page.getByRole('button', { name: 'Delete the conversion for dl' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click()
+  await expect(page.locator('.conversions-card')).toContainText('No conversions yet.')
+  await page.getByRole('link', { name: 'Back' }).click()
+
+  // Import from pasted text (the server runs with AI_PROVIDER=fake). The round + opens a
+  // menu; Import recipe is enabled because the fake provider needs no key. The catalogue
+  // holds Oats only (no Milk, no honey).
+  await openPage(page, 'Recipes')
+  await page.getByRole('button', { name: 'Add recipe' }).click()
+  await expect(page.locator('.q-menu a.q-item', { hasText: 'New recipe' })).toBeVisible()
+  await expect(page.locator('.q-menu a.q-item', { hasText: 'Import recipe' })).toBeVisible()
+  await page.locator('.q-menu a.q-item', { hasText: 'Import recipe' }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Import recipe')
+  const pasted = page.getByLabel('Recipe text')
+  const importButton = page.getByRole('button', { name: 'Import', exact: true })
+  const pasteSwitch = page.getByRole('switch', { name: 'Paste text' })
+  // I1 opens on the Link field. The e2e server has no internet, so the link is tried only with
+  // what the server refuses before any connection: internal addresses and a bad scheme.
+  const link = page.getByLabel('Link', { exact: true })
+  await expect(link).toBeVisible()
+  await expect(pasted).toHaveCount(0)
+  await expect(importButton).toBeDisabled()
+  await link.fill('http://127.0.0.1:8000/')
+  await importButton.click()
+  await expect(page.getByRole('alert')).toHaveText("Couldn't read this page. Paste the recipe text instead.")
+  await expect(link).toHaveValue('http://127.0.0.1:8000/')
+  await link.fill('http://169.254.169.254/latest/meta-data/')
+  await importButton.click()
+  await expect(page.getByRole('alert')).toHaveText("Couldn't read this page. Paste the recipe text instead.")
+  await link.fill('ftp://example.com/x')
+  await importButton.click()
+  await expect(page.getByRole('alert')).toHaveText('Enter a link that starts with http:// or https://.')
+  await link.fill('')
+  await expect(importButton).toBeDisabled()
+  await link.fill('ftp://example.com/x')
+  // Paste text: the box is empty, the link is kept when flipping back.
+  await pasteSwitch.click()
+  await expect(pasted).toHaveValue('')
+  await expect(link).toHaveCount(0)
+  await pasteSwitch.click()
+  await expect(link).toHaveValue('ftp://example.com/x')
+  await pasteSwitch.click()
+  await pasted.fill('[fake:none]')
+  await importButton.click()
+  await expect(page.getByRole('alert')).toHaveText('No recipe found in this text.')
+  await expect(pasted).toHaveValue('[fake:none]')
+  await pasted.fill('[fake:broken]')
+  await importButton.click()
+  await expect(page.getByRole('alert')).toHaveText("The AI service didn't answer. Try again.")
+  const porridgeText = 'Porridge for two: 100 g oats, 3 dl milk, 2 tbsp honey. Boil.'
+  await pasted.fill(porridgeText)
+  // A slow answer: while it waits the button shows the spinner and the whole label
+  // "Reading the recipe…" inside its own box (at phone width).
+  await page.route(
+    '**/api/recipe-imports',
+    async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+      await route.continue()
+    },
+    { times: 1 },
+  )
+  await importButton.click()
+  await expect(page.getByRole('button', { name: /Reading the recipe/ })).toBeVisible()
+  const fits = await page.getByRole('button', { name: /Reading the recipe/ }).evaluate((button) => {
+    const range = document.createRange()
+    range.selectNodeContents(button)
+    const text = range.getBoundingClientRect()
+    const box = button.getBoundingClientRect()
+    return text.left >= box.left - 0.5 && text.right <= box.right + 0.5 && button.scrollWidth <= button.clientWidth + 1
+  })
+  expect(fits).toBe(true)
+  if (process.env.E2E_SCREENSHOT) await page.screenshot({ path: process.env.E2E_SCREENSHOT })
+
+  // C2 opens the draft unsaved, in review: the banner counts the two lines that need
+  // the user, each line shows its source line, oats is ready, the pepper line is greyed
+  // and Save waits.
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('New recipe')
+  await expect(page.getByLabel('Name')).toHaveValue('Imported porridge')
+  await expect(page.getByLabel('Serves')).toHaveValue('2')
+  await expect(page.getByLabel('Instructions')).toHaveValue('Boil the oats in the milk.\nStir in the honey.')
+  const banner = page.locator('.import-banner')
+  await expect(banner).toHaveText('Imported from pasted text. 2 lines need you.')
+  await expect(page.locator('.source-line')).toHaveText(['100 g oats', '3 dl milk', '2 tbsp honey', 'salt and pepper to taste'])
+  const lines = page.locator('.recipe-item')
+  await expect(lines.nth(0)).not.toHaveClass(/needs-you/)
+  await expect(lines.nth(3)).toHaveClass(/line-skipped/)
+  await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled()
+
+  // Milk is made on the spot: Pick ingredient searches "milk", + New ingredient opens the
+  // form with the name filled in. The line then asks the AI for a factor: 1 dl = [50] g ✨.
+  await lines.nth(1).getByRole('button', { name: 'Pick ingredient' }).click()
+  await expect(page.getByRole('dialog').locator('input').first()).toHaveValue('milk')
+  await page.getByRole('button', { name: '+ New ingredient' }).click()
+  const newIngredient = page.locator('.new-ingredient-dialog')
+  await expect(newIngredient.getByLabel('Name')).toHaveValue('Milk')
+  await newIngredient.getByLabel('Energy').fill('42')
+  await newIngredient.getByRole('button', { name: 'Save' }).click()
+  await expect(newIngredient).toHaveCount(0)
+  await expect(lines.nth(1).locator('.item-name')).toHaveText('Milk')
+  const factor = lines.nth(1).locator('.factor-row')
+  await expect(factor.getByLabel('How many g one dl makes')).toHaveValue('50')
+  await expect(factor.locator('.ai-mark')).toBeVisible()
+  await factor.getByRole('button', { name: 'Accept' }).click()
+  await expect(factor).toContainText('50 g')
+  await expect(banner).toHaveText('Imported from pasted text. 1 line needs you.')
+
+  // Honey is skipped, so every line is ready: Save is enabled and makes the recipe, whose
+  // per portion total is (100 g oats x 389 + 3 dl x 50 g milk x 42) / 100 / 2 servings = 226.
+  await lines.nth(2).getByRole('button', { name: 'Skip' }).click()
+  await expect(banner).toHaveText('Imported from pasted text. All lines are ready.')
+  await expect(page.getByRole('button', { name: 'Save' })).toBeEnabled()
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.locator('.recipe-row').filter({ hasText: 'Imported porridge' })).toHaveText(
+    /Imported porridge\s*Per portion: Energy 226 kcal/,
+  )
+
+  // The review's conversion was saved with the recipe, marked as the AI's, and is in use.
+  // Editing its number saves it as the user's (no ✨) and the recipe's total follows:
+  // (389 + 3 x 55 x 0.42) / 2 = 229.
+  await openPage(page, 'Ingredients')
+  await page.locator('.ingredient-row').filter({ hasText: 'Milk' }).click()
+  const milkConversion = page.locator('.conversion-row')
+  await expect(milkConversion).toHaveText(/1 dl = 50 g/)
+  await expect(milkConversion.locator('.ai-mark')).toBeVisible()
+  await expect(milkConversion).toContainText('Used in 1 recipe')
+  await milkConversion.getByRole('button', { name: 'Edit the conversion for dl' }).click()
+  await page.getByRole('dialog').getByLabel('How many g one makes').fill('55')
+  await page.getByRole('dialog').getByRole('button', { name: 'Save' }).click()
+  await expect(milkConversion).toHaveText(/1 dl = 55 g/)
+  await expect(milkConversion.locator('.ai-mark')).toHaveCount(0)
+  await page.getByRole('link', { name: 'Back' }).click()
+  await openPage(page, 'Recipes')
+  await expect(page.locator('.recipe-row').filter({ hasText: 'Imported porridge' })).toHaveText(
+    /Imported porridge\s*Per portion: Energy 229 kcal/,
+  )
+
+  // Clean up so the steps after this are unchanged: the imported recipe, Milk's
+  // conversion and Milk are deleted; Porridge is the only recipe again.
+  await page.locator('.recipe-row').filter({ hasText: 'Imported porridge' }).click()
+  await page.getByRole('button', { name: 'Delete' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click()
+  await expect(page.locator('.recipe-row')).toHaveText([/Porridge\s*Per portion: Energy 233 kcal/])
+  await openPage(page, 'Ingredients')
+  await page.locator('.ingredient-row').filter({ hasText: 'Milk' }).click()
+  await page.getByRole('button', { name: 'Delete the conversion for dl' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click()
+  await expect(page.locator('.conversions-card')).toContainText('No conversions yet.')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Delete', exact: true }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click()
+  await expect(page.locator('.ingredient-row')).toHaveText([/Oats\s*per 100 g/])
+
+  // Leaving an unsaved import asks first: Keep editing stays, Discard leaves with nothing saved.
+  await openPage(page, 'Recipes')
+  await page.getByRole('button', { name: 'Add recipe' }).click()
+  await page.locator('.q-menu a.q-item', { hasText: 'Import recipe' }).click()
+  await page.getByRole('switch', { name: 'Paste text' }).click()
+  await page.getByLabel('Recipe text').fill(porridgeText)
+  await page.getByRole('button', { name: 'Import', exact: true }).click()
+  await expect(page.locator('.import-banner')).toBeVisible()
+  await page.getByRole('link', { name: 'Back' }).click()
+  await expect(page.getByRole('dialog')).toContainText('Discard this recipe?')
+  await page.getByRole('dialog').getByRole('button', { name: 'Keep editing' }).click()
+  await expect(page.locator('.import-banner')).toBeVisible()
+  await page.getByRole('link', { name: 'Back' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Discard' }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Recipes')
+  await expect(page.locator('.recipe-row')).toHaveText([/Porridge\s*Per portion: Energy 233 kcal/])
+
   // The tag is no longer "added by hand", and deleting the attribute warns
   // about the ingredient value.
   await openPage(page, 'Tags')
-  await expect(page.locator('.tag-row')).not.toHaveText([/added by hand/])
+  await expect(page.locator('.tag-row').filter({ hasText: 'vegan' })).not.toContainText('added by hand')
   await openPage(page, 'Attributes')
   await page.locator('.attribute-row').click()
   await page.getByRole('button', { name: 'Delete' }).click()
@@ -177,6 +589,225 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await expect(page.locator('.clash-card')).toHaveCount(0)
   await expect(page.locator('.goal-row.clashing')).toHaveCount(0)
   await expect(page.locator('.goal-row').nth(1)).toContainText(/at most 10 kcal\s*Each day\s*Prefer/)
+
+  // Column mapping: the source page's Attribute drop-downs. TEST Energy (kcal)
+  // is offered Energy only, and the choice is saved, not just shown. TEST
+  // Protein (g) gets a new attribute made on the spot, which then shows as
+  // taken in the other columns' lists. The card counts the mapped columns.
+  await openPage(page, 'Settings')
+  await page.locator('.data-sources-card').getByText('TEST Source').click()
+  const column = (name: string) => page.locator('.column-row').filter({ hasText: name })
+  const attributeSelect = (name: string) => column(name).locator('.q-select')
+  await attributeSelect('TEST Energy').click()
+  await expect(page.getByRole('option')).toHaveText(['Not mapped', 'Energy', 'Create attribute…'])
+  await page.getByRole('option', { name: 'Energy', exact: true }).click()
+  await expect(attributeSelect('TEST Energy')).toContainText('Energy')
+  await page.reload()
+  await expect(attributeSelect('TEST Energy')).toContainText('Energy')
+
+  await attributeSelect('TEST Protein').click()
+  await page.getByRole('option', { name: 'Create attribute…' }).click()
+  const newAttribute = page.getByRole('dialog')
+  await expect(newAttribute.getByLabel('Name')).toHaveValue('')
+  await expect(newAttribute.getByLabel('Unit')).toHaveValue('g')
+  await newAttribute.getByLabel('Name').fill('Protein')
+  await newAttribute.getByLabel('Decimals').fill('1')
+  await newAttribute.getByRole('button', { name: 'Add' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(attributeSelect('TEST Protein')).toContainText('Protein')
+  await page.reload()
+  await expect(attributeSelect('TEST Protein')).toContainText('Protein')
+
+  await attributeSelect('TEST Vitamin D').click()
+  const taken = page.getByRole('option', { name: /^Protein/ })
+  await expect(taken).toContainText('taken by TEST Protein')
+  await expect(taken).toHaveAttribute('aria-disabled', 'true')
+  await closeSelectList(page)
+  await page.getByRole('link', { name: 'Back' }).click()
+  await expect(page.locator('.data-sources-card .source-row')).toContainText('2 of 3 columns mapped')
+
+  // An attribute's unit can't change while a column that converts only in the
+  // old one is mapped to it; deleting an attribute clears its mapping, after a
+  // warning that counts it.
+  await openPage(page, 'Attributes')
+  await expect(page.locator('.attribute-row')).toHaveCount(2)
+  await page.locator('.attribute-row').filter({ hasText: 'Energy' }).click()
+  await page.getByLabel('Unit').fill('g')
+  await closeSelectList(page)
+  await page.getByRole('button', { name: 'Done' }).click()
+  await expect(page.getByText(/mapped from TEST Energy \(TEST Source\), which is in kcal/)).toBeVisible()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.getByLabel('Unit').fill('kcal')
+  await closeSelectList(page)
+  await page.getByRole('button', { name: 'Done' }).click()
+  await expect(page.locator('.attribute-row').filter({ hasText: 'Energy' })).toContainText('(kcal)')
+  await page.locator('.attribute-row').filter({ hasText: 'Protein' }).click()
+  await page.getByRole('button', { name: 'Delete' }).click()
+  await expect(page.getByRole('dialog')).toContainText('Its mapping from 1 source column is cleared.')
+  await expect(page.getByRole('dialog')).not.toContainText('removes')
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click()
+  await expect(page.locator('.attribute-row')).toHaveCount(1)
+  await openPage(page, 'Settings')
+  await expect(page.locator('.data-sources-card .source-row')).toContainText('1 of 3 columns mapped')
+  await page.locator('.data-sources-card').getByText('TEST Source').click()
+  await expect(attributeSelect('TEST Protein')).toContainText('Not mapped')
+  await expect(attributeSelect('TEST Energy')).toContainText('Energy')
+
+  // Add from data source: TEST Oats is searched, previewed (only Energy is mapped
+  // now, in kcal) and added under another name. Its page shows the chip and
+  // offers mass units only, and refuses a volume unit. A second look at the
+  // food warns about the ingredient made from it. Unlink removes the chip, and
+  // keeps the values.
+  await openPage(page, 'Ingredients')
+  await page.getByRole('button', { name: 'Add from data source' }).click()
+  const fromSource = page.getByRole('dialog')
+  await expect(fromSource.locator('.q-select')).toContainText('TEST Source')
+  await expect(fromSource.locator('.food-row')).toHaveText([/TEST Cheese\s*TEST Dairy/, /TEST Milk\s*TEST Dairy/, /TEST Oats\s*TEST Grains/])
+  await fromSource.getByLabel('Search foods').fill('oat')
+  await expect(fromSource.locator('.food-row')).toHaveCount(1)
+  await fromSource.locator('.food-row').click()
+  await expect(fromSource.getByLabel('Name')).toHaveValue('TEST Oats')
+  await expect(fromSource).toContainText('Measured in g, values per 100 g')
+  await expect(fromSource.locator('.values li')).toHaveText(['Energy 389 kcal'])
+  await expect(fromSource.locator('.tag-choice')).toHaveAttribute('aria-pressed', 'true')
+  await fromSource.getByLabel('Name').fill('Source oats')
+  await fromSource.getByRole('button', { name: 'Add', exact: true }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Edit ingredient')
+  await expect(page.locator('.source-chip')).toHaveText('From TEST Source: TEST Oats')
+  await expect(page.getByLabel('Name')).toHaveValue('Source oats')
+  await expect(page.getByLabel('Measured in')).toHaveValue('g')
+  await expect(page.getByLabel('Energy')).toHaveValue('389')
+  await expect(page.locator('.tag-choice', { hasText: 'TEST Grains' })).toHaveAttribute('aria-pressed', 'true')
+  await page.getByLabel('Measured in').click()
+  await expect(page.locator('.q-menu .q-item__label--header')).toHaveText(['Mass'])
+  await closeSelectList(page)
+  await page.getByLabel('Measured in').fill('dl')
+  await closeSelectList(page, { opens: false }) // a linked ingredient lists mass units only
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByText(/can only be measured in a mass unit/)).toBeVisible()
+  await page.getByLabel('Measured in').fill('g')
+  await closeSelectList(page)
+  await page.reload()
+  await expect(page.locator('.source-chip')).toHaveText('From TEST Source: TEST Oats')
+
+  await page.getByRole('link', { name: 'Back' }).click()
+  await page.getByRole('button', { name: 'Add from data source' }).click()
+  await fromSource.getByLabel('Search foods').fill('oat')
+  await expect(fromSource.locator('.food-row')).toHaveCount(1)
+  await fromSource.locator('.food-row').click()
+  await expect(fromSource).toContainText('You already have an ingredient from this food: Source oats')
+  await fromSource.getByRole('button', { name: 'Close' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+
+  await page.locator('.ingredient-row').filter({ hasText: 'Source oats' }).click()
+  await page.getByRole('button', { name: 'Unlink from source' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Unlink', exact: true }).click()
+  await expect(page.locator('.source-chip')).toHaveCount(0)
+  await expect(page.getByLabel('Energy')).toHaveValue('389')
+  await page.getByLabel('Measured in').click()
+  await expect(page.locator('.q-menu .q-item__label--header')).toHaveText(['Mass', 'Volume', 'Other'])
+  await closeSelectList(page)
+  await page.reload()
+  await expect(page.getByLabel('Name')).toHaveValue('Source oats')
+  await expect(page.locator('.source-chip')).toHaveCount(0)
+
+  // Updated values: two ingredients from TEST Oats have no banner. Mapping TEST
+  // Protein afterwards (a new attribute, made from the column) gives them a value
+  // they never had: the list marks them and filters them. Accept copies the number,
+  // Keep mine keeps the ingredient without it, as an explicit 0; neither banner returns.
+  await openPage(page, 'Ingredients')
+  for (const name of ['Linked A', 'Linked B']) {
+    await page.getByRole('button', { name: 'Add from data source' }).click()
+    await fromSource.getByLabel('Search foods').fill('oat')
+    await expect(fromSource.locator('.food-row')).toHaveCount(1)
+    await fromSource.locator('.food-row').click()
+    await fromSource.getByLabel('Name').fill(name)
+    await fromSource.getByRole('button', { name: 'Add', exact: true }).click()
+    await expect(page.getByLabel('Name')).toHaveValue(name)
+    await expect(page.locator('.source-chip')).toHaveText('From TEST Source: TEST Oats')
+    await expect(page.locator('.updated-values')).toHaveCount(0)
+    await page.getByRole('link', { name: 'Back' }).click()
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ingredients')
+  }
+  await openPage(page, 'Settings')
+  await page.locator('.data-sources-card').getByText('TEST Source').click()
+  await attributeSelect('TEST Protein').click()
+  await page.getByRole('option', { name: 'Create attribute…' }).click()
+  await page.getByRole('dialog').getByLabel('Name').fill('Protein')
+  await page.getByRole('dialog').getByLabel('Decimals').fill('1')
+  await page.getByRole('dialog').getByRole('button', { name: 'Add' }).click()
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(attributeSelect('TEST Protein')).toContainText('Protein')
+
+  await openPage(page, 'Ingredients')
+  const linkedRow = (name: string) => page.locator('.ingredient-row').filter({ hasText: name })
+  await expect(linkedRow('Linked A').locator('.updated-marker')).toHaveText('Updated values available')
+  await expect(linkedRow('Linked B').locator('.updated-marker')).toHaveText('Updated values available')
+  await expect(page.locator('.updated-marker')).toHaveCount(2)
+  await expect(page.locator('.updated-filter')).toHaveText('Only with updated values (2)')
+  await page.locator('.updated-filter').click()
+  await expect(page.locator('.ingredient-row')).toHaveText([/Linked A/, /Linked B/])
+  await page.locator('.updated-filter').click()
+
+  await linkedRow('Linked A').click()
+  await expect(page.locator('.updated-values li')).toHaveText(['Protein none → 13.5 g'])
+  await page.locator('.accept-updates').click()
+  await expect(page.locator('.updated-values')).toHaveCount(0)
+  await expect(page.getByLabel('Protein')).toHaveValue('13.5')
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ingredients')
+  await expect(linkedRow('Linked A')).toContainText('Protein 13.5 g')
+  await expect(linkedRow('Linked A').locator('.updated-marker')).toHaveCount(0)
+
+  await linkedRow('Linked B').click()
+  await page.locator('.keep-updates').click()
+  await expect(page.locator('.updated-values')).toHaveCount(0)
+  await expect(page.getByLabel('Protein')).toHaveValue('0')
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Ingredients')
+  await linkedRow('Linked B').click()
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Edit ingredient')
+  await page.reload()
+  await expect(page.getByLabel('Protein')).toHaveValue('0')
+  await expect(page.locator('.updated-values')).toHaveCount(0)
+  await page.getByRole('link', { name: 'Back' }).click()
+  await expect(page.locator('.updated-filter')).toHaveCount(0)
+  await expect(page.locator('.updated-marker')).toHaveCount(0)
+
+  // Equivalent tags: vegan (all) and the source tag TEST Grains (any). Adding it asks to switch
+  // its rule; the filters then treat them as one, and removing the chip undoes that.
+  await openPage(page, 'Tags')
+  const tagRow = (name: RegExp) => page.locator('.tag-row').filter({ hasText: name })
+  await tagRow(/^vegan/).click()
+  await page.getByLabel('Add equivalent tag').click()
+  await page.getByRole('option', { name: 'TEST Grains' }).click()
+  await expect(page.locator('.equivalent-chip .q-chip__content')).toHaveText(['TEST Grains'])
+  await page.getByRole('button', { name: 'Done' }).click()
+  await expect(page.getByRole('dialog')).toContainText(
+    'TEST Grains gets a recipe tag when any ingredient has it; the group uses all. Switch TEST Grains to all?',
+  )
+  await page.getByRole('dialog').getByRole('button', { name: 'Switch' }).click()
+  await expect(tagRow(/^vegan/)).toContainText('When all ingredients have it · equivalent to TEST Grains')
+  await expect(tagRow(/^TEST Grains/)).toContainText('When all ingredients have it · equivalent to vegan')
+
+  // Only vegan is saved, so Never TEST Grains contradicts it; a recipe fails that only if the two
+  // are one tag. Unsaved: the page is left again.
+  const filterCount = async (mode: string) => {
+    await openPage(page, 'Plan')
+    await page.locator('.recipes-card').getByRole('link', { name: 'Edit' }).click()
+    await page.getByLabel('Filter for TEST Grains').getByRole('button', { name: mode }).click()
+  }
+  await filterCount('Never')
+  await expect(page.locator('.count-line')).toHaveText('0 of 1 recipe can be used')
+
+  await openPage(page, 'Tags')
+  await tagRow(/^TEST Grains/).click()
+  await page.locator('.equivalent-chip').filter({ hasText: 'vegan' }).locator('.q-chip__icon--remove').click()
+  await page.getByRole('button', { name: 'Done' }).click()
+  await expect(tagRow(/^vegan/)).not.toContainText('equivalent to')
+  await expect(tagRow(/^TEST Grains/)).not.toContainText('equivalent to')
+  await filterCount('Never')
+  await expect(page.locator('.count-line')).toHaveText('1 of 1 recipe can be used')
 
   // Designed at phone width: nothing scrolls sideways.
   const scrolls = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)

@@ -1,0 +1,338 @@
+{
+  "units": [
+    {
+      "aliases": [
+        "ug",
+        "mcg",
+        "mikrog",
+        "mikrogram"
+      ],
+      "case_sensitive_aliases": [],
+      "category": "mass",
+      "factor": "0.000001",
+      "name": "microgram",
+      "offered": true,
+      "symbol": "µg"
+    },
+    {
+      "aliases": [],
+      "case_sensitive_aliases": [],
+      "category": "mass",
+      "factor": "0.001",
+      "name": "milligram",
+      "offered": true,
+      "symbol": "mg"
+    },
+    {
+      "aliases": [
+        "gram",
+        "grams"
+      ],
+      "case_sensitive_aliases": [],
+      "category": "mass",
+      "factor": "1",
+      "name": "gram",
+      "offered": true,
+      "symbol": "g"
+    },
+    {
+      "aliases": [],
+      "case_sensitive_aliases": [],
+      "category": "mass",
+      "factor": "1000",
+      "name": "kilogram",
+      "offered": true,
+      "symbol": "kg"
+    },
+    {
+      "aliases": [
+        "ounce"
+      ],
+      "case_sensitive_aliases": [],
+      "category": "mass",
+      "factor": "28.349523125",
+      "name": "ounce",
+      "offered": true,
+      "symbol": "oz"
+    },
+    {
+      "aliases": [
+        "pound"
+      ],
+      "case_sensitive_aliases": [],
+      "category": "mass",
+      "factor": "453.59237",
+      "name": "pound",
+      "offered": true,
+      "symbol": "lb"
+    },
+    {
+      "aliases": [],
+      "case_sensitive_aliases": [],
+      "category": "volume",
+      "factor": "0.001",
+      "name": "millilitre",
+      "offered": true,
+      "symbol": "ml"
+    },
+    {
+      "aliases": [],
+      "case_sensitive_aliases": [],
+      "category": "volume",
+      "factor": "0.01",
+      "name": "centilitre",
+      "offered": true,
+      "symbol": "cl"
+    },
+    {
+      "aliases": [],
+      "case_sensitive_aliases": [],
+      "category": "volume",
+      "factor": "0.1",
+      "name": "decilitre",
+      "offered": true,
+      "symbol": "dl"
+    },
+    {
+      "aliases": [
+        "litre",
+        "liter",
+        "litres",
+        "liters"
+      ],
+      "case_sensitive_aliases": [],
+      "category": "volume",
+      "factor": "1",
+      "name": "litre",
+      "offered": true,
+      "symbol": "l"
+    },
+    {
+      "aliases": [
+        "kryddmått"
+      ],
+      "case_sensitive_aliases": [],
+      "category": "volume",
+      "factor": "0.001",
+      "name": "kryddmått",
+      "offered": true,
+      "symbol": "krm"
+    },
+    {
+      "aliases": [
+        "tsp",
+        "teaspoon",
+        "tesked"
+      ],
+      "case_sensitive_aliases": [],
+      "category": "volume",
+      "factor": "0.005",
+      "name": "teaspoon",
+      "offered": true,
+      "symbol": "tsk"
+    },
+    {
+      "aliases": [
+        "tbsp",
+        "tablespoon",
+        "matsked"
+      ],
+      "case_sensitive_aliases": [],
+      "category": "volume",
+      "factor": "0.015",
+      "name": "tablespoon",
+      "offered": true,
+      "symbol": "msk"
+    },
+    {
+      "aliases": [
+        "US fl oz"
+      ],
+      "case_sensitive_aliases": [],
+      "category": "volume",
+      "factor": "0.0295735295625",
+      "name": "fluid ounce",
+      "offered": true,
+      "symbol": "fl oz"
+    },
+    {
+      "aliases": [],
+      "case_sensitive_aliases": [],
+      "category": "volume",
+      "factor": "0.2365882365",
+      "name": "US cup",
+      "offered": true,
+      "symbol": "US cup"
+    },
+    {
+      "aliases": [],
+      "case_sensitive_aliases": [],
+      "category": "volume",
+      "factor": "0.25",
+      "name": "metric cup",
+      "offered": true,
+      "symbol": "metric cup"
+    },
+    {
+      "aliases": [],
+      "case_sensitive_aliases": [],
+      "category": "energy",
+      "factor": "1000",
+      "name": "kilojoule",
+      "offered": true,
+      "symbol": "kJ"
+    },
+    {
+      "aliases": [],
+      "case_sensitive_aliases": [
+        "Cal"
+      ],
+      "category": "energy",
+      "factor": "4184",
+      "name": "kilocalorie",
+      "offered": true,
+      "symbol": "kcal"
+    },
+    {
+      "aliases": [
+        "stycken",
+        "styck",
+        "pcs",
+        "piece",
+        "pieces"
+      ],
+      "case_sensitive_aliases": [],
+      "category": null,
+      "factor": null,
+      "name": "piece",
+      "offered": true,
+      "symbol": "st"
+    },
+    {
+      "aliases": [],
+      "case_sensitive_aliases": [],
+      "category": "mass",
+      "factor": "0.01",
+      "name": "centigram",
+      "offered": false,
+      "symbol": "cg"
+    },
+    {
+      "aliases": [],
+      "case_sensitive_aliases": [],
+      "category": "mass",
+      "factor": "0.1",
+      "name": "decigram",
+      "offered": false,
+      "symbol": "dg"
+    },
+    {
+      "aliases": [],
+      "case_sensitive_aliases": [],
+      "category": "volume",
+      "factor": "0.000001",
+      "name": "microlitre",
+      "offered": false,
+      "symbol": "µl"
+    },
+    {
+      "aliases": [],
+      "case_sensitive_aliases": [],
+      "category": "volume",
+      "factor": "1000",
+      "name": "kilolitre",
+      "offered": false,
+      "symbol": "kl"
+    },
+    {
+      "aliases": [],
+      "case_sensitive_aliases": [],
+      "category": "energy",
+      "factor": "1",
+      "name": "joule",
+      "offered": false,
+      "symbol": "J"
+    },
+    {
+      "aliases": [],
+      "case_sensitive_aliases": [],
+      "category": "energy",
+      "factor": "0.000001",
+      "name": "microjoule",
+      "offered": false,
+      "symbol": "µJ"
+    },
+    {
+      "aliases": [],
+      "case_sensitive_aliases": [],
+      "category": "energy",
+      "factor": "0.001",
+      "name": "millijoule",
+      "offered": false,
+      "symbol": "mJ"
+    },
+    {
+      "aliases": [],
+      "case_sensitive_aliases": [],
+      "category": "energy",
+      "factor": "0.01",
+      "name": "centijoule",
+      "offered": false,
+      "symbol": "cJ"
+    },
+    {
+      "aliases": [],
+      "case_sensitive_aliases": [],
+      "category": "energy",
+      "factor": "0.1",
+      "name": "decijoule",
+      "offered": false,
+      "symbol": "dJ"
+    },
+    {
+      "aliases": [],
+      "case_sensitive_aliases": [],
+      "category": "energy",
+      "factor": "4.184",
+      "name": "calorie",
+      "offered": false,
+      "symbol": "cal"
+    },
+    {
+      "aliases": [],
+      "case_sensitive_aliases": [],
+      "category": "energy",
+      "factor": "0.000004184",
+      "name": "microcalorie",
+      "offered": false,
+      "symbol": "µcal"
+    },
+    {
+      "aliases": [],
+      "case_sensitive_aliases": [],
+      "category": "energy",
+      "factor": "0.004184",
+      "name": "millicalorie",
+      "offered": false,
+      "symbol": "mcal"
+    },
+    {
+      "aliases": [],
+      "case_sensitive_aliases": [],
+      "category": "energy",
+      "factor": "0.04184",
+      "name": "centicalorie",
+      "offered": false,
+      "symbol": "ccal"
+    },
+    {
+      "aliases": [],
+      "case_sensitive_aliases": [],
+      "category": "energy",
+      "factor": "0.4184",
+      "name": "decicalorie",
+      "offered": false,
+      "symbol": "dcal"
+    }
+  ]
+}

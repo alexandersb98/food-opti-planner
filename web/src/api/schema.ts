@@ -40,6 +40,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/attributes/{attribute_id}/unit-change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Unit Change
+         * @description What changing the unit does to the numbers stored in it. Writes nothing.
+         */
+        post: operations["preview_unit_change_api_attributes__attribute_id__unit_change_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/counts": {
         parameters: {
             query?: never;
@@ -49,6 +69,102 @@ export interface paths {
         };
         /** Counts */
         get: operations["counts_api_counts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Data Sources */
+        get: operations["list_data_sources_api_data_sources_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-sources/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Data Source */
+        get: operations["get_data_source_api_data_sources__key__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Data Source */
+        patch: operations["update_data_source_api_data_sources__key__patch"];
+        trace?: never;
+    };
+    "/api/data-sources/{key}/columns/{column_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Map Column
+         * @description Map a column to an attribute (or, with null, to none). The attribute's
+         *     unit must convert with the column's, and one column of a source feeds an
+         *     attribute at most (data source spec, decisions 5 to 7).
+         */
+        put: operations["map_column_api_data_sources__key__columns__column_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-sources/{key}/foods": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Foods
+         * @description The source's foods (not withdrawn) whose name contains `search`, ignoring
+         *     case, 20 at a time: names starting with it first, then by name. Matched in
+         *     Python on the case-folded name, as SQLite's lower() knows only ASCII.
+         */
+        get: operations["search_foods_api_data_sources__key__foods_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/data-sources/{key}/foods/{food_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Food */
+        get: operations["get_food_api_data_sources__key__foods__food_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -92,6 +208,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ingredients/from-source": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create From Source
+         * @description Make an ingredient from a source food: its name and chosen source tags
+         *     are the user's, the unit, basis and values come from the food as the
+         *     mapping and preferences stand now. It stays linked to the food, and each
+         *     value remembers the source's number.
+         */
+        post: operations["create_from_source_api_ingredients_from_source_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ingredients/{ingredient_id}": {
         parameters: {
             query?: never;
@@ -106,6 +245,110 @@ export interface paths {
         post?: never;
         /** Delete Ingredient */
         delete: operations["delete_ingredient_api_ingredients__ingredient_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ingredients/{ingredient_id}/conversions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Conversion */
+        post: operations["add_conversion_api_ingredients__ingredient_id__conversions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ingredients/{ingredient_id}/conversions/{conversion_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Edit Conversion
+         * @description Only the factor may change while a recipe uses the conversion. A save
+         *     that changes neither unit nor factor keeps the source; one that does is
+         *     the user's.
+         */
+        put: operations["edit_conversion_api_ingredients__ingredient_id__conversions__conversion_id__put"];
+        post?: never;
+        /** Delete Conversion */
+        delete: operations["delete_conversion_api_ingredients__ingredient_id__conversions__conversion_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ingredients/{ingredient_id}/source-values": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Answer Updated Values
+         * @description Accept the source's new values (copy them) or keep the ingredient's own
+         *     (and remember the source's numbers as answered). What is answered is what
+         *     the server finds now; nothing to answer is a no-op.
+         */
+        post: operations["answer_updated_values_api_ingredients__ingredient_id__source_values_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ingredients/{ingredient_id}/unit-change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Unit Change
+         * @description What changing the unit does to the basis, the recipe amounts and the
+         *     conversions. Writes nothing.
+         */
+        post: operations["preview_unit_change_api_ingredients__ingredient_id__unit_change_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ingredients/{ingredient_id}/unlink": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unlink Ingredient
+         * @description Cut the link to the source food and forget the source's numbers. The
+         *     values, tags and basis stay. An unlinked ingredient is answered as it is.
+         */
+        post: operations["unlink_ingredient_api_ingredients__ingredient_id__unlink_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -328,6 +571,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Preferences */
+        get: operations["get_preferences_api_preferences_get"];
+        /** Put Preferences */
+        put: operations["put_preferences_api_preferences_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/recipe-imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Recipe
+         * @description Ask the AI for a draft of the pasted text or of the page at the link,
+         *     checked against the user's own ingredients. Writes nothing.
+         */
+        post: operations["import_recipe_api_recipe_imports_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/recipe-imports/factor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Suggest Factor
+         * @description The AI's guess at how many of the ingredient's own unit one `unit` of
+         *     `food` makes.
+         */
+        post: operations["suggest_factor_api_recipe_imports_factor_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/recipes": {
         parameters: {
             query?: never;
@@ -442,6 +745,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/units": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Units */
+        get: operations["get_units_api_units_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -456,6 +776,8 @@ export interface components {
             id: number;
             /** Ingredient Count */
             ingredient_count: number;
+            /** Mapping Count */
+            mapping_count: number;
             /** Name */
             name: string;
             /** Unit */
@@ -469,6 +791,61 @@ export interface components {
             name: string;
             /** Unit */
             unit: string;
+        };
+        /** AttributeUnitChange */
+        AttributeUnitChange: {
+            /** Decimals */
+            decimals?: number | null;
+            /** Unit */
+            unit: string;
+        };
+        /** CatalogueUnit */
+        CatalogueUnit: {
+            /**
+             * Aliases
+             * @description Other spellings, matched ignoring case
+             */
+            aliases: string[];
+            /**
+             * Case Sensitive Aliases
+             * @description Other spellings, matched exactly
+             */
+            case_sensitive_aliases: string[];
+            /**
+             * Category
+             * @description None for a known free-text unit (st)
+             */
+            category: ("mass" | "volume" | "energy") | null;
+            /**
+             * Factor
+             * @description Of one unit in the category's base unit (g for mass, l for volume, J for energy), exact, as a plain decimal. None without a category.
+             */
+            factor: string | null;
+            /** Name */
+            name: string;
+            /**
+             * Offered
+             * @description Whether the unit drop-downs list it
+             */
+            offered: boolean;
+            /** Symbol */
+            symbol: string;
+        };
+        /**
+         * ChangeRule
+         * @description The rule of `tag_ids` (the tag and every member that stays, in id
+         *     order) would all change to `rule`.
+         */
+        ChangeRule: {
+            /** Rule */
+            rule: string;
+            /** Tag Ids */
+            tag_ids: number[];
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "change_rule";
         };
         /**
          * ClashMember
@@ -491,6 +868,34 @@ export interface components {
             /** Name */
             name: string | null;
         };
+        /** ColumnMapping */
+        ColumnMapping: {
+            /** Attribute Id */
+            attribute_id: number | null;
+        };
+        /** Conversion */
+        Conversion: {
+            /** Factor */
+            factor: string;
+            /** Id */
+            id: number;
+            /** Recipe Count */
+            recipe_count: number;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "ai" | "user";
+            /** Unit */
+            unit: string;
+        };
+        /** ConversionFields */
+        ConversionFields: {
+            /** Factor */
+            factor: number | string;
+            /** Unit */
+            unit: string;
+        };
         /** Counts */
         Counts: {
             /** Attributes */
@@ -501,6 +906,80 @@ export interface components {
             recipes: number;
             /** Tags */
             tags: number;
+        };
+        /** DataSource */
+        DataSource: {
+            /** Attribution */
+            attribution: string | null;
+            /** Colour */
+            colour: string;
+            /** Column Count */
+            column_count: number;
+            /** Columns */
+            columns: components["schemas"]["SourceColumn"][];
+            /** Food Count */
+            food_count: number;
+            /**
+             * Imported At
+             * Format: date-time
+             */
+            imported_at: string;
+            /** Key */
+            key: string;
+            /** Mapped Count */
+            mapped_count: number;
+            /** Name */
+            name: string;
+            /** Version */
+            version: string;
+        };
+        /** DataSourceChanges */
+        DataSourceChanges: {
+            /** Colour */
+            colour: string;
+        };
+        /** DataSourceSummary */
+        DataSourceSummary: {
+            /** Colour */
+            colour: string;
+            /** Column Count */
+            column_count: number;
+            /** Food Count */
+            food_count: number;
+            /**
+             * Imported At
+             * Format: date-time
+             */
+            imported_at: string;
+            /** Key */
+            key: string;
+            /** Mapped Count */
+            mapped_count: number;
+            /** Name */
+            name: string;
+            /** Version */
+            version: string;
+        };
+        /** ExistingIngredient */
+        ExistingIngredient: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+        };
+        /** FactorAnswer */
+        FactorAnswer: {
+            /** Factor */
+            factor: string;
+        };
+        /** FactorRequest */
+        FactorRequest: {
+            /** Food */
+            food: string;
+            /** Ingredient Id */
+            ingredient_id: number;
+            /** Unit */
+            unit: string;
         };
         /** FieldError */
         FieldError: {
@@ -515,6 +994,53 @@ export interface components {
         FieldErrors: {
             /** Detail */
             detail: components["schemas"]["FieldError"][];
+        };
+        /** FoodPage */
+        FoodPage: {
+            /** Foods */
+            foods: components["schemas"]["FoodSummary"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Total */
+            total: number;
+        };
+        /**
+         * FoodPreview
+         * @description The ingredient a food would become: what Add from data source copies.
+         */
+        FoodPreview: {
+            /** Basis */
+            basis: string;
+            /** Existing */
+            existing: components["schemas"]["ExistingIngredient"][];
+            /** Groups */
+            groups: components["schemas"]["PreviewGroup"][];
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Skipped */
+            skipped: string[];
+            source: components["schemas"]["PreviewSource"];
+            /** Suggested Name */
+            suggested_name: string;
+            /** Unit */
+            unit: string;
+            /** Values */
+            values: components["schemas"]["PreviewValue"][];
+            /** Withdrawn */
+            withdrawn: boolean;
+        };
+        /** FoodSummary */
+        FoodSummary: {
+            /** Groups */
+            groups: string[];
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
         };
         /** Goal */
         Goal: {
@@ -604,6 +1130,15 @@ export interface components {
             /** Zero Reference */
             zero_reference?: number | string | null;
         };
+        /**
+         * GroupQuestions
+         * @description The 409 body when a change touches other tags: the facts of every
+         *     question it raises, for the app to ask.
+         */
+        GroupQuestions: {
+            /** Questions */
+            questions: (components["schemas"]["MoveTag"] | components["schemas"]["SwitchRule"] | components["schemas"]["ChangeRule"])[];
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -611,23 +1146,74 @@ export interface components {
         };
         /** Health */
         Health: {
+            /** Ai Configured */
+            ai_configured: boolean;
             /** Database */
             database: boolean;
+        };
+        /** ImportedLine */
+        ImportedLine: {
+            /** Amount */
+            amount: string | null;
+            /** Food */
+            food: string;
+            /** Ingredient Id */
+            ingredient_id: number | null;
+            /** Original Text */
+            original_text: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "unmatched" | "not_an_ingredient" | "own_unit" | "built_in_step" | "stored_conversion" | "needs_factor" | "bad_unit";
+            /** Suggested Factor */
+            suggested_factor: string | null;
+            /** Unit */
+            unit: string;
+        };
+        /** ImportedRecipe */
+        ImportedRecipe: {
+            /** Cut */
+            cut: boolean;
+            /** Instructions */
+            instructions: string;
+            /** Name */
+            name: string;
+            /** Needs You */
+            needs_you: number;
+            /** Sections */
+            sections: components["schemas"]["ImportedSection"][];
+            /** Servings */
+            servings: number;
+            /** Source Url */
+            source_url: string;
+        };
+        /** ImportedSection */
+        ImportedSection: {
+            /** Lines */
+            lines: components["schemas"]["ImportedLine"][];
+            /** Name */
+            name: string;
         };
         /** Ingredient */
         Ingredient: {
             /** Basis */
             basis: string;
+            /** Conversions */
+            conversions: components["schemas"]["Conversion"][];
             /** Id */
             id: number;
             /** Name */
             name: string;
             /** Recipe Count */
             recipe_count: number;
+            source: components["schemas"]["IngredientSource"] | null;
             /** Tag Ids */
             tag_ids: number[];
             /** Unit */
             unit: string;
+            /** Updated Values */
+            updated_values: components["schemas"]["UpdatedValue"][];
             /** Values */
             values: components["schemas"]["IngredientValue-Output"][];
         };
@@ -643,6 +1229,44 @@ export interface components {
             unit: string;
             /** Values */
             values: components["schemas"]["IngredientValue-Input"][];
+        };
+        /**
+         * IngredientFromSource
+         * @description Add from data source: the food and what the user chose in the preview.
+         *     The unit, basis and values are the server's to work out.
+         */
+        IngredientFromSource: {
+            /** Food Id */
+            food_id: number;
+            /** Name */
+            name: string;
+            /** Tag Ids */
+            tag_ids: number[];
+        };
+        /**
+         * IngredientSource
+         * @description The data source food an ingredient is linked to.
+         */
+        IngredientSource: {
+            /** Colour */
+            colour: string;
+            /** Food Id */
+            food_id: number;
+            /** Food Name */
+            food_name: string;
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+            /** Withdrawn */
+            withdrawn: boolean;
+        };
+        /** IngredientUnitChange */
+        IngredientUnitChange: {
+            /** Basis */
+            basis?: number | string | null;
+            /** Unit */
+            unit: string;
         };
         /** IngredientValue */
         "IngredientValue-Input": {
@@ -692,6 +1316,40 @@ export interface components {
             at_least: number;
             /** Day */
             day: number;
+        };
+        /**
+         * MoveTag
+         * @description `tag_id` is in another group now; joining moves it out of that group,
+         *     which keeps `from_tag_ids` (its other members, in id order).
+         */
+        MoveTag: {
+            /** From Tag Ids */
+            from_tag_ids: number[];
+            /** Tag Id */
+            tag_id: number;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "move_tag";
+        };
+        /**
+         * NewConversion
+         * @description A conversion made on the import review: "1 `unit` = `factor` of the
+         *     ingredient's own unit".
+         */
+        NewConversion: {
+            /** Factor */
+            factor: number | string;
+            /** Ingredient Id */
+            ingredient_id: number;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "ai" | "user";
+            /** Unit */
+            unit: string;
         };
         /** Plan */
         Plan: {
@@ -816,6 +1474,61 @@ export interface components {
             saved: components["schemas"]["PlanResultSummary"][];
             unsaved: components["schemas"]["PlanResultSummary"] | null;
         };
+        /**
+         * PreferenceChanges
+         * @description Any subset of the preferences. A unit may be typed in any spelling and
+         *     is saved as the catalogue's.
+         */
+        PreferenceChanges: {
+            /** Last Data Source */
+            last_data_source?: string | null;
+            /** Unit.Energy */
+            "unit.energy"?: string | null;
+            /** Unit.Mass */
+            "unit.mass"?: string | null;
+            /** Unit.Volume */
+            "unit.volume"?: string | null;
+        };
+        /** Preferences */
+        Preferences: {
+            /** Last Data Source */
+            last_data_source?: string | null;
+            /** Unit.Energy */
+            "unit.energy": string;
+            /** Unit.Mass */
+            "unit.mass": string;
+            /** Unit.Volume */
+            "unit.volume": string;
+        };
+        /** PreviewGroup */
+        PreviewGroup: {
+            /** Name */
+            name: string;
+            /** Tag Id */
+            tag_id: number;
+        };
+        /** PreviewSource */
+        PreviewSource: {
+            /** Colour */
+            colour: string;
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+        };
+        /** PreviewValue */
+        PreviewValue: {
+            /** Attribute Id */
+            attribute_id: number;
+            /** Attribute Name */
+            attribute_name: string;
+            /** Attribute Unit */
+            attribute_unit: string;
+            /** Column Name */
+            column_name: string;
+            /** Value */
+            value: string;
+        };
         /** Recipe */
         Recipe: {
             /** Derived Tag Ids */
@@ -826,20 +1539,28 @@ export interface components {
             hard_max_multiplier: string | null;
             /** Id */
             id: number;
-            /** Items */
-            items: components["schemas"]["RecipeItem-Output"][];
+            /** Instructions */
+            instructions: string;
             /** Max Multiplier */
             max_multiplier: string;
             /** Min Multiplier */
             min_multiplier: string;
             /** Name */
             name: string;
+            /** Sections */
+            sections: components["schemas"]["Section-Output"][];
             /** Serving Cap Weight */
             serving_cap_weight: string;
+            /** Servings */
+            servings: number;
+            /** Source Url */
+            source_url: string;
             /** Step */
             step: string | null;
             /** Totals */
             totals: components["schemas"]["Total"][];
+            /** Unconvertible */
+            unconvertible: boolean;
         };
         /**
          * RecipeCount
@@ -856,38 +1577,83 @@ export interface components {
             /** Tag Filters */
             tag_filters: components["schemas"]["TagFilter"][];
         };
-        /** RecipeFields */
+        /**
+         * RecipeFields
+         * @description What a save takes.
+         */
         RecipeFields: {
             /** Extra Tag Ids */
             extra_tag_ids: number[];
             /** Hard Max Multiplier */
             hard_max_multiplier: number | string | null;
-            /** Items */
-            items: components["schemas"]["RecipeItem-Input"][];
+            /** Instructions */
+            instructions: string;
             /** Max Multiplier */
             max_multiplier: number | string;
             /** Min Multiplier */
             min_multiplier: number | string;
             /** Name */
             name: string;
+            /**
+             * New Conversions
+             * @default []
+             */
+            new_conversions: components["schemas"]["NewConversion"][];
+            /** Sections */
+            sections: components["schemas"]["Section-Input"][];
             /** Serving Cap Weight */
             serving_cap_weight: number | string;
+            /** Servings */
+            servings: number;
+            /** Source Url */
+            source_url: string;
             /** Step */
             step: number | string | null;
         };
-        /** RecipeItem */
+        /**
+         * RecipeImportRequest
+         * @description Exactly one of the two. `text`: trimmed, 1 to 200 000 characters; `url`:
+         *     trimmed, an http or https link. Both are checked by hand for the error shape.
+         */
+        RecipeImportRequest: {
+            /** Text */
+            text?: string | null;
+            /** Url */
+            url?: string | null;
+        };
+        /**
+         * RecipeItem
+         * @description A line of a recipe. The same ingredient may be on several lines.
+         */
         "RecipeItem-Input": {
             /** Amount */
             amount: number | string;
             /** Ingredient Id */
             ingredient_id: number;
+            /** Original Text */
+            original_text: string;
+            /**
+             * Unit
+             * @default
+             */
+            unit: string;
         };
-        /** RecipeItem */
+        /**
+         * RecipeItem
+         * @description A line of a recipe. The same ingredient may be on several lines.
+         */
         "RecipeItem-Output": {
             /** Amount */
             amount: string;
             /** Ingredient Id */
             ingredient_id: number;
+            /** Original Text */
+            original_text: string;
+            /**
+             * Unit
+             * @default
+             */
+            unit: string;
         };
         /** ResultAttribute */
         ResultAttribute: {
@@ -977,6 +1743,20 @@ export interface components {
              */
             side: "below" | "above";
         };
+        /** Section */
+        "Section-Input": {
+            /** Items */
+            items: components["schemas"]["RecipeItem-Input"][];
+            /** Name */
+            name: string;
+        };
+        /** Section */
+        "Section-Output": {
+            /** Items */
+            items: components["schemas"]["RecipeItem-Output"][];
+            /** Name */
+            name: string;
+        };
         /**
          * Skip
          * @description A skipped cell. `meal` is the meal's position in `meals`.
@@ -1013,6 +1793,50 @@ export interface components {
             failure: ("no_recipes" | "no_usable_recipes" | "too_large" | "infeasible" | "no_plan_in_time" | "stopped") | null;
             plan: components["schemas"]["PlanResult"] | null;
         };
+        /** SourceColumn */
+        SourceColumn: {
+            /** Attribute Id */
+            attribute_id: number | null;
+            /** Id */
+            id: number;
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+            /** Unit */
+            unit: string;
+            /** Withdrawn */
+            withdrawn: boolean;
+        };
+        /**
+         * SourceValuesAnswer
+         * @description Accept the updated values, or keep the ingredient's own.
+         */
+        SourceValuesAnswer: {
+            /**
+             * Answer
+             * @enum {string}
+             */
+            answer: "accept" | "keep";
+        };
+        /**
+         * SwitchRule
+         * @description `tag_id`, with `tag_rule`, would join a group of `group_rule`: its rule
+         *     would switch.
+         */
+        SwitchRule: {
+            /** Group Rule */
+            group_rule: string;
+            /** Tag Id */
+            tag_id: number;
+            /** Tag Rule */
+            tag_rule: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "switch_rule";
+        };
         /** Tag */
         Tag: {
             /**
@@ -1022,6 +1846,8 @@ export interface components {
             derive: "all" | "any";
             /** Filter Count */
             filter_count: number;
+            /** Group */
+            group: number[];
             /** Id */
             id: number;
             /** Ingredient Count */
@@ -1030,6 +1856,7 @@ export interface components {
             name: string;
             /** Recipe Count */
             recipe_count: number;
+            source: components["schemas"]["TagSource"] | null;
         };
         /** TagFields */
         TagFields: {
@@ -1055,6 +1882,32 @@ export interface components {
             /** Tag Id */
             tag_id: number;
         };
+        /** TagSource */
+        TagSource: {
+            /** Colour */
+            colour: string;
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+        };
+        /** TagUpdate */
+        TagUpdate: {
+            /**
+             * Confirm
+             * @default false
+             */
+            confirm: boolean;
+            /**
+             * Derive
+             * @enum {string}
+             */
+            derive: "all" | "any";
+            /** Equivalent Tag Ids */
+            equivalent_tag_ids?: number[] | null;
+            /** Name */
+            name: string;
+        };
         /**
          * TodayPlan
          * @description The plan used for `date` and that day's meals; `day` is from 0.
@@ -1078,6 +1931,71 @@ export interface components {
             attribute_id: number;
             /** Value */
             value: string;
+        };
+        /** UnitCatalogue */
+        UnitCatalogue: {
+            /** Units */
+            units: components["schemas"]["CatalogueUnit"][];
+        };
+        /** UnitChange */
+        UnitChange: {
+            /** Counts */
+            counts: {
+                [key: string]: number;
+            };
+            /** Factor */
+            factor: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "same" | "convert" | "no_convert";
+            refusal: components["schemas"]["UnitChangeRefusal"] | null;
+            /** Rounded */
+            rounded: number;
+        };
+        /** UnitChangeRefusal */
+        UnitChangeRefusal: {
+            /** Conversions */
+            conversions?: number | null;
+            /** Converted */
+            converted?: string | null;
+            /** Decimals Needed */
+            decimals_needed?: number | null;
+            /** Field */
+            field?: string | null;
+            /** Kind */
+            kind?: string | null;
+            /** Lines */
+            lines?: number | null;
+            /** Msg */
+            msg: string;
+            /** Name */
+            name?: string | null;
+            /** Number */
+            number?: string | null;
+            /** Source */
+            source?: string | null;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "conversion_needs_decimals" | "conversion_too_large" | "conversion_rounds_to_zero" | "unit_not_for_ingredient" | "unit_not_for_source" | "unit_mismatch" | "unit_has_dependents" | "conversion_for_new_unit";
+            /** Unit */
+            unit?: string | null;
+        };
+        /**
+         * UpdatedValue
+         * @description A value the source has moved on from: what the ingredient has now (null:
+         *     nothing) and what it would get, both in the ingredient's basis.
+         */
+        UpdatedValue: {
+            /** Attribute Id */
+            attribute_id: number;
+            /** New Value */
+            new_value: string;
+            /** Value */
+            value: string | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -1203,13 +2121,13 @@ export interface operations {
                     "application/json": components["schemas"]["FieldErrors"];
                 };
             };
-            /** @description Validation Error */
+            /** @description The conversion would lose precision or a number's range */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["FieldErrors"];
                 };
             };
         };
@@ -1250,6 +2168,48 @@ export interface operations {
             };
         };
     };
+    preview_unit_change_api_attributes__attribute_id__unit_change_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attribute_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AttributeUnitChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnitChange"];
+                };
+            };
+            /** @description No such attribute */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     counts_api_counts_get: {
         parameters: {
             query?: never;
@@ -1266,6 +2226,229 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Counts"];
+                };
+            };
+        };
+    };
+    list_data_sources_api_data_sources_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataSourceSummary"][];
+                };
+            };
+        };
+    };
+    get_data_source_api_data_sources__key__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataSource"];
+                };
+            };
+            /** @description No such data source */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_data_source_api_data_sources__key__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DataSourceChanges"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataSource"];
+                };
+            };
+            /** @description No such data source */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    map_column_api_data_sources__key__columns__column_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+                column_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ColumnMapping"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceColumn"];
+                };
+            };
+            /** @description No such data source or column */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unknown, taken or non-converting attribute */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+        };
+    };
+    search_foods_api_data_sources__key__foods_get: {
+        parameters: {
+            query?: {
+                search?: string;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FoodPage"];
+                };
+            };
+            /** @description No such data source */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_food_api_data_sources__key__foods__food_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+                food_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FoodPreview"];
+                };
+            };
+            /** @description No such data source or food */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -1341,13 +2524,53 @@ export interface operations {
                     "application/json": components["schemas"]["FieldErrors"];
                 };
             };
-            /** @description Validation Error */
+            /** @description An energy unit, or an unknown attribute or tag */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    create_from_source_api_ingredients_from_source_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IngredientFromSource"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ingredient"];
+                };
+            };
+            /** @description The name is already in use */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+            /** @description An unknown or withdrawn food, a tag that is not one of the food's, or an unknown tag */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["FieldErrors"];
                 };
             };
         };
@@ -1430,13 +2653,13 @@ export interface operations {
                     "application/json": components["schemas"]["FieldErrors"];
                 };
             };
-            /** @description Validation Error */
+            /** @description An energy unit, a non-mass unit for an ingredient from a data source, an unknown attribute or tag, or a conversion that would lose precision or a number's range */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["FieldErrors"];
                 };
             };
         };
@@ -1468,6 +2691,268 @@ export interface operations {
             };
             /** @description Recipes use the ingredient, so it can't be deleted */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_conversion_api_ingredients__ingredient_id__conversions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ingredient_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConversionFields"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Conversion"];
+                };
+            };
+            /** @description No such ingredient or conversion */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An energy unit, the ingredient's own unit or a unit it has */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+        };
+    };
+    edit_conversion_api_ingredients__ingredient_id__conversions__conversion_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ingredient_id: number;
+                conversion_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConversionFields"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Conversion"];
+                };
+            };
+            /** @description No such ingredient or conversion */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Recipes use the conversion */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+            /** @description An energy unit, the ingredient's own unit or a unit it has */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+        };
+    };
+    delete_conversion_api_ingredients__ingredient_id__conversions__conversion_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ingredient_id: number;
+                conversion_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such ingredient or conversion */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Recipes use the conversion */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    answer_updated_values_api_ingredients__ingredient_id__source_values_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ingredient_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SourceValuesAnswer"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ingredient"];
+                };
+            };
+            /** @description No such ingredient */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The ingredient is not from a data source */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+        };
+    };
+    preview_unit_change_api_ingredients__ingredient_id__unit_change_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ingredient_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IngredientUnitChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnitChange"];
+                };
+            };
+            /** @description No such ingredient */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unlink_ingredient_api_ingredients__ingredient_id__unlink_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ingredient_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ingredient"];
+                };
+            };
+            /** @description No such ingredient */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1912,6 +3397,177 @@ export interface operations {
             };
         };
     };
+    get_preferences_api_preferences_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Preferences"];
+                };
+            };
+        };
+    };
+    put_preferences_api_preferences_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreferenceChanges"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Preferences"];
+                };
+            };
+            /** @description A unit that is not offered for its preference, or a last_data_source that is not the key of a loaded data source */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    import_recipe_api_recipe_imports_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecipeImportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportedRecipe"];
+                };
+            };
+            /** @description No input or both, a bad link, a page that can't be read, too much text, or no recipe in it */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+            /** @description Today's limit of model calls is reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+            /** @description The AI service didn't give a usable answer */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+            /** @description No AI key is set */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+        };
+    };
+    suggest_factor_api_recipe_imports_factor_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FactorRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FactorAnswer"];
+                };
+            };
+            /** @description No input or both, a bad link, a page that can't be read, too much text, or no recipe in it */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+            /** @description Today's limit of model calls is reached */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+            /** @description The AI service didn't give a usable answer */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+            /** @description No AI key is set */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+        };
+    };
     list_recipes_api_recipes_get: {
         parameters: {
             query?: never;
@@ -2223,7 +3879,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["TagFields"];
+                "application/json": components["schemas"]["TagUpdate"];
             };
         };
         responses: {
@@ -2243,22 +3899,22 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The name is already in use */
+            /** @description The name is already in use (`detail`), or the change needs answers (`questions`) */
             409: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FieldErrors"];
+                    "application/json": components["schemas"]["FieldErrors"] | components["schemas"]["GroupQuestions"];
                 };
             };
-            /** @description Validation Error */
+            /** @description A source tag's name can't change and it can't be deleted */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["FieldErrors"];
                 };
             };
         };
@@ -2288,13 +3944,33 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Validation Error */
+            /** @description A source tag's name can't change and it can't be deleted */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["FieldErrors"];
+                };
+            };
+        };
+    };
+    get_units_api_units_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnitCatalogue"];
                 };
             };
         };

@@ -167,6 +167,54 @@ read -rsp 'Password hash: ' VALUE; echo
 printf '%s' "$VALUE" | gcloud secrets create password-hash --data-file=-
 ```
 
+## 5b. AI key (only for recipe import)
+
+Importing a recipe from a link or pasted text asks an AI service. This step is
+optional: without it the app works as before, and **Import recipe**
+on the Recipes page is disabled ("Needs an AI key").
+
+Make an API key at the provider (Anthropic by default) and store it:
+
+```
+read -rsp 'AI API key: ' VALUE; echo
+printf '%s' "$VALUE" | gcloud secrets create ai-api-key --data-file=-
+```
+
+Step 6 below gives `meal-planner-run` read access to the secrets in
+its list. If you made this one, add `ai-api-key` to that list (or run
+the same `add-iam-policy-binding` command for it alone), and in step 8
+also set the repository variable `AI_ENABLED` to `true`, so that the
+deploy passes the secret to the app.
+
+The settings, all optional:
+
+| Variable | Meaning | Default |
+|---|---|---|
+| `AI_PROVIDER` | `anthropic`, `gemini`, `openai` or `mistral`; the key must be that provider's | `anthropic` |
+| `AI_MODEL` | the model id to ask (provisional, see the import spec's "Model comparison") | `claude-sonnet-5-5` |
+| `AI_DAILY_LIMIT` | model calls a day (UTC); 0 refuses every call | 50 |
+
+Set them as repository variables with the same names (step 8); the
+deploy updates the ones that are set and removes the others from the
+service, and touches no other environment variable (one you set by hand
+in the console stays). The deploy refuses `AI_PROVIDER=fake`, a provider
+for tests that also needs `AI_ALLOW_FAKE=true` to start. To see that it works, open
+Recipes, press **+**: **Import recipe** is enabled, and
+`/api/health` says `"ai_configured": true`.
+
+Importing from a link needs outbound internet from the service. Cloud
+Run's default has it; with a VPC connector set to route all egress, the
+recipe sites must stay reachable. It needs no new secret or setting. The
+fetch refuses the metadata server and private networks on every redirect,
+so it can't be used to reach Google's internal services.
+
+To rotate the key, add a new version of the secret and **Run workflow**:
+
+```
+read -rsp 'AI API key: ' VALUE; echo
+printf '%s' "$VALUE" | gcloud secrets versions add ai-api-key --data-file=-
+```
+
 ## 6. Service accounts
 
 Two accounts: `meal-planner-run` is what the app runs as and can only
@@ -179,7 +227,7 @@ gcloud iam service-accounts create meal-planner-deploy --display-name="Meal plan
 RUN_SA="meal-planner-run@$PROJECT_ID.iam.gserviceaccount.com"
 DEPLOY_SA="meal-planner-deploy@$PROJECT_ID.iam.gserviceaccount.com"
 
-for secret in database-url session-key password-hash; do
+for secret in database-url session-key password-hash; do  # add ai-api-key if you made it (step 5b)
   gcloud secrets add-iam-policy-binding "$secret" \
     --member="serviceAccount:$RUN_SA" --role=roles/secretmanager.secretAccessor
 done
@@ -237,6 +285,10 @@ two values the last command printed:
 
 These are not secrets; nothing secret is stored in GitHub.
 
+For recipe import (step 5b) also add `AI_ENABLED` = `true`, and
+`AI_PROVIDER`, `AI_MODEL` or `AI_DAILY_LIMIT` if you want other values
+than the defaults.
+
 ## 9. First deploy
 
 On GitHub: **Actions** → **CI** → **Run workflow** (branch `main`). The
@@ -255,6 +307,19 @@ If the deploy fails:
 - **The health check fails**: the app started but cannot reach the
   database. Check the database URL secret, and that the Neon project
   is not paused or deleted.
+
+## Data source files
+
+The app reads ingredient data sources from `server/data_sources/*.json.gz`
+(or the folder in `DATA_SOURCES_DIR`) when it starts. The image copies
+`server/`, so a file committed there is deployed with the app. The
+Livsmedelsverket file is not in the repository: you generate it once with
+`python3 scripts/import_livsmedelsverket.py` (it needs network access to
+`dataportal.livsmedelsverket.se`; the README's "Refreshing the Livsmedelsverket
+data file" has the steps), commit
+`server/data_sources/livsmedelsverket.json.gz` and run the workflow again.
+Without the file the app works as before, with no data source to add
+ingredients from.
 
 ## Later changes
 

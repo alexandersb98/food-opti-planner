@@ -3,16 +3,42 @@
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Column, ForeignKey, Index, Numeric, String, Table, text
+from sqlalchemy import (
+    Column,
+    ForeignKey,
+    Index,
+    Numeric,
+    String,
+    Table,
+    Text,
+    UniqueConstraint,
+    false,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
 
 NAME_LENGTH = 100
+SOURCE_URL_LENGTH = 2000  # a recipe's source link
+INSTRUCTIONS_LENGTH = 20000  # a recipe's instructions (the column is unbounded text)
+ORIGINAL_TEXT_LENGTH = 500  # a recipe line as typed or imported
+CONVERSION_SOURCE_LENGTH = 4  # a conversion's source: "ai" or "user"
 # A goal's generated name: an attribute's name, ", daily average" and " (NNN)",
 # as names typed for other goals can move its number past the goals'.
 GOAL_NAME_LENGTH = 130
 UNIT_LENGTH = 20
+# A preference's key ("unit.mass") and value (a unit, later also a data
+# source key such as the last one used).
+PREFERENCE_KEY_LENGTH = 50
+PREFERENCE_VALUE_LENGTH = 100
+SOURCE_KEY_LENGTH = 50  # a data source's key ("livsmedelsverket")
+SOURCE_VERSION_LENGTH = 50
+COLOUR_LENGTH = 7  # "#rrggbb"
+# A source's column and food keys are the file's own codes; their names are
+# the file's, longer than an ingredient's (D4 shortens when it copies).
+SOURCE_ITEM_KEY_LENGTH = 100
+SOURCE_ITEM_NAME_LENGTH = 200
 MEAL_NAME_LENGTH = 40
 DERIVE_LENGTH = 3  # "all" or "any"
 APPLIES_TO_LENGTH = 13  # "daily_average"
@@ -42,14 +68,50 @@ class Attribute(Base):
     decimals: Mapped[int]
 
 
+class DataSource(Base):
+    """A read-only reference copy of an ingredient data file (S1, S2), loaded
+    at startup from `server/data_sources/`. `colour` is "#rrggbb", the only
+    thing the user edits. `attribution` is the text the source asks to be
+    shown. The file's `version` decides whether a load replaces the copy."""
+
+    __tablename__ = "data_sources"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    key: Mapped[str] = mapped_column(String(SOURCE_KEY_LENGTH), unique=True)
+    name: Mapped[str] = mapped_column(String(NAME_LENGTH))
+    colour: Mapped[str] = mapped_column(String(COLOUR_LENGTH))
+    version: Mapped[str] = mapped_column(String(SOURCE_VERSION_LENGTH))
+    attribution: Mapped[str | None] = mapped_column(Text)
+    imported_at: Mapped[datetime]
+
+
+class TagGroup(Base):
+    """A set of equivalent tags (decision 13 of the data source spec); it has
+    no name and no rule of its own. Its members are the tags whose `group_id`
+    is its id."""
+
+    __tablename__ = "tag_groups"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+
 class Tag(Base):
-    """A yes/no label (C6). `derive` is the library's rule for recipes, "all" or "any"."""
+    """A yes/no label (C6). `derive` is the library's rule for recipes, "all" or
+    "any". `source_id` set means a source tag, made from a food group of that
+    data source (decision 12): its rule can change, its name can't, and it
+    can't be deleted."""
 
     __tablename__ = "tags"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(NAME_LENGTH), unique=True)
     derive: Mapped[str] = mapped_column(String(DERIVE_LENGTH))
+    source_id: Mapped[int | None] = mapped_column(ForeignKey("data_sources.id"))
+    source: Mapped[DataSource | None] = relationship()
+    # The group of equivalent tags this tag is in, at most one (decision 13);
+    # all its tags share one rule (decision 14), kept equal by
+    # `server/tag_groups.py`. A group of one tag does not exist.
+    group_id: Mapped[int | None] = mapped_column(ForeignKey("tag_groups.id", ondelete="SET NULL"), index=True)
 
 
 ingredient_tags = Table(
@@ -62,7 +124,9 @@ ingredient_tags = Table(
 
 class Ingredient(Base):
     """Something recipes are made of (C4). `basis` is GUI-only: values are
-    typed per `basis` units ("per 100 g"); the library's value is value / basis."""
+    typed per `basis` units ("per 100 g"); the library's value is value / basis.
+    `source_food_id` set means the ingredient was made from that food of a
+    data source and is still linked to it (decision 1); Unlink clears it."""
 
     __tablename__ = "ingredients"
 
@@ -70,6 +134,9 @@ class Ingredient(Base):
     name: Mapped[str] = mapped_column(String(NAME_LENGTH), unique=True)
     unit: Mapped[str] = mapped_column(String(UNIT_LENGTH))
     basis: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
+    # Source foods are never deleted, so no cascade: deleting a linked food is refused.
+    source_food_id: Mapped[int | None] = mapped_column(ForeignKey("source_foods.id"), index=True)
+    source_food: Mapped["SourceFood | None"] = relationship()
     # Only the values typed in; an attribute without one counts as 0.
     values: Mapped[list["IngredientValue"]] = relationship(
         cascade="all, delete-orphan",
@@ -77,6 +144,29 @@ class Ingredient(Base):
         order_by="IngredientValue.attribute_id",
     )
     tags: Mapped[list[Tag]] = relationship(secondary=ingredient_tags, order_by=Tag.id)
+    # What one of another unit makes of this ingredient's own unit ("1 dl =
+    # 40 g"), in the order they were added.
+    conversions: Mapped[list["IngredientConversion"]] = relationship(
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="IngredientConversion.id",
+    )
+
+
+class IngredientConversion(Base):
+    """"1 `unit` = `factor` of the ingredient's own unit": a catalogue unit
+    (any category but energy) or free text such as "pinch". One per unit and
+    ingredient (the API also treats two spellings of a unit as one). `source`
+    is "ai" for a suggestion the user has not checked, else "user"."""
+
+    __tablename__ = "ingredient_conversions"
+    __table_args__ = (UniqueConstraint("ingredient_id", "unit"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    ingredient_id: Mapped[int] = mapped_column(ForeignKey("ingredients.id", ondelete="CASCADE"))
+    unit: Mapped[str] = mapped_column(String(UNIT_LENGTH))
+    factor: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
+    source: Mapped[str] = mapped_column(String(CONVERSION_SOURCE_LENGTH))
 
 
 class IngredientValue(Base):
@@ -91,6 +181,10 @@ class IngredientValue(Base):
         ForeignKey("attributes.id", ondelete="CASCADE"), primary_key=True
     )
     value: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
+    # The source's value when last copied or answered, converted to the
+    # attribute's unit (decision 1); NULL for an unlinked ingredient or a
+    # value the source never gave.
+    source_value: Mapped[Decimal | None] = mapped_column(EXACT_NUMBER)
     attribute: Mapped[Attribute] = relationship()
 
 
@@ -103,45 +197,76 @@ recipe_extra_tags = Table(
 
 
 class Recipe(Base):
-    """A dish of fixed ingredient amounts for one portion (C2), eaten at a
-    multiple of that portion: from `min_multiplier` to `max_multiplier`,
-    above which `serving_cap_weight` penalizes, up to `hard_max_multiplier`
-    (NULL: 3 times `max_multiplier`, the library's default). `step` NULL
-    means any amount, otherwise whole steps."""
+    """A dish (C2): amounts for the whole recipe, which serves `servings`
+    portions, in sections (headings, one of them unnamed in a simple recipe),
+    with `instructions` and a `source_url` (both empty when not given). The
+    planner eats it at a multiple of one portion (the amounts divided by
+    `servings`): from `min_multiplier` to `max_multiplier`, above which
+    `serving_cap_weight` penalizes, up to `hard_max_multiplier` (NULL: 3 times
+    `max_multiplier`, the library's default). `step` NULL means any amount,
+    otherwise whole steps."""
 
     __tablename__ = "recipes"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(NAME_LENGTH), unique=True)
+    servings: Mapped[int]
+    instructions: Mapped[str] = mapped_column(Text)
+    source_url: Mapped[str] = mapped_column(String(SOURCE_URL_LENGTH))
     min_multiplier: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
     max_multiplier: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
     step: Mapped[Decimal | None] = mapped_column(EXACT_NUMBER)
     hard_max_multiplier: Mapped[Decimal | None] = mapped_column(EXACT_NUMBER)
     serving_cap_weight: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
+    sections: Mapped[list["RecipeSection"]] = relationship(
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="RecipeSection.position",
+    )
+    # Tags added by hand; the others come from the ingredients.
+    extra_tags: Mapped[list[Tag]] = relationship(secondary=recipe_extra_tags, order_by=Tag.id)
+
+    @property
+    def lines(self) -> list["RecipeItem"]:
+        """Every line of the recipe in display order: sections in order, each
+        one's lines in order. The one way to read all of a recipe's lines."""
+        return [item for section in self.sections for item in section.items]
+
+
+class RecipeSection(Base):
+    """A part of a recipe under a heading; `name` is empty for an unnamed one."""
+
+    __tablename__ = "recipe_sections"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    recipe_id: Mapped[int] = mapped_column(ForeignKey("recipes.id", ondelete="CASCADE"))
+    # The order the sections are shown in, from 0.
+    position: Mapped[int]
+    name: Mapped[str] = mapped_column(String(NAME_LENGTH))
     items: Mapped[list["RecipeItem"]] = relationship(
         cascade="all, delete-orphan",
         passive_deletes=True,
         order_by="RecipeItem.position",
     )
-    # Tags added by hand; the others come from the ingredients.
-    extra_tags: Mapped[list[Tag]] = relationship(secondary=recipe_extra_tags, order_by=Tag.id)
 
 
 class RecipeItem(Base):
-    """An amount of an ingredient in one portion of a recipe, in the
-    ingredient's unit. An ingredient can't be deleted while a recipe uses it."""
+    """A line of a recipe: an amount of an ingredient in the recipe, for the
+    whole recipe, in `unit`. The same ingredient may be on several lines. `original_text` is the line as it was imported, empty for
+    a typed one. An ingredient can't be deleted while a recipe uses it."""
 
     __tablename__ = "recipe_items"
 
-    recipe_id: Mapped[int] = mapped_column(
-        ForeignKey("recipes.id", ondelete="CASCADE"), primary_key=True
-    )
-    ingredient_id: Mapped[int] = mapped_column(
-        ForeignKey("ingredients.id", ondelete="RESTRICT"), primary_key=True
-    )
-    # The order the ingredients are listed in, from 0.
+    id: Mapped[int] = mapped_column(primary_key=True)
+    section_id: Mapped[int] = mapped_column(ForeignKey("recipe_sections.id", ondelete="CASCADE"))
+    # The order of the lines in the section, from 0.
     position: Mapped[int]
+    ingredient_id: Mapped[int] = mapped_column(ForeignKey("ingredients.id", ondelete="RESTRICT"))
     amount: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
+    # Empty is the ingredient's own unit; otherwise any unit that converts to
+    # it (see `line_units`).
+    unit: Mapped[str] = mapped_column(String(UNIT_LENGTH))
+    original_text: Mapped[str] = mapped_column(String(ORIGINAL_TEXT_LENGTH))
     ingredient: Mapped[Ingredient] = relationship()
 
 
@@ -408,11 +533,91 @@ class PlanResultMiss(Base):
     percent: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
 
 
+class SourceColumn(Base):
+    """A column of a data source (a nutrient), by the file's own key. One the
+    file no longer has is `withdrawn`, never deleted."""
+
+    __tablename__ = "source_columns"
+    __table_args__ = (
+        UniqueConstraint("source_id", "key", name="uq_source_columns_source_id_key"),
+        # NULLs (unmapped columns) never clash, on SQLite and Postgres alike.
+        UniqueConstraint("source_id", "attribute_id", name="uq_source_columns_source_id_attribute_id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source_id: Mapped[int] = mapped_column(ForeignKey("data_sources.id", ondelete="CASCADE"))
+    key: Mapped[str] = mapped_column(String(SOURCE_ITEM_KEY_LENGTH))
+    name: Mapped[str] = mapped_column(String(SOURCE_ITEM_NAME_LENGTH))
+    unit: Mapped[str] = mapped_column(String(UNIT_LENGTH))
+    withdrawn: Mapped[bool] = mapped_column(default=False, server_default=false())
+    # set: the attribute this column feeds (data source spec, decision 5)
+    attribute_id: Mapped[int | None] = mapped_column(ForeignKey("attributes.id", ondelete="SET NULL"))
+
+
+class SourceFood(Base):
+    """A food of a data source, by the file's own key. One the file no longer
+    has is `withdrawn`, never deleted, and keeps its values and tags."""
+
+    __tablename__ = "source_foods"
+    __table_args__ = (UniqueConstraint("source_id", "key", name="uq_source_foods_source_id_key"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source_id: Mapped[int] = mapped_column(ForeignKey("data_sources.id", ondelete="CASCADE"))
+    key: Mapped[str] = mapped_column(String(SOURCE_ITEM_KEY_LENGTH))
+    name: Mapped[str] = mapped_column(String(SOURCE_ITEM_NAME_LENGTH))
+    withdrawn: Mapped[bool] = mapped_column(default=False, server_default=false())
+    source: Mapped[DataSource] = relationship()
+
+
+class SourceFoodValue(Base):
+    """A food's value for one column, per 100 g or as the file gives it. A
+    column the food has no value for has no row: missing is not 0."""
+
+    __tablename__ = "source_food_values"
+
+    food_id: Mapped[int] = mapped_column(
+        ForeignKey("source_foods.id", ondelete="CASCADE"), primary_key=True
+    )
+    column_id: Mapped[int] = mapped_column(
+        ForeignKey("source_columns.id", ondelete="CASCADE"), primary_key=True
+    )
+    value: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
+
+
+source_food_tags = Table(
+    "source_food_tags",
+    Base.metadata,
+    Column("food_id", ForeignKey("source_foods.id", ondelete="CASCADE"), primary_key=True),
+    Column("tag_id", ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True),
+)
+
+
+class Preference(Base):
+    """One row per preference that was ever set; unset ones have defaults."""
+
+    __tablename__ = "preferences"
+
+    key: Mapped[str] = mapped_column(String(PREFERENCE_KEY_LENGTH), primary_key=True)
+    value: Mapped[str] = mapped_column(String(PREFERENCE_VALUE_LENGTH))
+
+
+class AICallCount(Base):
+    """Model calls made on one UTC day, for the daily limit (slice R4)."""
+
+    __tablename__ = "ai_calls"
+
+    day: Mapped[date] = mapped_column(primary_key=True)
+    calls: Mapped[int]
+
+
 __all__ = [
+    "AICallCount",
     "Attribute",
     "Base",
+    "DataSource",
     "Goal",
     "Ingredient",
+    "IngredientConversion",
     "IngredientValue",
     "Plan",
     "PlanDayMinimum",
@@ -426,9 +631,15 @@ __all__ = [
     "PlanResultTotal",
     "PlanSkip",
     "PlanTagFilter",
+    "Preference",
     "Recipe",
     "RecipeItem",
+    "RecipeSection",
+    "SourceColumn",
+    "SourceFood",
+    "SourceFoodValue",
     "Tag",
     "ingredient_tags",
     "recipe_extra_tags",
+    "source_food_tags",
 ]

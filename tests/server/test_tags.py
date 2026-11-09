@@ -30,6 +30,8 @@ def test_a_created_tag_is_listed_with_what_deleting_it_removes(client):
         "id": created["id"],
         "name": "vegan",
         "derive": "all",
+        "source": None,
+        "group": [],
         "ingredient_count": 0,
         "recipe_count": 0,
         "filter_count": 0,
@@ -153,3 +155,122 @@ def test_counts_for_the_menu(client):
     create(client)
     create(client, name="quick")
     assert client.get("/api/counts").json()["tags"] == 2
+
+
+def source_tags(client):
+    return {t["name"]: t for t in client.get("/api/tags").json() if t["source"]}
+
+
+def test_the_list_has_the_tags_made_by_hand_before_the_source_tags(data_client):
+    # The source tags were made first (at startup), so they have the lower ids.
+    create(data_client, name="zzz")
+    create(data_client, name="aaa")
+
+    tags = data_client.get("/api/tags").json()
+
+    assert [t["name"] for t in tags] == ["zzz", "aaa", "TEST Grains", "TEST Dairy"]
+    assert tags[0]["source"] is None
+
+
+def test_a_source_tag_names_its_source_and_defaults_to_any(data_client):
+    colour = data_client.get("/api/data-sources").json()[0]["colour"]
+
+    tags = source_tags(data_client)
+
+    assert set(tags) == {"TEST Dairy", "TEST Grains"}
+    for tag in tags.values():
+        assert tag["source"] == {"key": "testsource", "name": "TEST Source", "colour": colour}
+        assert tag["derive"] == "any"
+
+
+def test_a_source_tag_cannot_be_renamed(data_client):
+    tag = source_tags(data_client)["TEST Dairy"]
+
+    response = data_client.put(f"/api/tags/{tag['id']}", json={"name": "Milk", "derive": "any"})
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == [
+        {"loc": ["body", "name"], "type": "source_tag", "msg": "A source tag can't be renamed"}
+    ]
+    assert source_tags(data_client)["TEST Dairy"] == tag
+
+
+def test_a_source_tags_rule_can_change(data_client):
+    tag = source_tags(data_client)["TEST Dairy"]
+
+    response = data_client.put(f"/api/tags/{tag['id']}", json={"name": "TEST Dairy", "derive": "all"})
+
+    assert response.status_code == 200
+    assert response.json()["derive"] == "all"
+    assert source_tags(data_client)["TEST Dairy"]["derive"] == "all"
+
+
+def test_a_source_tag_cannot_be_deleted(data_client):
+    tag = source_tags(data_client)["TEST Dairy"]
+
+    response = data_client.delete(f"/api/tags/{tag['id']}")
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == [
+        {"loc": ["path", "tag_id"], "type": "source_tag", "msg": "A source tag can't be deleted"}
+    ]
+    assert "TEST Dairy" in source_tags(data_client)
+
+
+def test_a_tag_cannot_take_a_source_tags_name(data_client):
+    response = data_client.post("/api/tags", json={"name": "TEST Dairy", "derive": "all"})
+
+    assert response.status_code == 409
+    assert response.json()["detail"][0]["type"] == "name_in_use"
+
+
+def test_a_tag_made_by_hand_can_still_be_renamed_and_deleted(data_client):
+    tag = create(data_client)
+
+    renamed = data_client.put(f"/api/tags/{tag['id']}", json={"name": "plant-based", "derive": "all"})
+    assert renamed.status_code == 200 and renamed.json()["source"] is None
+    assert data_client.delete(f"/api/tags/{tag['id']}").status_code == 204
+
+
+# Equivalent tags: the request's validation. The group editing is in test_tag_groups.py.
+
+
+def put(client, tag, **fields):
+    body = {"name": tag["name"], "derive": tag["derive"], **fields}
+    return client.put(f"/api/tags/{tag['id']}", json=body)
+
+
+def test_a_tag_in_no_group_answers_an_empty_group(client):
+    tag = create(client)
+    assert tag["group"] == []
+    assert client.get("/api/tags").json()[0]["group"] == []
+
+
+def test_a_name_only_update_and_a_null_list_leave_a_group_alone(client, catalog):
+    fish, seafood = catalog.tag("Fish"), catalog.tag("Seafood")
+    catalog.group(fish, seafood)
+    tags = {t["id"]: t for t in client.get("/api/tags").json()}
+    assert tags[fish]["group"] == [fish, seafood]
+    assert client.put(f"/api/tags/{fish}", json={"name": "Fish!", "derive": "all"}).json()["group"] == [fish, seafood]
+    assert put(client, tags[seafood], name="Shellfish", equivalent_tag_ids=None).status_code == 200
+    assert [t["group"] for t in client.get("/api/tags").json()] == [[fish, seafood]] * 2
+
+
+def test_the_equivalent_ids_must_name_other_tags_once_each(client, catalog):
+    fish, seafood = catalog.tag("Fish"), catalog.tag("Seafood")
+    before = client.get("/api/tags").json()
+    response = put(client, before[0], equivalent_tag_ids=[999, seafood, seafood, fish], confirm=True)
+    assert response.status_code == 422
+    assert [(e["loc"], e["type"]) for e in response.json()["detail"]] == [
+        (["body", "equivalent_tag_ids", 0], "unknown_tag"),
+        (["body", "equivalent_tag_ids", 2], "duplicate"),
+        (["body", "equivalent_tag_ids", 3], "own_tag"),
+    ]
+    assert client.get("/api/tags").json() == before
+
+
+def test_the_rule_of_a_tag_in_no_group_changes_without_a_question(client):
+    tag = create(client)
+    response = put(client, tag, derive="any", equivalent_tag_ids=[])
+    assert response.status_code == 200
+    assert response.json()["derive"] == "any"

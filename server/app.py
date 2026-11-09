@@ -5,28 +5,47 @@ from pathlib import Path
 
 from argon2 import extract_parameters
 from argon2.exceptions import InvalidHashError
+import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 
-from . import api
+from . import api, source_loader
+from .ai.chat import Transport
+from .ai_runtime import AIRuntime
 from .auth import Auth
 from .db import make_engine, migrate
+from .page_fetch import PageFetcher, Resolver
 from .settings import Settings
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    *,
+    ai_transport: Transport | None = None,
+    page_transport: httpx.BaseTransport | None = None,
+    page_resolver: Resolver | None = None,
+) -> FastAPI:
+    """`ai_transport`, `page_transport` and `page_resolver` are for tests; the
+    address check on fetched pages has no switch."""
     settings = settings or Settings.from_env()
     _check_login_settings(settings)
+    ai = AIRuntime(settings, ai_transport)  # a bad AI setting stops the app, like a bad login one
+    page_fetcher = PageFetcher(page_transport, page_resolver)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         if settings.migrate_on_startup:
             migrate(settings.database_url)
+            source_loader.load_all(app.state.engine, settings.data_sources_dir)
         yield
+        ai.close()
+        page_fetcher.close()
         app.state.engine.dispose()
 
     app = FastAPI(title="Meal planner", lifespan=lifespan)
     app.state.engine = make_engine(settings.database_url)
+    app.state.ai = ai
+    app.state.page_fetcher = page_fetcher
     app.state.auth = Auth(settings.password_hash, settings.session_key)
     app.state.running_solve = api.solve.RunningSolve()
     app.include_router(api.router)

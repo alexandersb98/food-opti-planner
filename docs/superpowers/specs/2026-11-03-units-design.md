@@ -75,30 +75,46 @@ preferred unit; mass ↔ volume per ingredient from its density.
 |---|---|---|---|
 | oz | mass | 28.349523125 g | ounce |
 | lb | mass | 453.59237 g | pound |
-| tsp | volume | 5 ml | tsk, teaspoon |
-| tbsp | volume | 15 ml | msk, tablespoon |
+| tsk | volume | 5 ml | tsp, teaspoon, tesked |
+| msk | volume | 15 ml | tbsp, tablespoon, matsked |
 | krm | volume | 1 ml | kryddmått |
 | US cup | volume | 236.5882365 ml | |
 | metric cup | volume | 250 ml | |
 | fl oz | volume | 29.5735295625 ml | US fl oz |
 
-tbsp and tsp are the metric ones (15 and 5 ml); the US tablespoon is
+`tsk` and `msk` are the stored spellings (Swedish first); tsp and tbsp
+are the metric ones (5 and 15 ml) and aliases. The US tablespoon is
 not listed. A bare "cup" is not known, as it means different amounts in
 different countries; it stays free text.
 
 **Aliases for base and prefixed units:** gram, grams for g; litre,
-liter, L for l; µg also as ug and mcg; Kcal, kcal and Cal for kcal.
+liter, L for l; µg also as ug, mcg, mikrog and mikrogram; Kcal, kcal and Cal for kcal.
 
 **Reading a unit.** `parse(text) -> Unit | None` trims spaces and
 compares case-insensitively (safe, as no supported prefix differs from
-another by case only). It returns the category and the factor to the
-base, or None for free text. `factor(a, b)` gives the multiplier from
+another by case only, with one exception: `Cal` exactly is kcal, any
+other case of "cal" is the small calorie, 4.184 J, understood but not
+offered). Text is also normalised by NFKC (the micro sign and the Greek
+mu are the same), inner runs of spaces collapse ("US  cup" is "US cup")
+and one trailing period is dropped ("msk." is msk). It returns the
+category and the factor to the base, or None for free text.
+**Known free-text units** exist: `st` (aliases stycken, styck, pcs,
+piece, pieces) parses to a unit with no category and no factor; `parse`
+returns None only for text the catalogue does not know at all (IU,
+pinch, a bare cup). `factor(a, b)` gives the multiplier from
 `a` to `b`, or None when they don't convert.
 
 **Display names.** The catalogue names each unit for the drop-downs:
 common prefixed units (µg, mg, g, kg; ml, cl, dl, l; kJ, kcal) and the
 listed ones. Other prefixed units (cg of mass, kl) are understood but
-not offered.
+not offered. The names are English words (microgram, milligram, gram,
+kilogram, ounce, pound; millilitre, centilitre, decilitre, litre,
+kryddmått, teaspoon, tablespoon, fluid ounce, US cup, metric cup;
+kilojoule, kilocalorie; piece for `st`) and the drop-down shows `kg
+(kilogram)`. Offered order: mass µg, mg, g, kg, oz, lb; volume ml, cl,
+dl, l, krm, tsk, msk, fl oz, US cup, metric cup; energy kJ, kcal.
+`GET /api/units` sends every understood unit (offered or not) with its
+aliases and an `offered` flag.
 
 ## Preferred units
 
@@ -106,6 +122,13 @@ A new table `preferences` (key, value), one row per preference. The data
 source spec adds its own keys (the last data source chosen). Keys here:
 `unit.mass`, `unit.volume`, `unit.energy`; values are unit symbols from
 the catalogue. Unset keys mean g, dl and kcal.
+
+**API.** `GET /api/preferences` answers all three keys (defaults where
+unset). `PUT /api/preferences` takes any subset, saves nothing if
+anything is refused and answers all three. A unit is accepted in any
+spelling if it is offered for that key's category and is saved as the
+catalogue spelling ("gram" is saved as `g`); anything else is 422
+`invalid_unit` on that key, an unknown key 422 `extra_forbidden`.
 
 **Settings page (S1),** a sixth menu entry, last. Its first card is
 **Preferred units**: one drop-down per category, offering that
@@ -130,6 +153,12 @@ stored as typed (and is still understood when it parses, e.g. "gram").
 - **Attribute:** the list offers mass, volume and energy units. A new
   attribute starts empty, as its category isn't known. Under the field:
   "The amount per the ingredient's basis, e.g. g or kcal."
+- **Groups and display:** the list has a header per group: Mass, Volume,
+  Energy (attributes only) and "Other", which holds the piece unit `st`
+  (ingredients only). The list shows `kg (kilogram)`, while the box shows
+  only the symbol, `kg`. The energy refusal applies to every save of an
+  ingredient, so an old ingredient that holds an energy unit cannot be
+  saved until its unit is changed.
 
 ## Changing a unit
 
@@ -149,8 +178,8 @@ out the factor from the old unit to the new.
   data source spec), goal Min and Max, and the zero-bound reference.
   The dialog says, e.g., "Iron: 12 ingredient values and 2 goals will
   be converted from mg to µg (× 1000)."
-- **Ingredient:** its basis and every recipe amount of it, multiplied by
-  the factor. The values stay as they are, as they are per the basis:
+- **Ingredient:** its basis, every recipe amount of it in its own unit and
+  its conversions' factors (slice R3), multiplied by the factor. The values stay as they are, as they are per the basis:
   oats from g to kg makes "per 100 g" "per 0.1 kg", and a recipe's
   150 g becomes 0.15 kg. The dialog: "Oats: the basis and 4 recipe
   amounts will be converted from g to kg (× 0.001)."
@@ -168,6 +197,59 @@ decimals and 15 digits (`EXACT_NUMBER`).
   attribute allows refuses the change: "The goal Iron at least 0.5 mg
   would need 4 decimals as g. Raise Iron's decimals first."
 - A number past 15 digits refuses the change, naming the first one.
+- A unit that would stop a mapped data source column converting with the
+  attribute refuses the change (data source spec, decision 7): the facts
+  are the column's name, its source's name and its unit, and the text
+  tells the user to unmap the column first. A change within the category
+  keeps every mapping converting and is allowed.
+- An attribute's unit change also converts the source values copied into
+  ingredients (`ingredient_values.source_value`), counted and refused like
+  the values themselves. An ingredient linked to a data source may change
+  its unit only to another mass unit (data source spec, C4).
+
+**Settled in slice U3.**
+
+- The arithmetic is exact (`Fraction`, from the catalogue's exact
+  factors). A ratio with no finite decimals (tsk to US cup) rounds
+  ingredient numbers to 6 decimals and refuses goal bounds.
+- The preview also takes what the form is about to save: the attribute
+  preview an optional `decimals`, the ingredient preview an optional
+  `basis`, so that "Raise Iron's decimals first" can be answered by
+  raising them and asking again, and the preview matches `PUT`.
+- `PUT` converts the body's basis (the form shows it in the old unit and
+  does not convert it), so a basis edited in the same save converts too.
+- What converts: ingredient values, the live plan's goal `min`, `max` and
+  `zero_reference`; the ingredient's basis and its recipe amounts. A
+  goal counts once however many bounds it has.
+- Rounding is half away from zero to 6 decimals; "rounded" counts the
+  numbers that lost digits. A refusal names the first problem, going
+  through the converters in order.
+- Added: `conversion_rounds_to_zero`, when a basis or recipe amount would
+  round to 0 (the rest of the API rejects 0). The ingredient preview also
+  refuses an energy unit (`unit_not_for_ingredient`) as `PUT` does.
+- A refusal shows under the unit field, not in the dialog. A failed
+  preview saves nothing.
+- Each later slice that stores numbers in a unit adds one converter to
+  the list in `server/unit_change.py` and one count text.
+
+**Settled in slice R3.** An ingredient's unit change also converts what
+the recipe lines and conversions store:
+
+- A line **in the own unit** (an empty unit, or the ingredient's unit
+  spelled out) is multiplied by the factor and its unit written empty. A
+  line in another unit keeps its amount and unit; it still means the same
+  quantity, as the conversions it routes through are converted. Counted as
+  "recipe amounts".
+- Every stored conversion's factor is multiplied by the same factor ("1 dl
+  = 40 g" to kg is "1 dl = 0.04 kg"), counted as "conversions", rounded and
+  refused like the other ingredient numbers (`conversion_rounds_to_zero`,
+  `conversion_too_large` naming the conversion's unit).
+- A change of category or to or from free text is refused, 422
+  `unit_has_dependents` with the number of conversions and of lines in other
+  units, while either exists; lines in the own unit never block it.
+- A change within the category is refused, 422 `conversion_for_new_unit`,
+  while a conversion for the new unit exists (it would be a conversion of the
+  own unit): delete it first.
 
 **API.** `POST /api/attributes/{id}/unit-change` and
 `POST /api/ingredients/{id}/unit-change` take `{unit}` and answer what a
@@ -184,6 +266,9 @@ client that skipped the check can't lose precision.
 | Energy unit on an ingredient | 422 `unit_not_for_ingredient` on `unit` |
 | Converted goal bound needs more decimals | 422 `conversion_needs_decimals` on `unit`, with the goal |
 | Converted number past 15 digits | 422 `conversion_too_large` on `unit` |
+| Converted basis, recipe amount or conversion factor would round to 0 | 422 `conversion_rounds_to_zero` on `unit` |
+| Ingredient's category or free text changes while a conversion or a line in another unit exists | 422 `unit_has_dependents` on `unit`, with the counts |
+| Ingredient's unit changes to one it has a conversion for | 422 `conversion_for_new_unit` on `unit` |
 | Unknown preference key or a unit of the wrong category | 422 on that field |
 
 ## Testing

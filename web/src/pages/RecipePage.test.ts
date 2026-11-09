@@ -1,7 +1,9 @@
 import { flushPromises } from '@vue/test-utils'
 import { afterEach, expect, test, vi } from 'vitest'
-import { button, click, dialog, fakeServer, field, mountApp, texts, type FakeServer } from '../test-app'
-import { attribute, ingredient, recipe, tag } from '../test-data'
+import { button, click, dialog, fakeServer, field, mountApp, settleMenu, texts, unitRoutes, type FakeServer } from '../test-app'
+import { setImportedDraft } from '../importDraft'
+import { attribute, conversion, importedLine, importedRecipe, ingredient, lines, recipe, tag } from '../test-data'
+import { resetUnits } from '../units'
 
 const energy = attribute({ id: 1, name: 'Energy', unit: 'kcal' })
 const protein = attribute({ id: 2, name: 'Protein', unit: 'g', decimals: 1 })
@@ -22,15 +24,13 @@ const almonds = ingredient({ id: 3, name: 'Almonds', values: [{ attribute_id: 2,
 const porridge = recipe({
   id: 7,
   name: 'Porridge',
-  items: [
-    { ingredient_id: 1, amount: '60' },
-    { ingredient_id: 2, amount: '200' },
-  ],
+  sections: lines([1, '60'], [2, '200']),
   extra_tag_ids: [2],
   derived_tag_ids: [],
 })
 
 afterEach(() => {
+  resetUnits()
   vi.unstubAllGlobals()
   document.body.innerHTML = ''
 })
@@ -43,6 +43,7 @@ async function mountPage(path: string, server: FakeServer = {}) {
     'GET /api/ingredients': { body: [oats, milk, almonds] },
     'GET /api/recipes/7': { body: porridge },
     'GET /api/recipes': { body: [] },
+    ...unitRoutes(),
     ...server,
   })
   const { wrapper, router } = await mountApp(path)
@@ -171,15 +172,23 @@ test('ingredients are added from a searchable picker and removed, and the server
   wrapper.unmount()
 })
 
-test('the picker leaves out the ingredients already in the recipe', async () => {
+test('the same ingredient can be added on a second line and the picker still offers it', async () => {
   const { wrapper } = await mountPage('/recipes/7')
   await click(button(wrapper, '+ Add ingredient'))
   const rows = [...document.querySelectorAll('.q-dialog .picker-row')].map((r) => r.textContent)
-  expect(rows).toEqual([expect.stringContaining('Almonds')])
-  document.querySelector<HTMLElement>('.q-dialog .picker-row')!.click()
+  expect(rows).toEqual([
+    expect.stringContaining('Almonds'),
+    expect.stringContaining('Milk'),
+    expect.stringContaining('Oats'),
+  ])
+  document.querySelector<HTMLElement>('.q-dialog .picker-row:last-child')!.click()
   await flushPromises()
-  await click(button(wrapper, '+ Add ingredient'))
-  expect(dialog().text).toContain('Every ingredient is in the recipe already.')
+  expect(items(wrapper)).toEqual([
+    ['Oats', '60'],
+    ['Milk', '200'],
+    ['Oats', ''],
+  ])
+  expect(totals(wrapper)).toEqual(['Energy 361 kcal', 'Protein 10.1 g'])
   wrapper.unmount()
 })
 
@@ -231,28 +240,39 @@ test('Save sends the fields and returns to the list', async () => {
   expect(sent).toEqual([
     {
       name: 'Milk porridge',
-      items: [
-        { ingredient_id: 1, amount: '60' },
-        { ingredient_id: 2, amount: '250.5' },
+      servings: 1,
+      sections: [
+        {
+          name: '',
+          items: [
+            { ingredient_id: 1, amount: '60', unit: '', original_text: '' },
+            { ingredient_id: 2, amount: '250.5', unit: '', original_text: '' },
+          ],
+        },
       ],
+      instructions: '',
+      source_url: '',
       extra_tag_ids: [2],
       min_multiplier: '1',
       max_multiplier: '3',
       step: '0.5',
       hard_max_multiplier: '4',
       serving_cap_weight: '2.5',
+      new_conversions: [],
     },
   ])
   expect(router.currentRoute.value.fullPath).toBe('/recipes')
   wrapper.unmount()
 })
 
-test('a new recipe starts with the default portion size', async () => {
+test('a new recipe starts with one unnamed section, servings 1 and the default portion size', async () => {
   const { sent, handler } = recorder(201, (body) => ({ ...porridge, ...body, id: 8 }))
   const derived = { 'POST /api/recipes/derived-tags': { body: [1] } }
   const { wrapper, router } = await mountPage('/recipes/new', { 'POST /api/recipes': handler, ...derived })
   expect(wrapper.get('h1').text()).toBe('New recipe')
   expect(items(wrapper)).toEqual([])
+  expect(value(wrapper, 'Serves')).toBe('1')
+  expect(wrapper.findAll('.section-name')).toHaveLength(0)
   expect(totals(wrapper)).toEqual(['Energy 0 kcal', 'Protein 0 g'])
   expect(wrapper.text()).not.toContain('Delete')
   await field(wrapper, 'Name').setValue('Oatmeal')
@@ -262,13 +282,17 @@ test('a new recipe starts with the default portion size', async () => {
   expect(sent).toEqual([
     {
       name: 'Oatmeal',
-      items: [{ ingredient_id: 1, amount: '80' }],
+      servings: 1,
+      sections: [{ name: '', items: [{ ingredient_id: 1, amount: '80', unit: '', original_text: '' }] }],
+      instructions: '',
+      source_url: '',
       extra_tag_ids: [],
       min_multiplier: '0.5',
       max_multiplier: '2',
       step: null,
       hard_max_multiplier: null,
       serving_cap_weight: '1',
+      new_conversions: [],
     },
   ])
   expect(router.currentRoute.value.fullPath).toBe('/recipes')
@@ -280,6 +304,7 @@ test('wrong fields are marked and nothing is sent', async () => {
   await click(button(wrapper, 'Save'))
   expect(wrapper.text()).toContain('Enter a name.')
   expect(wrapper.text()).toContain('Add at least one ingredient.')
+  expect(wrapper.text()).not.toContain('Enter a whole number from 1 to 1000.')
 
   await pickIngredient(wrapper, '', 'Oats')
   await field(wrapper, 'Amount of Oats').setValue('0')
@@ -334,7 +359,7 @@ test('a name in use, and portion sizes the server refuses, are shown on their fi
       body: {
         detail: [
           { loc: ['body', 'max_multiplier'], type: 'below_min', msg: 'low' },
-          { loc: ['body', 'items', 1, 'amount'], type: 'decimal_max_digits', msg: 'long' },
+          { loc: ['body', 'sections', 0, 'items', 1, 'amount'], type: 'decimal_max_digits', msg: 'long' },
         ],
       },
     },
@@ -410,5 +435,604 @@ test('back leaves without saving', async () => {
   await click(wrapper.get('[aria-label="Back"]'))
   expect(router.currentRoute.value.fullPath).toBe('/recipes')
   expect(calls).not.toContain('PUT /api/recipes/7')
+  wrapper.unmount()
+})
+
+// Servings, sections, instructions and source
+
+const layered = recipe({
+  id: 7,
+  name: 'Layered',
+  servings: 4,
+  instructions: 'Bake.',
+  source_url: 'https://example.com/layered',
+  sections: [
+    { name: 'Base', items: [{ ingredient_id: 1, amount: '200', unit: '', original_text: '200 g oats' }] },
+    { name: 'Topping', items: [{ ingredient_id: 3, amount: '40', unit: '', original_text: '' }] },
+  ],
+})
+
+function sectionNames(wrapper: Wrapper) {
+  return wrapper.findAll<HTMLInputElement>('.section-name input').map((input) => input.element.value)
+}
+
+test('a recipe opens with its sections, servings, instructions and source, the totals divided', async () => {
+  const { wrapper } = await mountPage('/recipes/7', { 'GET /api/recipes/7': { body: layered } })
+  expect(value(wrapper, 'Serves')).toBe('4')
+  expect(wrapper.text()).toContain('Ingredients, for 4 portions')
+  expect(sectionNames(wrapper)).toEqual(['Base', 'Topping'])
+  expect(items(wrapper)).toEqual([
+    ['Oats', '200'],
+    ['Almonds', '40'],
+  ])
+  // 200 g oats is 778 kcal and 33.8 g protein; 40 g almonds 8.4 g protein; over 4 portions.
+  expect(totals(wrapper)).toEqual(['Energy 195 kcal', 'Protein 10.6 g'])
+  expect(wrapper.get('textarea').element.value).toBe('Bake.')
+  expect(value(wrapper, 'Source')).toBe('https://example.com/layered')
+  wrapper.unmount()
+})
+
+test('Serves N divides the per-portion totals as typed and the heading says for N portions', async () => {
+  const { wrapper } = await mountPage('/recipes/7')
+  expect(wrapper.text()).toContain('Ingredients, for 1 portion')
+  expect(wrapper.text()).not.toContain('Ingredients, for 1 portions')
+  await field(wrapper, 'Serves').setValue('2')
+  expect(wrapper.text()).toContain('Ingredients, for 2 portions')
+  expect(totals(wrapper)).toEqual(['Energy 181 kcal', 'Protein 5.1 g'])
+  await field(wrapper, 'Serves').setValue('x')
+  expect(wrapper.text()).toContain('Ingredients, for 1 portion')
+  expect(totals(wrapper)).toEqual(['Energy 361 kcal', 'Protein 10.1 g'])
+  wrapper.unmount()
+})
+
+test('+ Add section shows name fields, saving without a name is refused on the field', async () => {
+  const { wrapper, calls } = await mountPage('/recipes/7')
+  expect(sectionNames(wrapper)).toEqual([])
+  await click(button(wrapper, '+ Add section'))
+  expect(sectionNames(wrapper)).toEqual(['', ''])
+  await click(button(wrapper, 'Save'))
+  expect(wrapper.findAll('.section-name').map((f) => f.text().includes('Name every section.'))).toEqual([true, true])
+  expect(calls).not.toContain('PUT /api/recipes/7')
+  wrapper.unmount()
+})
+
+test('a line moves to another section', async () => {
+  const { wrapper } = await mountPage('/recipes/7', { 'GET /api/recipes/7': { body: layered } })
+  await click(wrapper.get('[aria-label="Line menu for Oats"]'))
+  const entries = [...document.querySelectorAll<HTMLElement>('.q-menu .move-to')]
+  expect(entries.map((e) => e.textContent?.trim())).toEqual(['Move to Topping'])
+  entries[0]!.click()
+  await flushPromises()
+  const rows = wrapper.findAll('.recipe-section').map((section) => section.findAll('.recipe-item').map((r) => r.find('.item-name').text()))
+  expect(rows).toEqual([[], ['Almonds', 'Oats']])
+  wrapper.unmount()
+})
+
+test('removing a section moves its lines up and keeps every line', async () => {
+  const { wrapper } = await mountPage('/recipes/7', { 'GET /api/recipes/7': { body: layered } })
+  await click(wrapper.findAll('button').filter((b) => b.text() === 'Remove section')[1]!)
+  // The heading of the section it joined stays; the lines are all still there.
+  expect(sectionNames(wrapper)).toEqual(['Base'])
+  expect(items(wrapper)).toEqual([
+    ['Oats', '200'],
+    ['Almonds', '40'],
+  ])
+  expect(wrapper.findAll('.recipe-section')).toHaveLength(1)
+  expect(wrapper.findAll('button').filter((b) => b.text() === 'Remove section')).toHaveLength(0)
+  wrapper.unmount()
+})
+
+test('Save sends sections, servings, instructions and source, the link trimmed', async () => {
+  const { sent, handler } = recorder(200, (body) => ({ ...layered, ...body }))
+  const { wrapper } = await mountPage('/recipes/7', { 'GET /api/recipes/7': { body: layered }, 'PUT /api/recipes/7': handler })
+  await field(wrapper, 'Serves').setValue('6')
+  await wrapper.get('textarea').setValue('Bake.\nCool.')
+  await field(wrapper, 'Source').setValue(' https://example.com/new ')
+  await click(button(wrapper, 'Save'))
+  expect(sent).toMatchObject([
+    {
+      servings: 6,
+      sections: [
+        { name: 'Base', items: [{ ingredient_id: 1, amount: '200', unit: '', original_text: '200 g oats' }] },
+        { name: 'Topping', items: [{ ingredient_id: 3, amount: '40', unit: '', original_text: '' }] },
+      ],
+      instructions: 'Bake.\nCool.',
+      source_url: 'https://example.com/new',
+    },
+  ])
+  wrapper.unmount()
+})
+
+test('an invalid source and servings are marked and nothing is sent', async () => {
+  const { wrapper, calls } = await mountPage('/recipes/7')
+  await field(wrapper, 'Serves').setValue('0')
+  await field(wrapper, 'Source').setValue('example.com')
+  await click(button(wrapper, 'Save'))
+  expect(labelled(wrapper, 'Serves').text()).toContain('Enter a whole number from 1 to 1000.')
+  expect(wrapper.text()).toContain('Enter a link that starts with http:// or https://.')
+  expect(calls).not.toContain('PUT /api/recipes/7')
+  wrapper.unmount()
+})
+
+test("the server's section, servings and link errors show on their fields", async () => {
+  const { wrapper } = await mountPage('/recipes/7', {
+    'GET /api/recipes/7': { body: layered },
+    'PUT /api/recipes/7': {
+      status: 422,
+      body: {
+        detail: [
+          { loc: ['body', 'servings'], type: 'less_than_equal', msg: 'big' },
+          { loc: ['body', 'source_url'], type: 'invalid_url', msg: 'url' },
+          { loc: ['body', 'sections', 1, 'name'], type: 'name_required', msg: 'name' },
+          { loc: ['body', 'sections', 1, 'items', 0, 'amount'], type: 'decimal_max_digits', msg: 'long' },
+        ],
+      },
+    },
+  })
+  await click(button(wrapper, 'Save'))
+  expect(labelled(wrapper, 'Serves').text()).toContain('Enter a whole number from 1 to 1000.')
+  expect(wrapper.text()).toContain('Enter a link that starts with http:// or https://.')
+  expect(wrapper.findAll('.section-name')[1]!.text()).toContain('Name every section.')
+  expect(wrapper.findAll('.recipe-item')[1]!.text()).toContain('Use at most 9 digits before the point and 6 after.')
+  wrapper.unmount()
+})
+
+test('an ingredient that no longer exists is reported on save', async () => {
+  const { wrapper } = await mountPage('/recipes/7', {
+    'PUT /api/recipes/7': {
+      status: 422,
+      body: { detail: [{ loc: ['body', 'sections', 0, 'items', 1, 'ingredient_id'], type: 'unknown_ingredient', msg: 'x' }] },
+    },
+  })
+  await click(button(wrapper, 'Save'))
+  expect(wrapper.get('[role="alert"]').text()).toBe('An ingredient of this recipe no longer exists. Remove it and save again.')
+  wrapper.unmount()
+})
+
+test('Open source links only a valid link', async () => {
+  const { wrapper } = await mountPage('/recipes/7', { 'GET /api/recipes/7': { body: layered } })
+  const link = wrapper.get('a.source-link')
+  expect([link.text(), link.attributes('href'), link.attributes('target'), link.attributes('rel')]).toEqual([
+    'Open source',
+    'https://example.com/layered',
+    '_blank',
+    'noopener noreferrer',
+  ])
+  await field(wrapper, 'Source').setValue('javascript:alert(1)')
+  expect(wrapper.find('a.source-link').exists()).toBe(false)
+  await field(wrapper, 'Source').setValue('')
+  expect(wrapper.find('a.source-link').exists()).toBe(false)
+  wrapper.unmount()
+})
+
+test('the picker adds to the section whose button was pressed', async () => {
+  const { wrapper } = await mountPage('/recipes/7', { 'GET /api/recipes/7': { body: layered } })
+  await click(wrapper.findAll('button').filter((b) => b.text() === '+ Add ingredient')[1]!)
+  const row = [...document.querySelectorAll<HTMLElement>('.q-dialog .picker-row')].find((r) => r.textContent?.includes('Milk'))!
+  row.click()
+  await flushPromises()
+  const rows = wrapper.findAll('.recipe-section').map((section) => section.findAll('.recipe-item').map((r) => r.find('.item-name').text()))
+  expect(rows).toEqual([['Oats'], ['Almonds', 'Milk']])
+  wrapper.unmount()
+})
+
+
+// Line units.
+
+const dl40 = conversion({ id: 1, unit: 'dl', factor: '40' })
+const oatsWithDl = { ...oats, conversions: [dl40] }
+const sections = (items: { ingredient_id: number; amount: string; unit: string }[]) => [
+  { name: '', items: items.map((item) => ({ ...item, original_text: '' })) },
+]
+const dlRecipe = recipe({
+  id: 7,
+  name: 'Porridge',
+  sections: sections([
+    { ingredient_id: 1, amount: '60', unit: '' },
+    { ingredient_id: 1, amount: '1', unit: 'dl' },
+  ]),
+})
+
+/** Open the unit picker of the line labelled `label` (the first match) and choose `option`. */
+async function chooseLineUnit(wrapper: Wrapper, label: string, option: string, index = 0) {
+  const input = wrapper.findAll<HTMLInputElement>(`input[aria-label="${label}"]`)[index]!
+  input.element.closest('.q-field__control')!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+  await settleMenu()
+  const row = [...document.querySelectorAll<HTMLElement>('.q-menu .q-item')].find((r) => r.textContent?.trim() === option)
+  expect(row, `unit ${option}`).toBeDefined()
+  row!.click()
+  await settleMenu()
+}
+
+const unitBoxes = (wrapper: Wrapper) => wrapper.findAll('.line-unit .q-field__native').map((box) => box.text())
+
+test('a line in dl of a g ingredient with a dl conversion converts in the per-portion total', async () => {
+  const { wrapper } = await mountPage('/recipes/7', {
+    'GET /api/recipes/7': { body: dlRecipe },
+    'GET /api/ingredients': { body: [oatsWithDl, milk, almonds] },
+  })
+  // 60 g and 1 dl of 40 g per dl: 100 g of oats.
+  expect(totals(wrapper)).toEqual(['Energy 389 kcal', 'Protein 16.9 g'])
+  expect(unitBoxes(wrapper)).toEqual(['g', 'dl'])
+  wrapper.unmount()
+})
+
+test('an existing recipe opens with its line units', async () => {
+  const { wrapper } = await mountPage('/recipes/7', {
+    'GET /api/recipes/7': { body: dlRecipe },
+    'GET /api/ingredients': { body: [oatsWithDl, milk, almonds] },
+  })
+  expect(unitBoxes(wrapper)).toEqual(['g', 'dl'])
+  expect(wrapper.find('.unit-error').exists()).toBe(false)
+  wrapper.unmount()
+})
+
+test('choosing a catalogue unit on a line changes the total', async () => {
+  const { wrapper } = await mountPage('/recipes/7')
+  await chooseLineUnit(wrapper, 'Unit of Oats', 'kg (kilogram)')
+  expect(unitBoxes(wrapper)).toEqual(['kg', 'ml'])
+  // 60 kg of oats (233400 kcal) and 200 ml of milk (128 kcal).
+  expect(totals(wrapper)).toEqual(['Energy 233528 kcal', 'Protein 10140 g'])
+  wrapper.unmount()
+})
+
+test('New unit… adds a conversion through the API, selects it on the line and updates the total', async () => {
+  const posted = recorder(201, () => conversion({ id: 5, unit: 'dl', factor: '40' }))
+  const { wrapper } = await mountPage('/recipes/new', { 'POST /api/ingredients/1/conversions': posted.handler })
+  await pickIngredient(wrapper, '', 'Oats')
+  await field(wrapper, 'Amount of Oats').setValue('1')
+  await chooseLineUnit(wrapper, 'Unit of Oats', 'New unit…')
+  const open = dialog()
+  expect(open.text).toContain('New unit')
+  const unit = document.querySelector<HTMLInputElement>('.conversion-dialog input[aria-label="Unit"]')!
+  unit.value = 'dl'
+  unit.dispatchEvent(new Event('input', { bubbles: true }))
+  const factor = document.querySelector<HTMLInputElement>('.conversion-dialog input[aria-label="How many g one makes"]')!
+  factor.value = '40'
+  factor.dispatchEvent(new Event('input', { bubbles: true }))
+  await flushPromises()
+  await open.click('Save')
+  expect(posted.sent).toEqual([{ unit: 'dl', factor: '40' }])
+  expect(unitBoxes(wrapper)).toEqual(['dl'])
+  // 1 dl of 40 g per dl: 40 g of oats, 155.6 kcal.
+  expect(totals(wrapper)).toEqual(['Energy 156 kcal', 'Protein 6.8 g'])
+  wrapper.unmount()
+})
+
+test('a line that does not convert is marked and Save sends nothing', async () => {
+  const stale = recipe({
+    id: 7,
+    name: 'Porridge',
+    sections: sections([{ ingredient_id: 1, amount: '1', unit: 'dl' }]),
+  })
+  const put = recorder(200, () => stale)
+  const { wrapper } = await mountPage('/recipes/7', { 'GET /api/recipes/7': { body: stale }, 'PUT /api/recipes/7': put.handler })
+  expect(totals(wrapper)).toEqual(['Energy 0 kcal', 'Protein 0 g'])
+  await click(button(wrapper, 'Save'))
+  expect(wrapper.get('.unit-error').text()).toBe("dl of Oats doesn't convert. Pick another unit or add a conversion.")
+  expect(put.sent).toEqual([])
+  wrapper.unmount()
+})
+
+test("Save sends each line's unit", async () => {
+  const put = recorder(200, (body) => ({ ...dlRecipe, ...body }))
+  const { wrapper } = await mountPage('/recipes/7', {
+    'GET /api/recipes/7': { body: dlRecipe },
+    'GET /api/ingredients': { body: [oatsWithDl, milk, almonds] },
+    'PUT /api/recipes/7': put.handler,
+  })
+  await click(button(wrapper, 'Save'))
+  const [sent] = put.sent as { sections: { items: { unit: string }[] }[] }[]
+  expect(sent!.sections[0]!.items.map((item) => item.unit)).toEqual(['', 'dl'])
+  wrapper.unmount()
+})
+
+test("the server's unit_not_convertible shows on the line", async () => {
+  const withOz = recipe({
+    id: 7,
+    name: 'Porridge',
+    sections: sections([{ ingredient_id: 1, amount: '2', unit: 'oz' }]),
+  })
+  const { wrapper } = await mountPage('/recipes/7', {
+    'GET /api/recipes/7': { body: withOz },
+    'PUT /api/recipes/7': {
+      status: 422,
+      body: { detail: [{ loc: ['body', 'sections', 0, 'items', 0, 'unit'], type: 'unit_not_convertible', msg: 'x' }] },
+    },
+  })
+  await click(button(wrapper, 'Save'))
+  expect(wrapper.get('.unit-error').text()).toContain("oz of Oats doesn't convert")
+  wrapper.unmount()
+})
+
+test('with the catalogue not loaded the page still works for own-unit lines', async () => {
+  const put = recorder(200, (body) => ({ ...porridge, ...body }))
+  const { wrapper } = await mountPage('/recipes/7', { 'GET /api/units': 500, 'PUT /api/recipes/7': put.handler })
+  expect(totals(wrapper)).toEqual(['Energy 361 kcal', 'Protein 10.1 g'])
+  await click(button(wrapper, 'Save'))
+  expect(put.sent).toHaveLength(1)
+  wrapper.unmount()
+})
+
+test('with the catalogue not loaded a saved line in a catalogue unit still saves, the server deciding', async () => {
+  const inKg = recipe({ id: 7, name: 'Porridge', sections: sections([{ ingredient_id: 1, amount: '1', unit: 'kg' }]) })
+  const put = recorder(200, () => inKg)
+  const { wrapper } = await mountPage('/recipes/7', {
+    'GET /api/units': 500,
+    'GET /api/recipes/7': { body: inKg },
+    'PUT /api/recipes/7': put.handler,
+  })
+  await click(button(wrapper, 'Save'))
+  expect(put.sent).toHaveLength(1)
+  expect(wrapper.find('.unit-error').exists()).toBe(false)
+  wrapper.unmount()
+})
+
+
+// the import review ---------------------------------------------------------------
+
+const porridgeLine = importedLine({ original_text: '100 g oats', food: 'oats', amount: '100', ingredient_id: 1, status: 'own_unit' })
+const milkLine = importedLine({ original_text: '3 dl milk', food: 'milk', amount: '3', unit: 'dl' })
+const honeyLine = importedLine({ original_text: '2 tbsp honey', food: 'honey', amount: '2', unit: 'msk' })
+const pepperLine = importedLine({ original_text: 'salt and pepper to taste', food: 'salt and pepper', amount: null, status: 'not_an_ingredient' })
+const almondLine = importedLine({
+  original_text: '3 dl almonds',
+  food: 'almonds',
+  amount: '3',
+  unit: 'dl',
+  ingredient_id: 3,
+  status: 'needs_factor',
+  suggested_factor: '50',
+})
+
+async function mountImported(lineList = [porridgeLine, milkLine, honeyLine, pepperLine], server: FakeServer = {}, over = {}) {
+  setImportedDraft(importedRecipe({ sections: [{ name: '', lines: lineList }], ...over }))
+  return mountPage('/recipes/new', { 'POST /api/recipes/derived-tags': { body: [] }, ...server })
+}
+
+function banner(wrapper: Wrapper) {
+  return wrapper.get('.import-banner').text()
+}
+
+function lineRow(wrapper: Wrapper, index: number) {
+  return wrapper.findAll('.recipe-item')[index]!
+}
+
+function sourceLines(wrapper: Wrapper) {
+  return texts(wrapper, '.source-line')
+}
+
+function saveButton(wrapper: Wrapper) {
+  return wrapper.findAll('button').find((b) => b.text() === 'Save')!
+}
+
+async function typeIn(input: HTMLInputElement, text: string) {
+  input.value = text
+  input.dispatchEvent(new Event('input'))
+  await flushPromises()
+}
+
+test('an imported recipe opens in review: the banner counts the lines that need you and each line shows its source line', async () => {
+  const { wrapper } = await mountImported()
+  expect(banner(wrapper)).toBe('Imported from pasted text. 2 lines need you.')
+  expect(sourceLines(wrapper)).toEqual(['100 g oats', '3 dl milk', '2 tbsp honey', 'salt and pepper to taste'])
+  expect(value(wrapper, 'Name')).toBe('Imported porridge')
+  expect(value(wrapper, 'Serves')).toBe('2')
+  expect(wrapper.get('textarea').element.value).toBe('Boil.\nStir.')
+  expect(wrapper.findAll('.line-skipped')).toHaveLength(1)
+  expect(wrapper.findAll('.needs-you')).toHaveLength(2)
+  expect(saveButton(wrapper).attributes('disabled')).toBeDefined()
+  expect(wrapper.text()).toContain('Match, convert or skip every line to save.')
+  wrapper.unmount()
+})
+
+test('Pick ingredient opens the picker filled with the food, picking matches the line and the banner count drops', async () => {
+  const { wrapper } = await mountImported()
+  await click(lineRow(wrapper, 1).get('.pick-ingredient'))
+  expect(document.querySelector<HTMLInputElement>('.q-dialog input')!.value).toBe('milk')
+  const rows = [...document.querySelectorAll<HTMLElement>('.q-dialog .picker-row')]
+  expect(rows.map((r) => r.textContent)).toEqual(['Milkml'])
+  rows[0]!.click()
+  await flushPromises()
+  expect(lineRow(wrapper, 1).find('.item-name').text()).toBe('Milk')
+  expect(lineRow(wrapper, 1).find('.pick-ingredient').exists()).toBe(false)
+  expect(banner(wrapper)).toBe('Imported from pasted text. 1 line needs you.')
+  wrapper.unmount()
+})
+
+test('+ New ingredient opens the dialog with the name filled; saving matches the line, lists the ingredient and asks for a factor suggestion', async () => {
+  const honey = ingredient({ id: 9, name: 'Honey', unit: 'g' })
+  const asked: unknown[] = []
+  const { wrapper } = await mountImported(undefined, {
+    'POST /api/ingredients': { status: 201, body: honey },
+    'POST /api/recipe-imports/factor': (body) => {
+      asked.push(body)
+      return { body: { factor: '15' } }
+    },
+  })
+  await click(lineRow(wrapper, 2).get('.pick-ingredient'))
+  expect(document.querySelector<HTMLInputElement>('.q-dialog input')!.value).toBe('honey')
+  document.querySelector<HTMLButtonElement>('.q-dialog .new-ingredient')!.click()
+  await flushPromises()
+  const form = document.querySelector<HTMLInputElement>('.new-ingredient-dialog input[aria-label="Name"]')!
+  expect(form.value).toBe('Honey')
+  const save = [...document.querySelectorAll<HTMLButtonElement>('.new-ingredient-dialog button')].find((b) => b.textContent?.trim() === 'Save')!
+  save.click()
+  await flushPromises()
+  expect(lineRow(wrapper, 2).find('.item-name').text()).toBe('Honey')
+  expect(asked).toEqual([{ ingredient_id: 9, unit: 'msk', food: 'honey' }])
+  const input = lineRow(wrapper, 2).get<HTMLInputElement>('.factor-row input')
+  expect(input.element.value).toBe('15')
+  expect(lineRow(wrapper, 2).find('.ai-mark').exists()).toBe(true)
+  wrapper.unmount()
+})
+
+test('a line that needs a factor shows 1 dl = [50] g with the sparkle; Accept makes the line ready', async () => {
+  const { wrapper } = await mountImported([porridgeLine, almondLine])
+  const row = lineRow(wrapper, 1)
+  expect(row.get('.factor-row').text()).toContain('1 dl =')
+  expect(row.get<HTMLInputElement>('.factor-row input').element.value).toBe('50')
+  expect(row.find('.ai-mark').exists()).toBe(true)
+  expect(banner(wrapper)).toBe('Imported from pasted text. 1 line needs you.')
+  await click(row.get('.accept-factor'))
+  expect(banner(wrapper)).toBe('Imported from pasted text. All lines are ready.')
+  expect(lineRow(wrapper, 1).get('.factor-row').text()).toContain('50')
+  expect(lineRow(wrapper, 1).find('input[aria-label^="How many"]').exists()).toBe(false)
+  await click(lineRow(wrapper, 1).get('.change-factor'))
+  expect(banner(wrapper)).toBe('Imported from pasted text. 1 line needs you.')
+  wrapper.unmount()
+})
+
+test('a different factor is saved as user and the same one as ai, and only used conversions are sent', async () => {
+  for (const [typed, source] of [['50', 'ai'], ['55', 'user']] as const) {
+    const { sent, handler } = recorder(201, (body) => ({ ...porridge, ...body, id: 8 }))
+    const { wrapper, router } = await mountImported([porridgeLine, almondLine], { 'POST /api/recipes': handler })
+    await typeIn(lineRow(wrapper, 1).get<HTMLInputElement>('.factor-row input').element, typed)
+    await click(lineRow(wrapper, 1).get('.accept-factor'))
+    expect(saveButton(wrapper).attributes('disabled')).toBeUndefined()
+    await click(saveButton(wrapper))
+    const body = sent[0] as { new_conversions: unknown[]; sections: { items: unknown[] }[] }
+    expect(body.new_conversions).toEqual([{ ingredient_id: 3, unit: 'dl', factor: typed, source }])
+    expect(body.sections[0]!.items).toEqual([
+      { ingredient_id: 1, amount: '100', unit: '', original_text: '100 g oats' },
+      { ingredient_id: 3, amount: '3', unit: 'dl', original_text: '3 dl almonds' },
+    ])
+    expect(router.currentRoute.value.fullPath).toBe('/recipes')
+    wrapper.unmount()
+  }
+})
+
+test('a not-an-ingredient line is greyed; Add anyway makes it an ordinary line with an empty amount', async () => {
+  const { wrapper } = await mountImported([porridgeLine, pepperLine])
+  expect(lineRow(wrapper, 1).classes()).toContain('line-skipped')
+  expect(lineRow(wrapper, 1).get('input').attributes('disabled')).toBeDefined()
+  expect(banner(wrapper)).toBe('Imported from pasted text. All lines are ready.')
+  await click(button(lineRow(wrapper, 1) as never, 'Add anyway'))
+  expect(lineRow(wrapper, 1).classes()).not.toContain('line-skipped')
+  expect(lineRow(wrapper, 1).get<HTMLInputElement>('input').element.value).toBe('')
+  expect(banner(wrapper)).toBe('Imported from pasted text. 1 line needs you.')
+  wrapper.unmount()
+})
+
+test('Skip leaves a line out of the save and Add back returns it', async () => {
+  const { sent, handler } = recorder(201, (body) => ({ ...porridge, ...body, id: 8 }))
+  const { wrapper } = await mountImported([porridgeLine, milkLine], { 'POST /api/recipes': handler })
+  expect(saveButton(wrapper).attributes('disabled')).toBeDefined()
+  await click(lineRow(wrapper, 1).get('.skip'))
+  expect(banner(wrapper)).toBe('Imported from pasted text. All lines are ready.')
+  await click(lineRow(wrapper, 1).get('.unskip'))
+  expect(lineRow(wrapper, 1).find('.pick-ingredient').exists()).toBe(true)
+  await click(lineRow(wrapper, 1).get('.skip'))
+  await click(saveButton(wrapper))
+  const body = sent[0] as { sections: { items: { ingredient_id: number }[] }[] }
+  expect(body.sections[0]!.items.map((i) => i.ingredient_id)).toEqual([1])
+  wrapper.unmount()
+})
+
+test('tapping the banner scrolls to the next line that needs you and cycles', async () => {
+  const scrolled: Element[] = []
+  const original = Element.prototype.scrollIntoView
+  Element.prototype.scrollIntoView = function (this: Element) {
+    scrolled.push(this)
+  }
+  const { wrapper } = await mountImported()
+  const needing = wrapper.findAll('.needs-you').map((w) => w.element)
+  await click(wrapper.get('.import-banner'))
+  await click(wrapper.get('.import-banner'))
+  await click(wrapper.get('.import-banner'))
+  expect(scrolled).toEqual([needing[0], needing[1], needing[0]])
+  Element.prototype.scrollIntoView = original
+  wrapper.unmount()
+})
+
+test('leaving an imported draft asks first; Keep editing stays; Discard leaves', async () => {
+  const { wrapper, router } = await mountImported()
+  await click(wrapper.get('[aria-label="Back"]'))
+  expect(dialog().text).toContain('Discard this recipe?')
+  expect(router.currentRoute.value.fullPath).toBe('/recipes/new')
+  await dialog().click('Keep editing')
+  await new Promise((resolve) => setTimeout(resolve, 400))
+  expect(router.currentRoute.value.fullPath).toBe('/recipes/new')
+  await click(wrapper.get('[aria-label="Back"]'))
+  await dialog().click('Discard')
+  expect(router.currentRoute.value.fullPath).toBe('/recipes')
+  wrapper.unmount()
+})
+
+test('a saved imported recipe leaves without asking', async () => {
+  const { handler } = recorder(201, (body) => ({ ...porridge, ...body, id: 8 }))
+  const { wrapper, router } = await mountImported([porridgeLine], { 'POST /api/recipes': handler })
+  await click(saveButton(wrapper))
+  expect(router.currentRoute.value.fullPath).toBe('/recipes')
+  wrapper.unmount()
+})
+
+test('a recipe imported from a link names the site in the banner', async () => {
+  const { wrapper } = await mountImported(undefined, {}, { source_url: 'https://www.ica.se/recept/x' })
+  expect(banner(wrapper)).toBe('Imported from ica.se. 2 lines need you.')
+  expect(value(wrapper, 'Source')).toBe('https://www.ica.se/recept/x')
+  wrapper.unmount()
+})
+
+test('the site banner has a ready variant and a singular', async () => {
+  const { wrapper } = await mountImported([porridgeLine], {}, { source_url: 'https://www.ica.se/recept/x' })
+  expect(banner(wrapper)).toBe('Imported from ica.se. All lines are ready.')
+  wrapper.unmount()
+  const one = await mountImported([porridgeLine, milkLine], {}, { source_url: 'https://www.ica.se/recept/x' })
+  expect(banner(one.wrapper)).toBe('Imported from ica.se. 1 line needs you.')
+  one.wrapper.unmount()
+})
+
+test('an imported recipe without a source keeps the pasted-text banner', async () => {
+  const { wrapper } = await mountImported(undefined, {}, { source_url: '' })
+  expect(banner(wrapper)).toBe('Imported from pasted text. 2 lines need you.')
+  wrapper.unmount()
+})
+
+test('saving an imported recipe sends the source link as it is', async () => {
+  const { handler, sent: bodies } = recorder(201, (body) => ({ ...porridge, ...body, id: 8 }))
+  const { wrapper } = await mountImported([porridgeLine], { 'POST /api/recipes': handler }, { source_url: 'https://www.ica.se/recept/x' })
+  await click(saveButton(wrapper))
+  expect(bodies[0]).toMatchObject({ source_url: 'https://www.ica.se/recept/x' })
+  wrapper.unmount()
+})
+
+test('a site that is not a valid link, or has markup in its path, is shown as plain text only', async () => {
+  const bad = await mountImported(undefined, {}, { source_url: 'https://<img src=x onerror=alert(1)>.example' })
+  expect(banner(bad.wrapper)).toBe('Imported from pasted text. 2 lines need you.')
+  expect(bad.wrapper.get('.import-banner').find('img').exists()).toBe(false)
+  bad.wrapper.unmount()
+  const path = await mountImported(undefined, {}, { source_url: 'https://a.example/<b>x</b>' })
+  expect(banner(path.wrapper)).toBe('Imported from a.example. 2 lines need you.')
+  expect(path.wrapper.get('.import-banner').find('b').exists()).toBe(false)
+  path.wrapper.unmount()
+})
+
+test('an ordinary new recipe never asks, and a reload of an import is the empty editor', async () => {
+  const { wrapper, router } = await mountPage('/recipes/new')
+  expect(wrapper.find('.import-banner').exists()).toBe(false)
+  expect(value(wrapper, 'Name')).toBe('')
+  await field(wrapper, 'Name').setValue('Half typed')
+  await click(wrapper.get('[aria-label="Back"]'))
+  expect(router.currentRoute.value.fullPath).toBe('/recipes')
+  wrapper.unmount()
+})
+
+test('the cut note shows when the text was cut', async () => {
+  const { wrapper } = await mountImported(undefined, {}, { cut: true })
+  expect(wrapper.get('.import-banner').text()).toContain('The text was long: the end was left out.')
+  wrapper.unmount()
+})
+
+test('a server refusal of a conversion shows the save message and keeps the page', async () => {
+  const refusal = {
+    status: 422,
+    body: { detail: [{ loc: ['body', 'new_conversions', 0, 'unit'], type: 'duplicate', msg: 'x' }] },
+  }
+  const { wrapper, router } = await mountImported([porridgeLine, almondLine], { 'POST /api/recipes': refusal })
+  await click(lineRow(wrapper, 1).get('.accept-factor'))
+  await click(saveButton(wrapper))
+  expect(wrapper.text()).toContain('A conversion was refused. Check the units of the lines and save again.')
+  expect(router.currentRoute.value.fullPath).toBe('/recipes/new')
   wrapper.unmount()
 })

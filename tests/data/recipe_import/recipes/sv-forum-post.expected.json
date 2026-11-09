@@ -1,0 +1,60 @@
+{
+  "name": "Spaghetti med vitlök och citron",
+  "servings": 4,
+  "instructions": "Koka spaghettin enligt paketet.\nFräs vitlöken i oljan men låt den inte bli brun.\nHäll av pastan, spara lite av kokvattnet, blanda allt och pressa i citronen.\nToppa med parmesan.",
+  "sections": [
+    {
+      "name": "",
+      "lines": [
+        {
+          "original_text": "ca 300g spaghetti",
+          "amount": 300,
+          "unit": "g",
+          "food": "spaghetti",
+          "match": "Spaghetti",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "3 klyftor vitlök",
+          "amount": 3,
+          "unit": "klyftor",
+          "food": "vitlök",
+          "match": "Vitlök",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "2 msk. olivolja",
+          "amount": 2,
+          "unit": "msk",
+          "food": "olivolja",
+          "match": "Olivolja",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1/2 dl riven parmesan",
+          "amount": 0.5,
+          "unit": "dl",
+          "food": "riven parmesan",
+          "match": "Parmesan",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "en citron",
+          "amount": 1,
+          "unit": "",
+          "food": "citron",
+          "match": "Citron",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "Salt får man ju smaka av själv",
+          "amount": null,
+          "unit": "",
+          "food": "salt",
+          "match": null,
+          "not_an_ingredient": true
+        }
+      ]
+    }
+  ]
+}

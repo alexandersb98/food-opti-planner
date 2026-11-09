@@ -1,0 +1,97 @@
+{
+  "name": "Guacamole and Fresh Salsa for Tacos",
+  "servings": 4,
+  "instructions": "Mash the avocados with a fork, leaving a few chunks. Stir in the lime juice, the onion, the coriander and the salt. Press a sheet of cling film onto the surface.\nFor the salsa, mix the tomatoes, the onion, the lime zest and juice and the oil in a bowl. Let it stand for at least 15 minutes so the flavours come together.\nWarm the tortillas in a dry pan, fill them with your favourite filling and top with a spoonful of each.",
+  "sections": [
+    {
+      "name": "Guacamole",
+      "lines": [
+        {
+          "original_text": "2 ripe avocados",
+          "amount": 2,
+          "unit": "",
+          "food": "ripe avocados",
+          "match": "Avokado",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 lime, juiced",
+          "amount": 1,
+          "unit": "",
+          "food": "lime",
+          "match": "Lime",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1/2 red onion, finely chopped",
+          "amount": 0.5,
+          "unit": "",
+          "food": "red onion",
+          "match": "Rödlök",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "a handful of coriander, chopped",
+          "amount": 1,
+          "unit": "handful",
+          "food": "coriander",
+          "match": "Koriander",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "a pinch of salt",
+          "amount": null,
+          "unit": "",
+          "food": "salt",
+          "match": null,
+          "not_an_ingredient": true
+        }
+      ]
+    },
+    {
+      "name": "Salsa",
+      "lines": [
+        {
+          "original_text": "4 tomatoes, diced",
+          "amount": 4,
+          "unit": "",
+          "food": "tomatoes",
+          "match": "Tomat",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1/4 red onion, finely chopped",
+          "amount": 0.25,
+          "unit": "",
+          "food": "red onion",
+          "match": "Rödlök",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 lime, zest and juice",
+          "amount": 1,
+          "unit": "",
+          "food": "lime",
+          "match": "Lime",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "1 tbsp olive oil",
+          "amount": 1,
+          "unit": "tbsp",
+          "food": "olive oil",
+          "match": "Olivolja",
+          "not_an_ingredient": false
+        },
+        {
+          "original_text": "8 small corn tortillas, to serve",
+          "amount": 8,
+          "unit": "",
+          "food": "small corn tortillas",
+          "match": null,
+          "not_an_ingredient": false
+        }
+      ]
+    }
+  ]
+}

@@ -53,9 +53,9 @@ after design review — see decisions #1 and #22 in
   One endpoint each to download all data as a JSON file and load it
   back would give the owner a copy on their own machine. Left out of
   the first version.
-- **GUI: recipes that serve several portions.** The library has no
-  "serves N" field, so the GUI enters a recipe for one portion. A
-  "serves [4]" field that divides the amounts would make typing in
+- **GUI: recipes that serve several portions. Built in R2.** The library
+  has no "serves N" field, so the GUI enters a recipe for one portion. A
+  "serves [4]" field that divides the amounts makes typing in
   cookbook recipes easier. **Designed** in
   [`2026-11-07-recipe-import-design.md`](2026-11-07-recipe-import-design.md)
   (decision 9 there).

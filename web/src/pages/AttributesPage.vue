@@ -1,17 +1,19 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api } from '../api/client'
-import { fieldErrors } from '../api/errors'
+import { DECIMALS, parseDecimals } from '../attributeFields'
+import { conversionRefusal, fieldErrors } from '../api/errors'
 import type { Attribute, AttributeFields as Fields } from '../api/types'
+import AttributeFields from '../components/AttributeFields.vue'
 import ConfirmDelete from '../components/ConfirmDelete.vue'
 import LoadState from '../components/LoadState.vue'
+import UnitChangeDialog from '../components/UnitChangeDialog.vue'
 import { useLoad } from '../composables/useLoad'
+import { refusalText, useUnitChange } from '../composables/useUnitChange'
 
 const { t } = useI18n()
-
-// The library's precision range, and its default for a new attribute.
-const DECIMALS = { min: 0, max: 6, default: 3 }
+const unitChange = useUnitChange()
 
 const { data: attributes, loading, failed: loadFailed, load } = useLoad(() => api.GET('/api/attributes'), [])
 
@@ -19,7 +21,9 @@ const { data: attributes, loading, failed: loadFailed, load } = useLoad(() => ap
 // as typed. Decimals is a string while typed, so an empty field is allowed.
 const openId = ref<number | 'new' | null>(null)
 const draft = reactive({ name: '', unit: '', decimals: '' })
-const errors = reactive({ name: '', decimals: '', save: '' })
+const errors = reactive({ name: '', unit: '', decimals: '', save: '' })
+// A refusal of the unit change stays until the unit is edited or Done is pressed again.
+watch(() => draft.unit, () => (errors.unit = ''))
 const saving = ref(false)
 const deleteOpen = ref(false)
 
@@ -30,6 +34,7 @@ const NEW_ROW: Attribute = {
   decimals: DECIMALS.default,
   ingredient_count: 0,
   goal_count: 0,
+  mapping_count: 0,
 }
 const rows = computed(() =>
   openId.value === 'new' ? [...attributes.value, NEW_ROW] : attributes.value,
@@ -49,30 +54,12 @@ function info(attribute: Attribute) {
   return `${decimals} · ${t('count.goals', attribute.goal_count)}`
 }
 
-/** "1 → 0.1 g": the smallest step the planner counts, for the typed decimals. */
-const decimalsExample = computed(() => {
-  const decimals = parsedDecimals()
-  if (decimals === null) return ''
-  const step = (10 ** -decimals).toFixed(decimals)
-  return `${decimals} → ${step} ${draft.unit.trim()}`.trim().replaceAll(' ', '\u00a0') // kept on one line
-})
-
-function parsedDecimals(): number | null {
-  const decimals = Number(draft.decimals)
-  const valid =
-    String(draft.decimals).trim() !== '' &&
-    Number.isInteger(decimals) &&
-    decimals >= DECIMALS.min &&
-    decimals <= DECIMALS.max
-  return valid ? decimals : null
-}
-
 function openRow(attribute: Attribute, id: number | 'new') {
   openId.value = id
   draft.name = attribute.name
   draft.unit = attribute.unit
   draft.decimals = String(attribute.decimals)
-  Object.assign(errors, { name: '', decimals: '', save: '' })
+  Object.assign(errors, { name: '', unit: '', decimals: '', save: '' })
 }
 
 /** Open a row; an open row with changes is saved first, and stays open if that fails. */
@@ -89,11 +76,12 @@ async function startNew() {
 /** Save the open row and close it; false if it has to stay open. */
 async function done(): Promise<boolean> {
   if (openId.value === null) return true
-  const decimals = parsedDecimals()
+  const decimals = parseDecimals(draft.decimals)
   const fields: Fields = { name: draft.name.trim(), unit: draft.unit.trim(), decimals: decimals ?? 0 }
   errors.name = fields.name ? '' : t('common.nameRequired')
   errors.decimals = decimals === null ? t('attributes.decimalsRange', DECIMALS) : ''
   errors.save = ''
+  errors.unit = ''
   if (errors.name || errors.decimals) return false
 
   const current = openAttribute.value
@@ -101,6 +89,8 @@ async function done(): Promise<boolean> {
     openId.value = null
     return true
   }
+
+  if (current && fields.unit !== current.unit && !(await confirmUnitChange(current, fields))) return false
 
   saving.value = true
   try {
@@ -117,7 +107,9 @@ async function done(): Promise<boolean> {
       openId.value = null
       return true
     }
+    const refusal = conversionRefusal(error)
     if (fieldErrors(error).name === 'name_in_use') errors.name = t('attributes.nameInUse')
+    else if (refusal) errors.unit = refusal
     else errors.save = t('common.saveFailed')
   } catch {
     errors.save = t('common.saveFailed')
@@ -127,15 +119,53 @@ async function done(): Promise<boolean> {
   return false
 }
 
+/** Ask the server what the unit change does to the numbers stored in the
+ * unit and, if it converts or keeps them, ask the user. False stops the save:
+ * a refusal shows under the unit field, a failed preview as a failed save. */
+async function confirmUnitChange(current: Attribute, fields: Fields): Promise<boolean> {
+  saving.value = true
+  let change
+  try {
+    const { data } = await api.POST('/api/attributes/{attribute_id}/unit-change', {
+      params: { path: { attribute_id: current.id } },
+      body: { unit: fields.unit, decimals: fields.decimals },
+    })
+    change = data
+  } catch {
+    change = undefined
+  } finally {
+    saving.value = false
+  }
+  if (!change) {
+    errors.save = t('common.saveFailed')
+    return false
+  }
+  const names = { from: current.unit, to: fields.unit }
+  if (change.refusal) {
+    errors.unit = refusalText(t, change.refusal, { ...names, attribute: fields.name })
+    return false
+  }
+  if (change.kind === 'same') return true
+  return unitChange.ask({ name: fields.name, ...names, change })
+}
+
 const deleteWarning = computed(() => {
   const attribute = openAttribute.value
-  if (!attribute || (attribute.ingredient_count === 0 && attribute.goal_count === 0)) {
-    return t('common.deleteNothing')
+  const parts: string[] = []
+  if (attribute && (attribute.ingredient_count > 0 || attribute.goal_count > 0)) {
+    parts.push(
+      t('attributes.deleteRemoves', {
+        ingredients: t('count.ingredients', attribute.ingredient_count),
+        goals: t('count.goals', attribute.goal_count),
+      }),
+    )
   }
-  return t('attributes.deleteRemoves', {
-    ingredients: t('count.ingredients', attribute.ingredient_count),
-    goals: t('count.goals', attribute.goal_count),
-  })
+  if (attribute && attribute.mapping_count > 0) {
+    parts.push(
+      t('attributes.deleteUnmaps', { columns: t('count.sourceColumns', attribute.mapping_count) }),
+    )
+  }
+  return parts.length > 0 ? parts.join(' ') : t('common.deleteNothing')
 })
 
 async function confirmDelete() {
@@ -195,40 +225,10 @@ async function confirmDelete() {
             class="q-pa-md q-gutter-y-sm"
             @submit="done"
           >
-            <div class="row q-col-gutter-sm">
-              <q-input
-                v-model="draft.name"
-                class="col-6"
-                outlined
-                dense
-                autofocus
-                :label="$t('common.name')"
-                :error="!!errors.name"
-                :error-message="errors.name"
-              />
-              <q-input
-                v-model="draft.unit"
-                class="col-3"
-                outlined
-                dense
-                :label="$t('attributes.unit')"
-              />
-              <q-input
-                v-model="draft.decimals"
-                class="col-3"
-                type="number"
-                inputmode="numeric"
-                outlined
-                dense
-                :label="$t('attributes.decimals')"
-                :error="!!errors.decimals"
-                :error-message="errors.decimals"
-              />
-            </div>
-            <div class="text-caption text-grey-8">
-              {{ $t('attributes.decimalsHint') }}
-              <span v-if="decimalsExample">({{ decimalsExample }})</span>
-            </div>
+            <AttributeFields
+              v-model:draft="draft"
+              :errors="errors"
+            />
             <div
               v-if="errors.save"
               class="text-negative"
@@ -298,6 +298,7 @@ async function confirmDelete() {
       </q-list>
     </LoadState>
 
+    <UnitChangeDialog />
     <ConfirmDelete
       v-model="deleteOpen"
       :name="openAttribute?.name ?? ''"

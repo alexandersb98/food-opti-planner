@@ -8,11 +8,12 @@ from sqlalchemy import select
 
 from meal_planner.domain import MAX_PRECISION, MIN_PRECISION
 
-from .. import models
+from .. import models, unit_change
 from ..db import DbSession
 from ..fields import Name
 from .catalog import commit_named, count_by, get_or_404
 from .errors import NAME_IN_USE
+from .unit_changes import UNIT_CHANGE_REFUSED, UnitChange, answer, refuse
 
 router = APIRouter(prefix="/attributes", tags=["attributes"])
 
@@ -25,11 +26,19 @@ class AttributeFields(BaseModel):
     decimals: Annotated[int, Field(ge=MIN_PRECISION, le=MAX_PRECISION)]
 
 
+class AttributeUnitChange(BaseModel):
+    unit: Annotated[str, StringConstraints(strip_whitespace=True, max_length=models.UNIT_LENGTH)]
+    # What the form is about to save too; the stored decimals if left out.
+    decimals: Annotated[int, Field(ge=MIN_PRECISION, le=MAX_PRECISION)] | None = None
+
+
 class Attribute(AttributeFields):
     id: int
     # What deleting the attribute removes, for the warning.
     ingredient_count: int
     goal_count: int
+    # The source columns mapped to it (withdrawn ones too).
+    mapping_count: int
 
 
 def _counts(db: DbSession) -> dict[str, dict[int, int]]:
@@ -37,6 +46,7 @@ def _counts(db: DbSession) -> dict[str, dict[int, int]]:
     return {
         "ingredient_count": count_by(db, models.IngredientValue.attribute_id),
         "goal_count": count_by(db, models.Goal.attribute_id),
+        "mapping_count": count_by(db, models.SourceColumn.attribute_id),
     }
 
 
@@ -48,6 +58,15 @@ def _response(attribute: models.Attribute, counts: dict[str, dict[int, int]]) ->
         decimals=attribute.decimals,
         **{field: by_id.get(attribute.id, 0) for field, by_id in counts.items()},
     )
+
+
+def _keep_mappings(
+    db: DbSession, attribute: models.Attribute, new_unit: str, change: unit_change.Change
+) -> None:
+    """Refuse (after any refusal the conversion itself has) a unit that would
+    stop a mapped source column converting."""
+    if new_unit != attribute.unit:
+        change.refusal = change.refusal or unit_change.mapped_column_refusal(db, attribute, new_unit)
 
 
 @router.get("")
@@ -65,11 +84,29 @@ def create_attribute(body: AttributeFields, db: DbSession) -> Attribute:
     return _response(attribute, _counts(db))
 
 
-@router.put("/{attribute_id}", responses={**NOT_FOUND, **NAME_IN_USE})
+@router.post("/{attribute_id}/unit-change", responses=NOT_FOUND)
+def preview_unit_change(attribute_id: int, body: AttributeUnitChange, db: DbSession) -> UnitChange:
+    """What changing the unit does to the numbers stored in it. Writes nothing."""
+    attribute = get_or_404(db, models.Attribute, attribute_id, "attribute")
+    decimals = attribute.decimals if body.decimals is None else body.decimals
+    converters = unit_change.attribute_converters(attribute, decimals)
+    change = unit_change.plan(db, attribute.unit, body.unit, converters)
+    _keep_mappings(db, attribute, body.unit, change)
+    return answer(change)
+
+
+@router.put("/{attribute_id}", responses={**NOT_FOUND, **NAME_IN_USE, **UNIT_CHANGE_REFUSED})
 def update_attribute(attribute_id: int, body: AttributeFields, db: DbSession) -> Attribute:
     attribute = get_or_404(db, models.Attribute, attribute_id, "attribute")
+    # A unit in the same category converts the numbers stored in it, with the
+    # refusals of the preview; planned before anything is changed.
+    converters = unit_change.attribute_converters(attribute, body.decimals)
+    change = unit_change.plan(db, attribute.unit, body.unit, converters)
+    _keep_mappings(db, attribute, body.unit, change)
+    refuse(change)
     for field, value in body.model_dump().items():
         setattr(attribute, field, value)
+    change.apply()
     commit_named(db, attribute, "An attribute")
     return _response(attribute, _counts(db))
 

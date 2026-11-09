@@ -6,25 +6,108 @@ multi-day eating plan that satisfies them as well as possible. When
 constraints conflict, it finds a good-enough compromise instead of
 failing outright.
 
-**Status:** First slice implemented as the `meal_planner` library:
-recipes, tags, day and horizon constraints (hard and soft), serving
-multipliers, STRICT solving with violation and conflict reports, and a
-stop handle to end a running solve early.
-The GUI is being built: so far a server (`server/`) and a web app
-(`web/`) with a login, the Recipes, Ingredients, Attributes and Tags
-pages, a Plan page with the schedule, Make plan (which can be cancelled),
-the results page, today's meals and saved plans, goals (added and edited
-on the Plan page, with their own names, importance below and above and a
-day guard-rail under Advanced, and missed goals on the results page),
-recipe filters (tags set to Only or Never, with a count of the recipes
-left), a No plan possible card when Must goals clash (the clashing goals
-and days, fixed in place: a looser bound or Make Prefer, then Try again),
-and a deploy to Cloud Run.
+**Status:** The solver library (`meal_planner/`), a server (`server/`) and a web
+app (`web/`) are built and deployable to Cloud Run. What the app does now:
+
+- **Planning.** A Plan page with the schedule, Make plan (which can be
+  cancelled), the results page, today's meals and saved plans. Goals are added
+  and edited on the Plan page (names, importance below and above, a day
+  guard-rail under Advanced; missed goals show on the results page). Recipe
+  filters (tags set to Only or Never) show a count of the recipes left. A No plan
+  possible card appears when Must goals clash (the clashing goals and days, fixed
+  in place: a looser bound or Make Prefer, then Try again).
+- **Catalogue.** Recipes, Ingredients, Attributes and Tags pages. Tags can be
+  grouped as equivalent (filtering on one includes recipes whose ingredients have
+  any of them; the Recipes pages show a recipe's derived tags by the same rule).
+- **Units and settings.** A Settings page with preferred units for mass, volume
+  and energy, on a unit catalogue in `server/units.py`. Unit fields of
+  ingredients and attributes are combo boxes over that catalogue (grouped by
+  category, the preferred unit first, free text allowed; a new ingredient starts
+  in the preferred mass unit). A unit change within its category converts the
+  stored numbers after a dialog (ingredient values, goal bounds and references,
+  basis, recipe amounts, conversions); another category or free text only changes
+  the unit.
+- **Data sources.** Settings lists data sources in a Data sources card. A
+  source's page shows its attribution and columns, sets its colour and maps each
+  column to an attribute. An ingredient can be added from a source, keeps a link
+  to its food and shows updated values. The data file is described below.
+- **Recipe structure.** **Serves N** (amounts are for the whole recipe;
+  per-portion totals and the planner's portion divide by N), sections with
+  optional headings, the same ingredient on several lines, instructions and a
+  source link. An ingredient's "Used in N recipes" counts recipes, not lines.
+- **Line units and conversions.** A recipe line has a unit: the ingredient's
+  own, a catalogue unit that converts to it (also through one of its
+  conversions), or the unit of a stored conversion ("1 dl = 40 g", added on the
+  ingredient's page under Conversions or with **New unit...** on the line). The
+  planner and the totals convert every line to the ingredient's unit, and a line
+  that does not convert is refused when the recipe is saved.
+- **AI import, from text and from a link.** Recipes, **+**, **Import recipe**
+  (disabled with "Needs an AI key" until a key is set; it opens on a **Link**
+  field, with a **Paste text** switch for the text box) takes the page or the
+  text to a draft that opens on the recipe editor as an unsaved recipe in review
+  (a banner counting the lines that need you, each line's source line, **Pick
+  ingredient** with **+ New ingredient**, "1 dl = 100 g **Accept**" for a line
+  that needs a conversion factor, **Skip**, and **Save** disabled until every
+  line is matched and converts or is skipped). Saving also creates the accepted
+  conversions, with their source. Nothing is stored before Save.
+  The AI layer is in `server/ai/` (interfaces, prompt and schema, adapters for
+  four providers and a canned `fake` one), with a comparison script,
+  `scripts/compare_models.py`, that the owner runs by hand to choose a model (the
+  default in the app, `claude-sonnet-5-5`, is provisional until it has been run).
+
+### Importing from a link
+
+The server fetches the page under strict limits: http and https only, ports 80 and
+443, 10 seconds for the whole fetch, 2 MB, at most 3 redirects, HTML only. On every
+hop (the first URL and each redirect) it refuses internal addresses: loopback,
+private networks, link-local (including the cloud metadata server), carrier-grade
+NAT, 0.0.0.0, IPv4-mapped and other IPv6 equivalents, and legacy numeric hosts such
+as `2130706433`. It resolves the name once per hop and connects to the address it
+checked (the certificate is still verified against the name), so a name whose
+address changes between the check and the connection has nothing to rebind. The
+rules are in `server/address_policy.py`. A page with schema.org `Recipe` JSON-LD
+sends only that recipe's main fields; otherwise the page's visible text is sent.
+Pages that need JavaScript or a login can't be read: the app says "paste the text
+instead". The tests never touch the internet (a stubbed transport and a fake
+resolver). Residual risk: a public site is fetched, and its page is untrusted text
+that goes to a model with no tools.
+
+A script to build the Livsmedelsverket data file,
+`scripts/import_livsmedelsverket.py`, exists and is tested on a hand-made
+recorded response; the data file itself has not been generated yet (see
+"Refreshing the Livsmedelsverket data file").
+The server keeps a read-only reference copy of the data files in
+`server/data_sources/` (`*.json.gz`, loaded at startup, a file only when its
+version differs from the stored one; the directory can be changed with
+`DATA_SOURCES_DIR`). Settings lists the sources in a Data sources card, a
+source's page shows its attribution and columns, sets its colour and maps each
+column to an attribute (only attributes whose unit converts are offered, one
+column per attribute, with Create attribute on the spot; the card counts the
+mapped columns), deleting an attribute clears its mappings, and
+source tags (one per food group) show in the source's colour and can't be
+renamed or deleted. Ingredients can be added from a data source (Add from data
+source on the Ingredients page: search the foods, preview the converted values
+and source tags, a warning if the food was added before); such an ingredient
+shows its source on its page, can be unlinked, and is measured in mass units
+only, and changing an attribute's unit also converts the source values copied
+into ingredients. A linked ingredient shows **Updated values available** when
+the source's values move on (after a new data file, or a column mapped later):
+**Accept** copies the new values, **Keep mine** keeps the ingredient's own, and
+the Ingredients list marks such ingredients and can show only them. Tags can be
+made equivalent (tag groups) in a tag's **Equivalent tags** on the Tags page:
+filtering on one of them includes recipes whose ingredients have any of them,
+the members of a group share one rule, and three questions guard the changes
+that touch other tags (moving a tag from another group, switching an added
+tag's rule, changing the rule of a tag already in a group). The real Livsmedelsverket file is generated by the owner
+with `scripts/import_livsmedelsverket.py`; without it the app simply has no
+data source.
 
 Run the Python tests with `python3 -m pip install -e '.[server,dev]'` and
 then `python3 -m pytest`. Server tests use SQLite; set
 `TEST_DATABASE_URL=postgresql+psycopg://...` to run them on Postgres. The
 reference-scale benchmark is opt-in: `python3 -m pytest -m benchmark -s`.
+`scripts/compare_models.py` needs real AI keys and costs money; it is never
+run in tests (see "Model comparison" in the recipe-import spec).
 
 Run the GUI locally. The server needs the login password's hash and a
 key that signs the session cookie; it refuses to start without them:
@@ -36,6 +119,13 @@ python3 -m uvicorn --factory server.app:create_app --reload   # API on :8000, SQ
 cd web && npm install && npm run dev                          # app on :5173, forwards /api
 ```
 
+Recipe import needs an AI service. Optional settings: `AI_PROVIDER` (`anthropic`
+by default, also `gemini`, `openai`, `mistral`), `AI_MODEL`, `AI_API_KEY` (the key of
+that provider; without it Import is disabled) and `AI_DAILY_LIMIT` (model calls a
+day, default 50). `AI_PROVIDER=fake` (with `AI_ALLOW_FAKE=true`, so it can't be set by accident) needs no key and answers canned drafts (a text
+with `[fake:none]`, `[fake:broken]`, `[fake:broken-once]` or `[fake:down]` picks a
+failure), for trying the screens and for the end-to-end test.
+
 The session cookie is `Secure`. Chrome and Firefox accept it on
 `http://localhost`; other hosts need HTTPS. Changing `SESSION_KEY` logs
 out every session.
@@ -44,14 +134,46 @@ Deploying: every push to `main` that passes CI is deployed to Google
 Cloud Run once the owner has done the one-time setup in
 [`docs/deploy.md`](docs/deploy.md); until then the deploy job is skipped.
 
+Refreshing the Livsmedelsverket data file. The script needs network access to
+`dataportal.livsmedelsverket.se` and is never run by the tests or the app.
+The app works without the file (the data source is simply not loaded).
+The first run is a trial, because the script's guesses about the API (paging,
+language parameter, food groups, unit spellings) are not yet checked against
+the live API:
+
+```
+python3 scripts/import_livsmedelsverket.py --limit-foods 5 \
+    --out /tmp/lv-trial.json.gz --min-foods 0 --record /tmp/lv-trial.json
+```
+
+Check the summary: the classification types seen (and `--group-type` if the
+food groups are under another type), the units written, that the foods got
+groups, and that no skipped value looks like data. Send `/tmp/lv-trial.json`
+back to replace the test fixture with a real capture. Then the real run (a few
+minutes):
+
+```
+python3 scripts/import_livsmedelsverket.py
+```
+
+Check the summary again, then `git add server/data_sources/livsmedelsverket.json.gz`,
+commit it as `data: Livsmedelsverket <version>` and open a pull request. The
+licence credit line (CC BY 4.0, in the file's `attribution`) must stay visible
+in the app (screen S2).
+
 Frontend checks: `npm run lint`, `npm run typecheck`, `npm test` in
 `web/`. After changing the API, run `npm run gen:api` in `web/` to
-update `web/openapi.json` and `web/src/api/schema.ts`; tests fail
-until they are up to date.
+update `web/openapi.json` and `web/src/api/schema.ts`, and
+`web/src/test-units.json` (the unit catalogue the app's tests use); tests
+fail until they are up to date.
 
 End-to-end tests (Playwright, in `web/e2e/`) drive the built app in a
-phone-sized browser. They expect a running app with an empty database
-and its password in `E2E_PASSWORD`:
+phone-sized browser. They expect a running app with an empty database,
+started with `DATA_SOURCES_DIR=$PWD/tests/data/data_sources` (next to
+`DATABASE_URL`, `PASSWORD_HASH` and `SESSION_KEY`, and `AI_PROVIDER=fake` with `AI_ALLOW_FAKE=true` for the
+import step; the directory holds a small
+file of fake "TEST" foods, as the flow looks at a data source), and its
+password in `E2E_PASSWORD`:
 `E2E_PASSWORD=... E2E_BASE_URL=http://localhost:8000 npm run e2e` in
 `web/` (after `npx vite build`, so uvicorn serves the app; the first
 run needs `npx playwright install chromium`). CI runs them against the

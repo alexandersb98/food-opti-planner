@@ -8,7 +8,20 @@ from server.app import create_app
 def test_health_reports_a_reachable_database(client):
     response = client.get("/api/health")
     assert response.status_code == 200
-    assert response.json() == {"database": True}
+    assert response.json() == {"database": True, "ai_configured": False}
+
+
+def test_health_says_whether_the_ai_is_configured(database_url, web_dist):
+    from .conftest import logged_in_client
+
+    for settings, expected in (
+        ({"ai_provider": "fake"}, True),
+        ({"ai_provider": "anthropic", "ai_api_key": "k"}, True),
+        ({"ai_provider": "anthropic", "ai_api_key": ""}, False),
+        ({"ai_provider": ""}, False),
+    ):
+        with logged_in_client(database_url, web_dist, **settings) as client:
+            assert client.get("/api/health").json()["ai_configured"] is expected
 
 
 def test_health_reports_an_unreachable_database(tmp_path, make_settings):
@@ -17,7 +30,7 @@ def test_health_reports_an_unreachable_database(tmp_path, make_settings):
     with TestClient(create_app(settings)) as client:
         response = client.get("/api/health")
     assert response.status_code == 503
-    assert response.json() == {"database": False}
+    assert response.json() == {"database": False, "ai_configured": False}
 
 
 def test_health_survives_the_database_dropping_idle_connections(client, database_url):

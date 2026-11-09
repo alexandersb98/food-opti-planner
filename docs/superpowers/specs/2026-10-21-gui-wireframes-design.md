@@ -23,6 +23,7 @@ owner). Screen ids below (A1, C2, ...) match the canvas.
    screens get the same layout, centred.
 2. **Navigation: a hamburger menu** with five pages: Plan, Recipes,
    Ingredients, Attributes, Tags (C0). Each entry shows a count.
+   (The units spec adds a sixth, Settings, last, with no count.)
 3. **Plan setup is one overview screen with an editor per part**
    (A1), not a step-by-step wizard. The wizard was considered and
    dropped: plans are usually re-run after changing one goal, and the
@@ -136,16 +137,34 @@ part of this spec; it is designed in
 Search, quick tag filter chips (recipes), one row per item with key
 facts (recipes: kcal, protein, cost per portion and tags; ingredients:
 values per their basis and how many recipes use them), and a round
-**+** button to add.
+**+** button to add. On Recipes the **+** opens a menu: **New recipe**
+and **Import recipe** (I1); Import is disabled, with the caption "Needs an
+AI key", while the server has no AI key. The Ingredients list also has an **Add from data
+source** button (C7) under its intro text. A linked ingredient with updated
+source values shows a small **Updated values available** badge in its row, and
+a toggle **Only with updated values (n)** beside the search (shown only while
+some ingredient has updates) lists just those.
 
 ### C2 · Edit recipe
 
 - **Name.**
-- **Ingredients, for 1 portion:** ingredient, amount, its unit, remove.
-  "+ Add ingredient" opens a searchable picker (not drawn). → `items`
-  (`IngredientAmount`).
-- **Per portion:** attribute totals at 1×, worked out live and
-  read-only (decision #22).
+- **Serves [N]:** a whole number from 1 to 1000, default 1. Amounts are for
+  the whole recipe ("Amounts are for the whole recipe."); the planner's
+  portion is the amounts divided by N.
+- **Ingredients, for N portions:** sections, each an optional heading and
+  its lines: ingredient, amount, a **unit picker** (the ingredient's own
+  unit, the other units that convert to it, its conversions with ✨ for one
+  the AI suggested, and **New unit…**, which opens the conversion dialog:
+  "1 [unit] = [number] g"; a unit that does not convert is marked and the
+  save refused), a line menu ("Move to
+  {section}") and remove, then "+ Add ingredient", which opens a searchable
+  picker (not drawn) that offers every ingredient, as the same ingredient
+  may be on several lines. One unnamed section shows no heading. "+ Add
+  section" gives every section a name field (all required) and **Remove
+  section** (the lines move to the section above). → `items`
+  (`IngredientAmount`, an ingredient's lines summed and divided by N).
+- **Per portion:** attribute totals at 1×, worked out live (all lines,
+  divided by N) and read-only (decision #22).
 - **Tags:** on/off buttons, as on the ingredient (C4). Tags from the
   ingredients (derived by each tag's rule) are on and can't be turned
   off; the others are added by hand → `extra_tags`.
@@ -154,24 +173,86 @@ values per their basis and how many recipes use them), and a round
   any amount). Advanced: the hard upper limit (`hard_max_multiplier`,
   default 3× the soft one, decision #38) and the over-size penalty
   (`serving_cap_weight`).
+- **Instructions:** a text box, line breaks kept.
+- **Source:** a link (http:// or https://), with **Open source** beside it
+  when it is a valid link.
 - **Delete recipe.**
+
+### I1 · Import (`/recipes/import`)
+
+Opens on a **Link** field (with the hint "Works for most recipe sites. If a site
+won't open, paste the recipe text instead.") and a **Paste text** switch that shows
+the large **Recipe text** box instead. **Import** is disabled while the active
+input is empty or there is no AI key (the hint "Needs an AI key."). While the AI
+reads, the button says "Reading the recipe…" and the input is read-only. A failure
+shows its sentence under the input and keeps both inputs: "Couldn't read this page.
+Paste the recipe text instead.", "No recipe found on this page. Paste the recipe
+text instead.", "Enter a link that starts with http:// or https://." (for text: no
+recipe found, too much text), the AI did not answer, today's limit reached. On
+success C2 opens the draft.
+
+### C2 · Edit recipe: import review
+
+The draft opens as an unsaved new recipe. A banner says "Imported from *site*
+(or "pasted text"). N lines need you." (or "All lines are ready."), notes a cut text, and
+scrolls to the next line that needs you when tapped. Each line shows its source
+line above it. An unmatched line has **Pick ingredient** (the picker opens
+with the food searched; **+ New ingredient** makes it in a dialog) and
+**Skip**. A line whose unit does not convert shows "1 dl = [100] g ✨
+**Accept**" (✨ while the number is the AI's; another number is saved as the
+user's); after Accept "1 dl = 100 g ✨" with **Change**. A line that is not
+an ingredient is greyed with **Add anyway**. **Save** is disabled until every
+line is matched and converts, or is skipped, and creates the accepted
+conversions with the recipe. Leaving the unsaved draft asks "Discard this
+recipe?" (**Keep editing** / **Discard**).
 
 ### C4 · Edit ingredient
 
-- **Name**, **Measured in** (g, ml, pcs, ...) → `unit`.
-- **Values per [100] g:** the value basis (default 100 for g and ml, 1
-  for pcs), then one row per attribute. The library value is the typed
+- **Name**, **Measured in** (a combo box of units grouped by category,
+  preferred first, free text allowed) → `unit`.
+- **Values per [100] g:** the value basis (default 100 for a mass or
+  volume unit, 1 otherwise), then one row per attribute. The library value is the typed
   value divided by the basis. An empty value counts as 0, as in the
   library.
 - **Tags:** on/off buttons → `tags`.
-- **Used in N recipes · Show.** **Delete** is disabled while any recipe
-  uses the ingredient.
+- **Changing the unit** of a saved ingredient asks first: "Oats: the basis,
+  4 recipe amounts and 2 conversions will be converted from g to kg (× 0.001)." with
+  **Cancel** and **Convert** (**Change unit** when another category or free
+  text keeps the numbers; no dialog for another spelling). A refused
+  conversion shows under **Measured in** and the form stays open, also a
+  change of category while a conversion or a line in another unit exists.
+- An ingredient made from a data source food has a chip under the name,
+  "From Livsmedelsverket: Havregryn", in the source's colour (and "No
+  longer in the source" if the food was withdrawn), and **Unlink from
+  source**, which asks first and keeps the values and tags. **Measured in**
+  offers mass units only while it is linked; a volume unit or free text is
+  refused under it.
+- **Updated values available** (a linked ingredient whose source has new
+  numbers): a banner under the chip lists each attribute, "Protein 13.5 g →
+  13.8 g" ("Protein none → 13.8 g" for a value it never had), with **Keep
+  mine** and **Accept**. Either answer hides the banner and keeps other
+  unsaved edits; Accept fills the form with the new numbers.
+- **Conversions** (a saved ingredient; a new one says to save first): rows
+  like "1 dl = 100 g" with ✨ and its tooltip "Suggested by AI, not checked by
+  you" for an AI one, **Edit** and **Delete** (disabled while a recipe uses it,
+  with "Used in N recipes"), and **+ Add conversion**, which opens the
+  conversion dialog (unit, "How many g one makes"). Each act is saved at once.
+  Deleting the ingredient says "This also removes its N conversions."
+- **Used in N recipes · Show.** N counts recipes, not lines: an ingredient
+  on two lines of one recipe counts once. **Delete** is disabled while any
+  recipe uses the ingredient.
 
 ### C5 · Attributes
 
-A list; a row opens in place to edit **Name**, **Unit** (GUI-only) and
-**Decimals** (→ `precision`). Delete warns how many ingredient values
-and goals it removes, then removes them. `accrues_on` is not shown (it
+A list; a row opens in place to edit **Name**, **Unit** (GUI-only; the same
+combo box, with the help text "The amount per the ingredient's basis, e.g.
+g or kcal.") and **Decimals** (→ `precision`). Changing the unit of a saved
+attribute asks first, in the same dialog ("Iron: 12 ingredient values, 2 source
+values and 2 goals will be converted from mg to µg (× 1000)."); a refusal, such as a goal
+bound that needs more decimals, or a mapped source column that would stop
+converting (it names the column), shows under **Unit**. Delete warns how many
+ingredient values and goals it removes and how many source columns' mappings it
+clears ("Its mapping from 2 source columns is cleared."), then does so. `accrues_on` is not shown (it
 has no effect yet, decision #28). "+ New attribute".
 
 ### C6 · Tags
@@ -181,6 +262,52 @@ gets this tag when **all ingredients have it** / **any ingredient has
 it**" → `TagDef.derive` `"all"` / `"any"` (decision #37). Tags no
 ingredient has are labelled "added by hand". Delete warns, then removes
 the tag from ingredients, recipes and plan filters. "+ New tag".
+A source tag (made from a data source's food group) shows a dot in its
+source's colour and the source's name in its caption; its open form has no
+Name input and no Delete, only the rule and Done. Tags made by hand are
+listed first, then the source tags.
+An existing tag's form has **Equivalent tags**: the other members of its tag
+group as removable chips ("None" when there are none) and an **Add equivalent
+tag** picker (searchable; a tag already in another group says "now equivalent
+to ..."). Done saves the chips with the rest. A row's caption ends "· equivalent
+to Seafood, Fisk och skaldjur". When a change touches other tags a dialog asks,
+one question at a time: **Move** / **Don't move** a tag from another group,
+**Switch** / **Don't add** a tag whose rule differs, **Change** / **Cancel** a
+rule change of a tag already in a group; a no changes the draft (drops the
+chip, restores the rule) and the rest is saved.
+
+### C7 · Add from data source
+
+A full-screen dialog opened from C3, with a back arrow. A **Data source**
+drop-down (starting at the last one used), a **Search foods** box and the
+foods, 20 at a time (name, food groups) with **Show more**. Choosing a food
+shows **Name** (editable), "Measured in g, values per 100 g", the values
+that will be copied ("Protein 13.5 g"; "Not copied: ..." for any too large;
+a hint if no column is mapped), the food's source tags as on/off buttons, a
+warning if an ingredient already comes from the food, and **Back to
+results** and **Add**, which opens the new ingredient on C4. A name in use
+shows under **Name**.
+
+### S1 · Settings
+
+Cards: **Preferred units** (mass, volume, energy drop-downs, saved on
+choosing) and **Data sources**, one row per loaded source with a colour dot,
+name and "Version … · N foods · M of K columns mapped", each opening S2; "No data sources loaded."
+when there are none. The two cards load independently, so one failing never
+hides the other.
+
+### S2 · Data source
+
+A full page with a back arrow to Settings. The source's **Version**,
+**Imported** time and **Attribution** (when it has one); a **Colour**
+picker, saved when the picker closes; and the **Columns**: a count, a search
+box and the list (name, unit), withdrawn columns last, greyed and marked "No
+longer in the source". Each row has an **Attribute** drop-down: Not mapped, the
+attributes whose unit converts with the column's (one held by another column of
+the source is disabled, "taken by <column>"), and **Create attribute…**, which
+opens a small dialog (Name empty, Unit starting as the preferred unit of the
+column's category, Decimals 3; **Cancel**, **Add**) and maps the column to the
+new attribute. Choosing saves at once; a failure shows under the row.
 
 ## Importance
 
@@ -223,6 +350,6 @@ and not discussed further:
 
 - Deleting an ingredient in use is blocked; deleting an attribute or a
   tag in use is allowed after a warning and cascades.
-- Recipes are entered for one portion; a "serves N" field is a future
-  feature.
+- Recipes have a "serves N" field (slice R2); amounts are for the whole
+  recipe.
 - The importance scale above.

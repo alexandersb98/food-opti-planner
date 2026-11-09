@@ -98,5 +98,6 @@ def recipe_count(body: RecipeCountFields, db: DbSession) -> RecipeCount:
         raise _invalid(errors)
     rows = db.scalars(queries.recipes()).all()
     only, never = ({tags[f.tag_id].name for f in body.tag_filters if f.mode == mode} for mode in ("only", "never"))
-    usable = translate.usable_recipes(rows, list(tags.values()), only, never)
+    # A recipe with a line that does not convert is never usable.
+    usable = translate.usable_recipes([r for r in rows if translate.converts(r)], list(tags.values()), only, never)
     return RecipeCount(usable=len(usable), total=len(rows))

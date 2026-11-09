@@ -1,0 +1,229 @@
+[
+  {
+    "name": "Vetemjöl",
+    "unit": "g",
+    "conversion_units": [
+      "dl"
+    ]
+  },
+  {
+    "name": "Socker",
+    "unit": "g",
+    "conversion_units": [
+      "dl"
+    ]
+  },
+  {
+    "name": "Strösocker",
+    "unit": "g",
+    "conversion_units": [
+      "dl"
+    ]
+  },
+  {
+    "name": "Smör",
+    "unit": "g",
+    "conversion_units": [
+      "msk"
+    ]
+  },
+  {
+    "name": "Mjölk",
+    "unit": "ml",
+    "conversion_units": []
+  },
+  {
+    "name": "Grädde",
+    "unit": "ml",
+    "conversion_units": []
+  },
+  {
+    "name": "Ägg",
+    "unit": "st",
+    "conversion_units": []
+  },
+  {
+    "name": "Gul lök",
+    "unit": "st",
+    "conversion_units": []
+  },
+  {
+    "name": "Rödlök",
+    "unit": "st",
+    "conversion_units": []
+  },
+  {
+    "name": "Vitlök",
+    "unit": "st",
+    "conversion_units": [
+      "klyfta"
+    ]
+  },
+  {
+    "name": "Crème fraîche",
+    "unit": "g",
+    "conversion_units": [
+      "dl"
+    ]
+  },
+  {
+    "name": "Havregryn",
+    "unit": "g",
+    "conversion_units": [
+      "dl"
+    ]
+  },
+  {
+    "name": "Basmatiris",
+    "unit": "g",
+    "conversion_units": [
+      "dl"
+    ]
+  },
+  {
+    "name": "Spaghetti",
+    "unit": "g",
+    "conversion_units": []
+  },
+  {
+    "name": "Kycklingfilé",
+    "unit": "g",
+    "conversion_units": []
+  },
+  {
+    "name": "Köttfärs",
+    "unit": "g",
+    "conversion_units": []
+  },
+  {
+    "name": "Krossade tomater",
+    "unit": "g",
+    "conversion_units": [
+      "burk"
+    ]
+  },
+  {
+    "name": "Tomat",
+    "unit": "st",
+    "conversion_units": []
+  },
+  {
+    "name": "Gurka",
+    "unit": "st",
+    "conversion_units": []
+  },
+  {
+    "name": "Olivolja",
+    "unit": "ml",
+    "conversion_units": []
+  },
+  {
+    "name": "Salt",
+    "unit": "g",
+    "conversion_units": [
+      "tsk"
+    ]
+  },
+  {
+    "name": "Svartpeppar",
+    "unit": "g",
+    "conversion_units": [
+      "krm"
+    ]
+  },
+  {
+    "name": "Potatis",
+    "unit": "g",
+    "conversion_units": []
+  },
+  {
+    "name": "Morötter",
+    "unit": "g",
+    "conversion_units": [
+      "st"
+    ]
+  },
+  {
+    "name": "Parmesan",
+    "unit": "g",
+    "conversion_units": [
+      "dl"
+    ]
+  },
+  {
+    "name": "Citron",
+    "unit": "st",
+    "conversion_units": []
+  },
+  {
+    "name": "Lime",
+    "unit": "st",
+    "conversion_units": []
+  },
+  {
+    "name": "Avokado",
+    "unit": "st",
+    "conversion_units": []
+  },
+  {
+    "name": "Kikärtor",
+    "unit": "g",
+    "conversion_units": [
+      "burk"
+    ]
+  },
+  {
+    "name": "Kokosmjölk",
+    "unit": "ml",
+    "conversion_units": [
+      "burk"
+    ]
+  },
+  {
+    "name": "Röd currypasta",
+    "unit": "g",
+    "conversion_units": [
+      "msk"
+    ]
+  },
+  {
+    "name": "Bakpulver",
+    "unit": "g",
+    "conversion_units": [
+      "tsk"
+    ]
+  },
+  {
+    "name": "Kanel",
+    "unit": "g",
+    "conversion_units": [
+      "tsk"
+    ]
+  },
+  {
+    "name": "Honung",
+    "unit": "g",
+    "conversion_units": [
+      "msk"
+    ]
+  },
+  {
+    "name": "Fetaost",
+    "unit": "g",
+    "conversion_units": []
+  },
+  {
+    "name": "Koriander",
+    "unit": "g",
+    "conversion_units": [
+      "kruka"
+    ]
+  },
+  {
+    "name": "Yoghurt naturell",
+    "unit": "g",
+    "conversion_units": [
+      "dl"
+    ]
+  }
+]

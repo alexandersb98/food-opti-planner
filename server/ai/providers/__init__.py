@@ -1,0 +1,43 @@
+"""One adapter per provider; `build_chat` picks one by name."""
+
+from server.ai.chat import ChatProvider, HttpxTransport, KeyScrubbingTransport, Transport
+from server.ai.errors import UnknownProviderError
+from server.ai.providers.anthropic_messages import AnthropicChat
+from server.ai.providers.fake import FakeChat
+from server.ai.providers.gemini_generate import GeminiChat
+from server.ai.providers.mistral_chat import MistralChat
+from server.ai.providers.openai_chat import OpenAIChat
+
+ADAPTERS: dict[str, type] = {
+    "anthropic": AnthropicChat,
+    "gemini": GeminiChat,
+    "openai": OpenAIChat,
+    "mistral": MistralChat,
+    "fake": FakeChat,  # canned answers, for tests; the comparison script has no key for it
+}
+
+KEY_ENV: dict[str, str] = {
+    "anthropic": "ANTHROPIC_API_KEY",
+    "gemini": "GEMINI_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "mistral": "MISTRAL_API_KEY",
+}
+
+
+def build_chat(
+    provider: str, model: str, api_key: str, transport: Transport | None = None
+) -> ChatProvider:
+    """The chat for a provider name.
+
+    The caller passes one shared transport; without one a new HttpxTransport is
+    made, which the caller must close (a transport made in here is unreachable
+    through KeyScrubbingTransport, so the app always passes its own). A
+    provider that does not use HTTP (`fake`) gets no transport at all."""
+    try:
+        adapter = ADAPTERS[provider]
+    except KeyError:
+        known = ", ".join(sorted(ADAPTERS))
+        raise UnknownProviderError(f"unknown provider {provider!r}; known providers: {known}") from None
+    if not getattr(adapter, "uses_http", True):
+        return adapter(model, api_key)
+    return adapter(model, api_key, KeyScrubbingTransport(transport or HttpxTransport(), api_key))

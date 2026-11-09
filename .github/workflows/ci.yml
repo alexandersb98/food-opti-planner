@@ -78,8 +78,9 @@ jobs:
           hash="$(docker run --rm meal-planner python -c \
             "from argon2 import PasswordHasher; print(PasswordHasher().hash('$E2E_PASSWORD'))")"
           docker run -d --name app --network host -e PORT=8080 \
+            -v "$PWD/tests/data/data_sources:/data_sources:ro" -e DATA_SOURCES_DIR=/data_sources \
             -e DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/planner_e2e \
-            -e PASSWORD_HASH="$hash" -e SESSION_KEY=e2e meal-planner
+            -e PASSWORD_HASH="$hash" -e SESSION_KEY=e2e -e AI_PROVIDER=fake -e AI_ALLOW_FAKE=true meal-planner
           curl --fail --silent --show-error --retry 10 --retry-delay 2 --retry-all-errors \
             http://localhost:8080/api/health
       - uses: actions/setup-node@v4
@@ -141,13 +142,49 @@ jobs:
           docker build -t "$IMAGE" .
           docker push "$IMAGE"
       - name: Deploy
+        env:
+          # Recipe import (docs/deploy.md, step 5b): the key is passed only when
+          # AI_ENABLED is true, the settings only when they are set.
+          AI_ENABLED: ${{ vars.AI_ENABLED }}
+          AI_PROVIDER: ${{ vars.AI_PROVIDER }}
+          AI_MODEL: ${{ vars.AI_MODEL }}
+          AI_DAILY_LIMIT: ${{ vars.AI_DAILY_LIMIT }}
         run: |
+          set -euo pipefail
+          secrets="DATABASE_URL=database-url:latest,SESSION_KEY=session-key:latest,PASSWORD_HASH=password-hash:latest"
+          if [ "$AI_ENABLED" = "true" ]; then
+            secrets="$secrets,AI_API_KEY=ai-api-key:latest"
+          fi
+          if [ "$AI_PROVIDER" = "fake" ]; then
+            echo "AI_PROVIDER=fake is for tests and must not be deployed" >&2
+            exit 1
+          fi
+          # Only the AI_* plain variables are touched: those that are set are
+          # updated, the others removed (removing one that is absent is fine),
+          # so variables set by hand in the console are never wiped.
+          update=""
+          remove=""
+          for name in AI_PROVIDER AI_MODEL AI_DAILY_LIMIT; do
+            value="${!name}"
+            if [ -n "$value" ]; then
+              update="${update:+$update,}$name=$value"
+            else
+              remove="${remove:+$remove,}$name"
+            fi
+          done
+          env_flags=()
+          if [ -n "$remove" ]; then
+            env_flags+=("--remove-env-vars=$remove")
+          fi
+          if [ -n "$update" ]; then
+            env_flags+=("--update-env-vars=$update")
+          fi
           gcloud run deploy "$SERVICE" --quiet \
             --project="$PROJECT" --region="$REGION" --image="$IMAGE" \
             --min-instances=0 --max-instances=1 --cpu=1 --memory=2Gi \
             --timeout=360 --cpu-throttling --allow-unauthenticated \
             --service-account="meal-planner-run@$PROJECT.iam.gserviceaccount.com" \
-            --set-secrets=DATABASE_URL=database-url:latest,SESSION_KEY=session-key:latest,PASSWORD_HASH=password-hash:latest
+            --set-secrets="$secrets" "${env_flags[@]}"
       - name: Health check
         run: |
           url="$(gcloud run services describe "$SERVICE" --project="$PROJECT" --region="$REGION" --format='value(status.url)')"

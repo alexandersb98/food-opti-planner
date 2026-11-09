@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { api } from '../api/client'
 import type { Attribute, Recipe, Tag } from '../api/types'
-import AddButton from '../components/AddButton.vue'
+import AddMenuButton from '../components/AddMenuButton.vue'
 import LoadState from '../components/LoadState.vue'
 import { loadAll, useLoad } from '../composables/useLoad'
 import { valueText } from '../format'
 import { byId, searchByName } from '../lists'
+
+const { t } = useI18n()
 
 // The attributes and tags give the totals and tags their names.
 const { data, loading, failed, load } = useLoad(
@@ -18,6 +21,23 @@ const { data, loading, failed, load } = useLoad(
     }),
   { recipes: [] as Recipe[], attributes: [] as Attribute[], tags: [] as Tag[] },
 )
+
+// Whether import can run: its own call, never blocking the page, and a failed
+// or missing answer counts as no.
+const aiConfigured = ref(false)
+onMounted(async () => {
+  try {
+    const { data: health } = await api.GET('/api/health')
+    aiConfigured.value = health?.ai_configured === true
+  } catch {
+    aiConfigured.value = false
+  }
+})
+
+const addItems = computed(() => [
+  { label: t('recipes.new'), to: '/recipes/new' },
+  { label: t('recipes.import'), to: '/recipes/import', disabled: !aiConfigured.value, hint: t('recipes.needsKey') },
+])
 
 const search = ref<string | null>('')
 const chosenTags = ref(new Set<number>())
@@ -153,9 +173,9 @@ function tagNames(recipe: Recipe) {
         </q-item>
       </q-list>
     </LoadState>
-    <AddButton
-      to="/recipes/new"
-      :label="$t('recipes.new')"
+    <AddMenuButton
+      :label="$t('recipes.add')"
+      :items="addItems"
     />
   </q-page>
 </template>

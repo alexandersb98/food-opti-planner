@@ -1,6 +1,7 @@
 import pytest
+from sqlalchemy import create_engine, text
 
-from .conftest import RECIPE
+from .conftest import fixed_portion_recipe, recipe_body, schedule
 
 
 @pytest.fixture
@@ -15,13 +16,16 @@ def milk(catalog):
 
 def fields(*items, **changes):
     """A porridge recipe of (ingredient id, amount) pairs."""
-    return {
-        **RECIPE,
-        "name": "Porridge",
-        "items": [{"ingredient_id": i, "amount": a} for i, a in items],
-        "extra_tag_ids": [],
-        **changes,
-    }
+    return {**recipe_body(items=items), **changes}
+
+
+def line(ingredient, amount, original_text="", unit=""):
+    return {"ingredient_id": ingredient, "amount": amount, "unit": unit, "original_text": original_text}
+
+
+def items(recipe):
+    """The ingredient ids of every line of a response, in order."""
+    return [i["ingredient_id"] for section in recipe["sections"] for i in section["items"]]
 
 
 def create(client, *items, **changes):
@@ -45,7 +49,10 @@ def test_a_created_recipe_is_listed_with_its_tags_and_totals(client, catalog):
     assert created == {
         "id": created["id"],
         "name": "Porridge",
-        "items": [{"ingredient_id": oats, "amount": "60"}, {"ingredient_id": water, "amount": "200"}],
+        "servings": 1,
+        "instructions": "",
+        "source_url": "",
+        "sections": [{"name": "", "items": [line(oats, "60"), line(water, "200")]}],
         "extra_tag_ids": [quick],
         "min_multiplier": "0.5",
         "max_multiplier": "2",
@@ -53,6 +60,7 @@ def test_a_created_recipe_is_listed_with_its_tags_and_totals(client, catalog):
         "hard_max_multiplier": None,
         "serving_cap_weight": "1",
         "derived_tag_ids": [vegan],
+        "unconvertible": False,
         "totals": [{"attribute_id": energy, "value": "233"}, {"attribute_id": protein, "value": "10.1"}],
     }
     assert client.get("/api/recipes").json() == [created]
@@ -61,14 +69,14 @@ def test_a_created_recipe_is_listed_with_its_tags_and_totals(client, catalog):
 
 def test_items_keep_their_order(client, oats, milk):
     created = create(client, (milk, "200"), (oats, "60"))
-    assert [item["ingredient_id"] for item in created["items"]] == [milk, oats]
+    assert items(created) == [milk, oats]
 
 
 def test_amounts_read_back_exactly_as_typed(client, oats):
     created = create(client, (oats, "0.000001"))
-    assert created["items"][0]["amount"] == "0.000001"
+    assert created["sections"][0]["items"][0]["amount"] == "0.000001"
     created = client.put(f"/api/recipes/{created['id']}", json=fields((oats, 60.50))).json()
-    assert created["items"][0]["amount"] == "60.5"
+    assert created["sections"][0]["items"][0]["amount"] == "60.5"
 
 
 def test_totals_are_rounded_half_away_from_zero_to_the_attributes_decimals(client, catalog):
@@ -110,7 +118,17 @@ def test_the_portion_size_fields_round_trip(client, oats):
     [
         {"name": ""},
         {"name": "x" * 101},
-        {"items": []},
+        {"sections": []},
+        {"servings": 0},
+        {"servings": -1},
+        {"servings": 1001},
+        {"servings": 1.5},
+        {"servings": None},
+        {"instructions": "x" * 20001},
+        {"instructions": None},
+        {"source_url": "x" * 2001},
+        {"sections": [{"name": "x" * 101, "items": [{"ingredient_id": 1, "amount": "1", "original_text": ""}]}]},
+        {"sections": [{"name": "", "items": [{"ingredient_id": 1, "amount": "1", "original_text": "x" * 501}]}]},
         {"min_multiplier": "0"},
         {"min_multiplier": "-1"},
         {"min_multiplier": "0.0005"},
@@ -133,7 +151,7 @@ def test_invalid_fields_answer_422(client, oats, changes):
 def test_an_invalid_amount_answers_422(client, oats, amount):
     response = client.post("/api/recipes", json=fields((oats, amount)))
     assert response.status_code == 422
-    assert response.json()["detail"][0]["loc"][:3] == ["body", "items", 0]
+    assert response.json()["detail"][0]["loc"][:5] == ["body", "sections", 0, "items", 0]
 
 
 @pytest.mark.parametrize(
@@ -162,15 +180,16 @@ def test_portion_sizes_at_the_limits_are_accepted(client, oats, changes):
     create(client, (oats, "60"), **changes)
 
 
-def test_unknown_ingredients_and_tags_and_an_ingredient_twice_answer_422(client, oats):
-    response = client.post(
-        "/api/recipes", json=fields((oats, "60"), (999, "1"), (oats, "2"), extra_tag_ids=[999])
-    )
+def test_unknown_ingredients_and_tags_answer_422_at_their_place(client, oats):
+    sections = [
+        {"name": "A", "items": [line(oats, "60")]},
+        {"name": "B", "items": [line(oats, "1"), line(999, "1")]},
+    ]
+    response = client.post("/api/recipes", json=fields(sections=sections, extra_tag_ids=[999]))
     assert response.status_code == 422
     errors = {tuple(e["loc"]): e["type"] for e in response.json()["detail"]}
     assert errors == {
-        ("body", "items", 1, "ingredient_id"): "unknown_ingredient",
-        ("body", "items", 2, "ingredient_id"): "duplicate",
+        ("body", "sections", 1, "items", 1, "ingredient_id"): "unknown_ingredient",
         ("body", "extra_tag_ids", 0): "unknown_tag",
     }
 
@@ -188,7 +207,10 @@ def test_update_changes_every_field(client, catalog, oats, milk):
     porridge = create(client, (oats, "60"), extra_tag_ids=[vegan])
     changes = {
         "name": "Milk porridge",
-        "items": [{"ingredient_id": milk, "amount": "200"}, {"ingredient_id": oats, "amount": "50"}],
+        "servings": 4,
+        "instructions": "Stir.\nServe.",
+        "source_url": "https://example.com/porridge",
+        "sections": [{"name": "Base", "items": [line(milk, "200"), line(oats, "50", "50 g oats")]}],
         "extra_tag_ids": [quick],
         "min_multiplier": "1",
         "max_multiplier": "3",
@@ -206,7 +228,7 @@ def test_update_can_remove_items_and_tags(client, catalog, oats, milk):
     vegan = catalog.tag()
     porridge = create(client, (oats, "60"), (milk, "200"), extra_tag_ids=[vegan])
     response = client.put(f"/api/recipes/{porridge['id']}", json=fields((milk, "250")))
-    assert response.json()["items"] == [{"ingredient_id": milk, "amount": "250"}]
+    assert response.json()["sections"] == [{"name": "", "items": [line(milk, "250")]}]
     assert response.json()["extra_tag_ids"] == []
     assert client.delete(f"/api/ingredients/{oats}").status_code == 204
 
@@ -320,3 +342,446 @@ def test_the_editor_can_ask_which_tags_ingredients_give_before_saving(client, ca
 def test_derived_tags_need_known_ingredients(client, ingredient_ids):
     response = client.post("/api/recipes/derived-tags", json={"ingredient_ids": ingredient_ids})
     assert response.status_code == 422
+
+
+# Servings
+
+
+def test_servings_divide_the_totals(client, catalog):
+    energy = catalog.attribute()
+    third = catalog.ingredient("Third", basis="3", values={energy: "1"})
+    whole = create(client, (third, "33"))
+    assert whole["totals"][0]["value"] == "11"
+    halved = create(client, (third, "33"), name="Half", servings=2)
+    assert halved["totals"][0]["value"] == "6"  # 5.5, half away from zero
+    assert create(client, (third, "33"), name="Thirds", servings=3)["totals"][0]["value"] == "4"
+
+
+def test_a_solve_uses_the_amounts_per_portion(client, catalog):
+    # 120 g of a value of 1 kcal per g serves 4: one portion is 30 kcal.
+    energy = catalog.attribute()
+    food = catalog.ingredient("Food", "g", "1", values={energy: "1"})
+    fixed_portion_recipe(catalog, "Soup", {food: "120"}, "1", servings=4)
+    schedule(client, start_date="2026-10-26", days=1, meals=[{"name": "Lunch"}], skips=[], minimums=[], solve_time_limit=10)
+    response = client.post("/api/plan/solve", json={"solve_id": "s1"})
+    assert response.status_code == 200, response.text
+    plan = response.json()["plan"]
+    assert plan["day_totals"] == [["30"]]
+    assert plan["meals"][0][0]["items"] == [{"ingredient": "Food", "unit": "g", "amount": "30"}]
+
+
+def test_the_same_ingredient_on_several_lines_is_one_ingredient_to_the_planner(client, catalog):
+    energy = catalog.attribute()
+    vegan = catalog.tag()
+    oats = catalog.ingredient(values={energy: "389"}, tag_ids=[vegan])
+    sections = [{"name": "Base", "items": [line(oats, "40")]}, {"name": "Topping", "items": [line(oats, "20")]}]
+    created = create(client, sections=sections)
+    assert created["totals"][0]["value"] == "233"
+    assert created["derived_tag_ids"] == [vegan]
+    assert client.get(f"/api/ingredients/{oats}").json()["recipe_count"] == 1
+
+
+def test_sections_keep_their_order_names_and_lines(client, oats, milk):
+    sections = [
+        {"name": "Zebra", "items": [line(milk, "1"), line(oats, "2")]},
+        {"name": "Apple", "items": [line(oats, "3")]},
+        {"name": "Zebra", "items": [line(milk, "4")]},
+    ]
+    created = create(client, sections=sections)
+    assert created["sections"] == sections
+    assert client.get(f"/api/recipes/{created['id']}").json()["sections"] == sections
+
+
+def test_a_single_unnamed_section_is_accepted_and_so_is_a_single_named_one(client, oats):
+    assert create(client, (oats, "60"))["sections"][0]["name"] == ""
+    named = create(client, name="Named", sections=[{"name": " Base ", "items": [line(oats, "60")]}])
+    assert named["sections"][0]["name"] == "Base"
+
+
+def test_an_empty_section_is_accepted_beside_a_filled_one(client, oats):
+    sections = [{"name": "Base", "items": [line(oats, "60")]}, {"name": "Topping", "items": []}]
+    assert create(client, sections=sections)["sections"] == sections
+
+
+def errors_of(response):
+    assert response.status_code == 422, response.text
+    return [(tuple(e["loc"]), e["type"]) for e in response.json()["detail"]]
+
+
+def test_an_unnamed_section_among_several_needs_a_name(client, oats):
+    sections = [{"name": "Base", "items": [line(oats, "60")]}, {"name": "  ", "items": []}]
+    response = client.post("/api/recipes", json=fields(sections=sections))
+    assert errors_of(response) == [(("body", "sections", 1, "name"), "name_required")]
+
+
+def test_a_recipe_needs_a_line_somewhere(client):
+    sections = [{"name": "A", "items": []}, {"name": "B", "items": []}]
+    response = client.post("/api/recipes", json=fields(sections=sections))
+    assert errors_of(response) == [(("body", "sections"), "no_items")]
+    response = client.post("/api/recipes", json=fields(sections=[{"name": "", "items": []}]))
+    assert errors_of(response) == [(("body", "sections"), "no_items")]
+
+
+def test_no_sections_at_all_answers_422(client):
+    assert client.post("/api/recipes", json=fields(sections=[])).status_code == 422
+
+
+def test_more_than_50_sections_answer_422(client, oats):
+    sections = [{"name": str(i), "items": [line(oats, "1")]} for i in range(51)]
+    assert client.post("/api/recipes", json=fields(sections=sections)).status_code == 422
+    assert client.post("/api/recipes", json=fields(sections=sections[:50])).status_code == 201
+
+
+@pytest.mark.parametrize("url", ["javascript:alert(1)", "ftp://x", "example.com"])
+def test_a_source_that_is_not_an_http_link_answers_422(client, oats, url):
+    response = client.post("/api/recipes", json=fields((oats, "60"), source_url=url))
+    assert errors_of(response) == [(("body", "source_url"), "invalid_url")]
+
+
+@pytest.mark.parametrize("url", ["", "https://example.com/r?a=1", "http://example.com"])
+def test_an_empty_or_http_source_is_accepted(client, oats, url):
+    assert create(client, (oats, "60"), source_url=url)["source_url"] == url
+
+
+def test_an_amount_and_an_ingredient_are_named_by_their_place(client, oats):
+    sections = [
+        {"name": "A", "items": [line(oats, "1")]},
+        {"name": "B", "items": [line(oats, "0")]},
+    ]
+    response = client.post("/api/recipes", json=fields(sections=sections))
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "sections", 1, "items", 0, "amount"]
+
+
+def test_instructions_and_source_keep_their_text(client, oats):
+    text = "1. Boil.\n\n2. Stir  well.\n"
+    created = create(client, (oats, "60"), instructions=text, source_url="  https://example.com/x  ")
+    assert (created["instructions"], created["source_url"]) == (text, "https://example.com/x")
+    assert client.get(f"/api/recipes/{created['id']}").json()["instructions"] == text
+
+
+def test_original_text_round_trips(client, oats):
+    created = create(client, name="Imported", sections=[{"name": "", "items": [line(oats, "60", "1 dl havregryn")]}])
+    assert created["sections"][0]["items"][0]["original_text"] == "1 dl havregryn"
+
+
+def rows(database_url, table):
+    engine = create_engine(database_url)
+    with engine.connect() as connection:
+        count = connection.scalar(text(f"SELECT count(*) FROM {table}"))
+    engine.dispose()
+    return count
+
+
+def test_a_save_rebuilds_the_lines_and_the_recipe_reads_back_the_same(client, database_url, oats, milk):
+    sections = [{"name": "A", "items": [line(oats, "1"), line(milk, "2")]}, {"name": "B", "items": [line(oats, "3")]}]
+    created = create(client, sections=sections)
+    body = fields(sections=sections)
+    for _ in range(2):
+        response = client.put(f"/api/recipes/{created['id']}", json=body)
+        assert response.json() == created
+    assert (rows(database_url, "recipe_sections"), rows(database_url, "recipe_items")) == (2, 3)
+    response = client.put(f"/api/recipes/{created['id']}", json=fields((milk, "5")))
+    assert items(response.json()) == [milk]
+    assert (rows(database_url, "recipe_sections"), rows(database_url, "recipe_items")) == (1, 1)
+
+
+def test_deleting_a_recipe_removes_its_sections_and_lines(client, database_url, oats):
+    sections = [{"name": "A", "items": [line(oats, "1")]}, {"name": "B", "items": [line(oats, "3")]}]
+    created = create(client, sections=sections)
+    assert client.delete(f"/api/recipes/{created['id']}").status_code == 204
+    assert (rows(database_url, "recipe_sections"), rows(database_url, "recipe_items")) == (0, 0)
+
+
+def test_an_ingredient_counts_recipes_not_lines(client, oats, milk):
+    two_lines = [{"name": "A", "items": [line(oats, "1")]}, {"name": "B", "items": [line(oats, "2"), line(milk, "1")]}]
+    create(client, sections=two_lines)
+    create(client, (oats, "5"), name="Muesli")
+    assert client.get(f"/api/ingredients/{oats}").json()["recipe_count"] == 2
+    assert client.get(f"/api/ingredients/{milk}").json()["recipe_count"] == 1
+    assert client.delete(f"/api/ingredients/{oats}").status_code == 409
+
+
+# Line units (slice R3).
+def with_units(catalog, client, **conversions):
+    """Oats (g, 100 kcal per 100 g) with the given conversions {unit: factor}."""
+    energy = catalog.attribute()
+    oats = catalog.ingredient(values={energy: "100"})
+    for unit, factor in conversions.items():
+        catalog.conversion(oats, unit, factor)
+    return oats
+
+
+def saved_units(client, recipe):
+    return [i["unit"] for section in recipe["sections"] for i in section["items"]]
+
+
+def test_a_line_in_another_unit_is_saved_and_read_back_canonical(client, catalog):
+    oats = with_units(catalog, client, dl="40", msk="10")
+    created = create(client, (oats, "1", "gram"), (oats, "2", "tbsp"), (oats, "3", "DL"), (oats, "4", "oz"), (oats, "5", " kg "))
+    assert saved_units(client, created) == ["", "msk", "dl", "oz", "kg"]
+    assert saved_units(client, client.get(f"/api/recipes/{created['id']}").json()) == ["", "msk", "dl", "oz", "kg"]
+
+
+def test_totals_convert_lines_to_the_ingredients_unit(client, catalog):
+    oats = with_units(catalog, client, dl="40")
+    # 60 g and 1 dl of 40 g per dl: as 100 g of 100 kcal per 100 g.
+    assert create(client, (oats, "60", ""), (oats, "1", "dl"))["totals"][0]["value"] == "100"
+    halved = create(client, (oats, "60", ""), (oats, "1", "dl"), name="Half", servings=2)
+    assert halved["totals"][0]["value"] == "50"
+    assert create(client, (oats, "1", "kg"), name="Kilo")["totals"][0]["value"] == "1000"
+
+
+def test_a_solve_uses_the_converted_amounts(client, catalog):
+    energy = catalog.attribute()
+    milk = catalog.ingredient("Milk", "g", "100", values={energy: "64"})
+    catalog.conversion(milk, "dl", "100")
+    fixed_portion_recipe(catalog, "Latte", [(milk, "2", "dl")], "1")
+    schedule(client, start_date="2026-10-26", days=1, meals=[{"name": "Lunch"}], skips=[], minimums=[], solve_time_limit=10)
+    response = client.post("/api/plan/solve", json={"solve_id": "s1"})
+    assert response.status_code == 200, response.text
+    plan = response.json()["plan"]
+    assert plan["meals"][0][0]["items"] == [{"ingredient": "Milk", "unit": "g", "amount": "200"}]
+    assert plan["day_totals"] == [["128"]]
+
+
+def test_a_line_that_does_not_convert_answers_422_at_its_place(client, catalog, oats):
+    response = client.post("/api/recipes", json=fields((oats, "60"), (oats, "2", "dl")))
+    assert response.status_code == 422
+    [error] = response.json()["detail"]
+    assert (error["loc"], error["type"]) == (["body", "sections", 0, "items", 1, "unit"], "unit_not_convertible")
+    assert error["msg"] == "2 dl of Oats doesn't convert to g: add a conversion for dl"
+    assert client.get("/api/recipes").json() == []
+
+
+def test_an_energy_unit_answers_422(client, oats):
+    response = client.post("/api/recipes", json=fields((oats, "1", "kcal")))
+    assert [(e["loc"], e["type"]) for e in response.json()["detail"]] == [
+        (["body", "sections", 0, "items", 0, "unit"], "unit_not_for_ingredient")
+    ]
+
+
+def test_a_unit_over_20_characters_answers_422(client, oats):
+    response = client.post("/api/recipes", json=fields((oats, "1", "x" * 21)))
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "sections", 0, "items", 0, "unit"]
+
+
+def test_unit_errors_come_with_the_other_reference_errors_in_one_422(client, oats):
+    body = fields((oats, "1", "dl"), (999, "1"), (oats, "1", "kcal"), extra_tag_ids=[999])
+    response = client.post("/api/recipes", json=body)
+    assert response.status_code == 422
+    assert {(tuple(e["loc"][4:]), e["type"]) for e in response.json()["detail"] if len(e["loc"]) > 4} == {
+        ((0, "unit"), "unit_not_convertible"),
+        ((1, "ingredient_id"), "unknown_ingredient"),
+        ((2, "unit"), "unit_not_for_ingredient"),
+    }
+    assert client.get("/api/recipes").json() == []
+
+
+def test_a_recipe_without_units_in_the_body_still_saves(client, oats):
+    body = fields((oats, "60"))
+    for item in body["sections"][0]["items"]:
+        del item["unit"]
+    response = client.post("/api/recipes", json=body)
+    assert response.status_code == 201
+    assert response.json()["sections"][0]["items"][0]["unit"] == ""
+
+
+def test_the_same_line_unit_survives_a_second_save(client, catalog):
+    oats = with_units(catalog, client, dl="40")
+    created = create(client, (oats, "1", "tbsp"), (oats, "1", "DL"))
+    again = client.put(f"/api/recipes/{created['id']}", json={**created, "sections": created["sections"]})
+    assert again.status_code == 200, again.text
+    assert saved_units(client, again.json()) == saved_units(client, created) == ["msk", "dl"]
+
+
+# A line that no longer converts (a catalogue change in a deploy, a restored or
+# hand-edited database) degrades instead of failing everything.
+def stale_line(client, database_url, catalog):
+    """Two recipes of Oats; the first has a line stored in a unit that does not
+    convert, forced through the database. Answers the two recipe ids."""
+    energy = catalog.attribute()
+    oats = catalog.ingredient(values={energy: "100"})
+    bad = create(client, (oats, "60"), (oats, "1", "oz"), name="Bad")["id"]
+    good = create(client, (oats, "60"), name="Good")["id"]
+    engine = create_engine(database_url)
+    with engine.begin() as c:
+        c.execute(text("UPDATE recipe_items SET unit = 'dl' WHERE unit = 'oz'"))
+    engine.dispose()
+    return bad, good
+
+
+def test_a_stale_line_is_flagged_and_counts_0_while_the_list_answers_200(client, database_url, catalog):
+    bad, good = stale_line(client, database_url, catalog)
+    listed = {r["id"]: r for r in client.get("/api/recipes").json()}
+    assert (listed[bad]["unconvertible"], listed[good]["unconvertible"]) == (True, False)
+    assert listed[bad]["totals"][0]["value"] == "60"
+    assert [i["unit"] for i in listed[bad]["sections"][0]["items"]] == ["", "dl"]
+    assert client.get(f"/api/recipes/{bad}").json()["unconvertible"] is True
+
+
+def test_a_stale_recipe_can_be_fixed_and_saved(client, database_url, catalog):
+    bad, _ = stale_line(client, database_url, catalog)
+    body = client.get(f"/api/recipes/{bad}").json()
+    body["sections"][0]["items"][1]["unit"] = "oz"
+    fixed = client.put(f"/api/recipes/{bad}", json=body)
+    assert fixed.status_code == 200, fixed.text
+    assert fixed.json()["unconvertible"] is False
+
+
+def test_a_stale_recipe_is_left_out_of_the_plan_and_the_count(client, database_url, catalog):
+    stale_line(client, database_url, catalog)
+    schedule(client, start_date="2026-10-26", days=1, meals=[{"name": "Lunch"}], skips=[], minimums=[], solve_time_limit=10)
+    counted = client.post("/api/plan/recipe-count", json={"tag_filters": []})
+    assert counted.status_code == 200 and counted.json() == {"usable": 1, "total": 2}
+    response = client.post("/api/plan/solve", json={"solve_id": "s1"})
+    assert response.status_code == 200, response.text
+    items = response.json()["plan"]["meals"][0][0]["items"]
+    assert [i["ingredient"] for i in items] == ["Oats"]
+
+
+def test_with_only_stale_recipes_there_is_nothing_to_plan_with_and_no_500(client, database_url, catalog):
+    bad, good = stale_line(client, database_url, catalog)
+    assert client.delete(f"/api/recipes/{good}").status_code == 204
+    schedule(client, start_date="2026-10-26", days=1, meals=[{"name": "Lunch"}], skips=[], minimums=[], solve_time_limit=10)
+    response = client.post("/api/plan/solve", json={"solve_id": "s2"})
+    assert response.status_code == 200, response.text
+    assert response.json()["failure"] == "no_usable_recipes"
+
+
+# new conversions, made on the import review and saved with the recipe --------
+
+
+def conversion(ingredient, unit="dl", factor="40", source="ai"):
+    return {"ingredient_id": ingredient, "unit": unit, "factor": factor, "source": source}
+
+
+def stored(client, ingredient):
+    found = next(i for i in client.get("/api/ingredients").json() if i["id"] == ingredient)
+    return [(c["unit"], c["factor"], c["source"]) for c in found["conversions"]]
+
+
+def test_a_recipe_saves_new_conversions_with_their_source(client, catalog):
+    oats = with_units(catalog, client)
+    body = fields((oats, "60", ""), (oats, "1", "dl"), new_conversions=[conversion(oats, "dl", "40", "ai")])
+    created = client.post("/api/recipes", json=body)
+    assert created.status_code == 201, created.text
+    assert created.json()["totals"][0]["value"] == "100"  # 60 g + 1 dl of 40 g
+    assert stored(client, oats) == [("dl", "40", "ai")]
+    found = next(i for i in client.get("/api/ingredients").json() if i["id"] == oats)
+    assert found["conversions"][0]["recipe_count"] == 1
+    second = fields((oats, "1", "msk"), name="Two", new_conversions=[conversion(oats, "msk", "10", "user")])
+    assert client.post("/api/recipes", json=second).status_code == 201
+    assert stored(client, oats) == [("dl", "40", "ai"), ("msk", "10", "user")]
+
+
+def test_new_conversions_are_saved_by_put_too(client, catalog):
+    oats = with_units(catalog, client)
+    recipe = create(client, (oats, "60"))
+    body = fields((oats, "1", "dl"), new_conversions=[conversion(oats)])
+    response = client.put(f"/api/recipes/{recipe['id']}", json=body)
+    assert response.status_code == 200, response.text
+    assert stored(client, oats) == [("dl", "40", "ai")]
+
+
+def test_a_line_may_use_a_conversion_made_in_the_same_save(client, catalog):
+    oats = with_units(catalog, client)
+    body = fields((oats, "2", "DL"), new_conversions=[conversion(oats, "dl")])
+    created = client.post("/api/recipes", json=body)
+    assert created.status_code == 201
+    assert saved_units(client, created.json()) == ["dl"]
+
+
+def test_without_the_conversion_the_same_line_is_refused(client, catalog):
+    oats = with_units(catalog, client)
+    response = client.post("/api/recipes", json=fields((oats, "2", "dl")))
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["type"] == "unit_not_convertible"
+
+
+def test_nothing_is_written_when_a_line_is_refused(client, catalog):
+    oats = with_units(catalog, client)
+    body = fields((oats, "2", "kcal"), new_conversions=[conversion(oats)])
+    assert client.post("/api/recipes", json=body).status_code == 422
+    assert stored(client, oats) == []
+    assert client.get("/api/recipes").json() == []
+
+
+def refusals(response):
+    assert response.status_code == 422, response.text
+    return [(e["loc"], e["type"]) for e in response.json()["detail"]]
+
+
+def test_conversions_are_refused_as_the_conversion_endpoints_refuse_them(client, catalog):
+    oats = with_units(catalog, client, dl="40")
+    loc = ["body", "new_conversions", 0, "unit"]
+
+    def save(*new):
+        return client.post("/api/recipes", json=fields((oats, "60"), new_conversions=list(new)))
+
+    assert refusals(save(conversion(oats, "kcal"))) == [(loc, "unit_not_for_ingredient")]
+    assert refusals(save(conversion(oats, "gram"))) == [(loc, "unit_is_own_unit")]
+    assert refusals(save(conversion(oats, "DL"))) == [(loc, "duplicate")]
+    both = save(conversion(oats, "msk"), conversion(oats, "MSK"))
+    assert refusals(both) == [(["body", "new_conversions", 1, "unit"], "duplicate")]
+    assert refusals(save(conversion(999))) == [(["body", "new_conversions", 0, "ingredient_id"], "unknown_ingredient")]
+    assert client.get("/api/recipes").json() == []
+
+
+@pytest.mark.parametrize(
+    ("change", "field"),
+    [
+        ({"factor": "0"}, "factor"),
+        ({"factor": "-1"}, "factor"),
+        ({"factor": "abc"}, "factor"),
+        ({"factor": "0.1234567"}, "factor"),
+        ({"unit": ""}, "unit"),
+        ({"unit": "x" * 21}, "unit"),
+        ({"source": "x"}, "source"),
+    ],
+)
+def test_bad_new_conversion_fields_are_422_at_their_field(client, catalog, change, field):
+    oats = with_units(catalog, client)
+    body = fields((oats, "60"), new_conversions=[{**conversion(oats, "msk"), **change}])
+    assert refusals(client.post("/api/recipes", json=body))[0][0] == ["body", "new_conversions", 0, field]
+
+
+def test_every_error_comes_in_one_422(client, catalog):
+    oats = with_units(catalog, client)
+    body = fields((oats, "60"), (oats, "1", "kcal"), new_conversions=[conversion(oats, "gram")])
+    assert refusals(client.post("/api/recipes", json=body)) == [
+        (["body", "new_conversions", 0, "unit"], "unit_is_own_unit"),
+        (["body", "sections", 0, "items", 1, "unit"], "unit_not_for_ingredient"),
+    ]
+
+
+def test_a_body_without_new_conversions_still_saves(client, catalog):
+    oats = with_units(catalog, client)
+    body = fields((oats, "60"))
+    assert "new_conversions" not in body
+    assert client.post("/api/recipes", json=body).status_code == 201
+
+
+def grouped(catalog, derive):
+    a, b = catalog.tag("Seafood", derive), catalog.tag("Fish", derive)
+    catalog.group(a, b)
+    return a, b
+
+
+def test_a_group_of_tags_under_all_is_derived_when_every_ingredient_has_one_of_its_tags(client, catalog):
+    a, b = grouped(catalog, "all")
+    x = catalog.ingredient("Cod", tag_ids=[a])
+    y = catalog.ingredient("Salmon", tag_ids=[b])
+    plain_ingredient = catalog.ingredient("Oats")
+    both = create(client, (x, "100"), (y, "100"))
+    assert both["derived_tag_ids"] == [a, b]
+    assert create(client, (x, "100"), (plain_ingredient, "100"), name="Mixed")["derived_tag_ids"] == []
+
+
+def test_a_group_of_tags_under_any_is_derived_when_one_ingredient_has_one_of_its_tags(client, catalog):
+    a, b = grouped(catalog, "any")
+    y = catalog.ingredient("Salmon", tag_ids=[b])
+    plain_ingredient = catalog.ingredient("Oats")
+    assert create(client, (y, "100"), (plain_ingredient, "100"))["derived_tag_ids"] == [a, b]
+    assert create(client, (plain_ingredient, "100"), name="Plain")["derived_tag_ids"] == []

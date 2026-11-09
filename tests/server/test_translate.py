@@ -5,7 +5,7 @@ from decimal import Decimal
 
 import pytest
 
-from meal_planner import IngredientAmount, Recipe
+from meal_planner import IngredientAmount, Recipe, TagDef
 from server import models, translate
 
 ENERGY = models.Attribute(id=1, name="Energy", unit="kcal", decimals=0)
@@ -53,7 +53,13 @@ def test_an_attribute_without_a_value_counts_as_0():
     assert recipe.attribute_total("Energy") == Decimal("194.5")
 
 
-def porridge(**fields) -> models.Recipe:
+def line(**fields) -> models.RecipeItem:
+    return models.RecipeItem(original_text="", **{"unit": "", **fields})
+
+
+def porridge(sections=None, **fields) -> models.Recipe:
+    """`items` (default Oats and Milk) are one unnamed section, or `sections`
+    gives the sections as lists of lines; servings 1."""
     milk = models.Ingredient(name="Milk", unit="ml", basis=Decimal("100"), values=[], tags=[])
     defaults = {
         "name": "Porridge",
@@ -62,13 +68,26 @@ def porridge(**fields) -> models.Recipe:
         "step": None,
         "hard_max_multiplier": None,
         "serving_cap_weight": Decimal("1"),
-        "items": [
-            models.RecipeItem(ingredient=oats("100", [(ENERGY, "389")]), amount=Decimal("60")),
-            models.RecipeItem(ingredient=milk, amount=Decimal("200")),
-        ],
+        "servings": 1,
+        "instructions": "",
+        "source_url": "",
         "extra_tags": [],
     }
-    return models.Recipe(**{**defaults, **fields})
+    items = fields.pop("items", None) or [
+        line(ingredient=oats("100", [(ENERGY, "389")]), amount=Decimal("60")),
+        line(ingredient=milk, amount=Decimal("200")),
+    ]
+    sections = sections or [items]
+    built = [
+        models.RecipeSection(position=i, name="", items=[replace_position(item, j) for j, item in enumerate(lines)])
+        for i, lines in enumerate(sections)
+    ]
+    return models.Recipe(**{**defaults, "sections": built, **fields})
+
+
+def replace_position(item: models.RecipeItem, position: int) -> models.RecipeItem:
+    item.position = position
+    return item
 
 
 def test_a_tag_keeps_its_name_and_rule():
@@ -81,6 +100,36 @@ def test_a_recipes_items_are_its_ingredients_in_order_with_their_amounts():
     assert [(i.ingredient.name, i.quantity) for i in recipe.items] == [("Oats", 60), ("Milk", 200)]
     assert recipe.items[0].ingredient.attributes == {"Energy": Decimal("3.89")}
     assert recipe.attribute_total("Energy") == Decimal("233.4")
+
+
+def test_amounts_are_the_whole_recipe_divided_by_servings():
+    recipe = translate.recipe(porridge(servings=4))
+    assert [(i.ingredient.name, i.quantity) for i in recipe.items] == [("Oats", 15), ("Milk", 50)]
+
+
+def test_lines_of_one_ingredient_are_summed():
+    grain = oats("100", [(ENERGY, "389")])
+    recipe = translate.recipe(porridge(sections=[
+        [line(ingredient=grain, amount=Decimal("40"))],
+        [line(ingredient=grain, amount=Decimal("20"))],
+    ]))
+    assert [(i.ingredient.name, i.quantity) for i in recipe.items] == [("Oats", 60)]
+
+
+def test_the_ingredients_keep_the_order_of_their_first_line():
+    grain = oats()
+    milk = models.Ingredient(name="Milk", unit="ml", basis=Decimal("100"), values=[], tags=[])
+    salt = models.Ingredient(name="Salt", unit="g", basis=Decimal("100"), values=[], tags=[])
+    recipe = translate.recipe(porridge(sections=[
+        [line(ingredient=milk, amount=Decimal("1")), line(ingredient=grain, amount=Decimal("1"))],
+        [line(ingredient=salt, amount=Decimal("1")), line(ingredient=milk, amount=Decimal("1"))],
+    ]))
+    assert [(i.ingredient.name, i.quantity) for i in recipe.items] == [("Milk", 2), ("Oats", 1), ("Salt", 1)]
+
+
+def test_servings_that_do_not_divide_evenly_stay_exact_enough():
+    recipe = translate.recipe(porridge(servings=3, items=[line(ingredient=oats("1", [(ENERGY, "1")]), amount=Decimal("10"))]))
+    assert abs(recipe.items[0].quantity * 3 - 10) < Decimal("1e-20")
 
 
 def test_tags_added_by_hand_are_extra_tags():
@@ -109,8 +158,8 @@ def test_derived_tags_come_from_the_ingredients_by_each_tags_rule():
     nuts = models.Tag(name="contains-nuts", derive="any")
     almonds = models.Ingredient(name="Almonds", unit="g", basis=Decimal("100"), values=[], tags=[VEGAN, nuts])
     recipe = translate.recipe(porridge(items=[
-        models.RecipeItem(ingredient=oats(tags=[VEGAN]), amount=Decimal("60")),
-        models.RecipeItem(ingredient=almonds, amount=Decimal("10")),
+        line(ingredient=oats(tags=[VEGAN]), amount=Decimal("60")),
+        line(ingredient=almonds, amount=Decimal("10")),
     ]))
     tag_defs = {tag.name: translate.tag(tag) for tag in (VEGAN, nuts)}
     assert recipe.tags(tag_defs) == frozenset({"vegan", "contains-nuts"})
@@ -379,7 +428,7 @@ def filtered(only=(), never=()) -> models.Plan:
 
 
 def test_only_and_never_become_the_required_and_excluded_tags_by_name():
-    vegan_oats = models.RecipeItem(ingredient=oats(tags=[VEGAN]), amount=Decimal("60"))
+    vegan_oats = line(ingredient=oats(tags=[VEGAN]), amount=Decimal("60"))
     recipes = [porridge(items=[vegan_oats], extra_tags=[QUICK])]
     request = translate.plan_request(filtered(only=[VEGAN, QUICK], never=[NUTS]), [ENERGY], [VEGAN, NUTS, QUICK], recipes)
     assert request.require_tags == frozenset({"vegan", "quick"})
@@ -394,7 +443,7 @@ def recipes_to_filter() -> list[models.Recipe]:
     almonds = models.Ingredient(name="Almonds", unit="g", basis=Decimal("100"), values=[], tags=[VEGAN, NUTS])
 
     def made_of(name, *ingredients, extra_tags=()):
-        items = [models.RecipeItem(ingredient=i, amount=Decimal("10")) for i in ingredients]
+        items = [line(ingredient=i, amount=Decimal("10")) for i in ingredients]
         return porridge(name=name, items=items, extra_tags=list(extra_tags))
 
     return [
@@ -442,3 +491,194 @@ def test_the_usable_recipes_are_the_librarys_eligible_ones(only, never):
     request = translate.plan_request(filtered(only, never), [ENERGY], tags, rows)
     usable = translate.usable_recipes(rows, tags, [t.name for t in only], [t.name for t in never])
     assert [row.name for row in usable] == [recipe.name for recipe in request.eligible_recipes()]
+
+
+# Tag groups (equivalent tags)
+
+FISH = models.Tag(id=10, name="Fish", derive="any", group_id=1)
+SEAFOOD = models.Tag(id=11, name="Seafood", derive="any", group_id=1)
+FISK = models.Tag(id=12, name="Fisk och skaldjur", derive="any", group_id=1)
+GROUPED = [VEGAN, FISH, SEAFOOD, FISK]
+
+
+def group_rule(rule):
+    return [models.Tag(id=t.id, name=t.name, derive=rule, group_id=1) for t in (FISH, SEAFOOD, FISK)]
+
+
+def test_without_groups_every_tag_keeps_its_name_and_def():
+    library = translate.library_tags([VEGAN, NUTS])
+    assert library.names == {"vegan": "vegan", "contains-nuts": "contains-nuts"}
+    assert library.defs == (translate.tag(VEGAN), translate.tag(NUTS))
+
+
+def test_a_group_is_one_library_tag_and_its_members_are_none():
+    library = translate.library_tags(GROUPED)
+    assert library.names == {"vegan": "vegan", "Fish": "group 1", "Seafood": "group 1", "Fisk och skaldjur": "group 1"}
+    assert library.defs == (TagDef("vegan", "all"), TagDef("group 1", "any"))
+
+
+def test_the_group_has_its_members_rule():
+    library = translate.library_tags(group_rule("all"))
+    assert library.defs == (TagDef("group 1", "all"),)
+
+
+def test_two_groups_are_named_by_their_ids_after_the_ungrouped_tags():
+    other = [models.Tag(id=20, name="A", derive="all", group_id=2), models.Tag(id=21, name="B", derive="all", group_id=2)]
+    library = translate.library_tags([*other, *GROUPED])
+    assert [d.name for d in library.defs] == ["vegan", "group 1", "group 2"]
+    assert library.names["A"] == library.names["B"] == "group 2"
+
+
+def test_a_group_name_is_checked_against_the_stored_names():
+    clash = models.Tag(id=30, name="group 1", derive="all")
+    assert translate.library_tags([clash, FISH, SEAFOOD]).names["Fish"] == "group 1*"
+    clash2 = models.Tag(id=31, name="group 1*", derive="all")
+    library = translate.library_tags([clash, clash2, FISH, SEAFOOD])
+    assert library.names["Fish"] == "group 1**"
+    assert [d.name for d in library.defs] == ["group 1", "group 1*", "group 1**"]
+
+
+def test_map_gives_the_library_names_of_stored_names():
+    library = translate.library_tags(GROUPED)
+    assert library.map(["Fish", "Seafood", "vegan"]) == frozenset({"group 1", "vegan"})
+
+
+def test_an_ingredients_tags_go_through_the_names():
+    names = translate.library_tags(GROUPED).names
+    assert translate.ingredient(oats(tags=[SEAFOOD]), names).tags == frozenset({"group 1"})
+    assert translate.ingredient(oats(tags=[FISH, SEAFOOD]), names).tags == frozenset({"group 1"})
+    assert translate.ingredient(oats(tags=[VEGAN, FISK]), names).tags == frozenset({"vegan", "group 1"})
+    assert translate.ingredient(oats(tags=[SEAFOOD])).tags == frozenset({"Seafood"})
+
+
+def test_a_recipes_extra_tags_go_through_the_names():
+    names = translate.library_tags(GROUPED).names
+    assert translate.recipe(porridge(extra_tags=[FISK, VEGAN]), names).extra_tags == frozenset({"group 1", "vegan"})
+    assert translate.recipe(porridge(extra_tags=[FISK])).extra_tags == frozenset({"Fisk och skaldjur"})
+
+
+def test_the_request_has_the_groups_as_tags_and_in_the_filters():
+    seafood_oats = line(ingredient=oats(tags=[SEAFOOD]), amount=Decimal("60"))
+    recipes = [porridge(items=[seafood_oats], extra_tags=[FISK])]
+    setup = filtered(only=[FISH], never=[VEGAN])
+    request = translate.plan_request(setup, [ENERGY], GROUPED, recipes)
+    assert [(t.name, t.derive) for t in request.tags] == [("vegan", "all"), ("group 1", "any")]
+    assert request.require_tags == frozenset({"group 1"})
+    assert request.exclude_tags == frozenset({"vegan"})
+    assert request.recipes[0].extra_tags == frozenset({"group 1"})
+    assert request.recipes[0].items[0].ingredient.tags == frozenset({"group 1"})
+
+
+def group_recipes() -> list[models.Recipe]:
+    def made_of(name, *tag_sets):
+        # One ingredient per recipe and tag set, as the library wants distinct names.
+        ingredients = [oats(tags=tags) for tags in tag_sets]
+        for i, ingredient in enumerate(ingredients):
+            ingredient.name = f"{name} {i}"
+        return porridge(name=name, items=[line(ingredient=i, amount=Decimal("10")) for i in ingredients])
+
+    return [
+        made_of("Seafood only", [SEAFOOD]),
+        made_of("Fish and nothing", [FISH], []),
+        made_of("Plain", []),
+        made_of("Fisk", [FISK]),
+    ]
+
+
+def usable_in_group(tags, only=(), never=()) -> list[str]:
+    return [r.name for r in translate.usable_recipes(group_recipes(), tags, only, never)]
+
+
+def test_only_a_member_keeps_the_recipes_with_any_member():
+    assert usable_in_group(GROUPED, only=["Fish"]) == ["Seafood only", "Fish and nothing", "Fisk"]
+
+
+def test_never_a_member_drops_the_recipes_with_any_member():
+    assert usable_in_group(GROUPED, never=["Fish"]) == ["Plain"]
+
+
+def test_only_and_never_on_members_of_one_group_leave_nothing():
+    assert usable_in_group(GROUPED, only=["Fish"], never=["Seafood"]) == []
+
+
+def test_the_group_rule_decides_whether_a_recipe_has_the_group_tag():
+    assert usable_in_group(group_rule("any"), only=["Fish"]) == ["Seafood only", "Fish and nothing", "Fisk"]
+    assert usable_in_group(group_rule("all"), only=["Fish"]) == ["Seafood only", "Fisk"]
+
+
+def test_the_usable_recipes_with_groups_are_the_librarys_eligible_ones():
+    rows = group_recipes()
+    request = translate.plan_request(filtered(only=[SEAFOOD], never=[]), [ENERGY], GROUPED, rows)
+    usable = translate.usable_recipes(rows, GROUPED, ["Seafood"], [])
+    assert [row.name for row in usable] == [recipe.name for recipe in request.eligible_recipes()]
+
+
+# Line units (slice R3): every line is converted to its ingredient's unit.
+DL_OF_OATS = models.IngredientConversion(unit="dl", factor=Decimal("40"), source="user")
+
+
+def with_conversions(ingredient: models.Ingredient, *conversions: models.IngredientConversion) -> models.Ingredient:
+    ingredient.conversions = list(conversions)
+    return ingredient
+
+
+def only(*lines: models.RecipeItem, **fields) -> Recipe:
+    return translate.recipe(porridge(items=list(lines), **fields))
+
+
+def test_a_line_in_a_stored_conversions_unit_is_converted():
+    grain = with_conversions(oats(), DL_OF_OATS)
+    assert only(line(ingredient=grain, amount=Decimal("2.5"), unit="dl")).items[0].quantity == 100
+
+
+def test_a_line_in_a_catalogue_unit_is_converted_to_the_ingredients_unit():
+    ounces = only(line(ingredient=oats(), amount=Decimal("2"), unit="oz")).items[0].quantity
+    assert ounces == Decimal("56.69904625")
+    milk = models.Ingredient(name="Milk", unit="dl", basis=Decimal("1"), values=[], tags=[])
+    assert only(line(ingredient=milk, amount=Decimal("200"), unit="ml")).items[0].quantity == 2
+
+
+def test_a_catalogue_step_can_go_through_a_conversion():
+    grain = with_conversions(oats(), DL_OF_OATS)
+    cup = only(line(ingredient=grain, amount=Decimal("1"), unit="US cup")).items[0].quantity
+    assert abs(cup - Decimal("2.365882365") * 40) < Decimal("1e-20")
+
+
+def test_a_stored_conversion_beats_a_catalogue_step():
+    grain = with_conversions(oats(), DL_OF_OATS, models.IngredientConversion(unit="msk", factor=Decimal("10"), source="user"))
+    assert only(line(ingredient=grain, amount=Decimal("2"), unit="msk")).items[0].quantity == 20
+
+
+def test_lines_in_different_units_of_one_ingredient_are_summed_in_its_unit():
+    grain = with_conversions(oats(), DL_OF_OATS)
+    recipe = only(
+        line(ingredient=grain, amount=Decimal("60")),
+        line(ingredient=grain, amount=Decimal("1"), unit="dl"),
+    )
+    assert [(i.ingredient.name, i.quantity) for i in recipe.items] == [("Oats", 100)]
+
+
+def test_servings_divide_after_the_conversion():
+    grain = with_conversions(oats(), DL_OF_OATS)
+    recipe = only(
+        line(ingredient=grain, amount=Decimal("60")),
+        line(ingredient=grain, amount=Decimal("1"), unit="dl"),
+        servings=4,
+    )
+    assert recipe.items[0].quantity == 25
+
+
+def test_only_own_unit_lines_give_the_same_numbers_as_before():
+    row = porridge()
+    oats_, milk = (translate.ingredient(item.ingredient) for item in row.lines)
+    expected = Recipe(
+        name="Porridge",
+        items=(IngredientAmount(oats_, 60), IngredientAmount(milk, 200)),
+        min_multiplier=Decimal("0.5"), max_multiplier=2, serving_cap_weight=1,
+    )
+    assert translate.recipe(row) == expected
+
+
+def test_an_unconvertible_line_raises_naming_ingredient_and_unit():
+    with pytest.raises(translate.UnconvertibleLine, match="Oats.*dl|dl.*Oats"):
+        only(line(ingredient=oats(), amount=Decimal("1"), unit="dl"))

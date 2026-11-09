@@ -1,6 +1,13 @@
 # Units, Data Sources and Recipe Import — Vertical Slices
 
-**Status:** Proposed; awaiting the user's review.
+**Status:** Built (all slices U1-U3, D1-D6, R1-R5), each reviewed task by
+task on branch `claude/implement-remaining-slices-qwrp83`, then reviewed as a
+whole. Two things wait for the owner: the D1 data file
+(`server/data_sources/livsmedelsverket.json.gz`) is generated and committed by
+the owner running `scripts/import_livsmedelsverket.py` (the app works without
+it), and the R1 model comparison needs the owner to run
+`scripts/compare_models.py` with real API keys (the default model is
+provisional until then).
 
 **Specs:**
 
@@ -34,7 +41,8 @@ a step when the flow changes. In addition:
   unit change converts whatever stored numbers exist by then: U3 the
   values, goals, basis and recipe amounts; D4 the copied source values;
   R3 the recipe line units and ingredient conversions. Each slice
-  extends the unit-change preview, its counts and its tests.
+  extends the unit-change preview, its counts and its tests: each slice
+  adds a converter in `server/unit_change.py`.
 - **The units catalogue (`server/units.py`) is the only place unit
   rules live.** Later slices add to it; none keep their own unit table
   (see "Overlaps settled here").
@@ -86,6 +94,22 @@ match in its pending review.
 | R3 | Line units and conversions | C2, C4 | "2 dl crème fraîche" in a recipe |
 | R4 | Import from pasted text | C1, I1, C2 review | **Recipes imported by AI** from pasted text |
 | R5 | Import from a link | I1 | Recipes imported from a URL |
+
+U1 done: see `2026-11-08-slice-u1-unit-catalogue.md`.
+U2 done: see `2026-11-08-slice-u2-unit-fields.md`.
+U3 done: see `2026-11-08-slice-u3-unit-change-converts.md`.
+D1 script done: see `2026-11-08-slice-d1-livsmedelsverket-data-file.md`.
+The data file itself is generated and committed by the owner (README).
+D2 done: see `2026-11-08-slice-d2-reference-copy.md`.
+D3 done: see `2026-11-08-slice-d3-column-mapping.md`.
+D4 done: see `2026-11-08-slice-d4-add-from-data-source.md`.
+D5 done: see `2026-11-08-slice-d5-updated-values.md`.
+D6 done: see `2026-11-08-slice-d6-tag-groups.md`.
+R2 done: see `2026-11-08-slice-r2-servings-sections-instructions.md`.
+R3 done: see `2026-11-08-slice-r3-line-units-and-conversions.md`.
+R4 done: see `2026-11-08-slice-r4-import-from-pasted-text.md`.
+R5 done: see `2026-11-08-slice-r5-import-from-a-link.md`.
+R1 built, run pending the owner: see `2026-11-08-slice-r1-model-comparison.md`.
 
 **Dependencies:**
 
@@ -168,6 +192,9 @@ converted.
   `units.py`, decimal strings, write
   `server/data_sources/livsmedelsverket.json.gz`. Never touches a
   database.
+- Outcome of the first task: the API could not be reached, so the
+  findings are recorded as unverified and the food groups are treated
+  as a flat list (the extraction is isolated for a later tree).
 - The script is run by hand and the data file committed in this slice.
   If the session's network can't reach the API, the owner runs it and
   commits the file.
@@ -274,7 +301,8 @@ test for the questions. Playwright: filter a plan on an equivalent tag.
   amounts, units, matches, servings, not-an-ingredient flags and cost.
   Prices are checked on the providers' pages at that time.
 - Run by hand with real keys; the result and the chosen default
-  `AI_MODEL` are written into the import spec.
+  `AI_MODEL` are written into the import spec. The run and the final
+  default are the owner's; the slice ships a provisional default.
 
 **Tests:** each adapter against a recorded response; the scoring
 function on a hand-made draft.

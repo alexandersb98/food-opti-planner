@@ -42,10 +42,15 @@ def plan(db: Session) -> models.Plan:
 
 def recipes():
     """Recipes with everything their responses and the planner need, in a few queries."""
-    ingredient = selectinload(models.Recipe.items).selectinload(models.RecipeItem.ingredient)
+    ingredient = (
+        selectinload(models.Recipe.sections)
+        .selectinload(models.RecipeSection.items)
+        .selectinload(models.RecipeItem.ingredient)
+    )
     return select(models.Recipe).options(
         ingredient.selectinload(models.Ingredient.values).selectinload(models.IngredientValue.attribute),
         ingredient.selectinload(models.Ingredient.tags),
+        ingredient.selectinload(models.Ingredient.conversions),
         selectinload(models.Recipe.extra_tags),
     )
 

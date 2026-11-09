@@ -1,4 +1,5 @@
-import type { Attribute, Goal, Ingredient, Plan, PlanResult, PlanResultSummary, Recipe, ResultGoal, ResultMeal, ResultMiss, Tag } from './api/types'
+import type { Attribute, Conversion, ImportedLine, ImportedRecipe, DataSource, DataSourceSummary, FoodPreview, FoodSummary, IngredientSource, SourceColumn, Goal, Ingredient, Plan, PlanResult, PlanResultSummary, Preferences, Recipe, ResultGoal, ResultMeal, ResultMiss, Tag, UnitCatalogue, UnitChange, UnitChangeRefusal } from './api/types'
+import unitFixture from './test-units.json'
 
 // Rows as the server answers them, for tests: give what the test is about,
 // the rest gets a plain default. Typed, so a change to the API shows up
@@ -7,20 +8,28 @@ import type { Attribute, Goal, Ingredient, Plan, PlanResult, PlanResultSummary, 
 type Given<T, Required extends keyof T> = Pick<T, Required> & Partial<T>
 
 export function attribute(fields: Given<Attribute, 'id' | 'name'>): Attribute {
-  return { unit: '', decimals: 0, ingredient_count: 0, goal_count: 0, ...fields }
+  return { unit: '', decimals: 0, ingredient_count: 0, goal_count: 0, mapping_count: 0, ...fields }
 }
 
 export function tag(fields: Given<Tag, 'id' | 'name'>): Tag {
-  return { derive: 'all', ingredient_count: 0, recipe_count: 0, filter_count: 0, ...fields }
+  return { derive: 'all', source: null, group: [], ingredient_count: 0, recipe_count: 0, filter_count: 0, ...fields }
 }
 
 export function ingredient(fields: Given<Ingredient, 'id' | 'name'>): Ingredient {
-  return { unit: 'g', basis: '100', values: [], tag_ids: [], recipe_count: 0, ...fields }
+  return { unit: 'g', basis: '100', values: [], tag_ids: [], recipe_count: 0, source: null, conversions: [], updated_values: [], ...fields }
+}
+
+/** A conversion of an ingredient: "1 dl = 40 g", made by the user. */
+export function conversion(fields: Given<Conversion, 'id'> = { id: 1 }): Conversion {
+  return { unit: 'dl', factor: '40', source: 'user', recipe_count: 0, ...fields }
 }
 
 export function recipe(fields: Given<Recipe, 'id' | 'name'>): Recipe {
   return {
-    items: [],
+    servings: 1,
+    instructions: '',
+    source_url: '',
+    sections: [{ name: '', items: [] }],
     extra_tag_ids: [],
     min_multiplier: '0.5',
     max_multiplier: '2',
@@ -28,9 +37,44 @@ export function recipe(fields: Given<Recipe, 'id' | 'name'>): Recipe {
     hard_max_multiplier: null,
     serving_cap_weight: '1',
     derived_tag_ids: [],
+    unconvertible: false,
     totals: [],
     ...fields,
   }
+}
+
+/** A line of an imported recipe the server answered: 100 g of oats, matched. */
+export function importedLine(fields: Partial<ImportedLine> = {}): ImportedLine {
+  return {
+    original_text: '100 g oats',
+    food: 'oats',
+    amount: '100',
+    unit: '',
+    ingredient_id: null,
+    status: 'unmatched',
+    suggested_factor: null,
+    ...fields,
+  }
+}
+
+/** An imported recipe: one unnamed section of `lines` (one by default). */
+export function importedRecipe(fields: Partial<ImportedRecipe> = {}): ImportedRecipe {
+  return {
+    name: 'Imported porridge',
+    servings: 2,
+    instructions: 'Boil.\nStir.',
+    source_url: '',
+    cut: false,
+    needs_you: 0,
+    sections: [{ name: '', lines: [importedLine()] }],
+    ...fields,
+  }
+}
+
+/** One unnamed section of lines, from (ingredient id, amount) pairs, for a
+ * recipe's `sections`. */
+export function lines(...pairs: [number, string][]): Recipe['sections'] {
+  return [{ name: '', items: pairs.map(([ingredient_id, amount]) => ({ ingredient_id, amount, unit: '', original_text: '' })) }]
 }
 
 /** A goal, by default Prefer at importance 3, each day, with a minimum and
@@ -118,4 +162,90 @@ export function planResult(fields: Given<PlanResult, 'id'>): PlanResult {
     misses: [],
     ...fields,
   }
+}
+
+/** A data source as the list answers it, by default the fake TEST source. */
+export function dataSourceSummary(fields: Partial<DataSourceSummary> = {}): DataSourceSummary {
+  return {
+    key: 'testsource',
+    name: 'TEST Source',
+    colour: '#1976d2',
+    version: '2026-01-01',
+    imported_at: '2026-01-01T12:00:00Z',
+    food_count: 3,
+    column_count: 3,
+    mapped_count: 0,
+    ...fields,
+  }
+}
+
+/** A column of a data source, by default active, in grams. */
+export function sourceColumn(fields: Given<SourceColumn, 'id' | 'name'>): SourceColumn {
+  return { key: `C${fields.id}`, unit: 'g', withdrawn: false, attribute_id: null, ...fields }
+}
+
+/** A data source in full, by default with an attribution and no columns. */
+export function dataSource(fields: Partial<DataSource> = {}): DataSource {
+  return {
+    ...dataSourceSummary(fields),
+    attribution: 'TEST data, not real: for tests only.',
+    columns: [],
+    ...fields,
+  }
+}
+
+/** A food of a data source as the search lists it. */
+export function foodSummary(fields: Given<FoodSummary, 'id' | 'name'>): FoodSummary {
+  return { groups: [], ...fields }
+}
+
+/** The ingredient a food would become, as the preview answers: TEST Oats in g, no values. */
+export function foodPreview(fields: Partial<FoodPreview> = {}): FoodPreview {
+  return {
+    id: 1,
+    name: 'TEST Oats',
+    withdrawn: false,
+    source: { key: 'testsource', name: 'TEST Source', colour: '#1976d2' },
+    suggested_name: 'TEST Oats',
+    unit: 'g',
+    basis: '100',
+    values: [],
+    skipped: [],
+    groups: [],
+    existing: [],
+    ...fields,
+  }
+}
+
+/** The link of an ingredient made from TEST Oats. */
+export function ingredientSource(fields: Partial<IngredientSource> = {}): IngredientSource {
+  return { key: 'testsource', name: 'TEST Source', colour: '#1976d2', food_id: 1, food_name: 'TEST Oats', withdrawn: false, ...fields }
+}
+
+/** The unit catalogue as the server sends it: the committed fixture, which a
+ * server test keeps equal to the real answer. */
+export function unitCatalogue(): UnitCatalogue {
+  return structuredClone(unitFixture) as UnitCatalogue
+}
+
+/** The preferences as a fresh database answers them. */
+export function preferences(fields: Partial<Preferences> = {}): Preferences {
+  return { 'unit.mass': 'g', 'unit.volume': 'dl', 'unit.energy': 'kcal', last_data_source: null, ...fields }
+}
+
+/** A unit-change preview as the server answers: converting, 12 values and 2 goals. */
+export function unitChange(fields: Partial<UnitChange> = {}): UnitChange {
+  return {
+    kind: 'convert',
+    factor: '1000',
+    counts: { ingredient_values: 12, goals: 2 },
+    rounded: 0,
+    refusal: null,
+    ...fields,
+  }
+}
+
+/** A refusal inside a preview, as the server answers. */
+export function unitChangeRefusal(fields: Given<UnitChangeRefusal, 'type'>): UnitChangeRefusal {
+  return { msg: 'refused', kind: null, name: null, field: null, number: null, converted: null, decimals_needed: null, ...fields }
 }

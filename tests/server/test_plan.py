@@ -544,3 +544,42 @@ def test_a_count_with_a_filter_on_an_unknown_tag_or_given_twice_answers_422(clie
         (["body", "tag_filters", 1, "tag_id"], "unknown_tag", "No such tag"),
         (["body", "tag_filters", 2, "tag_id"], "duplicate", "This tag is given twice"),
     ]
+
+
+def fish_recipes(catalog) -> tuple[int, int]:
+    """Fish and Seafood equivalent (rule any); Catch porridge's only
+    ingredient carries Seafood, Oat porridge's nothing. Answers the tags."""
+    fish, seafood = catalog.tag("Fish", "any"), catalog.tag("Seafood", "any")
+    catalog.group(fish, seafood)
+    catch = catalog.ingredient("Catch", tag_ids=[seafood])
+    catalog.recipe("Catch porridge", {catch: "60"})
+    catalog.recipe("Oat porridge", {catalog.ingredient(): "60"})
+    return fish, seafood
+
+
+def test_a_filter_on_one_tag_of_a_group_counts_the_recipes_of_any_member(client, catalog):
+    fish, seafood = fish_recipes(catalog)
+    assert count(client, {"tag_id": fish, "mode": "only"}) == {"usable": 1, "total": 2}
+    assert count(client, {"tag_id": seafood, "mode": "never"}) == {"usable": 1, "total": 2}
+    assert count(client, {"tag_id": fish, "mode": "never"}) == {"usable": 1, "total": 2}
+
+
+def test_only_and_never_on_the_members_of_a_group_leave_nothing(client, catalog):
+    fish, seafood = fish_recipes(catalog)
+    both = count(client, {"tag_id": fish, "mode": "only"}, {"tag_id": seafood, "mode": "never"})
+    assert both == {"usable": 0, "total": 2}
+
+
+def test_without_the_group_the_filter_on_the_other_tag_leaves_nothing(client, catalog):
+    fish, _ = fish_recipes(catalog)
+    response = client.put(f"/api/tags/{fish}", json={"name": "Fish", "derive": "any", "equivalent_tag_ids": []})
+    assert response.status_code == 200
+    assert count(client, {"tag_id": fish, "mode": "only"}) == {"usable": 0, "total": 2}
+
+
+def test_two_filters_are_a_duplicate_only_for_the_same_tag(client, catalog):
+    fish, seafood = fish_recipes(catalog)
+    response = client.post("/api/plan/recipe-count", json={"tag_filters": [
+        {"tag_id": fish, "mode": "only"}, {"tag_id": fish, "mode": "never"}]})
+    assert response.status_code == 422
+    assert count(client, {"tag_id": fish, "mode": "only"}, {"tag_id": seafood, "mode": "only"}) == {"usable": 1, "total": 2}

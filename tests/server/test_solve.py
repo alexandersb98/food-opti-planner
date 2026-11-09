@@ -542,3 +542,54 @@ def test_filters_that_leave_no_recipe_answer_why_and_store_nothing(client, catal
     schedule(client, tag_filters=[{"tag_id": filling, "mode": "only"}, {"tag_id": quick, "mode": "only"}])
     assert solve(client) == no_plan("no_usable_recipes")
     assert unsaved(client) == summary(kept)
+
+
+def equivalent_fish(client, catalog) -> tuple[int, int, int]:
+    """Fish, Seafood and Fisk och skaldjur equivalent. "Light" has an
+    ingredient that carries Seafood only, "Heavy" (no tag) is what the goal
+    prefers. Answers the three tags."""
+    energy = catalog.attribute()
+    fish, seafood, fisk = (catalog.tag(name, "any") for name in ("Fish", "Seafood", "Fisk och skaldjur"))
+    catalog.group(fish, seafood, fisk)
+    catch = catalog.ingredient("Catch", "g", "1", values={energy: "100"}, tag_ids=[seafood])
+    plain = catalog.ingredient("Plain", "g", "1", values={energy: "100"})
+    fixed_portion_recipe(catalog, "Light", {catch: "1"}, "1")
+    fixed_portion_recipe(catalog, "Heavy", {plain: "3"}, "1")
+    schedule(client, start_date="2026-10-26", days=1, meals=[{"name": "Lunch"}], skips=[], minimums=[],
+             goals=[goal(energy, min="250")], solve_time_limit=10)
+    return fish, seafood, fisk
+
+
+def test_only_a_tag_keeps_the_recipes_of_its_equivalent_tags(client, catalog):
+    fish, _, _ = equivalent_fish(client, catalog)
+    assert chosen(client) == "Heavy"
+    schedule(client, tag_filters=[{"tag_id": fish, "mode": "only"}])
+    assert chosen(client) == "Light"
+
+
+def test_a_recipe_given_an_equivalent_tag_by_hand_is_usable_too(client, catalog):
+    fish, seafood, fisk = (catalog.tag(name, "any") for name in ("Fish", "Seafood", "Fisk och skaldjur"))
+    catalog.group(fish, seafood, fisk)
+    energy = catalog.attribute()
+    plain = catalog.ingredient("Plain", "g", "1", values={energy: "100"})
+    fixed_portion_recipe(catalog, "Light", {plain: "1"}, "1")
+    fixed_portion_recipe(catalog, "Heavy", {plain: "3"}, "1", extra_tag_ids=[fisk])
+    schedule(client, start_date="2026-10-26", days=1, meals=[{"name": "Lunch"}], skips=[], minimums=[],
+             goals=[goal(energy, max="150")], solve_time_limit=10)
+    assert chosen(client) == "Light"
+    schedule(client, tag_filters=[{"tag_id": fish, "mode": "only"}])
+    assert chosen(client) == "Heavy"
+
+
+def test_never_a_tag_drops_the_recipes_of_its_equivalent_tags(client, catalog):
+    _, seafood, _ = equivalent_fish(client, catalog)
+    schedule(client, goals=[goal(client.get("/api/attributes").json()[0]["id"], max="150")])
+    assert chosen(client) == "Light"
+    schedule(client, tag_filters=[{"tag_id": seafood, "mode": "never"}])
+    assert chosen(client) == "Heavy"
+
+
+def test_only_and_never_on_members_of_one_group_have_no_usable_recipe(client, catalog):
+    fish, seafood, _ = equivalent_fish(client, catalog)
+    schedule(client, tag_filters=[{"tag_id": fish, "mode": "only"}, {"tag_id": seafood, "mode": "never"}])
+    assert solve(client) == no_plan("no_usable_recipes")

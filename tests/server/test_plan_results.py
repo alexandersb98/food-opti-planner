@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from server import models
 
-from .conftest import RECIPE, schedule
+from .conftest import recipe_body, schedule
 from .test_solve import goal, one_meal_two_recipes, solve, summary
 
 
@@ -150,14 +150,10 @@ def test_today_needs_a_date(client):
 def test_a_saved_plan_is_unchanged_by_catalog_edits_and_deletes(client, catalog, porridge):
     plan = saved_plan(client)
     recipe = client.get(f"/api/recipes/{porridge}").json()
-    edited = {
-        **RECIPE,
-        "name": "Oat porridge",
-        "items": recipe["items"][:1],
-        "extra_tag_ids": [],
-        "min_multiplier": "1",
-        "max_multiplier": "1",
-    }
+    [first, *_] = recipe["sections"][0]["items"]
+    edited = recipe_body(
+        "Oat porridge", [(first["ingredient_id"], first["amount"])], min_multiplier="1", max_multiplier="1"
+    )
     assert client.put(f"/api/recipes/{porridge}", json=edited).status_code == 200
     assert client.get(f"/api/plan-results/{plan['id']}").json() == plan
     # Nothing in a saved plan blocks a delete.

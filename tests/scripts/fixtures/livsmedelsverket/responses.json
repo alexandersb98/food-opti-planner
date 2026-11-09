@@ -1,0 +1,186 @@
+{
+ "_note": "Hand-made from the API documentation, not a live capture. Foods and numbers are made up (TEST ...) and are not Livsmedelsverket's data.",
+ "/livsmedel?limit=2&offset=0&sprak=1": {
+  "_meta": {
+   "totalRecords": 3,
+   "offset": 0,
+   "limit": 2,
+   "count": 2
+  },
+  "livsmedel": [
+   {
+    "nummer": 1,
+    "namn": "TEST Oat flakes"
+   },
+   {
+    "nummer": 2,
+    "namn": "TEST Salmon"
+   }
+  ]
+ },
+ "/livsmedel?limit=2&offset=2&sprak=1": {
+  "_meta": {
+   "totalRecords": 3,
+   "offset": 2,
+   "limit": 2,
+   "count": 1
+  },
+  "livsmedel": [
+   {
+    "nummer": 10,
+    "namn": "TEST Plant drink"
+   }
+  ]
+ },
+ "/livsmedel/1/naringsvarden?sprak=1": [
+  {
+   "euroFIRkod": "ENERC",
+   "namn": "Energi",
+   "enhet": "kJ",
+   "varde": 1500,
+   "viktGram": 100
+  },
+  {
+   "euroFIRkod": "ENERC",
+   "namn": "Energi",
+   "enhet": "kcal",
+   "varde": 360,
+   "viktGram": 100
+  },
+  {
+   "euroFIRkod": "PROT",
+   "namn": "Protein",
+   "enhet": "g",
+   "varde": 13.5,
+   "viktGram": 100
+  },
+  {
+   "euroFIRkod": "VITD",
+   "namn": "Vitamin D",
+   "enhet": "\u00b5g",
+   "varde": "1,5",
+   "viktGram": 100
+  },
+  {
+   "euroFIRkod": "FE",
+   "namn": "J\u00e4rn",
+   "enhet": "mg",
+   "varde": 4.2,
+   "viktGram": 100
+  }
+ ],
+ "/livsmedel/2/naringsvarden?sprak=1": [
+  {
+   "euroFIRkod": "ENERC",
+   "namn": "Energi",
+   "enhet": "kJ",
+   "varde": 900,
+   "viktGram": 100
+  },
+  {
+   "euroFIRkod": "ENERC",
+   "namn": "Energi",
+   "enhet": "kcal",
+   "varde": 215,
+   "viktGram": 100
+  },
+  {
+   "euroFIRkod": "PROT",
+   "namn": "Protein",
+   "enhet": "g",
+   "varde": 20,
+   "viktGram": 100
+  },
+  {
+   "euroFIRkod": "VITD",
+   "namn": "Vitamin D",
+   "enhet": "\u03bcg",
+   "varde": 12,
+   "viktGram": 100
+  },
+  {
+   "euroFIRkod": "FE",
+   "namn": "J\u00e4rn",
+   "enhet": "mg",
+   "varde": null,
+   "viktGram": 100
+  },
+  {
+   "euroFIRkod": "CO2E",
+   "namn": "Climate footprint",
+   "enhet": "kg CO2e",
+   "varde": 1.2,
+   "viktGram": 100
+  }
+ ],
+ "/livsmedel/10/naringsvarden?sprak=1": {
+  "naringsvarden": [
+   {
+    "euroFIRkod": "ENERC",
+    "namn": "Energi",
+    "enhet": "kJ",
+    "varde": 100,
+    "viktGram": 100
+   },
+   {
+    "euroFIRkod": "ENERC",
+    "namn": "Energi",
+    "enhet": "kcal",
+    "varde": 24,
+    "viktGram": 100
+   },
+   {
+    "euroFIRkod": "PROT",
+    "namn": "Protein",
+    "enhet": "g",
+    "varde": 3.3,
+    "viktGram": 100
+   },
+   {
+    "euroFIRkod": "VITD",
+    "namn": "Vitamin D",
+    "enhet": "ug",
+    "varde": 0.1,
+    "viktGram": 100
+   },
+   {
+    "euroFIRkod": "VITB12",
+    "namn": "Vitamin B12",
+    "enhet": "mikrog",
+    "varde": 0.4,
+    "viktGram": 100
+   }
+  ]
+ },
+ "/livsmedel/1/klassificeringar?sprak=1": [
+  {
+   "typ": "Livsmedelsgrupp",
+   "namn": "TEST Grains",
+   "kod": "G1"
+  },
+  {
+   "typ": "LanguaL",
+   "namn": "TEST CEREAL GRAIN",
+   "kod": "A0148"
+  }
+ ],
+ "/livsmedel/2/klassificeringar?sprak=1": [
+  {
+   "typ": "Livsmedelsgrupp",
+   "namn": "TEST Fish and shellfish",
+   "kod": "G2"
+  },
+  {
+   "typ": "FoodEx2",
+   "namn": "TEST Fish",
+   "kod": "A0EZS"
+  }
+ ],
+ "/livsmedel/10/klassificeringar?sprak=1": [
+  {
+   "typ": "LanguaL",
+   "namn": "TEST PLANT DRINK",
+   "kod": "B1"
+  }
+ ]
+}
