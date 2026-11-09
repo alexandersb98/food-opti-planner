@@ -76,3 +76,18 @@ def test_an_unknown_provider_stops_the_app(make_settings):
 def test_no_provider_is_an_app_without_ai(make_settings):
     app = create_app(make_settings(ai_provider=""))
     assert app.state.ai.configured is False
+
+
+def test_the_fake_provider_alone_stops_the_app(make_settings):
+    with pytest.raises(ValueError, match="AI_ALLOW_FAKE"):
+        create_app(make_settings(ai_provider="fake", ai_allow_fake=False))
+    assert create_app(make_settings(ai_provider="fake", ai_allow_fake=True)).state.ai.configured
+
+
+def test_the_fake_opt_in_is_read_from_the_environment(monkeypatch):
+    monkeypatch.delenv("AI_ALLOW_FAKE", raising=False)
+    assert Settings.from_env().ai_allow_fake is False
+    monkeypatch.setenv("AI_ALLOW_FAKE", "true")
+    assert Settings.from_env().ai_allow_fake is True
+    monkeypatch.setenv("AI_ALLOW_FAKE", "1")
+    assert Settings.from_env().ai_allow_fake is False

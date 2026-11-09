@@ -59,6 +59,22 @@ test('without an AI key Import is disabled and the hint says why', async () => {
   wrapper.unmount()
 })
 
+test('the key hint does not show before health has answered', async () => {
+  let release!: () => void
+  const gate = new Promise<void>((resolve) => (release = resolve))
+  const { wrapper } = await mountPage({
+    'GET /api/health': async () => {
+      await gate
+      return { body: { database: true, ai_configured: false } }
+    },
+  })
+  expect(wrapper.text()).not.toContain('Needs an AI key.')
+  release()
+  await flushPromises()
+  expect(wrapper.text()).toContain('Needs an AI key.')
+  wrapper.unmount()
+})
+
 test('an unreadable health answer counts as no key', async () => {
   const { wrapper } = await mountPage({ 'GET /api/health': 500 })
   await box(wrapper).setValue('Porridge')
@@ -81,6 +97,8 @@ test('a success posts the text, shows the wait, hands the draft over and opens a
   await box(wrapper).setValue('Porridge for two')
   await click(importButton(wrapper))
   expect(importButton(wrapper).text()).toContain('Reading the recipe…')
+  // visible, not the hidden label Quasar keeps under its spinner
+  expect(importButton(wrapper).get('.absolute-full').text()).toContain('Reading the recipe…')
   expect(box(wrapper).attributes('readonly')).toBeDefined()
   await click(importButton(wrapper)) // a second click does nothing
   release()

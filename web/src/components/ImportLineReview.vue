@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { Ingredient } from '../api/types'
 import type { DraftLine } from '../composables/useRecipeDraft'
 import { acceptable, type FactorRow, type LineState } from '../importReview'
@@ -9,13 +10,20 @@ import { acceptable, type FactorRow, type LineState } from '../importReview'
 // another unit, or Skip. A skipped line is greyed, with Add anyway (it was
 // not an ingredient) or Add back (the user skipped it). No logic: the page
 // decides the states and does what the events ask.
-defineProps<{
+const props = defineProps<{
   line: DraftLine
   ingredient: Ingredient | undefined
   state: LineState
   ownUnit: string
   factor: FactorRow | null // a line that needs a factor, or has one accepted
 }>()
+const { t } = useI18n()
+
+/** An action's accessible name with the line it is for (the buttons repeat per line). */
+function named(label: string) {
+  return t('recipes.buttonFor', { action: label, name: props.ingredient?.name ?? props.line.food })
+}
+
 defineEmits<{
   pick: []
   skip: []
@@ -55,6 +63,7 @@ defineEmits<{
         no-caps
         color="primary"
         :label="line.notAnIngredient ? $t('recipes.addAnyway') : $t('recipes.addBack')"
+        :aria-label="named(line.notAnIngredient ? $t('recipes.addAnyway') : $t('recipes.addBack'))"
         @click="$emit('unskip')"
       />
     </div>
@@ -70,6 +79,7 @@ defineEmits<{
         no-caps
         color="negative"
         :label="$t('recipes.pickIngredient')"
+        :aria-label="named($t('recipes.pickIngredient'))"
         @click="$emit('pick')"
       />
       <q-btn
@@ -78,6 +88,7 @@ defineEmits<{
         dense
         no-caps
         :label="$t('recipes.skip')"
+        :aria-label="named($t('recipes.skip'))"
         @click="$emit('skip')"
       />
     </div>
@@ -100,6 +111,7 @@ defineEmits<{
           no-caps
           color="primary"
           :label="$t('recipes.change')"
+          :aria-label="named($t('recipes.change'))"
           @click="$emit('change')"
         />
       </template>
@@ -114,7 +126,8 @@ defineEmits<{
           :readonly="factor.loading"
           :placeholder="factor.loading ? $t('recipes.suggesting') : ''"
           :aria-label="$t('recipes.factorLabel', { own: ownUnit, unit: line.unit })"
-          hide-bottom-space
+          :error="factor.text !== '' && acceptable(factor.text) === null"
+          :error-message="$t('recipes.factorInvalid')"
           @update:model-value="(value) => $emit('factor-input', String(value ?? ''))"
         />
         <span>{{ ownUnit }}</span>
@@ -129,6 +142,7 @@ defineEmits<{
           no-caps
           color="primary"
           :label="$t('recipes.accept')"
+          :aria-label="named($t('recipes.accept'))"
           :disable="factor.loading || acceptable(factor.text) === null"
           @click="$emit('accept', factor.text)"
         />
@@ -151,6 +165,7 @@ defineEmits<{
         dense
         no-caps
         :label="$t('recipes.skip')"
+        :aria-label="named($t('recipes.skip'))"
         @click="$emit('skip')"
       />
     </div>

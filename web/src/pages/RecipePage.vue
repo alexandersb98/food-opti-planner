@@ -23,6 +23,7 @@ import {
   lineState,
   needsYou,
   pendingKey,
+  suggestedFactorFor,
   type FactorRow,
   type ImportReview,
 } from '../importReview'
@@ -230,7 +231,7 @@ function keyOf(line: DraftLine) {
 function suggestedFor(line: DraftLine): string | null {
   const key = keyOf(line)
   if (suggestions[key] != null) return suggestions[key]
-  return reviewLines.value.find((other) => keyOf(other) === key && other.suggestedFactor !== null)?.suggestedFactor ?? null
+  return suggestedFactorFor(line, reviewLines.value)
 }
 
 function factorRow(line: DraftLine): FactorRow | null {
@@ -397,6 +398,7 @@ async function confirmDelete() {
           tabindex="0"
           @click="scrollToNext"
           @keydown.enter="scrollToNext"
+          @keydown.space.prevent="scrollToNext"
         >
           <div>
             {{ needsCount > 0 ? $t('recipes.banner', { n: needsCount }, needsCount) : $t('recipes.bannerReady') }}

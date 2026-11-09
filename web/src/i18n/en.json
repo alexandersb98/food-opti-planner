@@ -301,7 +301,8 @@
     "banner": "Imported from pasted text. {n} line needs you. | Imported from pasted text. {n} lines need you.",
     "bannerReady": "Imported from pasted text. All lines are ready.",
     "bannerCut": "The text was long: the end was left out.",
-    "saveBlocked": "Match, convert or skip every line to save."
+    "saveBlocked": "Match, convert or skip every line to save.",
+    "buttonFor": "{action}: {name}"
   },
   "clash": {
     "title": "No plan possible",

@@ -124,3 +124,15 @@ test('a skipped line is greyed, with Add anyway when it was not an ingredient an
   expect(buttons(back)).toEqual(['Add back'])
   expect(back.classes()).not.toContain('needs-you')
 })
+
+test('an invalid number says why Accept is disabled, and the buttons name their line', () => {
+  const wrapper = mountReview('needs_factor', {}, row({ text: '0', ai: false }))
+  expect(wrapper.text()).toContain('Enter a number above 0, with at most 6 decimals.')
+  expect(wrapper.get('.accept-factor').attributes('aria-label')).toBe('Accept: Milk')
+  expect(wrapper.get('.skip').attributes('aria-label')).toBe('Skip: Milk')
+  const unmatched = mount(ImportLineReview, {
+    props: { line: line({ ingredientId: null }), ingredient: undefined, state: 'unmatched', ownUnit: '', factor: null },
+    global: { plugins: [Quasar, makeI18n()] },
+  })
+  expect(unmatched.get('.pick-ingredient').attributes('aria-label')).toBe('Pick ingredient: milk')
+})

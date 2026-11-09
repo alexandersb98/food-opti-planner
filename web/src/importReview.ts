@@ -72,6 +72,24 @@ export function acceptable(text: string): string | null {
   return Number(number) > 0 ? number : null
 }
 
+/** The AI's number for a line's ingredient and unit: from a line (this one or
+ * another) whose suggestion was made for that very unit, so a line whose unit
+ * changed does not keep a number that was for the old one. */
+export function suggestedFactorFor(
+  line: Pick<DraftLine, 'ingredientId' | 'unit'>,
+  lines: readonly Pick<DraftLine, 'ingredientId' | 'unit' | 'suggestedFactor' | 'suggestedUnit'>[],
+): string | null {
+  if (line.ingredientId === null) return null
+  const key = pendingKey(line.ingredientId, line.unit)
+  const found = lines.find(
+    (other) =>
+      other.ingredientId !== null &&
+      other.suggestedFactor !== null &&
+      pendingKey(other.ingredientId, other.suggestedUnit ?? other.unit) === key,
+  )
+  return found?.suggestedFactor ?? null
+}
+
 /** "ai" while the number is the AI's suggestion (numerically: 100.0 is 100),
  * else "user". */
 export function factorSource(text: string, suggested: string | null): 'ai' | 'user' {

@@ -195,7 +195,10 @@ The settings, all optional:
 | `AI_DAILY_LIMIT` | model calls a day (UTC); 0 refuses every call | 50 |
 
 Set them as repository variables with the same names (step 8); the
-deploy passes only the ones that are set. To see that it works, open
+deploy updates the ones that are set and removes the others from the
+service, and touches no other environment variable (one you set by hand
+in the console stays). The deploy refuses `AI_PROVIDER=fake`, a provider
+for tests that also needs `AI_ALLOW_FAKE=true` to start. To see that it works, open
 Recipes, press **+**: **Import recipe** is enabled, and
 `/api/health` says `"ai_configured": true`.
 

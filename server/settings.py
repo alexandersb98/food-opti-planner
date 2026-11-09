@@ -28,6 +28,10 @@ class Settings:
     ai_model: str = DEFAULT_AI_MODEL
     ai_api_key: str = field(default="", repr=False)
     ai_daily_limit: int = DEFAULT_AI_DAILY_LIMIT  # model calls a day, UTC; 0 refuses all
+    # "fake" answers canned drafts and is only accepted with this second,
+    # explicit opt-in (AI_ALLOW_FAKE=true), set by tests and the e2e container
+    # only, so a stray AI_PROVIDER=fake can't reach production.
+    ai_allow_fake: bool = False
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -41,6 +45,7 @@ class Settings:
             ai_model=os.environ.get("AI_MODEL", DEFAULT_AI_MODEL).strip() or DEFAULT_AI_MODEL,
             ai_api_key=os.environ.get("AI_API_KEY", ""),
             ai_daily_limit=_daily_limit(os.environ.get("AI_DAILY_LIMIT")),
+            ai_allow_fake=os.environ.get("AI_ALLOW_FAKE", "").strip().lower() == "true",
         )
 
 

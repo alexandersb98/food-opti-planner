@@ -80,7 +80,7 @@ jobs:
           docker run -d --name app --network host -e PORT=8080 \
             -v "$PWD/tests/data/data_sources:/data_sources:ro" -e DATA_SOURCES_DIR=/data_sources \
             -e DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/planner_e2e \
-            -e PASSWORD_HASH="$hash" -e SESSION_KEY=e2e -e AI_PROVIDER=fake meal-planner
+            -e PASSWORD_HASH="$hash" -e SESSION_KEY=e2e -e AI_PROVIDER=fake -e AI_ALLOW_FAKE=true meal-planner
           curl --fail --silent --show-error --retry 10 --retry-delay 2 --retry-all-errors \
             http://localhost:8080/api/health
       - uses: actions/setup-node@v4
@@ -155,24 +155,36 @@ jobs:
           if [ "$AI_ENABLED" = "true" ]; then
             secrets="$secrets,AI_API_KEY=ai-api-key:latest"
           fi
-          settings=""
+          if [ "$AI_PROVIDER" = "fake" ]; then
+            echo "AI_PROVIDER=fake is for tests and must not be deployed" >&2
+            exit 1
+          fi
+          # Only the AI_* plain variables are touched: those that are set are
+          # updated, the others removed (removing one that is absent is fine),
+          # so variables set by hand in the console are never wiped.
+          update=""
+          remove=""
           for name in AI_PROVIDER AI_MODEL AI_DAILY_LIMIT; do
             value="${!name}"
             if [ -n "$value" ]; then
-              settings="${settings:+$settings,}$name=$value"
+              update="${update:+$update,}$name=$value"
+            else
+              remove="${remove:+$remove,}$name"
             fi
           done
-          if [ -n "$settings" ]; then
-            env_flag="--set-env-vars=$settings"
-          else
-            env_flag="--clear-env-vars"
+          env_flags=()
+          if [ -n "$remove" ]; then
+            env_flags+=("--remove-env-vars=$remove")
+          fi
+          if [ -n "$update" ]; then
+            env_flags+=("--update-env-vars=$update")
           fi
           gcloud run deploy "$SERVICE" --quiet \
             --project="$PROJECT" --region="$REGION" --image="$IMAGE" \
             --min-instances=0 --max-instances=1 --cpu=1 --memory=2Gi \
             --timeout=360 --cpu-throttling --allow-unauthenticated \
             --service-account="meal-planner-run@$PROJECT.iam.gserviceaccount.com" \
-            --set-secrets="$secrets" "$env_flag"
+            --set-secrets="$secrets" "${env_flags[@]}"
       - name: Health check
         run: |
           url="$(gcloud run services describe "$SERVICE" --project="$PROJECT" --region="$REGION" --format='value(status.url)')"

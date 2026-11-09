@@ -152,10 +152,10 @@ test('a unit error shows under its line only', () => {
 
 // the import review -------------------------------------------------------------
 
-function mountReview(skippedKeys: number[] = []) {
+function mountReview(skippedKeys: number[] = [], unmatchedKeys: number[] = []) {
   const calls: string[] = []
   const review: ImportReview = {
-    state: (line) => (skippedKeys.includes(line.key) ? 'skipped' : 'ready'),
+    state: (line) => (skippedKeys.includes(line.key) ? 'skipped' : unmatchedKeys.includes(line.key) ? 'unmatched' : 'ready'),
     factor: () => null,
     pick: (s, l) => calls.push(`pick ${s} ${l}`),
     skip: (s, l) => calls.push(`skip ${s} ${l}`),
@@ -191,5 +191,13 @@ test('in review a line is wrapped by its review, and a skipped line has its amou
   expect(rows[0]!.get('input').attributes('disabled')).toBeUndefined()
   expect(rows[1]!.get('input').attributes('disabled')).toBeDefined()
   expect(rows[1]!.classes()).toContain('line-skipped')
+  wrapper.unmount()
+})
+
+test('the buttons of a review line say which section and line asked', async () => {
+  const { wrapper, calls } = mountReview([], [12])
+  await wrapper.get('.pick-ingredient').trigger('click')
+  await wrapper.get('.skip').trigger('click')
+  expect(calls).toEqual(['pick 0 1', 'skip 0 1'])
   wrapper.unmount()
 })

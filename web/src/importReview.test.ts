@@ -1,5 +1,5 @@
 import { beforeAll, expect, test } from 'vitest'
-import { acceptable, factorSource, ingredientWithPending, lineState, needsYou, pendingKey, type PendingConversion } from './importReview'
+import { acceptable, suggestedFactorFor, factorSource, ingredientWithPending, lineState, needsYou, pendingKey, type PendingConversion } from './importReview'
 import { fakeServer } from './test-app'
 import { conversion, ingredient, unitCatalogue } from './test-data'
 import { resetUnits, useUnits } from './units'
@@ -95,4 +95,15 @@ test('factorSource is ai only while the number is the suggestion', () => {
   expect(factorSource('100.0', '100')).toBe('ai')
   expect(factorSource('90', '100')).toBe('user')
   expect(factorSource('100', null)).toBe('user')
+})
+
+test('a suggestion is for the unit it was made for, not for a line that changed unit', () => {
+  const imported = { ingredientId: 3, unit: 'dl', suggestedFactor: '50', suggestedUnit: 'dl' }
+  expect(suggestedFactorFor(imported, [imported])).toBe('50')
+  const changed = { ...imported, unit: 'cup' }
+  expect(suggestedFactorFor(changed, [changed])).toBeNull()
+  // another line of the pair, still in dl, shares it
+  expect(suggestedFactorFor({ ingredientId: 3, unit: 'DL' }, [imported])).toBe('50')
+  expect(suggestedFactorFor({ ingredientId: 4, unit: 'dl' }, [imported])).toBeNull()
+  expect(suggestedFactorFor({ ingredientId: null, unit: 'dl' }, [imported])).toBeNull()
 })

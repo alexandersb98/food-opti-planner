@@ -29,6 +29,7 @@ export type DraftLine = {
   skipped: boolean
   notAnIngredient: boolean
   suggestedFactor: string | null
+  suggestedUnit?: string // the unit the suggestion is for (the one imported)
 }
 
 /** A part of the recipe under a heading; `name` is empty for an unnamed one. */
@@ -154,6 +155,7 @@ export function draftOfImport(recipe: ImportedRecipe, base: RecipeDraft): Recipe
         skipped: line.status === 'not_an_ingredient',
         notAnIngredient: line.status === 'not_an_ingredient',
         suggestedFactor: line.suggested_factor,
+        suggestedUnit: line.unit,
       })),
     })),
     imported: { cut: recipe.cut },

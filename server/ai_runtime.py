@@ -29,6 +29,8 @@ class AIRuntime:
         if self.provider and self.provider not in ADAPTERS:
             known = ", ".join(sorted(ADAPTERS))
             raise ValueError(f"AI_PROVIDER {self.provider!r} is unknown; known providers: {known}")
+        if self.provider == "fake" and not settings.ai_allow_fake:
+            raise ValueError("AI_PROVIDER=fake is for tests and needs AI_ALLOW_FAKE=true as well")
         if self.provider == "fake":
             self.chat = build_chat("fake", self.model, "")
         elif self.provider and settings.ai_api_key:

@@ -201,8 +201,7 @@ def suggest_one(db: Session, ingredient_id: int, unit: str, food: str, suggester
     """The factor for one ingredient and unit, typed by hand on the review.
     Raises BadAnswerError, AIServiceError or DailyLimitReached."""
     ingredient = db.get(models.Ingredient, ingredient_id)
-    if ingredient is None:
-        raise LookupError(ingredient_id)
+    assert ingredient is not None  # the route checked the id
     return _suggest(suggester, _entry(ingredient), unit, food)
 
 

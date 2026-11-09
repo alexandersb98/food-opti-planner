@@ -116,7 +116,7 @@ function reviewEvents(lineIndex: number) {
           round
           dense
           icon="more_vert"
-          :aria-label="$t('recipes.lineMenu', { name: ingredientOf(item)?.name })"
+          :aria-label="$t('recipes.lineMenu', { name: ingredientOf(item)?.name ?? item.food })"
         >
           <q-menu>
             <q-list>
@@ -138,7 +138,7 @@ function reviewEvents(lineIndex: number) {
           round
           dense
           icon="close"
-          :aria-label="$t('recipes.remove', { name: ingredientOf(item)?.name })"
+          :aria-label="$t('recipes.remove', { name: ingredientOf(item)?.name ?? item.food })"
           @click="$emit('removeLine', lineIndex)"
         />
       </div>
@@ -146,7 +146,7 @@ function reviewEvents(lineIndex: number) {
         v-if="errors.units?.[item.key]"
         class="unit-error text-negative text-caption"
       >
-        {{ $t('recipes.unitNotConvertible', { unit: item.unit, name: ingredientOf(item)?.name }) }}
+        {{ $t('recipes.unitNotConvertible', { unit: item.unit, name: ingredientOf(item)?.name ?? item.food }) }}
       </div>
     </component>
     <div class="row items-center q-gutter-x-sm">

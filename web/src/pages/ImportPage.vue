@@ -16,7 +16,8 @@ const text = ref('')
 const running = ref(false)
 const error = ref('')
 // Whether the server has an AI key; unknown (read failed) counts as no.
-const configured = ref(false)
+// null until health has answered, so the hint doesn't flash.
+const configured = ref<boolean | null>(null)
 
 onMounted(async () => {
   setImportedDraft(null) // no stale draft from an earlier import
@@ -28,7 +29,7 @@ onMounted(async () => {
   }
 })
 
-const canImport = computed(() => configured.value && !running.value && text.value.trim() !== '')
+const canImport = computed(() => configured.value === true && !running.value && text.value.trim() !== '')
 
 async function run() {
   if (!canImport.value) return
@@ -82,7 +83,7 @@ async function run() {
         {{ error }}
       </div>
       <div
-        v-if="!configured"
+        v-if="configured === false"
         class="needs-key text-grey-8"
       >
         {{ $t('import.needsKey') }}
@@ -93,8 +94,13 @@ async function run() {
         no-caps
         :disable="!canImport"
         :loading="running"
-        :label="running ? $t('import.reading') : $t('import.run')"
-      />
+        :label="$t('import.run')"
+      >
+        <template #loading>
+          <q-spinner class="q-mr-sm" />
+          {{ $t('import.reading') }}
+        </template>
+      </q-btn>
     </q-form>
   </q-page>
 </template>

@@ -101,7 +101,7 @@ cd web && npm install && npm run dev                          # app on :5173, fo
 Recipe import needs an AI service. Optional settings: `AI_PROVIDER` (`anthropic`
 by default, also `gemini`, `openai`, `mistral`), `AI_MODEL`, `AI_API_KEY` (the key of
 that provider; without it Import is disabled) and `AI_DAILY_LIMIT` (model calls a
-day, default 50). `AI_PROVIDER=fake` needs no key and answers canned drafts (a text
+day, default 50). `AI_PROVIDER=fake` (with `AI_ALLOW_FAKE=true`, so it can't be set by accident) needs no key and answers canned drafts (a text
 with `[fake:none]`, `[fake:broken]`, `[fake:broken-once]` or `[fake:down]` picks a
 failure), for trying the screens and for the end-to-end test.
 
@@ -149,7 +149,7 @@ fail until they are up to date.
 End-to-end tests (Playwright, in `web/e2e/`) drive the built app in a
 phone-sized browser. They expect a running app with an empty database,
 started with `DATA_SOURCES_DIR=$PWD/tests/data/data_sources` (next to
-`DATABASE_URL`, `PASSWORD_HASH` and `SESSION_KEY`, and `AI_PROVIDER=fake` for the
+`DATABASE_URL`, `PASSWORD_HASH` and `SESSION_KEY`, and `AI_PROVIDER=fake` with `AI_ALLOW_FAKE=true` for the
 import step; the directory holds a small
 file of fake "TEST" foods, as the flow looks at a data source), and its
 password in `E2E_PASSWORD`:

@@ -29,6 +29,7 @@ def settings_with(**changes) -> Settings:
         password_hash=PASSWORD_HASH,
         session_key="test session key",
         data_sources_dir=Path(__file__).parent / "no_data_sources",
+        ai_allow_fake=True,  # tests may use the fake provider; a test turns it off to check
     )
     return replace(settings, **changes)
 
