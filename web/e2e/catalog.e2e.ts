@@ -11,13 +11,14 @@ import { expect, test, type Page } from '@playwright/test'
 // updated source values: two ingredients added from a food, a column mapped afterwards, the
 // marker and filter on the list, and the banner on each page answered with Accept and Keep mine,
 // and finally make vegan equivalent to a source tag (the rule question, the count of the
-// recipe filters) and take it out again.
+// recipe filters) and take it out again. The recipe also gets servings, instructions and a
+// source link, then sections with the same ingredient on two lines, which are taken out again.
 
 const password = process.env.E2E_PASSWORD
 if (!password) throw new Error('Set E2E_PASSWORD to the login password')
 
 async function openPage(page: Page, name: string) {
-  await page.getByRole('button', { name: 'Menu' }).click()
+  await page.getByRole('button', { name: 'Menu', exact: true }).click()
   await page.locator('.q-drawer').getByText(name, { exact: true }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(name)
 }
@@ -168,6 +169,61 @@ test('log in, build a catalog of an attribute, a tag and an ingredient, and a re
   await expect(page.getByLabel('Amount of Oats')).toHaveValue('0.06')
   await expect(page.locator('.portion-total')).toHaveText(['Energy 233 kcal'])
   await page.getByRole('link', { name: 'Back' }).click()
+
+  // Servings, instructions and a source link: Serves 2 halves the per-portion
+  // total (the amount is read in kg, as the unit change left it), and all
+  // three are saved, not just shown.
+  await page.locator('.recipe-row').click()
+  await page.getByLabel('Serves').fill('2')
+  await expect(page.locator('.portion-total')).toHaveText(['Energy 117 kcal'])
+  await page.getByLabel('Instructions').fill('Simmer the oats.')
+  await page.getByLabel('Source').fill('https://example.com/porridge')
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.locator('.recipe-row')).toHaveText([/Porridge\s*Per portion: Energy 117 kcal/])
+  await page.locator('.recipe-row').click()
+  await expect(page.getByLabel('Serves')).toHaveValue('2')
+  await expect(page.getByLabel('Instructions')).toHaveValue('Simmer the oats.')
+  await expect(page.getByLabel('Source')).toHaveValue('https://example.com/porridge')
+  await expect(page.getByRole('link', { name: 'Open source' })).toHaveAttribute('href', 'https://example.com/porridge')
+
+  // Sections: adding one shows a name field on each; the same ingredient goes
+  // on a second line in Topping, and the heading and total follow.
+  await expect(page.getByLabel('Section name')).toHaveCount(0)
+  await page.getByRole('button', { name: '+ Add section' }).click()
+  await page.getByLabel('Section name').nth(0).fill('Porridge')
+  await page.getByLabel('Section name').nth(1).fill('Topping')
+  await page.getByRole('button', { name: '+ Add ingredient' }).nth(1).click()
+  await page.getByRole('dialog').getByText('Oats').click()
+  await page.getByLabel('Amount of Oats').nth(1).fill('0.01')
+  await expect(page.getByText('Ingredients, for 2 portions')).toBeVisible()
+  await expect(page.locator('.portion-total')).toHaveText(['Energy 136 kcal'])
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.locator('.recipe-row')).toHaveText([/Porridge\s*Per portion: Energy 136 kcal/])
+  await page.locator('.recipe-row').click()
+  await expect(page.getByLabel('Section name')).toHaveCount(2)
+  await expect(page.getByLabel('Section name').nth(1)).toHaveValue('Topping')
+  await expect(page.getByLabel('Amount of Oats')).toHaveCount(2)
+  await expect(page.getByLabel('Amount of Oats').nth(1)).toHaveValue('0.01')
+  await page.getByRole('link', { name: 'Back' }).click()
+
+  // Two lines of one recipe are one recipe for the ingredient.
+  await openPage(page, 'Ingredients')
+  await page.locator('.ingredient-row').click()
+  await expect(page.getByText('Used in 1 recipe')).toBeVisible()
+  await page.getByRole('link', { name: 'Back' }).click()
+
+  // Back to one portion in one section, as the steps below expect: removing
+  // Topping moves its line up, which is then removed.
+  await openPage(page, 'Recipes')
+  await page.locator('.recipe-row').click()
+  await page.getByRole('button', { name: 'Remove section' }).nth(1).click()
+  await expect(page.getByLabel('Amount of Oats')).toHaveCount(2)
+  await page.getByRole('button', { name: 'Remove Oats' }).nth(1).click()
+  await page.getByLabel('Serves').fill('1')
+  await page.getByLabel('Instructions').fill('')
+  await page.getByLabel('Source').fill('')
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(page.locator('.recipe-row')).toHaveText([/Porridge\s*Per portion: Energy 233 kcal/])
 
   // The tag is no longer "added by hand", and deleting the attribute warns
   // about the ingredient value.
