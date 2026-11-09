@@ -101,18 +101,21 @@ RECIPE = {
 def recipe_body(name="Porridge", items=None, extra_tag_ids=(), **changes) -> dict:
     """A recipe's request body: servings 1, no instructions or source, and
     `items` as the lines of one unnamed section. `items` maps ingredient ids
-    to amounts, or is a list of (ingredient id, amount) pairs when an
-    ingredient repeats. `sections=` in `changes` replaces that section."""
+    to amounts, or is a list of (ingredient id, amount) or (ingredient id,
+    amount, unit) tuples when an ingredient repeats or a line has a unit.
+    `sections=` in `changes` replaces that section."""
     pairs = items.items() if isinstance(items, dict) else (items or ())
+    lines = [
+        {"ingredient_id": i, "amount": a, "unit": unit[0] if unit else "", "original_text": ""}
+        for i, a, *unit in pairs
+    ]
     return {
         **RECIPE,
         "name": name,
         "servings": 1,
         "instructions": "",
         "source_url": "",
-        "sections": [
-            {"name": "", "items": [{"ingredient_id": i, "amount": a, "original_text": ""} for i, a in pairs]}
-        ],
+        "sections": [{"name": "", "items": lines}],
         "extra_tag_ids": list(extra_tag_ids),
         **changes,
     }
@@ -157,6 +160,10 @@ class Catalog:
         values = [{"attribute_id": a, "value": v} for a, v in (values or {}).items()]
         fields = {"name": name, "unit": unit, "basis": basis, "values": values, "tag_ids": list(tag_ids)}
         return self._create("/api/ingredients", fields)
+
+    def conversion(self, ingredient_id: int, unit: str, factor: str) -> int:
+        """Add "1 `unit` = `factor` of the ingredient's own unit"."""
+        return self._create(f"/api/ingredients/{ingredient_id}/conversions", {"unit": unit, "factor": factor})
 
     def recipe(self, name="Porridge", items=None, extra_tag_ids=()) -> int:
         """`items` maps ingredient ids to amounts for the whole recipe, which

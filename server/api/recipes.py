@@ -9,11 +9,12 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field, StringConstraints
 from sqlalchemy import select
 
-from .. import models, queries, translate
+from .. import conversions, line_units, models, queries, translate, units
 from ..db import DbSession
 from ..fields import Multiplier, Name, Number, plain
 from .catalog import References, commit_named, get_or_404, in_list
 from .errors import NAME_IN_USE, FieldError
+from .ingredients import UNIT_NOT_FOR_INGREDIENT
 
 router = APIRouter(prefix="/recipes", tags=["recipes"])
 
@@ -29,8 +30,12 @@ class RecipeItem(BaseModel):
     """A line of a recipe. The same ingredient may be on several lines."""
 
     ingredient_id: int
-    # For the whole recipe, in the ingredient's unit.
+    # For the whole recipe, in `unit`.
     amount: Annotated[Number, Field(gt=0)]
+    # Empty: the ingredient's own unit. Otherwise a unit that converts to it:
+    # a catalogue unit, or the unit of one of the ingredient's conversions.
+    # Answered in one form (`conversions.canonical_unit`).
+    unit: Annotated[str, StringConstraints(strip_whitespace=True, max_length=models.UNIT_LENGTH)] = ""
     # The line as imported, empty for one that was typed.
     original_text: Annotated[str, Field(max_length=models.ORIGINAL_TEXT_LENGTH)]
 
@@ -105,7 +110,10 @@ class _Responses:
                 Section(
                     name=section.name,
                     items=[
-                        RecipeItem(ingredient_id=i.ingredient_id, amount=i.amount, original_text=i.original_text)
+                        RecipeItem(
+                            ingredient_id=i.ingredient_id, amount=i.amount, unit=i.unit,
+                            original_text=i.original_text,
+                        )
                         for i in section.items
                     ],
                 )
@@ -128,7 +136,8 @@ class _Responses:
 
 
 def _total(row: models.Recipe, attribute: models.Attribute) -> Fraction:
-    """`attribute`'s total for one portion: each line's amount times that
+    """`attribute`'s total for one portion: each line's amount (in the
+    ingredient's own unit, `translate.own_unit_amount`) times that
     ingredient's value per its basis, summed over all lines and divided by
     the servings once. A missing value counts as 0.
 
@@ -140,7 +149,7 @@ def _total(row: models.Recipe, attribute: models.Attribute) -> Fraction:
     """
     whole = sum(
         (
-            Fraction(item.amount) * Fraction(value.value) / Fraction(item.ingredient.basis)
+            translate.own_unit_amount(item) * Fraction(value.value) / Fraction(item.ingredient.basis)
             for item in row.lines
             for value in item.ingredient.values
             if value.attribute_id == attribute.id
@@ -194,6 +203,28 @@ def _recipe_errors(body: RecipeFields) -> list[FieldError]:
     return errors
 
 
+def _unit_errors(body: RecipeFields, ingredients: dict[int, models.Ingredient]) -> list[FieldError]:
+    """A line's unit must be one the ingredient can take: not an energy unit,
+    and one that converts to the ingredient's own (`line_units.route`)."""
+    errors = []
+    for i, section in enumerate(body.sections):
+        for j, item in enumerate(section.items):
+            ingredient = ingredients.get(item.ingredient_id)
+            if ingredient is None or not item.unit:
+                continue
+            loc = ["body", "sections", i, "items", j, "unit"]
+            parsed = units.parse(item.unit)
+            if parsed is not None and parsed.category == "energy":
+                errors.append(FieldError(loc=loc, type="unit_not_for_ingredient", msg=UNIT_NOT_FOR_INGREDIENT))
+            elif line_units.route(item.unit, ingredient.unit, [(c.unit, c.factor) for c in ingredient.conversions]) is None:
+                msg = (
+                    f"{plain(item.amount)} {item.unit} of {ingredient.name} doesn't convert to {ingredient.unit}: "
+                    f"add a conversion for {item.unit}"
+                )
+                errors.append(FieldError(loc=loc, type="unit_not_convertible", msg=msg))
+    return errors
+
+
 def _fill(recipe: models.Recipe, body: RecipeFields, db: DbSession) -> None:
     """Set the recipe's fields from `body`, answering 422 for portion sizes
     the library would refuse, sections and links that break the rules and ids
@@ -205,7 +236,8 @@ def _fill(recipe: models.Recipe, body: RecipeFields, db: DbSession) -> None:
         for i, section in enumerate(body.sections)
         for j, item in enumerate(section.items)
     ]
-    refs.rows(models.Ingredient, lines, "ingredient")
+    ingredients = refs.rows(models.Ingredient, lines, "ingredient")
+    refs.errors += _unit_errors(body, ingredients)
     tags = refs.rows(models.Tag, in_list("extra_tag_ids", body.extra_tag_ids), "tag")
     refs.check()
 
@@ -225,6 +257,7 @@ def _fill(recipe: models.Recipe, body: RecipeFields, db: DbSession) -> None:
                 items=[
                     models.RecipeItem(
                         position=j, ingredient_id=item.ingredient_id, amount=item.amount,
+                        unit=conversions.canonical_unit(item.unit, ingredients[item.ingredient_id]),
                         original_text=item.original_text,
                     )
                     for j, item in enumerate(section.items)

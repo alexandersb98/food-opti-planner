@@ -15,7 +15,7 @@ from typing import Literal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from . import models, queries, translate, units
+from . import line_units, models, queries, translate, units
 from .fields import plain
 
 # A converted number must stay below 10^9: 15 digits with 6 decimals.
@@ -31,10 +31,10 @@ ROUNDS_TO_ZERO = "conversion_rounds_to_zero"
 class Number:
     """One stored number in the unit that changes."""
 
-    kind: str  # "ingredient_value" | "source_value" | "goal" | "basis" | "recipe_amount"
+    kind: str  # "ingredient_value" | "source_value" | "goal" | "basis" | "recipe_amount" | "conversion"
     row_id: int  # counted once per (kind, row_id): a goal's bounds are one goal
     name: str  # for a refusal: the goal's, ingredient's or recipe's name
-    field: str  # "value" | "source_value" | "min" | "max" | "zero_reference" | "basis" | "amount"
+    field: str  # "value" | "source_value" | "min" | "max" | "zero_reference" | "basis" | "amount" | "factor"
     value: Decimal
     write: Callable[[Decimal], None]
     decimals: int | None = None  # None: round to VALUE_DECIMALS; n: must fit n decimals exactly
@@ -45,6 +45,9 @@ class Number:
 class Converter:
     key: str  # the count's key in the answer
     numbers: Callable[[Session], list[Number]]  # in row id order
+    # A refusal that is not about a number: asked, for a change of any kind
+    # but `same`, before the converter's numbers.
+    blocks: Callable[[Session, str], "Refusal | None"] | None = None
 
 
 @dataclass(frozen=True)
@@ -63,6 +66,10 @@ class Refusal:
     # and its own unit.
     source: str | None = None
     unit: str | None = None
+    # For an ingredient whose unit can't change while conversions or recipe
+    # lines in other units depend on it: how many of each.
+    conversions: int | None = None
+    lines: int | None = None
 
 
 @dataclass
@@ -180,6 +187,8 @@ def plan(db: Session, old_unit: str, new_unit: str, converters: list[Converter])
     refusal: Refusal | None = None
     rounded = 0
     for converter in converters:
+        if kind != "same" and converter.blocks is not None:
+            refusal = refusal or converter.blocks(db, kind)
         numbers = converter.numbers(db)
         counts[converter.key] = len({(n.kind, n.row_id) for n in numbers})
         if kind != "convert" or ratio is None:
@@ -310,10 +319,19 @@ def _recipe_lines(ingredient_id: int):
     )
 
 
-def ingredient_converters(ingredient: models.Ingredient, basis: Decimal) -> list[Converter]:
+def _plural(n: int, one: str, many: str) -> str:
+    return f"{n} {one if n == 1 else many}"
+
+
+def ingredient_converters(ingredient: models.Ingredient, basis: Decimal, new_unit: str) -> list[Converter]:
     """The numbers stored in an ingredient's unit: its basis (the one the
-    form sends, as `PUT` saves it) and the amounts of every recipe line that
-    uses it. Its values are per basis and stay as they are."""
+    form sends, as `PUT` saves it), the amounts of the recipe lines in that
+    unit, and the factors of its stored conversions (a conversion's factor is
+    how many of the unit one of its unit makes). Lines in another unit and the
+    ingredient's values stay as they are. `new_unit` is the unit it changes
+    to, for the two refusals that are not about a number. The old unit is the
+    ingredient's now, before the save changes the row."""
+    old = ingredient.unit
 
     def basis_number(db: Session) -> list[Number]:
         return [Number(
@@ -322,17 +340,62 @@ def ingredient_converters(ingredient: models.Ingredient, basis: Decimal) -> list
         )]
 
     def amounts(db: Session) -> list[Number]:
-        # Every line, so an ingredient on two lines of a recipe counts two
-        # amounts. In recipe, section and line order, so the refusal names
-        # the first line there.
+        # Every line in the own unit, so an ingredient on two lines of a recipe
+        # counts two amounts. In recipe, section and line order, so the refusal
+        # names the first line there. Written in the new unit, which is the
+        # line's own unit again: the line's unit is emptied with it.
         rows = db.execute(_recipe_lines(ingredient.id))
 
         def setter(row: models.RecipeItem):
-            return lambda converted: setattr(row, "amount", converted)
+            def write(converted: Decimal) -> None:
+                row.amount = converted
+                row.unit = ""
+            return write
 
         return [
             Number("recipe_amount", row.id, name, "amount", row.amount, setter(row), positive=True)
             for row, name in rows
+            if line_units.is_own(row.unit, old)
         ]
 
-    return [Converter("basis", basis_number), Converter("recipe_amounts", amounts)]
+    def conversion_numbers(db: Session) -> list[Number]:
+        def setter(row: models.IngredientConversion):
+            return lambda converted: setattr(row, "factor", converted)
+
+        return [
+            Number("conversion", row.id, row.unit, "factor", row.factor, setter(row), positive=True)
+            for row in ingredient.conversions
+        ]
+
+    def blocks(db: Session, kind: str) -> Refusal | None:
+        if kind == "convert":
+            # A conversion for the new unit would be one for the own unit.
+            for conversion in ingredient.conversions:
+                if units.ratio(conversion.unit, new_unit) == 1:
+                    return Refusal(
+                        type="conversion_for_new_unit",
+                        msg=f"{ingredient.name} has a conversion for {conversion.unit}. Delete it first.",
+                        name=ingredient.name, unit=conversion.unit,
+                    )
+            return None
+        # Another category or free text: only lines in the own unit keep their meaning.
+        conversions = len(ingredient.conversions)
+        lines = sum(1 for row, _ in db.execute(_recipe_lines(ingredient.id)) if row.unit != "")
+        if not conversions and not lines:
+            return None
+        parts = []
+        if conversions:
+            parts.append(_plural(conversions, "conversion", "conversions"))
+        if lines:
+            parts.append(_plural(lines, "recipe line", "recipe lines") + " in another unit")
+        return Refusal(
+            type="unit_has_dependents",
+            msg=f"{ingredient.name} has {' and '.join(parts)}, so its unit can't change to {new_unit}.",
+            name=ingredient.name, conversions=conversions, lines=lines,
+        )
+
+    return [
+        Converter("basis", basis_number),
+        Converter("recipe_amounts", amounts),
+        Converter("conversions", conversion_numbers, blocks),
+    ]

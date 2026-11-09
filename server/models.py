@@ -23,6 +23,7 @@ NAME_LENGTH = 100
 SOURCE_URL_LENGTH = 2000  # a recipe's source link
 INSTRUCTIONS_LENGTH = 20000  # a recipe's instructions (the column is unbounded text)
 ORIGINAL_TEXT_LENGTH = 500  # a recipe line as typed or imported
+CONVERSION_SOURCE_LENGTH = 4  # a conversion's source: "ai" or "user"
 # A goal's generated name: an attribute's name, ", daily average" and " (NNN)",
 # as names typed for other goals can move its number past the goals'.
 GOAL_NAME_LENGTH = 130
@@ -143,6 +144,29 @@ class Ingredient(Base):
         order_by="IngredientValue.attribute_id",
     )
     tags: Mapped[list[Tag]] = relationship(secondary=ingredient_tags, order_by=Tag.id)
+    # What one of another unit makes of this ingredient's own unit ("1 dl =
+    # 40 g"), in the order they were added.
+    conversions: Mapped[list["IngredientConversion"]] = relationship(
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="IngredientConversion.id",
+    )
+
+
+class IngredientConversion(Base):
+    """"1 `unit` = `factor` of the ingredient's own unit": a catalogue unit
+    (any category but energy) or free text such as "pinch". One per unit and
+    ingredient (the API also treats two spellings of a unit as one). `source`
+    is "ai" for a suggestion the user has not checked, else "user"."""
+
+    __tablename__ = "ingredient_conversions"
+    __table_args__ = (UniqueConstraint("ingredient_id", "unit"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    ingredient_id: Mapped[int] = mapped_column(ForeignKey("ingredients.id", ondelete="CASCADE"))
+    unit: Mapped[str] = mapped_column(String(UNIT_LENGTH))
+    factor: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
+    source: Mapped[str] = mapped_column(String(CONVERSION_SOURCE_LENGTH))
 
 
 class IngredientValue(Base):
@@ -228,8 +252,7 @@ class RecipeSection(Base):
 
 class RecipeItem(Base):
     """A line of a recipe: an amount of an ingredient in the recipe, for the
-    whole recipe, in the ingredient's unit. The same ingredient may be on
-    several lines. `original_text` is the line as it was imported, empty for
+    whole recipe, in `unit`. The same ingredient may be on several lines. `original_text` is the line as it was imported, empty for
     a typed one. An ingredient can't be deleted while a recipe uses it."""
 
     __tablename__ = "recipe_items"
@@ -240,6 +263,9 @@ class RecipeItem(Base):
     position: Mapped[int]
     ingredient_id: Mapped[int] = mapped_column(ForeignKey("ingredients.id", ondelete="RESTRICT"))
     amount: Mapped[Decimal] = mapped_column(EXACT_NUMBER)
+    # Empty is the ingredient's own unit; otherwise any unit that converts to
+    # it (see `line_units`).
+    unit: Mapped[str] = mapped_column(String(UNIT_LENGTH))
     original_text: Mapped[str] = mapped_column(String(ORIGINAL_TEXT_LENGTH))
     ingredient: Mapped[Ingredient] = relationship()
 
@@ -581,6 +607,7 @@ __all__ = [
     "DataSource",
     "Goal",
     "Ingredient",
+    "IngredientConversion",
     "IngredientValue",
     "Plan",
     "PlanDayMinimum",

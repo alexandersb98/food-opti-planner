@@ -19,8 +19,8 @@ def fields(*items, **changes):
     return {**recipe_body(items=items), **changes}
 
 
-def line(ingredient, amount, original_text=""):
-    return {"ingredient_id": ingredient, "amount": amount, "original_text": original_text}
+def line(ingredient, amount, original_text="", unit=""):
+    return {"ingredient_id": ingredient, "amount": amount, "unit": unit, "original_text": original_text}
 
 
 def items(recipe):
@@ -499,3 +499,97 @@ def test_an_ingredient_counts_recipes_not_lines(client, oats, milk):
     assert client.get(f"/api/ingredients/{oats}").json()["recipe_count"] == 2
     assert client.get(f"/api/ingredients/{milk}").json()["recipe_count"] == 1
     assert client.delete(f"/api/ingredients/{oats}").status_code == 409
+
+
+# Line units (slice R3).
+def with_units(catalog, client, **conversions):
+    """Oats (g, 100 kcal per 100 g) with the given conversions {unit: factor}."""
+    energy = catalog.attribute()
+    oats = catalog.ingredient(values={energy: "100"})
+    for unit, factor in conversions.items():
+        catalog.conversion(oats, unit, factor)
+    return oats
+
+
+def saved_units(client, recipe):
+    return [i["unit"] for section in recipe["sections"] for i in section["items"]]
+
+
+def test_a_line_in_another_unit_is_saved_and_read_back_canonical(client, catalog):
+    oats = with_units(catalog, client, dl="40", msk="10")
+    created = create(client, (oats, "1", "gram"), (oats, "2", "tbsp"), (oats, "3", "DL"), (oats, "4", "oz"), (oats, "5", " kg "))
+    assert saved_units(client, created) == ["", "msk", "dl", "oz", "kg"]
+    assert saved_units(client, client.get(f"/api/recipes/{created['id']}").json()) == ["", "msk", "dl", "oz", "kg"]
+
+
+def test_totals_convert_lines_to_the_ingredients_unit(client, catalog):
+    oats = with_units(catalog, client, dl="40")
+    # 60 g and 1 dl of 40 g per dl: as 100 g of 100 kcal per 100 g.
+    assert create(client, (oats, "60", ""), (oats, "1", "dl"))["totals"][0]["value"] == "100"
+    halved = create(client, (oats, "60", ""), (oats, "1", "dl"), name="Half", servings=2)
+    assert halved["totals"][0]["value"] == "50"
+    assert create(client, (oats, "1", "kg"), name="Kilo")["totals"][0]["value"] == "1000"
+
+
+def test_a_solve_uses_the_converted_amounts(client, catalog):
+    energy = catalog.attribute()
+    milk = catalog.ingredient("Milk", "g", "100", values={energy: "64"})
+    catalog.conversion(milk, "dl", "100")
+    fixed_portion_recipe(catalog, "Latte", [(milk, "2", "dl")], "1")
+    schedule(client, start_date="2026-10-26", days=1, meals=[{"name": "Lunch"}], skips=[], minimums=[], solve_time_limit=10)
+    response = client.post("/api/plan/solve", json={"solve_id": "s1"})
+    assert response.status_code == 200, response.text
+    plan = response.json()["plan"]
+    assert plan["meals"][0][0]["items"] == [{"ingredient": "Milk", "unit": "g", "amount": "200"}]
+    assert plan["day_totals"] == [["128"]]
+
+
+def test_a_line_that_does_not_convert_answers_422_at_its_place(client, catalog, oats):
+    response = client.post("/api/recipes", json=fields((oats, "60"), (oats, "2", "dl")))
+    assert response.status_code == 422
+    [error] = response.json()["detail"]
+    assert (error["loc"], error["type"]) == (["body", "sections", 0, "items", 1, "unit"], "unit_not_convertible")
+    assert error["msg"] == "2 dl of Oats doesn't convert to g: add a conversion for dl"
+    assert client.get("/api/recipes").json() == []
+
+
+def test_an_energy_unit_answers_422(client, oats):
+    response = client.post("/api/recipes", json=fields((oats, "1", "kcal")))
+    assert [(e["loc"], e["type"]) for e in response.json()["detail"]] == [
+        (["body", "sections", 0, "items", 0, "unit"], "unit_not_for_ingredient")
+    ]
+
+
+def test_a_unit_over_20_characters_answers_422(client, oats):
+    response = client.post("/api/recipes", json=fields((oats, "1", "x" * 21)))
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "sections", 0, "items", 0, "unit"]
+
+
+def test_unit_errors_come_with_the_other_reference_errors_in_one_422(client, oats):
+    body = fields((oats, "1", "dl"), (999, "1"), (oats, "1", "kcal"), extra_tag_ids=[999])
+    response = client.post("/api/recipes", json=body)
+    assert response.status_code == 422
+    assert {(tuple(e["loc"][4:]), e["type"]) for e in response.json()["detail"] if len(e["loc"]) > 4} == {
+        ((0, "unit"), "unit_not_convertible"),
+        ((1, "ingredient_id"), "unknown_ingredient"),
+        ((2, "unit"), "unit_not_for_ingredient"),
+    }
+    assert client.get("/api/recipes").json() == []
+
+
+def test_a_recipe_without_units_in_the_body_still_saves(client, oats):
+    body = fields((oats, "60"))
+    for item in body["sections"][0]["items"]:
+        del item["unit"]
+    response = client.post("/api/recipes", json=body)
+    assert response.status_code == 201
+    assert response.json()["sections"][0]["items"][0]["unit"] == ""
+
+
+def test_the_same_line_unit_survives_a_second_save(client, catalog):
+    oats = with_units(catalog, client, dl="40")
+    created = create(client, (oats, "1", "tbsp"), (oats, "1", "DL"))
+    again = client.put(f"/api/recipes/{created['id']}", json={**created, "sections": created["sections"]})
+    assert again.status_code == 200, again.text
+    assert saved_units(client, again.json()) == saved_units(client, created) == ["msk", "dl"]

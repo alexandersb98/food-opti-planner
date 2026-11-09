@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends
 from ..auth import require_session
 from . import (
     attributes,
+    conversions,
     counts,
     data_sources,
     health,
@@ -29,6 +30,7 @@ protected.include_router(data_sources.router)
 protected.include_router(attributes.router)
 protected.include_router(tags.router)
 protected.include_router(ingredients.router)
+protected.include_router(conversions.router)
 protected.include_router(recipes.router)
 protected.include_router(plan.router)
 protected.include_router(solve.router)

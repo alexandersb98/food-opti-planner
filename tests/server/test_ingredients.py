@@ -33,6 +33,7 @@ def test_a_created_ingredient_is_listed_with_its_values_tags_and_recipe_count(cl
         "tag_ids": [vegan],
         "recipe_count": 0,
         "source": None,
+        "conversions": [],
         "updated_values": [],
     }
     assert client.get("/api/ingredients").json() == [created]

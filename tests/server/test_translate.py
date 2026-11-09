@@ -54,7 +54,7 @@ def test_an_attribute_without_a_value_counts_as_0():
 
 
 def line(**fields) -> models.RecipeItem:
-    return models.RecipeItem(original_text="", **fields)
+    return models.RecipeItem(original_text="", **{"unit": "", **fields})
 
 
 def porridge(sections=None, **fields) -> models.Recipe:
@@ -611,3 +611,74 @@ def test_the_usable_recipes_with_groups_are_the_librarys_eligible_ones():
     request = translate.plan_request(filtered(only=[SEAFOOD], never=[]), [ENERGY], GROUPED, rows)
     usable = translate.usable_recipes(rows, GROUPED, ["Seafood"], [])
     assert [row.name for row in usable] == [recipe.name for recipe in request.eligible_recipes()]
+
+
+# Line units (slice R3): every line is converted to its ingredient's unit.
+DL_OF_OATS = models.IngredientConversion(unit="dl", factor=Decimal("40"), source="user")
+
+
+def with_conversions(ingredient: models.Ingredient, *conversions: models.IngredientConversion) -> models.Ingredient:
+    ingredient.conversions = list(conversions)
+    return ingredient
+
+
+def only(*lines: models.RecipeItem, **fields) -> Recipe:
+    return translate.recipe(porridge(items=list(lines), **fields))
+
+
+def test_a_line_in_a_stored_conversions_unit_is_converted():
+    grain = with_conversions(oats(), DL_OF_OATS)
+    assert only(line(ingredient=grain, amount=Decimal("2.5"), unit="dl")).items[0].quantity == 100
+
+
+def test_a_line_in_a_catalogue_unit_is_converted_to_the_ingredients_unit():
+    ounces = only(line(ingredient=oats(), amount=Decimal("2"), unit="oz")).items[0].quantity
+    assert ounces == Decimal("56.69904625")
+    milk = models.Ingredient(name="Milk", unit="dl", basis=Decimal("1"), values=[], tags=[])
+    assert only(line(ingredient=milk, amount=Decimal("200"), unit="ml")).items[0].quantity == 2
+
+
+def test_a_catalogue_step_can_go_through_a_conversion():
+    grain = with_conversions(oats(), DL_OF_OATS)
+    cup = only(line(ingredient=grain, amount=Decimal("1"), unit="US cup")).items[0].quantity
+    assert abs(cup - Decimal("2.365882365") * 40) < Decimal("1e-20")
+
+
+def test_a_stored_conversion_beats_a_catalogue_step():
+    grain = with_conversions(oats(), DL_OF_OATS, models.IngredientConversion(unit="msk", factor=Decimal("10"), source="user"))
+    assert only(line(ingredient=grain, amount=Decimal("2"), unit="msk")).items[0].quantity == 20
+
+
+def test_lines_in_different_units_of_one_ingredient_are_summed_in_its_unit():
+    grain = with_conversions(oats(), DL_OF_OATS)
+    recipe = only(
+        line(ingredient=grain, amount=Decimal("60")),
+        line(ingredient=grain, amount=Decimal("1"), unit="dl"),
+    )
+    assert [(i.ingredient.name, i.quantity) for i in recipe.items] == [("Oats", 100)]
+
+
+def test_servings_divide_after_the_conversion():
+    grain = with_conversions(oats(), DL_OF_OATS)
+    recipe = only(
+        line(ingredient=grain, amount=Decimal("60")),
+        line(ingredient=grain, amount=Decimal("1"), unit="dl"),
+        servings=4,
+    )
+    assert recipe.items[0].quantity == 25
+
+
+def test_only_own_unit_lines_give_the_same_numbers_as_before():
+    row = porridge()
+    oats_, milk = (translate.ingredient(item.ingredient) for item in row.lines)
+    expected = Recipe(
+        name="Porridge",
+        items=(IngredientAmount(oats_, 60), IngredientAmount(milk, 200)),
+        min_multiplier=Decimal("0.5"), max_multiplier=2, serving_cap_weight=1,
+    )
+    assert translate.recipe(row) == expected
+
+
+def test_an_unconvertible_line_raises_naming_ingredient_and_unit():
+    with pytest.raises(translate.UnconvertibleLine, match="Oats.*dl|dl.*Oats"):
+        only(line(ingredient=oats(), amount=Decimal("1"), unit="dl"))

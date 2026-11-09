@@ -1,9 +1,11 @@
 from decimal import Decimal
 
+import pytest
 from alembic import command
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
-from sqlalchemy import create_engine, text
+from alembic.script import ScriptDirectory
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import Session
 
 from meal_planner import IngredientAmount, Recipe
@@ -96,4 +98,79 @@ def test_downgrade_restores_one_line_per_ingredient(database_url):
     assert [(r.recipe_id, r.ingredient_id, r.position, float(r.amount)) for r in rows] == [
         (1, 1, 0, 40.0), (1, 2, 1, 100.0),
     ]
+    engine.dispose()
+
+
+LINE_UNITS = "0015"  # the migration of slice R3
+
+
+def _before_line_units(database_url):
+    """The database as it was before line units: Porridge of 60 g Oats."""
+    config = alembic_config(database_url)
+    before = ScriptDirectory.from_config(config).get_revision(LINE_UNITS).down_revision
+    command.upgrade(config, before)
+    engine = create_engine(database_url)
+    with engine.begin() as c:
+        c.execute(text("INSERT INTO attributes (id, name, unit, decimals) VALUES (1, 'Energy', 'kcal', 0)"))
+        c.execute(text("INSERT INTO ingredients (id, name, unit, basis) VALUES (1, 'Oats', 'g', 100)"))
+        c.execute(text("INSERT INTO ingredient_values (ingredient_id, attribute_id, value) VALUES (1, 1, 389)"))
+        c.execute(text(
+            "INSERT INTO recipes (id, name, min_multiplier, max_multiplier, step, hard_max_multiplier,"
+            " serving_cap_weight, servings, instructions, source_url)"
+            " VALUES (1, 'Porridge', 0.5, 2, NULL, NULL, 1, 1, '', '')"
+        ))
+        c.execute(text("INSERT INTO recipe_sections (id, recipe_id, position, name) VALUES (1, 1, 0, '')"))
+        c.execute(text(
+            "INSERT INTO recipe_items (id, section_id, position, ingredient_id, amount, original_text)"
+            " VALUES (1, 1, 0, 1, 60, '')"
+        ))
+    return config, before, engine
+
+
+def test_lines_from_before_have_the_own_unit_and_no_conversions(database_url):
+    config, _, engine = _before_line_units(database_url)
+    command.upgrade(config, "head")
+    with engine.connect() as c:
+        assert c.execute(text("SELECT unit FROM recipe_items")).scalars().all() == [""]
+        assert c.execute(text("SELECT count(*) FROM ingredient_conversions")).scalar_one() == 0
+    with Session(engine) as db:
+        [row] = db.scalars(queries.recipes()).all()
+        oats = translate.ingredient(row.lines[0].ingredient)
+        expected = Recipe(
+            name="Porridge", items=(IngredientAmount(oats, 60),),
+            min_multiplier=0.5, max_multiplier=2, serving_cap_weight=1,
+        )
+        assert translate.recipe(row) == expected
+    engine.dispose()
+
+
+def test_the_downgrade_is_refused_while_a_line_has_a_unit(database_url):
+    config, before, engine = _before_line_units(database_url)
+    command.upgrade(config, "head")
+    with engine.begin() as c:
+        c.execute(text("UPDATE recipe_items SET unit = 'dl'"))
+        c.execute(text(
+            "INSERT INTO ingredient_conversions (ingredient_id, unit, factor, source) VALUES (1, 'dl', 40, 'user')"
+        ))
+    with pytest.raises(RuntimeError, match="1 recipe line"):
+        command.downgrade(config, before)
+    with engine.connect() as c:
+        assert c.execute(text("SELECT unit FROM recipe_items")).scalars().all() == ["dl"]
+        assert c.execute(text("SELECT count(*) FROM ingredient_conversions")).scalar_one() == 1
+    engine.dispose()
+
+
+def test_the_downgrade_drops_the_conversions_and_the_unit_column(database_url):
+    config, before, engine = _before_line_units(database_url)
+    command.upgrade(config, "head")
+    with engine.begin() as c:
+        c.execute(text(
+            "INSERT INTO ingredient_conversions (ingredient_id, unit, factor, source) VALUES (1, 'dl', 40, 'user')"
+        ))
+    command.downgrade(config, before)
+    with engine.connect() as c:
+        columns = {col["name"] for col in inspect(c).get_columns("recipe_items")}
+        assert "unit" not in columns
+        assert "ingredient_conversions" not in inspect(c).get_table_names()
+        assert c.execute(text("SELECT amount FROM recipe_items")).scalar_one() == 60
     engine.dispose()

@@ -9,10 +9,12 @@ from sqlalchemy import distinct, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
-from .. import models, source_values, unit_change, units
+from .. import conversions, models, source_values, unit_change, units
 from ..db import DbSession
 from ..fields import Name, Number
 from .catalog import References, commit_named, get_or_404, in_list
+from .conversions import Conversion
+from .conversions import answer as conversion_answer
 from .errors import NAME_IN_USE, FieldError, FieldErrors, invalid_fields
 from .unit_changes import UNIT_CHANGE_REFUSED, UnitChange, UnitChangeRefusal, answer, refuse
 
@@ -113,6 +115,8 @@ class Ingredient(IngredientFields):
     recipe_count: int
     # Null for an ingredient with no link to a source food.
     source: IngredientSource | None
+    # What one of another unit makes of its own unit, in the order added.
+    conversions: list[Conversion]
     # The values of its source that differ from what it last copied or
     # answered, by attribute id; empty for an ingredient with no link.
     updated_values: list[UpdatedValue]
@@ -158,6 +162,7 @@ def _response(
     ingredient: models.Ingredient,
     recipe_counts: dict[int, int],
     updates: dict[int, list[source_values.Update]],
+    conversion_usage: dict[int, int],
 ) -> Ingredient:
     return Ingredient(
         id=ingredient.id,
@@ -168,6 +173,7 @@ def _response(
         tag_ids=[tag.id for tag in ingredient.tags],
         recipe_count=recipe_counts.get(ingredient.id, 0),
         source=_source(ingredient),
+        conversions=[conversion_answer(c, conversion_usage) for c in ingredient.conversions],
         updated_values=[
             UpdatedValue(attribute_id=u.attribute_id, value=u.current, new_value=u.proposed)
             for u in updates.get(ingredient.id, [])
@@ -177,7 +183,9 @@ def _response(
 
 def _one(db: DbSession, ingredient: models.Ingredient) -> Ingredient:
     """The answer for one ingredient, with its updates as they stand now."""
-    return _response(ingredient, _recipe_counts(db), source_values.updates_for(db, [ingredient]))
+    return _response(
+        ingredient, _recipe_counts(db), source_values.updates_for(db, [ingredient]), conversions.usage(db)
+    )
 
 
 def _fill(ingredient: models.Ingredient, body: IngredientFields, db: DbSession) -> None:
@@ -222,13 +230,15 @@ def list_ingredients(db: DbSession) -> list[Ingredient]:
         .options(
             selectinload(models.Ingredient.values),
             selectinload(models.Ingredient.tags),
+            selectinload(models.Ingredient.conversions),
             selectinload(models.Ingredient.source_food).selectinload(models.SourceFood.source),
         )
         .order_by(models.Ingredient.id)
     )
     ingredients = list(ingredients)
     recipe_counts, updates = _recipe_counts(db), source_values.updates_for(db, ingredients)
-    return [_response(ingredient, recipe_counts, updates) for ingredient in ingredients]
+    usage = conversions.usage(db)
+    return [_response(ingredient, recipe_counts, updates, usage) for ingredient in ingredients]
 
 
 @router.get("/{ingredient_id}", responses=NOT_FOUND)
@@ -317,10 +327,11 @@ def answer_updated_values(ingredient_id: int, body: SourceValuesAnswer, db: DbSe
 
 @router.post("/{ingredient_id}/unit-change", responses=NOT_FOUND)
 def preview_unit_change(ingredient_id: int, body: IngredientUnitChange, db: DbSession) -> UnitChange:
-    """What changing the unit does to the basis and the recipe amounts. Writes nothing."""
+    """What changing the unit does to the basis, the recipe amounts and the
+    conversions. Writes nothing."""
     ingredient = get_or_404(db, models.Ingredient, ingredient_id, "ingredient")
     basis = ingredient.basis if body.basis is None else body.basis
-    converters = unit_change.ingredient_converters(ingredient, basis)
+    converters = unit_change.ingredient_converters(ingredient, basis, body.unit)
     preview = answer(unit_change.plan(db, ingredient.unit, body.unit, converters))
     refused = _unit_refusal(ingredient, body.unit)
     if refused:
@@ -334,7 +345,7 @@ def update_ingredient(ingredient_id: int, body: IngredientFields, db: DbSession)
     # Planned before anything changes (the plan reads the database, and the
     # new fields must not be flushed first). The basis converted is the
     # body's, as typed in the old unit.
-    converters = unit_change.ingredient_converters(ingredient, body.basis)
+    converters = unit_change.ingredient_converters(ingredient, body.basis, body.unit)
     change = unit_change.plan(db, ingredient.unit, body.unit, converters)
     _fill(ingredient, body, db)  # its own 422s win over a refused conversion
     refuse(change)

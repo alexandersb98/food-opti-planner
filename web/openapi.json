@@ -293,6 +293,70 @@
         "title": "ColumnMapping",
         "type": "object"
       },
+      "Conversion": {
+        "properties": {
+          "factor": {
+            "title": "Factor",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "recipe_count": {
+            "title": "Recipe Count",
+            "type": "integer"
+          },
+          "source": {
+            "enum": [
+              "ai",
+              "user"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "unit",
+          "factor",
+          "source",
+          "recipe_count"
+        ],
+        "title": "Conversion",
+        "type": "object"
+      },
+      "ConversionFields": {
+        "properties": {
+          "factor": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Factor"
+          },
+          "unit": {
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "unit",
+          "factor"
+        ],
+        "title": "ConversionFields",
+        "type": "object"
+      },
       "Counts": {
         "properties": {
           "attributes": {
@@ -1001,6 +1065,13 @@
             "title": "Basis",
             "type": "string"
           },
+          "conversions": {
+            "items": {
+              "$ref": "#/components/schemas/Conversion"
+            },
+            "title": "Conversions",
+            "type": "array"
+          },
           "id": {
             "title": "Id",
             "type": "integer"
@@ -1062,6 +1133,7 @@
           "id",
           "recipe_count",
           "source",
+          "conversions",
           "updated_values"
         ],
         "title": "Ingredient",
@@ -2176,6 +2248,12 @@
             "maxLength": 500,
             "title": "Original Text",
             "type": "string"
+          },
+          "unit": {
+            "default": "",
+            "maxLength": 20,
+            "title": "Unit",
+            "type": "string"
           }
         },
         "required": [
@@ -2200,6 +2278,12 @@
           "original_text": {
             "maxLength": 500,
             "title": "Original Text",
+            "type": "string"
+          },
+          "unit": {
+            "default": "",
+            "maxLength": 20,
+            "title": "Unit",
             "type": "string"
           }
         },
@@ -2972,6 +3056,17 @@
       },
       "UnitChangeRefusal": {
         "properties": {
+          "conversions": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversions"
+          },
           "converted": {
             "anyOf": [
               {
@@ -3015,6 +3110,17 @@
               }
             ],
             "title": "Kind"
+          },
+          "lines": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lines"
           },
           "msg": {
             "title": "Msg",
@@ -3060,7 +3166,9 @@
               "conversion_rounds_to_zero",
               "unit_not_for_ingredient",
               "unit_not_for_source",
-              "unit_mismatch"
+              "unit_mismatch",
+              "unit_has_dependents",
+              "conversion_for_new_unit"
             ],
             "title": "Type",
             "type": "string"
@@ -4005,6 +4113,177 @@
         ]
       }
     },
+    "/api/ingredients/{ingredient_id}/conversions": {
+      "post": {
+        "operationId": "add_conversion_api_ingredients__ingredient_id__conversions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ingredient_id",
+            "required": true,
+            "schema": {
+              "title": "Ingredient Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConversionFields"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Conversion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such ingredient or conversion"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "An energy unit, the ingredient's own unit or a unit it has"
+          }
+        },
+        "summary": "Add Conversion",
+        "tags": [
+          "conversions"
+        ]
+      }
+    },
+    "/api/ingredients/{ingredient_id}/conversions/{conversion_id}": {
+      "delete": {
+        "operationId": "delete_conversion_api_ingredients__ingredient_id__conversions__conversion_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ingredient_id",
+            "required": true,
+            "schema": {
+              "title": "Ingredient Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "conversion_id",
+            "required": true,
+            "schema": {
+              "title": "Conversion Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such ingredient or conversion"
+          },
+          "409": {
+            "description": "Recipes use the conversion"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Conversion",
+        "tags": [
+          "conversions"
+        ]
+      },
+      "put": {
+        "description": "Only the factor may change while a recipe uses the conversion. A save\nthat changes neither unit nor factor keeps the source; one that does is\nthe user's.",
+        "operationId": "edit_conversion_api_ingredients__ingredient_id__conversions__conversion_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ingredient_id",
+            "required": true,
+            "schema": {
+              "title": "Ingredient Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "conversion_id",
+            "required": true,
+            "schema": {
+              "title": "Conversion Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConversionFields"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Conversion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such ingredient or conversion"
+          },
+          "409": {
+            "description": "Recipes use the conversion"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldErrors"
+                }
+              }
+            },
+            "description": "An energy unit, the ingredient's own unit or a unit it has"
+          }
+        },
+        "summary": "Edit Conversion",
+        "tags": [
+          "conversions"
+        ]
+      }
+    },
     "/api/ingredients/{ingredient_id}/source-values": {
       "post": {
         "description": "Accept the source's new values (copy them) or keep the ingredient's own\n(and remember the source's numbers as answered). What is answered is what\nthe server finds now; nothing to answer is a no-op.",
@@ -4063,7 +4342,7 @@
     },
     "/api/ingredients/{ingredient_id}/unit-change": {
       "post": {
-        "description": "What changing the unit does to the basis and the recipe amounts. Writes nothing.",
+        "description": "What changing the unit does to the basis, the recipe amounts and the\nconversions. Writes nothing.",
         "operationId": "preview_unit_change_api_ingredients__ingredient_id__unit_change_post",
         "parameters": [
           {

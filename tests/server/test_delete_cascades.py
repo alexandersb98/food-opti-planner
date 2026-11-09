@@ -3,6 +3,7 @@ it from whatever uses it. Each list response counts those uses for the
 warning. Deleting an ingredient a recipe uses is refused instead (test_recipes.py)."""
 
 
+from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session
 
 from server import models
@@ -205,3 +206,29 @@ def test_deleting_a_tag_group_row_keeps_its_tags_and_clears_their_group(client, 
             ("Fish", None),
             ("Seafood", None),
         ]
+
+
+def conversion_count(database_url):
+    engine = create_engine(database_url)
+    with Session(engine) as db:
+        count = db.scalar(select(func.count()).select_from(models.IngredientConversion))
+    engine.dispose()
+    return count
+
+
+def test_deleting_an_ingredient_removes_its_unused_conversions(client, catalog, database_url):
+    oats, milk = catalog.ingredient(), catalog.ingredient("Milk", unit="ml")
+    catalog.conversion(oats, "dl", "40")
+    catalog.conversion(oats, "pinch", "0.3")
+    catalog.conversion(milk, "pinch", "0.3")
+    assert client.delete(f"/api/ingredients/{oats}").status_code == 204
+    assert conversion_count(database_url) == 1
+    assert client.get(f"/api/ingredients/{milk}").json()["conversions"][0]["unit"] == "pinch"
+
+
+def test_an_ingredient_in_use_is_still_refused_and_keeps_its_conversions(client, catalog, database_url):
+    oats = catalog.ingredient()
+    catalog.conversion(oats, "dl", "40")
+    catalog.recipe(items={oats: "60"})
+    assert client.delete(f"/api/ingredients/{oats}").status_code == 409
+    assert conversion_count(database_url) == 1

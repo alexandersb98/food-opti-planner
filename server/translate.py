@@ -7,12 +7,13 @@ its own plain test.
 from collections.abc import Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from decimal import Decimal
+from fractions import Fraction
 
 from meal_planner import (
     AttributeDef, Constraint, Day, Ingredient, IngredientAmount, PlanRequest, Recipe, Slot, TagDef, recipe_passes,
 )
 
-from . import models
+from . import line_units, models
 
 
 def attribute(row: models.Attribute) -> AttributeDef:
@@ -73,19 +74,43 @@ def tag(row: models.Tag) -> TagDef:
     return TagDef(name=row.name, derive=row.derive)
 
 
+class UnconvertibleLine(ValueError):
+    """A recipe line whose unit does not convert to its ingredient's. Saving a
+    recipe and changing an ingredient keep this from happening, so it is a bug
+    when it does."""
+
+
+def own_unit_amount(item: models.RecipeItem) -> Fraction:
+    """The line's amount in its ingredient's own unit, exactly: the amount
+    times the factor of `line_units.route`."""
+    ingredient = item.ingredient
+    found = line_units.route(item.unit, ingredient.unit, [(c.unit, c.factor) for c in ingredient.conversions])
+    if found is None:
+        raise UnconvertibleLine(f"{item.amount} {item.unit} of {ingredient.name} does not convert to {ingredient.unit}")
+    return Fraction(item.amount) * found.factor
+
+
+def _decimal(exact: Fraction) -> Decimal:
+    # Exact for a whole number or a terminating fraction of 28 digits, else
+    # the default context's 28 significant digits.
+    return Decimal(exact.numerator) / Decimal(exact.denominator)
+
+
 def recipe(row: models.Recipe, names: Mapping[str, str] | None = None) -> Recipe:
-    """Amounts are for one portion, in each ingredient's unit, as the library's:
-    each ingredient's lines summed (exactly) and divided once by the servings,
-    one amount per ingredient in the order of its first line. Tags added by hand become `extra_tags`; the others the library derives.
+    """Amounts are for one portion, in each ingredient's own unit, as the
+    library's: each line converted (`own_unit_amount`) and summed exactly per
+    ingredient, divided once by the servings, one amount per ingredient in the
+    order of its first line. Tags added by hand become `extra_tags`; the others the library derives.
     No hard upper limit means the library's default, 3 times the soft one.
     Tag names go through `names` as in `ingredient`."""
-    totals: dict[models.Ingredient, Decimal] = {}
+    totals: dict[models.Ingredient, Fraction] = {}
     for line in row.lines:
-        totals[line.ingredient] = totals.get(line.ingredient, Decimal(0)) + line.amount
+        totals[line.ingredient] = totals.get(line.ingredient, Fraction(0)) + own_unit_amount(line)
+    servings = Fraction(row.servings)
     return Recipe(
         name=row.name,
         items=tuple(
-            IngredientAmount(ingredient(stored, names), amount / row.servings) for stored, amount in totals.items()
+            IngredientAmount(ingredient(stored, names), _decimal(amount / servings)) for stored, amount in totals.items()
         ),
         extra_tags=frozenset((names or {}).get(tag.name, tag.name) for tag in row.extra_tags),
         multiplier_step=row.step,

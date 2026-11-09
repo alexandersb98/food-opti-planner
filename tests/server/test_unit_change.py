@@ -106,7 +106,7 @@ def attribute_change(db, iron, old, new, decimals=4):
 
 def ingredient_change(db, oats, old, new, basis="100"):
     ingredient = db.get(models.Ingredient, oats)
-    return plan(db, old, new, ingredient_converters(ingredient, D(basis)))
+    return plan(db, old, new, ingredient_converters(ingredient, D(basis), new))
 
 
 def test_a_conversion_within_a_category_converts_and_counts(client, catalog, db):
@@ -145,8 +145,8 @@ def test_counts_are_filled_in_for_every_kind(client, catalog, db):
 def test_an_ingredient_counts_its_basis_and_recipe_amounts(client, catalog, db):
     _, _, oats, _ = world(client, catalog)
     change = ingredient_change(db, oats, "g", "kg")
-    assert (change.kind, change.factor, change.counts) == ("convert", "0.001", {"basis": 1, "recipe_amounts": 3})
-    assert ingredient_change(db, oats, "g", "st").counts == {"basis": 1, "recipe_amounts": 3}
+    assert (change.kind, change.factor, change.counts) == ("convert", "0.001", {"basis": 1, "recipe_amounts": 3, "conversions": 0})
+    assert ingredient_change(db, oats, "g", "st").counts == {"basis": 1, "recipe_amounts": 3, "conversions": 0}
 
 
 def test_apply_writes_every_converted_number(client, catalog, db):
@@ -182,7 +182,7 @@ def test_a_recipe_with_the_ingredient_on_two_lines_converts_both(client, catalog
     two_sections(client, "Porridge", ["40"], ["20"], oats=oats, servings=2)
     two_sections(client, "Muesli", ["30"], oats=oats)
     change = ingredient_change(db, oats, "g", "kg")
-    assert change.counts == {"basis": 1, "recipe_amounts": 3}
+    assert change.counts == {"basis": 1, "recipe_amounts": 3, "conversions": 0}
     change.apply()
     db.commit()
     lines = db.scalars(select(models.RecipeItem).order_by(models.RecipeItem.id)).all()
@@ -354,3 +354,167 @@ def test_no_convert_and_same_count_source_values_and_change_nothing(client, cata
         change.apply()
     db.commit()
     assert source_values(db, iron) == [D("0.4"), D("11")]
+
+
+# Line units and conversions (slice R3).
+
+def oats_with_lines(client, catalog):
+    """Oats (g, basis 100) with conversions dl = 40 and pinch = 0.3, in a
+    recipe of 60 own, 1 dl and 2 oz. Answers the ingredient's id."""
+    oats = catalog.ingredient("Oats", "g", "100")
+    catalog.conversion(oats, "dl", "40")
+    catalog.conversion(oats, "pinch", "0.3")
+    body = recipe_body("Porridge", [(oats, "60"), (oats, "1", "dl"), (oats, "2", "oz")])
+    assert client.post("/api/recipes", json=body).status_code == 201
+    return oats
+
+
+def lines_of(db, oats):
+    rows = db.scalars(select(models.RecipeItem).where(models.RecipeItem.ingredient_id == oats).order_by(models.RecipeItem.id))
+    return [(row.amount, row.unit) for row in rows]
+
+
+def conversions_of(db, oats):
+    rows = db.scalars(select(models.IngredientConversion).where(models.IngredientConversion.ingredient_id == oats).order_by(models.IngredientConversion.id))
+    return [(row.unit, row.factor) for row in rows]
+
+
+def test_a_unit_change_converts_own_lines_and_conversions_and_leaves_other_lines(client, catalog, db):
+    oats = oats_with_lines(client, catalog)
+    change = ingredient_change(db, oats, "g", "kg")
+    assert (change.kind, change.factor, change.refusal) == ("convert", "0.001", None)
+    assert change.counts == {"basis": 1, "recipe_amounts": 1, "conversions": 2}
+    change.apply()
+    db.commit()
+    assert db.get(models.Ingredient, oats).basis == D("0.1")
+    assert lines_of(db, oats) == [(D("0.06"), ""), (D("1"), "dl"), (D("2"), "oz")]
+    assert conversions_of(db, oats) == [("dl", D("0.04")), ("pinch", D("0.0003"))]
+
+
+def test_converting_back_round_trips_every_number(client, catalog, db):
+    oats = oats_with_lines(client, catalog)
+    ingredient_change(db, oats, "g", "kg").apply()
+    db.commit()
+    db.get(models.Ingredient, oats).unit = "kg"
+    db.commit()
+    ingredient_change(db, oats, "kg", "g", basis="0.1").apply()
+    db.commit()
+    assert db.get(models.Ingredient, oats).basis == D("100")
+    assert lines_of(db, oats) == [(D("60"), ""), (D("1"), "dl"), (D("2"), "oz")]
+    assert conversions_of(db, oats) == [("dl", D("40")), ("pinch", D("0.3"))]
+
+
+def test_an_explicit_own_unit_line_converts_and_is_written_with_no_unit(client, catalog, db):
+    oats = catalog.ingredient("Oats", "kg", "1")
+    catalog.recipe("Porridge", {oats: "0.06"})
+    row = db.scalar(select(models.RecipeItem))
+    row.unit = "kg"
+    db.commit()
+    change = ingredient_change(db, oats, "kg", "g", basis="1")
+    assert change.counts["recipe_amounts"] == 1
+    change.apply()
+    db.commit()
+    assert lines_of(db, oats) == [(D("60"), "")]
+
+
+def test_lines_in_other_units_are_not_counted_and_each_own_line_in_each_recipe_is(client, catalog, db):
+    oats = oats_with_lines(client, catalog)
+    catalog.recipe("Muesli", {oats: "30"})
+    body = recipe_body("Bread", [(oats, "10"), (oats, "5")])
+    assert client.post("/api/recipes", json=body).status_code == 201
+    assert ingredient_change(db, oats, "g", "kg").counts["recipe_amounts"] == 4
+
+
+def test_a_conversion_that_rounds_to_zero_is_refused_and_nothing_is_applied(client, catalog, db):
+    oats = catalog.ingredient("Oats", "g", "100")
+    catalog.conversion(oats, "pinch", "0.0004")
+    change = ingredient_change(db, oats, "g", "kg")
+    refusal = change.refusal
+    assert (refusal.type, refusal.kind, refusal.name, refusal.field) == (
+        "conversion_rounds_to_zero", "conversion", "pinch", "factor")
+    change.apply()
+    db.commit()
+    assert conversions_of(db, oats) == [("pinch", D("0.0004"))]
+    assert db.get(models.Ingredient, oats).basis == D("100")
+
+
+def test_a_conversion_that_reaches_a_billion_is_refused(client, catalog, db):
+    oats = catalog.ingredient("Oats", "kg", "1")
+    catalog.conversion(oats, "pinch", "999999999")
+    assert ingredient_change(db, oats, "kg", "g", basis="1").refusal.type == "conversion_too_large"
+
+
+def test_digits_lost_from_a_conversion_factor_are_counted(client, catalog, db):
+    oats = catalog.ingredient("Oats", "g", "100")
+    catalog.conversion(oats, "pinch", "1.234567")
+    assert ingredient_change(db, oats, "g", "kg").rounded == 1
+
+
+def test_a_conversion_for_the_new_unit_is_refused(client, catalog, db):
+    oats = catalog.ingredient("Oats", "g", "100")
+    catalog.conversion(oats, "KG", "1000")  # stored as kg
+    refusal = ingredient_change(db, oats, "g", "kg").refusal
+    assert (refusal.type, refusal.name, refusal.unit) == ("conversion_for_new_unit", "Oats", "kg")
+    assert refusal.msg == "Oats has a conversion for kg. Delete it first."
+    assert ingredient_change(db, oats, "g", "mg").refusal is None
+
+
+def test_another_category_is_refused_while_a_conversion_or_a_line_in_another_unit_exists(client, catalog, db):
+    oats = oats_with_lines(client, catalog)
+    change = ingredient_change(db, oats, "g", "dl")
+    refusal = change.refusal
+    assert (change.kind, refusal.type, refusal.name, refusal.conversions, refusal.lines) == (
+        "no_convert", "unit_has_dependents", "Oats", 2, 2)
+    assert refusal.msg == "Oats has 2 conversions and 2 recipe lines in another unit, so its unit can't change to dl."
+    assert change.counts == {"basis": 1, "recipe_amounts": 1, "conversions": 2}
+
+
+def test_a_conversion_alone_or_a_line_alone_blocks_a_change_of_category(client, catalog, db):
+    with_conversion = catalog.ingredient("Salt", "g", "100")
+    catalog.conversion(with_conversion, "pinch", "0.3")
+    refusal = ingredient_change(db, with_conversion, "g", "dl").refusal
+    assert (refusal.conversions, refusal.lines) == (1, 0)
+    assert refusal.msg == "Salt has 1 conversion, so its unit can't change to dl."
+    with_line = catalog.ingredient("Flour", "g", "100")
+    body = recipe_body("Bread", [(with_line, "1", "oz")])
+    assert client.post("/api/recipes", json=body).status_code == 201
+    refusal = ingredient_change(db, with_line, "g", "dl").refusal
+    assert (refusal.conversions, refusal.lines) == (0, 1)
+    assert refusal.msg == "Flour has 1 recipe line in another unit, so its unit can't change to dl."
+
+
+def test_own_unit_lines_alone_never_block_a_change_of_category(client, catalog, db):
+    oats = catalog.ingredient("Oats", "g", "100")
+    catalog.recipe("Porridge", {oats: "60"})
+    change = ingredient_change(db, oats, "g", "dl")
+    assert (change.kind, change.refusal) == ("no_convert", None)
+    change.apply()
+    db.commit()
+    assert lines_of(db, oats) == [(D("60"), "")]
+
+
+@pytest.mark.parametrize(("old", "new"), [("st", "portion"), ("portion", "st"), ("g", "portion")])
+def test_to_or_from_free_text_is_refused_while_a_conversion_exists(client, catalog, db, old, new):
+    food = catalog.ingredient("Food", old, "1")
+    catalog.conversion(food, "pinch", "2")
+    assert ingredient_change(db, food, old, new, basis="1").refusal.type == "unit_has_dependents"
+
+
+def test_g_to_pieces_is_allowed_with_nothing_depending(client, catalog, db):
+    oats = catalog.ingredient("Oats", "g", "100")
+    assert ingredient_change(db, oats, "g", "st").refusal is None
+
+
+def test_a_spelling_change_touches_nothing_and_is_not_blocked(client, catalog, db):
+    oats = oats_with_lines(client, catalog)
+    change = ingredient_change(db, oats, "g", "gram")
+    assert (change.kind, change.refusal) == ("same", None)
+    change.apply()
+    db.commit()
+    assert conversions_of(db, oats) == [("dl", D("40")), ("pinch", D("0.3"))]
+
+
+def test_a_basis_that_rounds_to_zero_is_named_before_a_conversion_problem(client, catalog, db):
+    oats = catalog.ingredient("Oats", "g", "0.000001")
+    catalog.conversion(oats, "kg", "1000")
+    assert ingredient_change(db, oats, "g", "kg", basis="0.000001").refusal.type == "conversion_rounds_to_zero"

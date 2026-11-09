@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from server import models
 
-from .conftest import schedule
+from .conftest import recipe_body, schedule
 from .test_plan import goal
 from .test_solve import solve
 
@@ -109,7 +109,7 @@ def test_the_ingredient_unit_converts_basis_and_recipe_amounts(client, catalog):
     catalog.recipe("Muesli", {oats: "150"})
     totals = [r["totals"] for r in client.get("/api/recipes").json()]
     assert preview_ingredient(client, oats, "kg") == {
-        "kind": "convert", "factor": "0.001", "counts": {"basis": 1, "recipe_amounts": 2},
+        "kind": "convert", "factor": "0.001", "counts": {"basis": 1, "recipe_amounts": 2, "conversions": 0},
         "rounded": 0, "refusal": None,
     }
     body = ingredient_body(unit="kg", values=[{"attribute_id": iron, "value": "12"}])
@@ -123,7 +123,7 @@ def test_the_ingredient_unit_converts_basis_and_recipe_amounts(client, catalog):
 
 def test_a_basis_edited_in_the_same_save_converts_too(client, catalog):
     oats = catalog.ingredient("Oats", "g", "100")
-    assert preview_ingredient(client, oats, "kg", basis="50")["counts"] == {"basis": 1, "recipe_amounts": 0}
+    assert preview_ingredient(client, oats, "kg", basis="50")["counts"] == {"basis": 1, "recipe_amounts": 0, "conversions": 0}
     assert client.put(f"/api/ingredients/{oats}", json=ingredient_body(unit="kg", basis="50")).status_code == 200
     assert client.get(f"/api/ingredients/{oats}").json()["basis"] == "0.05"
 
@@ -187,7 +187,7 @@ def test_a_goal_bound_needing_more_decimals_is_refused_until_they_are_raised(cli
     assert preview["refusal"] == {
         "type": "conversion_needs_decimals", "msg": preview["refusal"]["msg"], "kind": "goal",
         "name": "Iron per day", "field": "min", "number": "0.5", "converted": "0.0005", "decimals_needed": 4,
-        "source": None, "unit": None,
+        "source": None, "unit": None, "conversions": None, "lines": None,
     }
     response = put_attribute(client, iron, unit="g", decimals=3)
     assert response.status_code == 422
@@ -324,7 +324,7 @@ def test_a_unit_change_that_breaks_a_mapping_is_refused(mapped, unit):
     assert refusal == {
         "type": "unit_mismatch", "msg": refusal["msg"], "kind": "source_column", "name": "TEST Protein",
         "source": "TEST Source", "unit": "g", "field": None, "number": None, "converted": None,
-        "decimals_needed": None,
+        "decimals_needed": None, "conversions": None, "lines": None,
     }
     assert "Unmap the column" in refusal["msg"]
 
@@ -434,3 +434,108 @@ def test_the_mapping_still_refuses_a_category_change_first_and_allows_mg_to_ug(l
     client, protein, _ = linked
     assert preview_attribute(client, protein, "ml")["refusal"]["type"] == "unit_mismatch"
     assert preview_attribute(client, protein, "µg")["refusal"] is None
+
+
+# Line units and conversions (slice R3).
+
+def unit_world(client, catalog):
+    """Oats (g, basis 100, 389 kcal) with conversions dl = 40 and pinch = 0.3,
+    in Porridge: 60 own, 1 dl and 2 oz."""
+    energy = catalog.attribute()
+    oats = catalog.ingredient("Oats", "g", "100", values={energy: "389"})
+    catalog.conversion(oats, "dl", "40")
+    catalog.conversion(oats, "pinch", "0.3")
+    body = recipe_body("Porridge", [(oats, "60"), (oats, "1", "dl"), (oats, "2", "oz")])
+    assert client.post("/api/recipes", json=body).status_code == 201
+    return energy, oats
+
+
+def oats_body(energy, **changes):
+    return ingredient_body(values=[{"attribute_id": energy, "value": "389"}], **changes)
+
+
+def stored_state(client, oats):
+    ingredient = client.get(f"/api/ingredients/{oats}").json()
+    recipe = client.get("/api/recipes").json()[0]
+    lines = [(i["amount"], i["unit"]) for i in recipe["sections"][0]["items"]]
+    return (
+        ingredient["unit"], ingredient["basis"], [(c["unit"], c["factor"]) for c in ingredient["conversions"]],
+        lines, recipe["totals"],
+    )
+
+
+def test_g_to_kg_converts_in_one_save_and_the_totals_stay(client, catalog):
+    energy, oats = unit_world(client, catalog)
+    before = stored_state(client, oats)
+    preview = preview_ingredient(client, oats, "kg")
+    assert preview["counts"] == {"basis": 1, "recipe_amounts": 1, "conversions": 2}
+    assert preview["refusal"] is None
+    assert client.put(f"/api/ingredients/{oats}", json=oats_body(energy, unit="kg")).status_code == 200
+    after = stored_state(client, oats)
+    assert after[:4] == (
+        "kg", "0.1", [("dl", "0.04"), ("pinch", "0.0003")], [("0.06", ""), ("1", "dl"), ("2", "oz")]
+    )
+    assert after[4] == before[4]  # the totals are what they were
+
+
+def test_the_planned_amount_is_the_same_quantity_after_the_change(client, catalog):
+    energy, oats = unit_world(client, catalog)
+    schedule(client, start_date="2026-10-26", days=1, meals=[{"name": "Lunch"}], skips=[], minimums=[], solve_time_limit=10)
+    first = solve(client)["plan"]["meals"][0][0]["items"]
+    assert first[0]["unit"] == "g"
+    grams = Decimal(first[0]["amount"])
+    assert client.put(f"/api/ingredients/{oats}", json=oats_body(energy, unit="kg")).status_code == 200
+    second = solve(client)["plan"]["meals"][0][0]["items"]
+    assert second[0]["unit"] == "kg"
+    assert abs(Decimal(second[0]["amount"]) * 1000 - grams) < D("0.001")
+
+
+def test_a_refused_put_changes_nothing(client, catalog):
+    energy, oats = unit_world(client, catalog)
+    before = stored_state(client, oats)
+    response = client.put(f"/api/ingredients/{oats}", json=oats_body(energy, unit="dl"))
+    assert response.status_code == 422
+    [error] = response.json()["detail"]
+    assert (error["loc"], error["type"]) == (["body", "unit"], "unit_has_dependents")
+    assert stored_state(client, oats) == before
+
+
+def test_a_conversion_for_the_new_unit_refuses_the_put_and_the_preview(client, catalog):
+    energy, oats = unit_world(client, catalog)
+    catalog.conversion(oats, "kg", "1000")
+    preview = preview_ingredient(client, oats, "kg")
+    assert preview["refusal"]["type"] == "conversion_for_new_unit"
+    assert preview["refusal"]["unit"] == "kg" and preview["refusal"]["name"] == "Oats"
+    before = stored_state(client, oats)
+    response = client.put(f"/api/ingredients/{oats}", json=oats_body(energy, unit="kg"))
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["type"] == "conversion_for_new_unit"
+    assert stored_state(client, oats) == before
+
+
+@pytest.mark.parametrize(
+    ("unit", "ok"), [("kg", True), ("gram", True), ("mg", True), ("dl", False), ("st", False), ("portion", False), ("kcal", False)]
+)
+def test_preview_and_put_agree_for_an_ingredient_with_lines_and_conversions(client, catalog, unit, ok):
+    energy, oats = unit_world(client, catalog)
+    preview = preview_ingredient(client, oats, unit)
+    response = client.put(f"/api/ingredients/{oats}", json=oats_body(energy, unit=unit))
+    assert (preview["refusal"] is None) == ok
+    assert (response.status_code == 200) == ok
+    if not ok:
+        error = response.json()["detail"][0]
+        assert (error["type"], error["msg"]) == (preview["refusal"]["type"], preview["refusal"]["msg"])
+
+
+def test_the_energy_refusal_still_comes_first_in_the_preview(client, catalog):
+    energy, oats = unit_world(client, catalog)
+    assert preview_ingredient(client, oats, "kcal")["refusal"]["type"] == "unit_not_for_ingredient"
+    response = client.put(f"/api/ingredients/{oats}", json=oats_body(energy, unit="kcal"))
+    assert response.json()["detail"][0]["type"] == "unit_not_for_ingredient"
+
+
+def test_own_unit_lines_alone_let_a_change_of_category_through(client, catalog):
+    oats = catalog.ingredient("Oats", "g", "100")
+    catalog.recipe("Porridge", {oats: "60"})
+    assert client.put(f"/api/ingredients/{oats}", json=ingredient_body(unit="ml")).status_code == 200
+    assert client.get("/api/recipes").json()[0]["sections"][0]["items"][0]["amount"] == "60"

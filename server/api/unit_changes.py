@@ -13,10 +13,11 @@ class UnitChangeRefusal(BaseModel):
     type: Literal[
         "conversion_needs_decimals", "conversion_too_large",
         "conversion_rounds_to_zero", "unit_not_for_ingredient", "unit_not_for_source", "unit_mismatch",
+        "unit_has_dependents", "conversion_for_new_unit",
     ]
     msg: str
     # The number that can't be converted: "goal", "ingredient_value",
-    # "source_value", "basis" or "recipe_amount"; its owner's name and its field. Or the
+    # "source_value", "basis", "recipe_amount" or "conversion"; its owner's name and its field. Or the
     # "source_column" that would stop converting; its name.
     kind: str | None = None
     name: str | None = None
@@ -28,6 +29,11 @@ class UnitChangeRefusal(BaseModel):
     # column's own unit.
     source: str | None = None
     unit: str | None = None
+    # For unit_has_dependents (name: the ingredient): its conversions and its
+    # recipe lines in other units. For conversion_for_new_unit: `unit` is the
+    # conversion's.
+    conversions: int | None = None
+    lines: int | None = None
 
 
 class UnitChange(BaseModel):

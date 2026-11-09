@@ -50,6 +50,7 @@ def recipes():
     return select(models.Recipe).options(
         ingredient.selectinload(models.Ingredient.values).selectinload(models.IngredientValue.attribute),
         ingredient.selectinload(models.Ingredient.tags),
+        ingredient.selectinload(models.Ingredient.conversions),
         selectinload(models.Recipe.extra_tags),
     )
 
