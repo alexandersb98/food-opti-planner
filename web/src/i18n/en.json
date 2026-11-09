@@ -158,7 +158,13 @@
     "unlinkTitle": "Unlink {name} from {source}?",
     "unlinkBody": "The ingredient keeps its values and tags. It is no longer connected to the source, so it won't get updates from it.",
     "unlinkConfirm": "Unlink",
-    "unlinkFailed": "Could not unlink. Try again."
+    "unlinkFailed": "Could not unlink. Try again.",
+    "updatedValues": "Updated values available",
+    "updatedValuesLead": "The data source has new values for this ingredient.",
+    "noValue": "none",
+    "accept": "Accept",
+    "keepMine": "Keep mine",
+    "sourceValuesFailed": "Could not save your answer. Try again."
   },
   "addFromSource": {
     "button": "Add from data source",

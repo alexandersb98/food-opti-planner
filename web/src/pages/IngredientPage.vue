@@ -11,6 +11,7 @@ import LoadState from '../components/LoadState.vue'
 import SourceChip from '../components/SourceChip.vue'
 import UnitChangeDialog from '../components/UnitChangeDialog.vue'
 import UnitField from '../components/UnitField.vue'
+import UpdatedValuesBanner from '../components/UpdatedValuesBanner.vue'
 import { loadAll, useLoad } from '../composables/useLoad'
 import { refusalText, useUnitChange } from '../composables/useUnitChange'
 import { searchByName } from '../lists'
@@ -121,6 +122,35 @@ async function unlink() {
     errors.save = t('ingredients.unlinkFailed')
   } finally {
     unlinking.value = false
+  }
+}
+
+const answering = ref(false)
+
+/** Answer the updated values. The page's ingredient becomes the answer, and
+ * the form takes the accepted numbers, or the 0 the server stored for a value
+ * the ingredient had none of, so that saving the form does not delete the row
+ * and bring the banner back. Other edits stay. */
+async function answerUpdates(answer: 'accept' | 'keep') {
+  const shown = data.value.ingredient?.updated_values ?? []
+  if (id === null || answering.value) return
+  errors.save = ''
+  answering.value = true
+  try {
+    const { data: answered } = await api.POST('/api/ingredients/{ingredient_id}/source-values', {
+      params: { path: { ingredient_id: id } },
+      body: { answer },
+    })
+    if (!answered) throw new Error('no answer')
+    data.value.ingredient = answered
+    for (const { attribute_id, value, new_value } of shown) {
+      if (answer === 'accept') draft.values[attribute_id] = new_value
+      else if (value === null && !draft.values[attribute_id]?.trim()) draft.values[attribute_id] = '0'
+    }
+  } catch {
+    errors.save = t('ingredients.sourceValuesFailed')
+  } finally {
+    answering.value = false
   }
 }
 
@@ -312,6 +342,13 @@ async function confirmDelete() {
           :name="data.ingredient.name"
           :busy="unlinking"
           @unlink="unlink"
+        />
+        <UpdatedValuesBanner
+          v-if="data.ingredient?.source"
+          :updates="data.ingredient.updated_values"
+          :attributes="data.attributes"
+          :busy="answering"
+          @answer="answerUpdates"
         />
 
         <UnitField

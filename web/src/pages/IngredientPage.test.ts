@@ -629,3 +629,122 @@ test('g to kg on a linked ingredient still asks the Convert dialog', async () =>
   expect(dialog().text).toContain("Convert Oats's numbers?")
   wrapper.unmount()
 })
+
+// Updated values available: the banner on a linked ingredient.
+
+const updates = [
+  { attribute_id: 2, value: '16.9', new_value: '17.2' },
+  { attribute_id: 3, value: null, new_value: '4' },
+]
+const withUpdates = { ...linkedOats, updated_values: updates }
+const answeredOats = {
+  ...linkedOats,
+  values: [
+    { attribute_id: 1, value: '389' },
+    { attribute_id: 2, value: '17.2' },
+    { attribute_id: 3, value: '4' },
+  ],
+}
+
+function answerRoute(reply: object | number) {
+  const posts: unknown[] = []
+  const handler = (body: unknown) => {
+    posts.push(body)
+    return typeof reply === 'number' ? reply : { body: reply }
+  }
+  return { posts, route: { 'POST /api/ingredients/7/source-values': handler } as FakeServer }
+}
+
+test('no banner on an ordinary ingredient or a linked one without updates', async () => {
+  const ordinary = await openOats()
+  expect(ordinary.wrapper.find('.updated-values').exists()).toBe(false)
+  ordinary.wrapper.unmount()
+  const { wrapper } = await openLinked()
+  expect(wrapper.find('.updated-values').exists()).toBe(false)
+  wrapper.unmount()
+})
+
+test('a linked ingredient with updates shows the banner with the numbers', async () => {
+  const { wrapper } = await openLinked({}, withUpdates)
+  expect(wrapper.get('.updated-values').text()).toContain('Updated values available')
+  expect(texts(wrapper, '.updated-values li')).toEqual(['Protein 16.9 g → 17.2 g', 'Fat none → 4 g'])
+  wrapper.unmount()
+})
+
+test('Accept posts once, hides the banner, fills the fields and keeps what was typed', async () => {
+  const { posts, route } = answerRoute(answeredOats)
+  const { wrapper, sent } = await openLinked(route, withUpdates)
+  await field(wrapper, 'Name').setValue('Typed before')
+  await click(wrapper.get('.accept-updates'))
+  expect(posts).toEqual([{ answer: 'accept' }])
+  expect(wrapper.find('.updated-values').exists()).toBe(false)
+  expect(value(wrapper, 'Protein')).toBe('17.2')
+  expect(value(wrapper, 'Fat')).toBe('4')
+  expect(value(wrapper, 'Name')).toBe('Typed before')
+  await click(button(wrapper, 'Save'))
+  expect(sent).toEqual([expect.objectContaining({ name: 'Typed before' })])
+  wrapper.unmount()
+})
+
+test('Keep mine posts keep, hides the banner, keeps the fields and puts 0 where there was no value', async () => {
+  const kept = {
+    ...linkedOats,
+    values: [...oats.values, { attribute_id: 3, value: '0' }],
+  }
+  const { posts, route } = answerRoute(kept)
+  const { wrapper, sent } = await openLinked(route, withUpdates)
+  await click(wrapper.get('.keep-updates'))
+  expect(posts).toEqual([{ answer: 'keep' }])
+  expect(wrapper.find('.updated-values').exists()).toBe(false)
+  expect(value(wrapper, 'Protein')).toBe('16.9')
+  expect(value(wrapper, 'Fat')).toBe('0')
+  await click(button(wrapper, 'Save'))
+  const [body] = sent as { values: { attribute_id: number; value: string }[] }[]
+  expect(body.values).toContainEqual({ attribute_id: 3, value: '0' })
+  wrapper.unmount()
+})
+
+test('Keep mine does not overwrite a value typed for an attribute that had none', async () => {
+  const { route } = answerRoute({ ...linkedOats, values: [...oats.values, { attribute_id: 3, value: '0' }] })
+  const { wrapper } = await openLinked(route, withUpdates)
+  await field(wrapper, 'Fat').setValue('2.5')
+  await click(wrapper.get('.keep-updates'))
+  expect(value(wrapper, 'Fat')).toBe('2.5')
+  wrapper.unmount()
+})
+
+test('a failing answer says so and the banner stays', async () => {
+  const { route } = answerRoute(500)
+  const { wrapper } = await openLinked(route, withUpdates)
+  await click(wrapper.get('.accept-updates'))
+  expect(wrapper.text()).toContain('Could not save your answer. Try again.')
+  expect(wrapper.find('.updated-values').exists()).toBe(true)
+  expect(value(wrapper, 'Protein')).toBe('16.9')
+  wrapper.unmount()
+})
+
+test('the buttons are disabled while the answer is sent and a second click sends nothing', async () => {
+  const posts: unknown[] = []
+  let release: () => void = () => {}
+  const gate = new Promise<void>((resolve) => (release = resolve))
+  const { wrapper } = await openLinked(
+    {
+      'POST /api/ingredients/7/source-values': async (body) => {
+        posts.push(body)
+        await gate
+        return { body: answeredOats }
+      },
+    },
+    withUpdates,
+  )
+  const accept = wrapper.get('.accept-updates')
+  void accept.trigger('click')
+  await wrapper.vm.$nextTick()
+  expect(wrapper.get('.accept-updates').attributes('disabled')).toBeDefined()
+  expect(wrapper.get('.keep-updates').attributes('disabled')).toBeDefined()
+  await accept.trigger('click')
+  release()
+  await click(wrapper.get('h1'))
+  expect(posts).toHaveLength(1)
+  wrapper.unmount()
+})
