@@ -137,7 +137,9 @@ part of this spec; it is designed in
 Search, quick tag filter chips (recipes), one row per item with key
 facts (recipes: kcal, protein, cost per portion and tags; ingredients:
 values per their basis and how many recipes use them), and a round
-**+** button to add. The Ingredients list also has an **Add from data
+**+** button to add. On Recipes the **+** opens a menu: **New recipe**
+and **Import recipe** (I1); Import is disabled, with the caption "Needs an
+AI key", while the server has no AI key. The Ingredients list also has an **Add from data
 source** button (C7) under its intro text. A linked ingredient with updated
 source values shows a small **Updated values available** badge in its row, and
 a toggle **Only with updated values (n)** beside the search (shown only while
@@ -175,6 +177,30 @@ some ingredient has updates) lists just those.
 - **Source:** a link (http:// or https://), with **Open source** beside it
   when it is a valid link.
 - **Delete recipe.**
+
+### I1 · Import (`/recipes/import`)
+
+A paste box (**Recipe text**) and **Import**, disabled while the box is empty
+or there is no AI key (the hint "Needs an AI key."). While the AI reads,
+the button says "Reading the recipe…" and the box is read-only. A failure
+shows its sentence under the box (no recipe found, the AI did not answer,
+today's limit reached, too much text) and keeps the text. On success C2
+opens the draft.
+
+### C2 · Edit recipe: import review
+
+The draft opens as an unsaved new recipe. A banner says "Imported from pasted
+text. N lines need you." (or "All lines are ready."), notes a cut text, and
+scrolls to the next line that needs you when tapped. Each line shows its source
+line above it. An unmatched line has **Pick ingredient** (the picker opens
+with the food searched; **+ New ingredient** makes it in a dialog) and
+**Skip**. A line whose unit does not convert shows "1 dl = [100] g ✨
+**Accept**" (✨ while the number is the AI's; another number is saved as the
+user's); after Accept "1 dl = 100 g ✨" with **Change**. A line that is not
+an ingredient is greyed with **Add anyway**. **Save** is disabled until every
+line is matched and converts, or is skipped, and creates the accepted
+conversions with the recipe. Leaving the unsaved draft asks "Discard this
+recipe?" (**Keep editing** / **Discard**).
 
 ### C4 · Edit ingredient
 

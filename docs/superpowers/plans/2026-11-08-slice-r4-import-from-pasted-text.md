@@ -68,8 +68,8 @@ planned, built before this slice: sections, `original_text`, `servings`,
 `url` input, page fetching, JSON-LD, the internal-address check, the "Couldn't
 read this page" message, the site name in the banner (all R5).
 
-**Status:** Planned; to be built task by task on branch
-claude/implement-remaining-slices-qwrp83.
+**Status:** Built and reviewed task by task on branch
+claude/implement-remaining-slices-qwrp83, after R2 and R3 (see "As built" below).
 
 ## Global Constraints
 
@@ -303,6 +303,57 @@ claude/implement-remaining-slices-qwrp83.
 26. **Logging.** Each import logs one INFO line from the route: number of calls and
     input and output tokens (from R1's `MeteredChat`), never text, the key or the
     model's answer. Failures log the exception class and status only.
+
+## As built: differences from the text above
+
+The built code won over planned names; migration `0016` (`ai_calls`) follows
+R3's `0015`. The ingredient form had been extracted before this slice (commit
+`42dfe3e`, props `id`, `initialName`, emits `saved` and `deleted`), so Task 7
+skipped that extraction. Differences from the plan:
+
+1. **Task 1.** `scripts/compare_models.py` checks a provider against `KEY_ENV`
+   instead of `ADAPTERS` (the latter now holds the test-only `fake`). The old
+   adapter-key test excludes `fake`.
+2. **Task 2.** As planned. `create_app` builds the runtime before the app, so a
+   bad AI setting stops it like a bad login one. The tests' `logged_in_client`
+   takes `ai_transport`; `ScriptedTransport` records `requests` and counts `closed`.
+3. **Task 3.** `convert_with_retry` also takes the loaded ingredients and retries
+   the conversion together with the check, so an amount that rounds to 0 is
+   retried as the plan's interpretation 11 says. The fake's honey line comes out
+   as unit `msk` (the catalogue spelling of `tbsp`), not `tbsp`. Interpretation 3's
+   "limit 0 raises first" holds.
+4. **Task 4.** The shared check is `conversions.unit_error(ingredient, unit,
+   existing, ignore_id)`, answering one `(type, message)` or None (not a list of
+   triples: the field is always `unit`). `RecipeFields` was split so the answer
+   (`Recipe`) does not carry `new_conversions`: `RecipeBase` holds the common fields.
+   The web editor always sends `new_conversions` (empty when none), so the existing
+   page tests' expected bodies gained `new_conversions: []`.
+5. **Task 5.** `DraftLine` also has `notAnIngredient` (the line's origin, for
+   **Add anyway** against **Add back**); `RecipeErrors` has `lineIngredients` (by
+   line key). The `FactorRow` and `ImportReview` types and the injection key live in
+   `importReview.ts`.
+6. **Task 6.** `AddMenuButton`'s test mounts it in a layout. The health call on C1
+   and I1 are separate and tolerant, as planned.
+7. **Task 7.** `NewIngredientDialog` mounts the form with `v-if="open"` (fresh each
+   time, as the form reads its props once) and closes at once on `saved`, so a
+   second POST can't start. `IngredientPicker` shows **+ New ingredient** in its
+   footer whenever `allowNew` is set (also with no match), not as a second button in
+   the empty message. `ImportLineReview` wraps the line's ordinary row (a slot) and
+   `RecipeSection` renders it through `<component :is>` only while the page provides
+   the review. A line matched by hand whose unit is the ingredient's own gets the
+   empty unit. **Skip** is offered on lines that are not ready; a line with an
+   accepted factor is ready, so it shows **Change** only. The test "a pending
+   conversion whose line was skipped is not sent" is at the composable level
+   (`useRecipeDraft.test.ts`), as the page can't reach that state.
+8. **Task 8.** The flow also uses the fab menu for **New recipe**.
+9. **Task 9.** The deploy job uses `--set-env-vars` (or `--clear-env-vars` when none
+   is set) so the repository variables are the whole truth, where the plan said
+   `--update-env-vars`, which would keep a variable that was removed. `actionlint`
+   is not installed here, so the step is plain shell with `set -euo pipefail`.
+
+Checked: both suites (also server tests on Postgres), lint, typecheck, and the
+end-to-end flow against uvicorn with `AI_PROVIDER=fake`. No test calls a real AI
+service.
 
 ## Tasks
 

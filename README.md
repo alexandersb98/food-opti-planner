@@ -39,10 +39,18 @@ ingredient's unit, and a line that does not convert is refused when the recipe i
 saved. Changing an ingredient's unit converts its lines in the own unit and its
 conversions too, and is refused for another category or free text while a
 conversion or a line in another unit exists.
-The AI layer of the planned recipe import is built in
-`server/ai/` (interfaces, prompt and schema, adapters for four providers)
-with a comparison script, `scripts/compare_models.py`, that the owner runs
-by hand to choose a model; the import itself is not available yet.
+Recipes can be imported by AI from pasted text: Recipes, **+**, **Import recipe**
+(disabled with "Needs an AI key" until a key is set) takes the text to a draft that
+opens on the recipe editor as an unsaved recipe in review (a banner counting the lines
+that need you, each line's source line, **Pick ingredient** with **+ New ingredient**,
+"1 dl = 100 g ✨ **Accept**" for a line that needs a conversion factor, **Skip**, and
+**Save** disabled until every line is matched and converts or is skipped). Saving also
+creates the accepted conversions, with their source. Nothing is stored before Save.
+The AI layer is in `server/ai/` (interfaces, prompt and schema, adapters for four
+providers and a canned `fake` one), with a comparison script,
+`scripts/compare_models.py`, that the owner runs by hand to choose a model (the
+default in the app, `claude-sonnet-5-5`, is provisional until it has been run).
+The import from a link is not available yet.
 A script to build the Livsmedelsverket data file,
 `scripts/import_livsmedelsverket.py`, exists and is tested on a hand-made
 recorded response; the data file itself has not been generated yet (see
@@ -90,6 +98,13 @@ python3 -m uvicorn --factory server.app:create_app --reload   # API on :8000, SQ
 cd web && npm install && npm run dev                          # app on :5173, forwards /api
 ```
 
+Recipe import needs an AI service. Optional settings: `AI_PROVIDER` (`anthropic`
+by default, also `gemini`, `openai`, `mistral`), `AI_MODEL`, `AI_API_KEY` (the key of
+that provider; without it Import is disabled) and `AI_DAILY_LIMIT` (model calls a
+day, default 50). `AI_PROVIDER=fake` needs no key and answers canned drafts (a text
+with `[fake:none]`, `[fake:broken]`, `[fake:broken-once]` or `[fake:down]` picks a
+failure), for trying the screens and for the end-to-end test.
+
 The session cookie is `Secure`. Chrome and Firefox accept it on
 `http://localhost`; other hosts need HTTPS. Changing `SESSION_KEY` logs
 out every session.
@@ -134,7 +149,8 @@ fail until they are up to date.
 End-to-end tests (Playwright, in `web/e2e/`) drive the built app in a
 phone-sized browser. They expect a running app with an empty database,
 started with `DATA_SOURCES_DIR=$PWD/tests/data/data_sources` (next to
-`DATABASE_URL`, `PASSWORD_HASH` and `SESSION_KEY`; the directory holds a small
+`DATABASE_URL`, `PASSWORD_HASH` and `SESSION_KEY`, and `AI_PROVIDER=fake` for the
+import step; the directory holds a small
 file of fake "TEST" foods, as the flow looks at a data source), and its
 password in `E2E_PASSWORD`:
 `E2E_PASSWORD=... E2E_BASE_URL=http://localhost:8000 npm run e2e` in

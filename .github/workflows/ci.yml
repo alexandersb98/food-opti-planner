@@ -142,13 +142,37 @@ jobs:
           docker build -t "$IMAGE" .
           docker push "$IMAGE"
       - name: Deploy
+        env:
+          # Recipe import (docs/deploy.md, step 5b): the key is passed only when
+          # AI_ENABLED is true, the settings only when they are set.
+          AI_ENABLED: ${{ vars.AI_ENABLED }}
+          AI_PROVIDER: ${{ vars.AI_PROVIDER }}
+          AI_MODEL: ${{ vars.AI_MODEL }}
+          AI_DAILY_LIMIT: ${{ vars.AI_DAILY_LIMIT }}
         run: |
+          set -euo pipefail
+          secrets="DATABASE_URL=database-url:latest,SESSION_KEY=session-key:latest,PASSWORD_HASH=password-hash:latest"
+          if [ "$AI_ENABLED" = "true" ]; then
+            secrets="$secrets,AI_API_KEY=ai-api-key:latest"
+          fi
+          settings=""
+          for name in AI_PROVIDER AI_MODEL AI_DAILY_LIMIT; do
+            value="${!name}"
+            if [ -n "$value" ]; then
+              settings="${settings:+$settings,}$name=$value"
+            fi
+          done
+          if [ -n "$settings" ]; then
+            env_flag="--set-env-vars=$settings"
+          else
+            env_flag="--clear-env-vars"
+          fi
           gcloud run deploy "$SERVICE" --quiet \
             --project="$PROJECT" --region="$REGION" --image="$IMAGE" \
             --min-instances=0 --max-instances=1 --cpu=1 --memory=2Gi \
             --timeout=360 --cpu-throttling --allow-unauthenticated \
             --service-account="meal-planner-run@$PROJECT.iam.gserviceaccount.com" \
-            --set-secrets=DATABASE_URL=database-url:latest,SESSION_KEY=session-key:latest,PASSWORD_HASH=password-hash:latest
+            --set-secrets="$secrets" "$env_flag"
       - name: Health check
         run: |
           url="$(gcloud run services describe "$SERVICE" --project="$PROJECT" --region="$REGION" --format='value(status.url)')"

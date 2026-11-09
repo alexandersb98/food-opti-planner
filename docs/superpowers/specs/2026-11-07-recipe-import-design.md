@@ -214,10 +214,11 @@ new conversions to create, each with its `source`. One transaction.
 ### Settings
 
 `AI_PROVIDER` (including `fake` for tests), `AI_MODEL` (default: the provisional one in
-Model comparison), the provider's
-API key (from Secret Manager in production), and `AI_DAILY_LIMIT`
-(default 50 model calls a day; a call over the limit is refused). The
-health answer says whether a key is configured.
+Model comparison), `AI_API_KEY` (the one key variable, holding the key of
+whichever provider `AI_PROVIDER` names; from Secret Manager in production), and
+`AI_DAILY_LIMIT` (default 50 model calls a day; a call over the limit is
+refused). The health answer (`GET /api/health`) says whether the AI is configured,
+in `ai_configured`: provider `fake`, or a provider with a key.
 
 ### Safety
 
@@ -365,10 +366,13 @@ adapter until its API is known; the `ChatProvider` seam in
 Native schema enforcement per provider is a possible later improvement
 if a candidate often gives bad answers.
 
-**Reused by R4:** `server/ai/` as it is. R4 adds the settings, the `fake`
-provider, the one retry on a bad answer, the daily limit, and maps
-`NoRecipeFound`, `AIServiceError` and `BadAnswerError` to the error
-messages above.
+**Reused by R4:** `server/ai/` as it is. R4 did: the settings, the `fake`
+provider, the one retry on a bad answer, the daily limit, and the mapping of
+`NoRecipeFound`, `AIServiceError` and `BadAnswerError` to the error messages
+above; and the two review follow-ups, every `<` in the recipe text and catalogue
+escaped as `&lt;`, and `schema._sane` refusing a tiny exponent as it refuses a
+huge one. One `HttpxTransport` is shared by the app and closed at shutdown.
+The provisional default model stays as it is until the comparison has been run.
 
 ## Testing
 
@@ -460,6 +464,46 @@ Slice R3 built units on lines and conversions, without AI (migration
 - **Not in R3:** AI-suggested factors, the review states and the recipe save
   taking `new_conversions` belong to R4.
 
+## As built in R4
+
+Slice R4 built the import from pasted text (migration `0016`, table `ai_calls`).
+Settled details:
+
+- **Text** is 1 to 200 000 characters trimmed (422 `text_required`, `too_long`);
+  the model gets the first 20 000, cut before escaping, and `cut` in the answer
+  says it happened. Every `<` in the text and in the catalogue names becomes
+  `&lt;`, and the prompt says so; no `<` reaches the model but the two tags.
+- **Per line, in order:** `not_an_ingredient` (a match is ignored); `match`
+  compared with the catalogue names ignoring case and spaces (none is
+  `unmatched`; the model's text never creates anything); the unit normalised
+  and stored as a recipe line stores it (empty for the own unit; over 20
+  characters is cut and `bad_unit`); then the route (`line_units.route`):
+  `own_unit`, `stored_conversion`, `built_in_step`, `needs_factor`, and an
+  energy unit is `bad_unit`. The banner counts `unmatched`, `needs_factor` and
+  `bad_unit` as `needs_you`.
+- **Cleaning:** amounts rounded half up to 6 decimals (0 or 10^9 and over is a
+  bad answer); name cut to 100, instructions to 20 000, `original_text` to 500,
+  `food` to 200; empty sections dropped; with several sections an unnamed one
+  is "Section n"; over 50 sections or 200 lines in one is a bad answer.
+- **Factors:** one suggestion per distinct ingredient and unit among the
+  `needs_factor` lines, at most 15 an import, none for the rest; a failed one is
+  left empty and an outage or the limit stops the rest. `POST
+  /api/recipe-imports/factor` does the same for one line matched by hand.
+- **Retry and limit:** a bad answer (and an amount out of range) is retried
+  once, an outage is not; the daily limit counts model calls (UTC day), also
+  failed ones, and a refused factor call inside an import just leaves the
+  factor out.
+- **Errors**, all in the `FieldErrors` shape with fixed sentences, never the
+  provider's text: 422 `text_required`, `too_long`, `no_recipe` ("No recipe
+  found in this text."), 429 `limit_reached`, 502 `ai_failed`, 503
+  `ai_not_configured`.
+- **Saving** takes `new_conversions` (`ingredient_id`, `unit`, `factor`,
+  `source` `ai` or `user`), validated as the conversion endpoints validate and
+  created in the same transaction before the lines are routed.
+- **The fake provider** (`AI_PROVIDER=fake`) answers a canned porridge draft; the
+  sentinels `[fake:none]`, `[fake:broken]`, `[fake:broken-once]` and
+  `[fake:down]` in the text pick failures.
+
 ## Slices
 
 1. **Model comparison:** the script and the test recipes (built; run
@@ -468,8 +512,9 @@ Slice R3 built units on lines and conversions, without AI (migration
    servings, instructions, source link) and R3 (units, conversions, the
    unit picker per line). R2 alone is useful for typing in cookbook
    recipes.
-3. **Import:** I1, page fetching, the converter, factor suggestions, and
-   C2's review states.
+3. **Import from pasted text:** built as R4 (I1, the converter, factor
+   suggestions, C2's review states). **Import from a link** is R5: page
+   fetching and the `url` input.
 
 ## Not in this spec
 
