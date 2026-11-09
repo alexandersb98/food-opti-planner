@@ -321,3 +321,80 @@ test('failing attributes make the page show the load message', async () => {
   expect(wrapper.find('.column-row').exists()).toBe(false)
   wrapper.unmount()
 })
+
+// --- Create attribute ----------------------------------------------------------
+
+function dialogInput(label: string) {
+  return document.querySelector<HTMLInputElement>(`.new-attribute-dialog input[aria-label="${label}"]`)!
+}
+
+async function typeInto(label: string, value: string) {
+  const element = dialogInput(label)
+  element.value = value
+  element.dispatchEvent(new Event('input', { bubbles: true }))
+  await flushPromises()
+}
+
+async function pressInDialog(label: string) {
+  const found = [...document.querySelectorAll<HTMLButtonElement>('.new-attribute-dialog button')].find(
+    (b) => b.textContent?.trim() === label,
+  )!
+  found.click()
+  await new Promise((resolve) => setTimeout(resolve, 50))
+  await flushPromises()
+}
+
+const newAttribute = attribute({ id: 9, name: 'Carbs', unit: 'g', decimals: 3 })
+
+test('Create attribute makes the attribute, maps the column to it and lists it for the others', async () => {
+  const calls: string[] = []
+  const puts: unknown[] = []
+  const { wrapper } = await mountPage({
+    'POST /api/attributes': () => {
+      calls.push('POST')
+      return { status: 201, body: newAttribute }
+    },
+    'PUT /api/data-sources/testsource/columns/2': (body) => {
+      calls.push('PUT')
+      puts.push(body)
+      return { body: { ...columns[1], attribute_id: 9 } }
+    },
+  })
+  await openList(wrapper, 1)
+  await choose('Create attribute')
+  expect(dialogInput('Name').value).toBe('')
+  expect(dialogInput('Unit').value).toBe('g')
+  await typeInto('Name', 'Carbs')
+  await pressInDialog('Add')
+
+  expect(calls).toEqual(['POST', 'PUT'])
+  expect(puts).toEqual([{ attribute_id: 9 }])
+  expect(shownValue(wrapper, 1)).toBe('Carbs')
+  expect(await openList(wrapper, 2)).toContain('Carbstaken by TEST Protein')
+  wrapper.unmount()
+})
+
+test('cancelling Create attribute changes nothing and sends nothing', async () => {
+  const { wrapper } = await mountPage()
+  await openList(wrapper, 1)
+  await choose('Create attribute')
+  await pressInDialog('Cancel')
+  expect(shownValue(wrapper, 1)).toBe('Protein')
+  expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+  wrapper.unmount()
+})
+
+test('a mapping that fails after the attribute was created says so and lists the attribute', async () => {
+  const { wrapper } = await mountPage({
+    'POST /api/attributes': { status: 201, body: newAttribute },
+    'PUT /api/data-sources/testsource/columns/2': 500,
+  })
+  await openList(wrapper, 1)
+  await choose('Create attribute')
+  await typeInto('Name', 'Carbs')
+  await pressInDialog('Add')
+  expect(wrapper.get('[role="alert"]').text()).toBe('The attribute was created but could not be mapped.')
+  expect(shownValue(wrapper, 1)).toBe('Protein')
+  expect(await openList(wrapper, 1)).toContain('Carbs')
+  wrapper.unmount()
+})

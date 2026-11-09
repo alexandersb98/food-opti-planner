@@ -47,7 +47,11 @@
     "takenBy": "taken by {column}",
     "mapFailed": "Could not save the mapping.",
     "takenError": "{attribute} is already mapped from {column}.",
-    "mismatchError": "{column} and {attribute} don't convert."
+    "mismatchError": "{column} and {attribute} don't convert.",
+    "newAttribute": "New attribute",
+    "add": "Add",
+    "createUnitMismatch": "Must convert with {unit}.",
+    "createdNotMapped": "The attribute was created but could not be mapped."
   },
   "units": {
     "groups": {

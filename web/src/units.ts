@@ -106,7 +106,7 @@ export function useUnits() {
     return category === 'mass' || category === 'volume' ? '100' : '1'
   }
 
-  return { ...toRefs(readonly(state)), load, offered, findUnit, convertible, label, basisFor }
+  return { ...toRefs(readonly(state)), load, offered, findUnit, unitNamed, convertible, label, basisFor }
 }
 
 /** Forget the catalogue, for tests. */

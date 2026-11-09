@@ -9,6 +9,7 @@ import { fieldErrors } from '../api/errors'
 import type { Attribute, DataSource, SourceColumn } from '../api/types'
 import EditorHeader from '../components/EditorHeader.vue'
 import LoadState from '../components/LoadState.vue'
+import NewAttributeDialog from '../components/NewAttributeDialog.vue'
 import SourceColumnRow from '../components/SourceColumnRow.vue'
 import { loadAll, useLoad } from '../composables/useLoad'
 import { useUnits } from '../units'
@@ -64,8 +65,9 @@ function takenFor(column: SourceColumn): Map<number, string> {
 
 const saving = reactive<Record<number, boolean>>({})
 const rowErrors = reactive<Record<number, string>>({})
-// The column whose Create attribute dialog is open (wired up with the dialog).
+// The column whose Create attribute dialog is open or was last open.
 const createFor = ref<SourceColumn | null>(null)
+const createOpen = ref(false)
 
 async function reloadSource() {
   try {
@@ -111,8 +113,19 @@ async function map(column: SourceColumn, attributeId: number | null): Promise<bo
 }
 
 function choose(column: SourceColumn, choice: number | null | 'create') {
-  if (choice === 'create') createFor.value = column
-  else void map(column, choice)
+  if (choice === 'create') {
+    createFor.value = column
+    createOpen.value = true
+  } else void map(column, choice)
+}
+
+/** The dialog made an attribute for `createFor`: list it and map the column. */
+async function created(attribute: Attribute) {
+  const column = createFor.value
+  if (!data.value || !column) return
+  data.value.attributes = [...data.value.attributes, attribute]
+  // The attribute exists whatever happens next; it shows in every drop-down.
+  if (!(await map(column, attribute.id))) rowErrors[column.id] = t('dataSource.createdNotMapped')
 }
 
 const imported = computed(() => (source.value ? new Date(source.value.imported_at).toLocaleString() : ''))
@@ -238,5 +251,10 @@ async function saveColour() {
         </q-list>
       </template>
     </LoadState>
+    <NewAttributeDialog
+      v-model="createOpen"
+      :column="createFor"
+      @created="created"
+    />
   </q-page>
 </template>
