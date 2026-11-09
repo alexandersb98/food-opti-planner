@@ -105,3 +105,15 @@ test('a failed load offers to try again', async () => {
   expect(rows(wrapper)).toHaveLength(1)
   wrapper.unmount()
 })
+
+test('Add from data source is on the page and opens the dialog', async () => {
+  const { wrapper, calls } = await mountPage({
+    'GET /api/data-sources': { body: [] },
+    'GET /api/preferences': { body: {} },
+  })
+  expect(calls).not.toContain('GET /api/data-sources')
+  await click(wrapper.get('.add-from-source'))
+  expect(calls).toContain('GET /api/data-sources')
+  expect(document.querySelector('.q-dialog')?.textContent).toContain('No data sources loaded.')
+  wrapper.unmount()
+})

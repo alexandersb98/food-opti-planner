@@ -1,4 +1,4 @@
-import type { Attribute, DataSource, DataSourceSummary, SourceColumn, Goal, Ingredient, Plan, PlanResult, PlanResultSummary, Preferences, Recipe, ResultGoal, ResultMeal, ResultMiss, Tag, UnitCatalogue, UnitChange, UnitChangeRefusal } from './api/types'
+import type { Attribute, DataSource, DataSourceSummary, FoodPreview, FoodSummary, IngredientSource, SourceColumn, Goal, Ingredient, Plan, PlanResult, PlanResultSummary, Preferences, Recipe, ResultGoal, ResultMeal, ResultMiss, Tag, UnitCatalogue, UnitChange, UnitChangeRefusal } from './api/types'
 import unitFixture from './test-units.json'
 
 // Rows as the server answers them, for tests: give what the test is about,
@@ -149,6 +149,34 @@ export function dataSource(fields: Partial<DataSource> = {}): DataSource {
     columns: [],
     ...fields,
   }
+}
+
+/** A food of a data source as the search lists it. */
+export function foodSummary(fields: Given<FoodSummary, 'id' | 'name'>): FoodSummary {
+  return { groups: [], ...fields }
+}
+
+/** The ingredient a food would become, as the preview answers: TEST Oats in g, no values. */
+export function foodPreview(fields: Partial<FoodPreview> = {}): FoodPreview {
+  return {
+    id: 1,
+    name: 'TEST Oats',
+    withdrawn: false,
+    source: { key: 'testsource', name: 'TEST Source', colour: '#1976d2' },
+    suggested_name: 'TEST Oats',
+    unit: 'g',
+    basis: '100',
+    values: [],
+    skipped: [],
+    groups: [],
+    existing: [],
+    ...fields,
+  }
+}
+
+/** The link of an ingredient made from TEST Oats. */
+export function ingredientSource(fields: Partial<IngredientSource> = {}): IngredientSource {
+  return { key: 'testsource', name: 'TEST Source', colour: '#1976d2', food_id: 1, food_name: 'TEST Oats', withdrawn: false, ...fields }
 }
 
 /** The unit catalogue as the server sends it: the committed fixture, which a

@@ -153,6 +153,27 @@
     "show": "Show",
     "usedInLoadFailed": "Could not load the recipes."
   },
+  "addFromSource": {
+    "button": "Add from data source",
+    "title": "Add from data source",
+    "close": "Close",
+    "dataSource": "Data source",
+    "noSources": "No data sources loaded.",
+    "search": "Search foods",
+    "noResults": "No foods match.",
+    "showMore": "Show more",
+    "loadFailed": "Could not load the foods.",
+    "loadFoodFailed": "Could not load the food.",
+    "measured": "Measured in {unit}, values per {basis} {unit}",
+    "valuesNone": "No columns are mapped for this source yet. Map them on the data source page.",
+    "skipped": "Not copied: {names}",
+    "tags": "Tags",
+    "noTags": "This food has no source tags.",
+    "duplicate": "You already have an ingredient from this food: {names}",
+    "add": "Add",
+    "backToResults": "Back to results",
+    "withdrawn": "This food is no longer in the source."
+  },
   "recipes": {
     "intro": "Dishes made of ingredients, entered for one portion.",
     "empty": "No recipes yet.",

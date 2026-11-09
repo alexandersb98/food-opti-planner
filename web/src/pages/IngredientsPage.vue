@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { api } from '../api/client'
 import type { Attribute, Ingredient } from '../api/types'
 import AddButton from '../components/AddButton.vue'
+import AddFromSourceDialog from '../components/AddFromSourceDialog.vue'
 import LoadState from '../components/LoadState.vue'
 import { loadAll, useLoad } from '../composables/useLoad'
 import { valueText } from '../format'
@@ -18,6 +19,7 @@ const { data, loading, failed, load } = useLoad(
 )
 
 const search = ref<string | null>('')
+const fromSourceOpen = ref(false)
 const shown = computed(() => searchByName(data.value.ingredients, search.value))
 const attributes = computed(() => byId(data.value.attributes))
 
@@ -39,6 +41,17 @@ function values(ingredient: Ingredient) {
     <p class="text-caption text-grey-8">
       {{ $t('ingredients.intro') }}
     </p>
+
+    <q-btn
+      class="add-from-source q-mb-md"
+      outline
+      no-caps
+      color="primary"
+      icon="cloud_download"
+      :label="$t('addFromSource.button')"
+      @click="fromSourceOpen = true"
+    />
+    <AddFromSourceDialog v-model="fromSourceOpen" />
 
     <LoadState
       :loading="loading"
