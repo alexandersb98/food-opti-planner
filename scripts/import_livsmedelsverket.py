@@ -18,6 +18,7 @@ import gzip
 import http.client
 import json
 import os
+import re
 import sys
 import threading
 import time
@@ -70,6 +71,16 @@ DEFAULT_OUT = ROOT / "server" / "data_sources" / "livsmedelsverket.json.gz"
 DEFAULT_BASE_URL = "https://dataportal.livsmedelsverket.se/livsmedel/api/v1"
 DECIMALS = Decimal("0.000001")
 EXAMPLES = 5
+# Equivalent units: "RE/µg" (retinol equivalents) and "NE/mg" (niacin
+# equivalents) are written as the plain unit; the column name says what is measured.
+EQUIVALENT_PREFIX = re.compile(r"^\s*[A-Za-z]{1,3}E\s*/\s*(?=\S)")
+
+
+def written_unit(raw: str) -> str:
+    """The unit as written to the file: through the catalogue, "RE/µg" -> "µg"."""
+    if not raw:
+        return ""
+    return normalise(EQUIVALENT_PREFIX.sub("", raw))
 
 
 class ImportError_(Exception):
@@ -441,7 +452,7 @@ def build_data_file(
         row: dict[tuple[str, str], str] = {}
         for raw in raw_values:
             base = raw.code or raw.name
-            written = normalise(raw.unit) if raw.unit else ""
+            written = written_unit(raw.unit)
             unit_map[raw.unit] = written
             text = decimal_string(raw.value, raw.vikt_gram)
             if text is None:

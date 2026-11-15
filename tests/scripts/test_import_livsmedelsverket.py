@@ -198,6 +198,24 @@ def test_the_script_has_no_unit_table_of_its_own():
     assert column(data, "X1")["unit"] == units.normalise("Mikrog") == MICRO
 
 
+def test_equivalent_units_are_written_as_the_plain_unit():
+    """The live API (2026-11) writes vitamin A as RE/µg and niacin as NE/mg."""
+    assert iv.written_unit("RE/µg") == MICRO
+    assert iv.written_unit(f"RE/{GREEK}") == MICRO
+    assert iv.written_unit("NE/mg") == "mg"
+    assert iv.written_unit(" NE / mg") == "mg"
+    assert iv.written_unit("mg") == "mg"
+    assert iv.written_unit("kg CO2e") == "kg CO2e"
+    assert iv.written_unit("%") == "%"
+    assert iv.written_unit("") == ""
+    responses = fixture_responses()
+    responses["/livsmedel/1/naringsvarden?sprak=1"].append(
+        {"euroFIRkod": "VITA", "namn": "Retinolekvivalenter", "enhet": "RE/µg", "varde": 5, "viktGram": 100}
+    )
+    data = build(iv.ReplayFetcher(responses))
+    assert column(data, "VITA")["unit"] == MICRO
+
+
 # ------------------------------------------------------------------- columns
 
 
