@@ -136,6 +136,10 @@ Cloud Run once the owner has done the one-time setup in
 
 Refreshing the Livsmedelsverket data file. The script needs network access to
 `dataportal.livsmedelsverket.se` and is never run by the tests or the app.
+To run it without setting up Python yourself, open the repository in the
+dev container (`.devcontainer/`: VS Code's **Reopen in Container**, or a
+GitHub Codespace); it has Python 3.13 and Node 22 and installs the
+dependencies, and the commands below run in its terminal.
 The app works without the file (the data source is simply not loaded).
 The first run is a trial, because the script's guesses about the API (paging,
 language parameter, food groups, unit spellings) are not yet checked against

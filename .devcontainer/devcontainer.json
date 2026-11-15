@@ -1,0 +1,23 @@
+{
+  // Dev container for this repo: Python (same version as CI) and Node for web/.
+  // Enough to run scripts/import_livsmedelsverket.py, the tests and the app.
+  "name": "food-opti-planner",
+  "image": "mcr.microsoft.com/devcontainers/python:1-3.13-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": { "version": "22" }
+  },
+  "postCreateCommand": {
+    "python": "pip install --user -e '.[server,dev]'",
+    "web": "cd web && npm ci"
+  },
+  "forwardPorts": [8000, 5173],
+  "portsAttributes": {
+    "8000": { "label": "API" },
+    "5173": { "label": "Web (Vite)" }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-python.python", "Vue.volar", "dbaeumer.vscode-eslint"]
+    }
+  }
+}
