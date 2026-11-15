@@ -48,7 +48,7 @@ SOURCE = {
         "dataportal.livsmedelsverket.se), licence CC BY 4.0."
     ),
 }
-GROUP_TYPE_HINTS = ("livsmedelsgrupp", "food group", "matgrupp")
+GROUP_TYPE_HINTS = ("huvudgrupp", "livsmedelsgrupp", "food group", "matgrupp")
 
 FOOD_LIST_KEYS = ("livsmedel", "items", "data", "results")
 VALUE_LIST_KEYS = ("naringsvarden", "items", "data", "results")
@@ -63,7 +63,8 @@ UNIT_FIELDS = ("enhet",)
 VALUE_FIELDS = ("varde", "värde")
 WEIGHT_FIELDS = ("viktGram",)
 TYPE_FIELDS = ("typ", "klassificeringstyp", "typNamn", "klassificering", "kategori")
-GROUP_NAME_FIELDS = ("namn", "benamning", "klassificeringNamn")
+# The live API (2026-11) gives the group as {"typ": "Huvudgrupp", "kod": "<name>"}.
+GROUP_NAME_FIELDS = ("namn", "benamning", "klassificeringNamn", "kod")
 
 DEFAULT_OUT = ROOT / "server" / "data_sources" / "livsmedelsverket.json.gz"
 DEFAULT_BASE_URL = "https://dataportal.livsmedelsverket.se/livsmedel/api/v1"

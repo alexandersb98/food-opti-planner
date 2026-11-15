@@ -264,6 +264,17 @@ def test_extract_groups():
     assert iv.extract_groups([{"klassificeringstyp": "Matgrupp", "benamning": "B"}]) == ["B"]
 
 
+def test_extract_groups_live_api_shape():
+    """As the live API answered /livsmedel/1/klassificeringar (2026-11)."""
+    entries = [
+        {"typ": "LanguaL", "fasett": "A Gruppindelning EuroFIR", "fasettkod": "A0777, A0352",
+         "namn": "Andra djurfetter", "langualId": "A0810"},
+        {"typ": "FoodEx2", "kod": "A037X"},
+        {"typ": "Huvudgrupp", "kod": "Övrigt fett (ister, talg, kokosfett)"},
+    ]
+    assert iv.extract_groups(entries) == ["Övrigt fett (ister, talg, kokosfett)"]
+
+
 def test_no_group_at_all_fails_and_names_the_types_seen():
     fetcher = iv.ReplayFetcher(without_group_entries(fixture_responses()))
     with pytest.raises(iv.ImportError_) as err:
