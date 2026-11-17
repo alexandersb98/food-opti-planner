@@ -313,12 +313,13 @@ If the deploy fails:
 The app reads ingredient data sources from `server/data_sources/*.json.gz`
 (or the folder in `DATA_SOURCES_DIR`) when it starts. The image copies
 `server/`, so a file committed there is deployed with the app. The
-Livsmedelsverket file is not in the repository: you generate it once with
-`python3 scripts/import_livsmedelsverket.py` (it needs network access to
-`dataportal.livsmedelsverket.se`; the README's "Refreshing the Livsmedelsverket
-data file" has the steps), commit
-`server/data_sources/livsmedelsverket.json.gz` and run the workflow again.
-Without the file the app works as before, with no data source to add
+Livsmedelsverket file, `server/data_sources/livsmedelsverket.json.gz`, is in
+the repository. To refresh it, run `python3 scripts/import_livsmedelsverket.py`
+(it needs network access to `dataportal.livsmedelsverket.se`; the README's
+"Refreshing the Livsmedelsverket data file" has the steps) and commit the new
+file; the app loads it on its next start because the version changed. Back up
+the database before the first deploy with the file, as loading it writes about
+2,600 foods. Without a file the app works as before, with no data source to add
 ingredients from.
 
 ## Later changes
