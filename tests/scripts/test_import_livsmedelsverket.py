@@ -198,6 +198,24 @@ def test_the_script_has_no_unit_table_of_its_own():
     assert column(data, "X1")["unit"] == units.normalise("Mikrog") == MICRO
 
 
+def test_equivalent_units_are_written_as_the_plain_unit():
+    """The live API (2026-11) writes vitamin A as RE/µg and niacin as NE/mg."""
+    assert iv.written_unit("RE/µg") == MICRO
+    assert iv.written_unit(f"RE/{GREEK}") == MICRO
+    assert iv.written_unit("NE/mg") == "mg"
+    assert iv.written_unit(" NE / mg") == "mg"
+    assert iv.written_unit("mg") == "mg"
+    assert iv.written_unit("kg CO2e") == "kg CO2e"
+    assert iv.written_unit("%") == "%"
+    assert iv.written_unit("") == ""
+    responses = fixture_responses()
+    responses["/livsmedel/1/naringsvarden?sprak=1"].append(
+        {"euroFIRkod": "VITA", "namn": "Retinolekvivalenter", "enhet": "RE/µg", "varde": 5, "viktGram": 100}
+    )
+    data = build(iv.ReplayFetcher(responses))
+    assert column(data, "VITA")["unit"] == MICRO
+
+
 # ------------------------------------------------------------------- columns
 
 
@@ -262,6 +280,17 @@ def test_extract_groups():
         [{"typ": "Livsmedelsgrupp", "namn": ""}, {"typ": "Livsmedelsgrupp", "namn": "Next"}]
     ) == ["Next"]
     assert iv.extract_groups([{"klassificeringstyp": "Matgrupp", "benamning": "B"}]) == ["B"]
+
+
+def test_extract_groups_live_api_shape():
+    """As the live API answered /livsmedel/1/klassificeringar (2026-11)."""
+    entries = [
+        {"typ": "LanguaL", "fasett": "A Gruppindelning EuroFIR", "fasettkod": "A0777, A0352",
+         "namn": "Andra djurfetter", "langualId": "A0810"},
+        {"typ": "FoodEx2", "kod": "A037X"},
+        {"typ": "Huvudgrupp", "kod": "Övrigt fett (ister, talg, kokosfett)"},
+    ]
+    assert iv.extract_groups(entries) == ["Övrigt fett (ister, talg, kokosfett)"]
 
 
 def test_no_group_at_all_fails_and_names_the_types_seen():
