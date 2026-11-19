@@ -1,0 +1,41 @@
+<!doctype html>
+<!--
+  Prototype C: "Planning as a conversation" (with E, the swipe deck, folded in).
+
+  Throwaway UI prototype, see docs/superpowers/specs/2026-11-19-ui-prototype-directions.md.
+  Planning is a guided thread of fixed interactive cards (days, goals, a recipe swipe
+  deck, the optimiser run, the result). Answered steps collapse into reply bubbles that
+  can be tapped to jump back. "Edit directly" (top right) opens a plain settings sheet for
+  quick single-number changes. The catalogue lives behind the avatar menu and the home
+  search. The recipe editor is a plain full-screen form, not a chat.
+
+  Vanilla HTML/CSS/JS, no build step, works from file://. Data: ../shared/data.js
+  (made up). Nothing is saved.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f6efe6" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1a1412" media="(prefers-color-scheme: dark)">
+  <title>Meal plan · Prototype C</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="phone" id="phone">
+    <header class="topbar" id="topbar"></header>
+    <main class="view" id="view" tabindex="-1"></main>
+    <div class="sheet-layer" id="sheetLayer" hidden>
+      <div class="sheet-backdrop" data-action="sheet-close"></div>
+      <section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"></section>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </div>
+
+  <script src="../shared/data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
