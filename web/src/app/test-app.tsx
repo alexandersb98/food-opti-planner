@@ -5,6 +5,10 @@ import { afterEach } from 'vitest'
 import { App } from './App'
 import { BASE_PATH } from './base'
 import { routes } from './routes'
+import { importDraftStore } from './stores/importDraft'
+import { preferencesStore } from './stores/preferences'
+import { unitChangeQuestion } from './stores/unitChangeQuestion'
+import { unitsStore } from './stores/units'
 
 // The React app test harness: the app at a URL with a fake server. Tests
 // drive it by roles and labels through the returned user-event instance.
@@ -12,7 +16,12 @@ export { fakeServer, unitRoutes, type FakeReply, type FakeServer } from '../test
 
 /** Puts each store back to its starting state, before every mount. Each
  * store adds one line here. */
-const resetStores: Array<() => void> = []
+const resetStores: Array<() => void> = [
+  unitsStore.reset,
+  preferencesStore.reset,
+  unitChangeQuestion.reset,
+  importDraftStore.reset,
+]
 
 afterEach(cleanup)
 
