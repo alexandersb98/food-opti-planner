@@ -23,7 +23,7 @@ export function minimumOn(plan: Plan, day: number): number | null {
 
 /** The day's minimum kept only while below the meals planned that day: one
  * that asks for every planned meal, or more, means "all" and is dropped. */
-function keepMinimums(plan: Plan): Plan {
+export function keepMinimums(plan: Plan): Plan {
   const minimums = plan.minimums.filter(({ day, at_least }) => at_least < plannedOn(plan, day))
   return minimums.length === plan.minimums.length ? plan : { ...plan, minimums }
 }

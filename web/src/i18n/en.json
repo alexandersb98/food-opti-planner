@@ -774,6 +774,15 @@
   },
   "schedule": {
     "title": "Schedule",
+    "edit": {
+      "change": "Change",
+      "changeLabel": "Change the schedule",
+      "preview": "{range}: {days}, {meals}.",
+      "starts": "Starts on",
+      "addMeal": "Add a meal",
+      "saving": "Saving…",
+      "changed": "Schedule changed."
+    },
     "starts": "Starts",
     "pickDate": "Pick a date",
     "startInvalid": "Enter a date, such as 2026-10-21.",

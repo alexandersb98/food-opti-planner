@@ -1,14 +1,21 @@
-import { Fragment, useId, useState, type CSSProperties } from 'react'
+import { Fragment, useEffect, useId, useRef, useState, type CSSProperties } from 'react'
+import { useSearchParams } from 'react-router'
 import type { Plan } from '../../../api/types'
 import { dayLabel } from '../../../dates'
 import type { Translate } from '../../../translator'
 import { useLocale, useT } from '../../i18n/i18n'
 import * as planSetup from '../../stores/planSetup'
+import { buttonClass } from '../../ui/button/Button'
 import { BriefSection } from './BriefSection'
 import { DaySheet } from './DaySheet'
+import { ScheduleSheet } from './ScheduleSheet'
 import { isSkipped, longDay, minimumOn, setCell } from './scheduleGrid'
 import { numberWord, richText } from './words'
 import './schedule.css'
+
+/** The value of `?sheet=` that opens the schedule sheet (old `/plan/schedule`
+ * links, the Editor's note). */
+const SHEET_PARAM = 'schedule'
 
 /** "Breakfast, Lunch and Dinner". */
 function mealList(t: Translate, names: string[]): string {
@@ -30,7 +37,9 @@ function shortName(name: string, meals: number): string | null {
  * and the meals in a sentence, and the week as a grid of days by meals,
  * each planned meal a place set and each skipped one "out". A tap on a
  * meal skips or plans it and saves at once (taken back, with a note, when
- * the save fails); a tap on a day opens its "at least" sheet.
+ * the save fails); a tap on a day opens its "at least" sheet. "Change"
+ * opens the schedule sheet (start, days and meal names); so does
+ * `?sheet=schedule`, which is then removed from the address.
  */
 export function ScheduleSection({ plan }: { plan: Plan }) {
   const t = useT()
@@ -47,6 +56,24 @@ export function ScheduleSection({ plan }: { plan: Plan }) {
     opened: number
   } | null>(null)
 
+  const [params, setParams] = useSearchParams()
+  const [editing, setEditing] = useState(false)
+  const changeRef = useRef<HTMLButtonElement>(null)
+
+  const asked = params.get('sheet') === SHEET_PARAM
+  if (asked && !editing) setEditing(true)
+  useEffect(() => {
+    if (!asked) return
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current)
+        next.delete('sheet')
+        return next
+      },
+      { replace: true },
+    )
+  }, [asked, setParams])
+
   const { start_date: start, days, meals } = plan
 
   async function tap(day: number, meal: number) {
@@ -62,8 +89,18 @@ export function ScheduleSection({ plan }: { plan: Plan }) {
     meals: mealList(t, meals.map((meal) => meal.name)),
   })
 
-  // Ticket 16: the "Change" button that opens the schedule sheet goes in this section's `action`.
-  const change = undefined
+  const change = (
+    <button
+      ref={changeRef}
+      type="button"
+      className={buttonClass({ variant: 'text' })}
+      aria-label={t('schedule.edit.changeLabel')}
+      aria-haspopup="dialog"
+      onClick={() => setEditing(true)}
+    >
+      {t('schedule.edit.change')}
+    </button>
+  )
 
   return (
     <BriefSection section="schedule" action={change}>
@@ -185,6 +222,7 @@ export function ScheduleSection({ plan }: { plan: Plan }) {
           onClose={() => setSheetDay({ ...sheetDay, open: false })}
         />
       ) : null}
+      <ScheduleSheet open={editing} onClose={() => setEditing(false)} plan={plan} finalFocus={changeRef} />
     </BriefSection>
   )
 }

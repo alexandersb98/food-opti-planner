@@ -1,0 +1,37 @@
+/* The schedule sheet (D2's "The schedule"): the start, the days and the
+   meal names, each a field with D2's spacing; the names as ruled serif
+   lines with small arrow and cross buttons (D2's .meal-name-row, .icon-btn). */
+
+.sched-edit-field { margin-bottom: var(--s5); }
+.sched-edit-days { display: grid; gap: var(--s1); justify-items: start; }
+
+.sched-edit .sched-edit-date,
+.sched-edit .sched-edit-meal-name {
+  font-family: var(--serif); font-size: 20px;
+  font-variant-numeric: lining-nums;
+}
+
+.sched-edit-meals { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--s1); }
+.sched-edit-meal { display: grid; gap: var(--s1); }
+.sched-edit-meal-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) repeat(3, var(--touch));
+  gap: 0 4px; align-items: center;
+}
+.sched-edit-meal-row input { min-width: 0; }
+
+.sched-edit-icon {
+  width: var(--touch); height: var(--touch); display: grid; place-items: center;
+  border: 0; background: none; color: var(--muted); border-radius: 50%;
+  font-family: var(--serif); font-size: 20px; line-height: 1;
+  touch-action: manipulation;
+}
+.sched-edit-remove { font-size: 24px; }
+.sched-edit-icon:active:not(:disabled) { background: var(--press); }
+.sched-edit-icon:disabled { opacity: .3; }
+@media (hover: hover) {
+  .sched-edit-icon:hover:not(:disabled) { color: var(--ink); }
+}
+
+.sched-edit-add { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s3); margin-top: var(--s2); }
+.sched-edit-add button:disabled { color: var(--muted); text-decoration: none; }
+.sched-edit-note { font-family: var(--serif); font-style: italic; font-size: 15px; line-height: 20px; color: var(--muted); }

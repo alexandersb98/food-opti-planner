@@ -12,7 +12,7 @@ import { planFields } from './planFields'
 export const DAYS = { min: 1, max: 31 }
 
 /** The server's limit on a meal's name. */
-const MEAL_NAME_LENGTH = 40
+export const MEAL_NAME_LENGTH = 40
 
 /** A meal's name as the meal names editor gives it back; `key` is the
  * draft meal's, null for a meal added there. */
