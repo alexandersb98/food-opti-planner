@@ -24,3 +24,14 @@
   padding-bottom: var(--s2); border-bottom: 1px solid var(--rule);
 }
 .tag-picker-others .chip { padding: 4px 14px; font-size: 14.5px; color: var(--ink-2); }
+
+/* the tag just added: it may land mid-row (chosen chips keep catalogue
+   order), so it comes in marked in the red pencil and settles to ink */
+.tag-picker-added { animation: tag-picker-added 1.6s ease-out; }
+@keyframes tag-picker-added {
+  0%, 35% { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* no fade: a quiet accent rim instead, until the next change */
+  .tag-picker-added { animation: none; border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+}

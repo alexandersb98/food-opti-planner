@@ -148,3 +148,19 @@ test('taking off the last chosen tag from the keyboard leaves focus on Add a tag
   await user.keyboard('{Enter}')
   expect(document.activeElement?.textContent).toContain('Add a tag')
 })
+
+test('the tag just added is marked so the eye finds it mid-row; the others are not', async () => {
+  const { user } = mount({ chosen: [1, 2] })
+  const chip = (name: string) => within(screen.getByRole('group', { name: 'Tags' })).getByRole('button', { name })
+  expect(chip('Vegan').classList.contains('tag-picker-added')).toBe(false)
+  await user.click(screen.getByText('Add a tag'))
+  await user.click(screen.getByRole('button', { name: 'Grönsaker' }))
+  expect(chosen()).toEqual(['Vegan', 'Quick', 'Grönsaker'])
+  expect(chip('Grönsaker').classList.contains('tag-picker-added')).toBe(true)
+  expect(chip('Vegan').classList.contains('tag-picker-added')).toBe(false)
+  expect(chip('Quick').classList.contains('tag-picker-added')).toBe(false)
+  // the mark moves to the next tag added, here with Enter in the find box
+  await user.type(find(), 'gry{Enter}')
+  expect(chip('Gryn').classList.contains('tag-picker-added')).toBe(true)
+  expect(chip('Grönsaker').classList.contains('tag-picker-added')).toBe(false)
+})

@@ -36,6 +36,9 @@ export function TagPicker({
 }) {
   const t = useT()
   const [query, setQuery] = useState('')
+  // The tag just added: chosen chips keep catalogue order, so it can land
+  // mid-row; it shows briefly marked so the eye finds it.
+  const [added, setAdded] = useState<number | null>(null)
   const root = useRef<HTMLDivElement>(null)
   const row = useRef<HTMLDivElement>(null)
   const find = useRef<HTMLInputElement>(null)
@@ -63,11 +66,13 @@ export function TagPicker({
       const next = chips[at + 1] ?? chips[at - 1]
       focusNext.current = () => next ?? root.current?.querySelector<HTMLElement>('.disclosure-summary')
     }
+    if (tagId === added) setAdded(null)
     onToggle(tagId)
   }
 
   function putOn(tagId: number, event: MouseEvent<HTMLButtonElement>) {
     if (event.detail === 0) focusNext.current = () => find.current
+    setAdded(tagId)
     onToggle(tagId)
   }
 
@@ -77,6 +82,7 @@ export function TagPicker({
     if (event.key !== 'Enter') return
     event.preventDefault()
     if (text && matching.length === 1) {
+      setAdded(matching[0].id)
       onToggle(matching[0].id)
       setQuery('')
     }
@@ -94,7 +100,12 @@ export function TagPicker({
                     {tag.name}
                   </Chip>
                 ) : (
-                  <Chip key={tag.id} pressed onClick={(event) => takeOff(tag.id, event)}>
+                  <Chip
+                    key={tag.id}
+                    pressed
+                    className={tag.id === added ? 'tag-picker-added' : undefined}
+                    onClick={(event) => takeOff(tag.id, event)}
+                  >
                     {tag.name}
                   </Chip>
                 ),
