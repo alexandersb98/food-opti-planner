@@ -2,7 +2,7 @@ import { screen } from '@testing-library/react'
 import { expect, test } from 'vitest'
 import { fakeServer, mountApp } from '../../test-app'
 
-test('a deep path shows the placeholder page', async () => {
+test('a deep path shows the placeholder page, its title through the translator', async () => {
   fakeServer({ 'GET /api/health': { body: { database: true, ai_configured: false } } })
   await mountApp('/recipes/3')
 
