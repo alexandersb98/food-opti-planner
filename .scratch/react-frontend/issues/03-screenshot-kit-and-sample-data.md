@@ -11,9 +11,19 @@ Spec: "Testing Decisions › Visual verification"; story 203.
 
 Blocked by: None (can start immediately)
 
-Status: ready-for-agent
+Status: done
 
-- [ ] Running the seed twice against a fresh local backend works (second run is a no-op or clearly refuses), and the Vue app shows the seeded data
-- [ ] The script produces the four PNGs for a Vue route today (the React app may not exist yet) and for each D2 prototype view listed
-- [ ] Nothing new is committed outside `web/` scripts/config and the git-ignore entry; no screenshots committed
-- [ ] `npm run lint`, `npm run typecheck`, `npm test` pass in `web/`
+- [x] Running the seed twice against a fresh local backend works (second run is a no-op or clearly refuses), and the Vue app shows the seeded data
+- [x] The script produces the four PNGs for a Vue route today (the React app may not exist yet) and for each D2 prototype view listed
+- [x] Nothing new is committed outside `web/` scripts/config and the git-ignore entry; no screenshots committed
+- [x] `npm run lint`, `npm run typecheck`, `npm test` pass in `web/`
+
+## Comments
+
+- Files: `web/scripts/sample-data.ts` (`npm run sample-data`), `web/scripts/screenshot.ts` (`npm run shot`), two script lines in `web/package.json`, `scripts/**/*.ts` added to `web/tsconfig.json`'s include (so both are typechecked), `web/screenshots/` in the root `.gitignore`. The scripts are TypeScript run directly by Node 22 (type stripping), no new dependencies; the screenshot script uses `chromium` from `@playwright/test`.
+- The seed's second run changes nothing and says why (any attribute, ingredient, recipe or own tag present). A run that fails half way also leaves rows, so the next run refuses too: delete the database file and restart the backend.
+- The seed and the screenshot script log in with `PLANNER_PASSWORD` (default `sample`); the backend is started with the hash of that password (commands in the README's "Screenshot checks").
+- The tag group is "Dairy" made equivalent to the test source's "TEST Dairy". The source ingredient is "Rolled oats" from "TEST Oats", after mapping the source's energy and protein columns to Energy and Protein (so the Data source page shows 2 mapped columns).
+- The sample plan solves in about a second (Must: energy 1600–2800 kcal a day; Prefer: protein ≥ 90 g a day, fibre ≥ 25 g on average; Never: Fish; lunch skipped on day 7). The solver happily serves Red lentil soup for breakfast; there is no meal-to-recipe rule in the app to stop it.
+- Hook for ticket 05: `EDITION_STORAGE` in `web/scripts/screenshot.ts` (or `EDITION_STORAGE_KEY` in the environment).
+- The `.scratch` README and this ticket live outside the implementer's worktree; the lead applies the "Screenshot checks" commands from the scratchpad file.

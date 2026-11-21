@@ -15,5 +15,5 @@
     "noEmit": true,
     "jsx": "react-jsx"
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue", "e2e/**/*.ts", "vite.config.ts", "eslint.config.ts", "playwright.config.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue", "e2e/**/*.ts", "scripts/**/*.ts", "vite.config.ts", "eslint.config.ts", "playwright.config.ts"]
 }

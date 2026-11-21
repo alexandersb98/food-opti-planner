@@ -190,6 +190,24 @@ These exist so that parallel tickets rarely edit the same lines. Ticket 01 or 02
 
 Every UI ticket ends with a Playwright screenshot check at 390 × 844 and 1280 × 800, in the paper and evening editions, of its React page(s) against the dev server with the real backend and sample data, compared by eye with the matching D2 prototype view opened from disk (`prototypes/d2-editorial-refined/index.html` with `#plan`, `#menu`, `#recipes`, `#recipe/<id>`, `#archive`, `#ingredients` or `#settings`). Ticket 03 provides the seed and the script and documents their commands here. Reduced motion is checked for the composing view, sheets and page turns. Screenshots are not committed; findings go under the ticket's `## Comments`. Never point the seed at anything but a local backend.
 
+**Commands** (ticket 03). Start a local backend on an empty database with the password `sample`, the fake AI and the test data source, from the repository root:
+
+```
+export PASSWORD_HASH="$(python3 -c "from argon2 import PasswordHasher; print(PasswordHasher().hash('sample'))")"
+export SESSION_KEY=local-dev AI_PROVIDER=fake AI_ALLOW_FAKE=true DATA_SOURCES_DIR=tests/data/data_sources
+export DATABASE_URL=sqlite:////tmp/planner-sample.db   # a fresh file; delete it to start over
+python3 -m uvicorn --factory server.app:create_app      # API on :8000
+cd web && npm run dev                                    # app on :5173 (another terminal)
+```
+
+Then, in `web/`:
+
+- `npm run sample-data` fills the empty database (5 attributes, 6 tags with a tag group, 16 ingredients with conversions, one from the data source, 8 recipes with sections and instructions, a plan setup with Must and Prefer goals and a "Never: Fish" filter, and a solved, saved plan used for today). It refuses any host but localhost, and changes nothing in a database that already has catalogue rows (delete the database file and restart the backend to start over). `PLANNER_API` (default `http://localhost:8000`) and `PLANNER_PASSWORD` (default `sample`) override.
+- `npm run shot -- <target> [options]` writes `<name>-<phone|desktop>-<paper|evening>.png` (390 × 844 with touch, 1280 × 800; editions forced by the colour-scheme emulation) to `--out <dir>`, else `SHOTS_DIR`, else `web/screenshots/` (ignored by git). Targets: a dev-server route, logged in first (`/next/recipes` for React, `/recipes` for Vue), or a D2 view opened from disk (`d2:plan`, `d2:menu`, `d2:recipes`, `d2:recipe/r1`, `d2:archive`, `d2:ingredients`, `d2:settings`). Options: `--name <prefix>`, `--click <accessible name>` (a button or link, repeatable, in order), `--step <file.mjs>` (default export `async (page) => {}` getting the Playwright page, for anything more), `--wait <text>`, `--reduced-motion`, `--full-page`, `--no-login` (for the login page). `PLANNER_APP` (default `http://localhost:5173`) overrides the app; only localhost is shot.
+- Example: `SHOTS_DIR=<your folder> npm run shot -- /next/ --click Contents --name contents`, then `npm run shot -- d2:plan --click Contents --name d2-contents`.
+- Ticket 05: set `EDITION_STORAGE.key` (and its stored values) in `web/scripts/screenshot.ts` to the edition's storage key, so a stored edition cannot override the forced one. Until then `EDITION_STORAGE_KEY=<key>` in the environment does the same.
+- **Parallel agents:** pick your own ports. Backend: `--port <api>` on uvicorn; dev server: `PLANNER_API=http://localhost:<api> npm run dev -- --port <app>`; scripts: `PLANNER_API=http://localhost:<api> PLANNER_APP=http://localhost:<app>`; use your own `DATABASE_URL` file.
+
 ## Open questions (decided provisionally, for the owner to review)
 
 Step 4 of the to-tickets skill (quiz the user) was skipped because no one was available; these are the calls made instead.

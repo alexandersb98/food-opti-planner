@@ -37,7 +37,8 @@ export default defineConfig({
   ],
   server: {
     // The FastAPI dev server: uvicorn --factory server.app:create_app --reload
-    proxy: { '/api': 'http://localhost:8000' },
+    // PLANNER_API lets parallel checkouts each use their own backend port.
+    proxy: { '/api': process.env.PLANNER_API ?? 'http://localhost:8000' },
   },
   // The production build is the Vue app alone (index.html, served at "/");
   // the React entry is dev-only until the swap.
