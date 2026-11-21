@@ -1,0 +1,26 @@
+/* Create attribute (ticket 41): D2's sheet form (#plan's goal sheet): the
+   lead in the preview strip, ruled fields, the unit and decimals side by
+   side, Cancel and Add at the foot. Class prefix: ds-create-. */
+
+.ds-create { display: grid; gap: var(--s5); }
+.ds-create > .sheet-preview { margin-bottom: 0; }
+.ds-create > .sheet-actions { margin-top: 0; }
+
+.ds-create-name { font-family: var(--serif); font-size: 19px; }
+
+/* the unit and the decimals share a row when there is room */
+.ds-create-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s5); align-items: start; }
+/* a longer hint under one field must not push the other's line down */
+.ds-create-row > * { align-content: start; }
+@media (min-width: 360px) {
+  .ds-create-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--s4); }
+}
+/* the unit's error carries Field's dagger too, so the three read alike
+   (UnitField draws its own error without it; for ticket 42 to fold in) */
+.ds-create .unit-field-error { display: flex; gap: 6px; align-items: baseline; }
+.ds-create .unit-field-error::before { content: "\2020"; font-family: var(--serif); font-weight: 400; }
+.ds-create-decimals { font-variant-numeric: lining-nums tabular-nums; }
+
+.ds-create-error {
+  margin: 0; font-family: var(--sans); font-size: var(--fs-sm); line-height: var(--lh-sm); font-weight: 500; color: var(--accent);
+}

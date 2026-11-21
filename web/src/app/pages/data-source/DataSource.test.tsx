@@ -8,8 +8,8 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-// Parity with the Vue DataSourcePage and SourceColumnRow tests (but Create
-// attribute, ticket 41).
+// Parity with the Vue DataSourcePage and SourceColumnRow tests (Create
+// attribute, ticket 41, is in CreateAttribute.test.tsx).
 
 const columns = [
   sourceColumn({ id: 1, name: 'TEST Energy', unit: 'kcal' }),
@@ -50,7 +50,7 @@ const shownChoice = (column: string) => {
 
 /** The entries of a column's Attribute choice, with "(off)" after a disabled one. */
 async function entries(column: string) {
-  await waitFor(() => expect(choice(column).options.length).toBeGreaterThan(1))
+  await waitFor(() => expect(choice(column).options.length).toBeGreaterThan(2))
   return [...choice(column).options].map((option) => option.textContent + (option.disabled ? ' (off)' : ''))
 }
 
@@ -166,20 +166,20 @@ test('the search narrows the columns by name, ignoring case, keeps their order a
 
 test('a g column offers Not mapped and the attributes that convert with g, in order', async () => {
   await mountPage()
-  expect(await entries('TEST Protein')).toEqual(['Not mapped', 'Protein', 'Fat', 'Iron'])
+  expect(await entries('TEST Protein')).toEqual(['Not mapped', 'Protein', 'Fat', 'Iron', 'Create attribute…'])
   expect(choice('TEST Protein').querySelector('optgroup')?.label).toBe('Converts with g')
 })
 
 test('a kcal column offers energy attributes only, a µg column the mass ones', async () => {
   await mountPage()
-  expect(await entries('TEST Energy')).toEqual(['Not mapped', 'Energy'])
-  expect(await entries('TEST Vitamin D')).toEqual(['Not mapped', 'Protein (taken by TEST Protein) (off)', 'Fat', 'Iron'])
+  expect(await entries('TEST Energy')).toEqual(['Not mapped', 'Energy', 'Create attribute…'])
+  expect(await entries('TEST Vitamin D')).toEqual(['Not mapped', 'Protein (taken by TEST Protein) (off)', 'Fat', 'Iron', 'Create attribute…'])
 })
 
 test('a column with no unit offers no attribute', async () => {
   await mountPage()
-  await waitFor(() => expect(choice('TEST Energy').options.length).toBe(2))
-  expect([...choice('TEST Alcohol').options].map((option) => option.textContent)).toEqual(['Not mapped'])
+  await waitFor(() => expect(choice('TEST Energy').options.length).toBe(3))
+  expect([...choice('TEST Alcohol').options].map((option) => option.textContent)).toEqual(['Not mapped', 'Create attribute…'])
 })
 
 test('the mapped attribute is shown by name, an unmapped column says Not mapped', async () => {
@@ -211,7 +211,7 @@ test('choosing an attribute saves at once, once, and the row shows it', async ()
   await waitFor(() => expect(shownChoice('TEST Protein')).toBe('Fat'))
   expect(puts).toEqual([{ attribute_id: 2 }])
   // the other rows now see Fat as taken
-  expect(await entries('TEST Vitamin D')).toEqual(['Not mapped', 'Protein', 'Fat (taken by TEST Protein) (off)', 'Iron'])
+  expect(await entries('TEST Vitamin D')).toEqual(['Not mapped', 'Protein', 'Fat (taken by TEST Protein) (off)', 'Iron', 'Create attribute…'])
 })
 
 test('Not mapped sends null', async () => {

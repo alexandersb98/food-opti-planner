@@ -152,6 +152,8 @@
     "newAttribute": "New attribute",
     "add": "Add",
     "createUnitMismatch": "Must convert with {unit}.",
+    "createLead": "Add creates the attribute and maps {column} to it.",
+    "createUnitHint": "Converts with {unit}, the column's unit.",
     "createdNotMapped": "The attribute was created but could not be mapped."
   },
   "units": {

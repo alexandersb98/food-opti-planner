@@ -2,14 +2,15 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { api } from '../../../api/client'
 import { fieldErrors } from '../../../api/errors'
-import type { DataSource as Source, SourceColumn } from '../../../api/types'
+import type { Attribute, DataSource as Source, SourceColumn } from '../../../api/types'
 import { loadAll } from '../../../load'
 import { useLoad } from '../../hooks/useLoad'
 import { useT } from '../../i18n/i18n'
 import { useRunningHead } from '../../shell/runningHead'
 import { buttonClass } from '../../ui/button/Button'
 import { LoadState } from '../../ui/loadState/LoadState'
-import { NOT_MAPPED, SourceColumns } from './SourceColumns'
+import { CreateAttribute } from './CreateAttribute'
+import { CREATE, NOT_MAPPED, SourceColumns } from './SourceColumns'
 import { SourceFacts } from './SourceFacts'
 import './data-source.css'
 
@@ -35,6 +36,9 @@ export function DataSource() {
   // The column ids being saved, and each row's last refusal.
   const [saving, setSaving] = useState<ReadonlySet<number>>(() => new Set())
   const [errors, setErrors] = useState<Readonly<Record<number, string>>>({})
+  // The column Create attribute is for; kept while its sheet slides away,
+  // and a new key for each opening (a fresh form).
+  const [creating, setCreating] = useState<{ column: SourceColumn; open: boolean; key: number } | null>(null)
   useRunningHead(page.data?.source.name)
 
   if (!page.data) return <LoadState of={page} message={t('dataSource.loadFailed')} />
@@ -100,8 +104,17 @@ export function DataSource() {
 
   /** A row's Attribute choice: an attribute id, or Not mapped. */
   function choose(column: SourceColumn, choice: string) {
-    // Ticket 41: `if (choice === CREATE) return openCreate(column)` goes here.
+    if (choice === CREATE) return setCreating((last) => ({ column, open: true, key: (last?.key ?? 0) + 1 }))
     void map(column, choice === NOT_MAPPED ? null : Number(choice))
+  }
+
+  /** Create attribute made one for `column`: close the sheet, list it for
+   * every row and map the column to it. The attribute exists whatever the
+   * mapping does, so a refused mapping says so on the row. */
+  async function created(column: SourceColumn, attribute: Attribute) {
+    setCreating((last) => last && { ...last, open: false })
+    page.setData((data) => ({ ...data, attributes: [...data.attributes, attribute] }))
+    if (!(await map(column, attribute.id))) setError(column, t('dataSource.createdNotMapped'))
   }
 
   return (
@@ -122,7 +135,15 @@ export function DataSource() {
         errors={errors}
         onChoose={choose}
       />
-      {/* Ticket 41: the Create attribute sheet goes here. */}
+      {creating ? (
+        <CreateAttribute
+          key={creating.key}
+          open={creating.open}
+          column={creating.column}
+          onClose={() => setCreating({ ...creating, open: false })}
+          onCreated={(attribute) => void created(creating.column, attribute)}
+        />
+      ) : null}
     </article>
   )
 }
