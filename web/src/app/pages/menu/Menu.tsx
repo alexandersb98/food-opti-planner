@@ -9,6 +9,7 @@ import * as solve from '../../stores/solve'
 import { buttonClass } from '../../ui/button/Button'
 import { LoadState } from '../../ui/loadState/LoadState'
 import { isComposed } from './composed'
+import { EditorsNote } from './EditorsNote'
 import { MenuCard } from './MenuCard'
 import { dayOf, longRange, queryIndex, startWeek } from './menuText'
 import './menu.css'
@@ -48,8 +49,8 @@ export function Menu() {
   const recipes = useLoad((signal) => api.GET('/api/recipes', { signal }))
   const recipeIds = useMemo(() => new Map((recipes.data ?? []).map((recipe) => [recipe.name, recipe.id])), [recipes.data])
 
-  // The Editor's note (ticket 23) takes the menu's place after a clash: it replaces this line's null.
-  if (clash) return null
+  // The Editor's note takes the menu's place after a clash.
+  if (clash) return <EditorsNote />
 
   const plan = page.data?.plan
   if (!plan) {
