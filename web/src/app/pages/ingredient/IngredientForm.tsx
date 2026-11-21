@@ -17,6 +17,7 @@ import { useConfirm } from '../../ui/confirm/Confirm'
 import { Field } from '../../ui/field/Field'
 import { LoadState } from '../../ui/loadState/LoadState'
 import { UnitField, type UnitGroup } from '../../ui/unit-field/UnitField'
+import { Conversions } from './Conversions'
 import './ingredient.css'
 import { IngredientSource } from './IngredientSource'
 import { UpdatedValues } from './UpdatedValues'
@@ -335,7 +336,7 @@ function IngredientEditor({
 
   // The conversions (ticket 30 lists them for a saved ingredient on this line;
   // a new one in a sheet leaves them out).
-  const conversions: ReactNode = stored || inSheet ? null : <p className="ingredient-note">{t('conversions.saveFirst')}</p>
+  const conversions: ReactNode = stored ? <Conversions ingredient={stored} onChange={(list) => setStored((s) => (s ? { ...s, conversions: list } : s))} /> : inSheet ? null : <p className="ingredient-note">{t('conversions.saveFirst')}</p>
 
   const basisId = `${ids}-basis`
   const basisErrorId = `${ids}-basis-error`
