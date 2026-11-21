@@ -1,0 +1,77 @@
+/* The Menu's colophon and actions, after D2's .colophon (#menu). Class prefix: colophon-. */
+
+.colophon { margin-top: var(--s7); padding-top: var(--s5); border-top: 3px double var(--rule-strong); }
+.colophon-title {
+  font-family: var(--serif); font-size: var(--fs-h2); line-height: var(--lh-h2);
+  font-weight: 340; font-style: italic; margin: var(--s1) 0 var(--s4);
+  font-variation-settings: "opsz" 96, "SOFT" 100;
+  text-wrap: balance;
+}
+.colophon-standfirst { margin-bottom: var(--s5); max-width: 34em; display: flow-root; }
+
+/* the pull figure: the week's first attribute */
+.colophon-pull {
+  margin: 0 0 var(--s5); padding: var(--s4) 0;
+  border-top: 2px solid var(--rule-strong); border-bottom: 1px solid var(--rule-strong);
+  font-family: var(--serif); font-size: 22px; line-height: 32px; font-weight: 340; font-style: italic;
+  font-variation-settings: "opsz" 48; color: var(--ink-2);
+  font-variant-numeric: oldstyle-nums;
+}
+.colophon-big {
+  display: block; font-style: normal; color: var(--accent);
+  font-size: 72px; line-height: 72px; font-weight: 300; letter-spacing: -.035em;
+  font-variation-settings: "opsz" 144; font-variant-numeric: lining-nums;
+  overflow-wrap: anywhere;
+}
+.colophon-big small { font-size: 28px; letter-spacing: 0; font-style: italic; margin-left: 6px; }
+
+/* the goals: missed (†) with the worst, or all met (✓) */
+.colophon-verdicts { list-style: none; padding: 0; margin: 0 0 var(--s6); border-top: 1px solid var(--rule); }
+.colophon-verdicts li {
+  display: grid; grid-template-columns: 24px 1fr; gap: var(--s2);
+  padding: var(--s3) 0; border-bottom: 1px solid var(--rule);
+}
+.colophon-v { font-family: var(--serif); font-size: 18px; line-height: 24px; }
+.colophon-verdicts .is-ok .colophon-v { color: var(--good); }
+.colophon-verdicts .is-missed .colophon-v { color: var(--accent); font-weight: 600; }
+.colophon-verdicts p {
+  min-width: 0; overflow-wrap: break-word;
+  font-family: var(--serif); font-size: 18px; line-height: 24px; font-variant-numeric: oldstyle-nums;
+}
+.colophon-verdicts .is-missed p { font-weight: 480; }
+.colophon-sub {
+  display: block; margin-top: 2px;
+  font-family: var(--sans); font-size: 13.5px; line-height: 20px; font-weight: 400;
+  color: var(--muted); font-variant-numeric: lining-nums;
+}
+
+/* the totals table, tabular figures */
+.colophon-totals {
+  width: 100%; border-collapse: collapse; margin: 0;
+  font-size: 15.5px; font-variant-numeric: tabular-nums lining-nums;
+}
+.colophon-totals th, .colophon-totals td {
+  padding: 8px 0; line-height: 20px; border-bottom: 1px solid var(--rule);
+  text-align: left; font-weight: 400; vertical-align: baseline;
+}
+.colophon-totals td { text-align: right; padding-left: var(--s3); white-space: nowrap; }
+.colophon-totals tbody th { font-family: var(--serif); font-size: 17px; overflow-wrap: anywhere; }
+.colophon-totals thead th {
+  font-family: var(--sans); font-size: 14px; font-weight: 600; color: var(--muted);
+  border-bottom: 1px solid var(--rule-strong);
+  font-variant-caps: all-small-caps; letter-spacing: .06em;
+}
+.colophon-totals thead th:not(:first-child) { text-align: right; }
+.colophon-more { margin-top: var(--s1); }
+
+/* the actions */
+.colophon-actions { display: grid; gap: var(--s3); margin-top: var(--s6); }
+.colophon-row { display: flex; gap: var(--s3); flex-wrap: wrap; }
+.colophon-row > .btn { flex: 1 1 140px; }
+.colophon-filed {
+  display: grid; place-items: center; gap: 2px; min-height: 48px; padding: var(--s2) var(--s3);
+  border: 1px solid color-mix(in srgb, var(--good) 40%, transparent);
+  font-family: var(--serif); font-style: italic; text-align: center; color: var(--good);
+  font-variant-numeric: oldstyle-nums;
+}
+.colophon-error { color: var(--accent); font-size: var(--fs-sm); line-height: var(--lh-sm); font-weight: 500; }

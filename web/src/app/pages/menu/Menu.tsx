@@ -10,6 +10,7 @@ import { buttonClass } from '../../ui/button/Button'
 import { LoadState } from '../../ui/loadState/LoadState'
 import { isComposed } from './composed'
 import { MenuCard } from './MenuCard'
+import { MenuColophon } from './MenuColophon'
 import { dayOf, longRange, queryIndex, startWeek } from './menuText'
 import './menu.css'
 
@@ -81,7 +82,7 @@ export function Menu() {
         openMeal={openMeal}
         composed={composed}
       />
-      {/* The colophon and actions (ticket 22) go here, replacing this line: <MenuColophon plan={plan} onPlan={(plan) => page.setData({ plan })} /> */}
+      <MenuColophon key={`colophon-${plan.id}`} plan={plan} />
     </div>
   )
 }

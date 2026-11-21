@@ -774,7 +774,33 @@
     "keyTwo": "Margins: {first} and {second} for each dish.",
     "keyMissed": "a day goal missed.",
     "blank": "Nothing is on the menu yet. Compose the week from the brief.",
-    "compose": "Compose the week"
+    "compose": "Compose the week",
+    "colophon": "Colophon",
+    "colophonTitle": "How the week turned out",
+    "turnedOut": {
+      "optimal": "The best plan possible.",
+      "time_ran_out": "Time ran out, so this may not be the best plan.",
+      "stopped": "Stopped early, so this may not be the best plan."
+    },
+    "goalsMissed": "{n} goal was missed; everything else held. | {n} goals were missed; everything else held.",
+    "goalsMet": "Every goal was met.",
+    "pullFor": "for the week’s {name}, about {average} a day.",
+    "missed": "Missed",
+    "met": "Met",
+    "totals": "Plan totals",
+    "forTheWeek": "For the week",
+    "total": "Total",
+    "aDay": "A day",
+    "save": "Save to the archive",
+    "savedToast": "Saved to the archive.",
+    "filed": "Filed in the archive as Week {week}.",
+    "usedToday": "Today’s meals come from this menu.",
+    "usedToast": "Today’s meals now come from this menu.",
+    "discardMessage": "The Menu for {issue} will be thrown away. It isn’t saved, so this can’t be undone.",
+    "keepIt": "Keep it",
+    "discarded": "Plan discarded.",
+    "deleteMessage": "It leaves the archive. This can’t be undone.",
+    "deleted": "Plan deleted."
   },
   "misses": {
     "days": {

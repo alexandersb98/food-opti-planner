@@ -116,7 +116,7 @@ test('an unsaved plan on /plans/new says it is not saved yet', async () => {
 test('every day is a section with its weekday and date, in order', async () => {
   today('2026-10-10')
   await mountSaved(week())
-  expect(screen.getAllByRole('heading', { level: 2 }).map(text)).toEqual([
+  expect(within(screen.getByRole('article', { name: 'The Menu' })).getAllByRole('heading', { level: 2 }).map(text)).toEqual([
     'Monday 21 Sep',
     'Tuesday 22 Sep',
     'Wednesday 23 Sep',
