@@ -169,6 +169,8 @@ graph LR
 
 ## Conventions (all tickets)
 
+> **After ticket 42 part 1 (the swap):** the React app is the app at `/` from `web/index.html`. There is no `/next/` base path, `base.ts`, `BASE_PATH` or dev fallback any more, and no Vue code or Vue tests; rules below about keeping Vue tests green or Vue-only message keys are history. Screenshot targets are plain routes (`/recipes`, not `/next/recipes`). Typecheck is `tsc --noEmit`.
+
 These exist so that parallel tickets rarely edit the same lines. Ticket 01 or 02 may rename a folder or module; if so, it updates this section in the same commit.
 
 - **Where code goes.** React code in its own folder (default `web/src/app/`), split into `shell/`, `ui/` (primitives, one folder per primitive with its component, stylesheet and any component test), `pages/<page>/` (the page, its section components, its stylesheet and its app tests) and `stores/` or a neutral module beside the existing ones. Framework-agnostic modules stay where they are in `web/src/` and are imported by both apps (ticket 02 added `goalDraft`, `scheduleDraft`, `recipeDraft`, `load` (`loadAll`), `planFields`, `unitChange` (refusal text and types) and `latest` (latest question wins) there; `importReviewKey` moved to `composables/`); the React folder never imports Vue, Quasar or `.vue` files (lint rule from 01).
