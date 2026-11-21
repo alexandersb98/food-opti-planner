@@ -18,6 +18,7 @@ import { Field } from '../../ui/field/Field'
 import { LoadState } from '../../ui/loadState/LoadState'
 import { UnitField, type UnitGroup } from '../../ui/unit-field/UnitField'
 import './ingredient.css'
+import { useIngredientUnitChange } from './unitChangeCheck'
 
 // The form of a new ingredient (id null) or an existing one: name, the unit
 // it is measured in, the value basis, a value per attribute and its tags.
@@ -131,6 +132,7 @@ function IngredientEditor({
   const { attributes, tags } = loaded
   const { units, basisFor: catalogueBasis } = useUnits()
   const [confirm, confirmSheet] = useConfirm()
+  const [checkUnitChange, unitChangeSheet] = useIngredientUnitChange()
   const ids = useId()
   const formRef = useRef<HTMLFormElement>(null)
 
@@ -231,10 +233,11 @@ function IngredientEditor({
     const fields = checked()
     if (!fields) return
     if (stored && fields.unit !== stored.unit) {
-      // Ticket 37: ask the unit-change question here (preview, refusal under the unit, sheet).
-      const answer: UnitChangeAnswer = { go: true }
+      // The unit-change question (ticket 37): the preview, a refusal under the unit, or the sheet.
+      const answer: UnitChangeAnswer = await checkUnitChange(stored, fields)
       if (!answer.go) {
         setErrors({ values: {}, unit: answer.unitError, save: answer.saveError })
+        if (answer.unitError) setChecks((n) => n + 1)
         return
       }
     }
@@ -450,6 +453,7 @@ function IngredientEditor({
         </>
       ) : null}
       {confirmSheet}
+      {unitChangeSheet}
     </form>
   )
 }
