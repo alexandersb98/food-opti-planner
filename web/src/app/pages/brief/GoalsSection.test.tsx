@@ -190,15 +190,19 @@ test('without goals, the section says what happens and explains Must and Prefer'
   )
 })
 
-test('Add goal and each goal are buttons, which open nothing visible until the goal sheet', async () => {
+test('Add goal and each goal are buttons that open the goal sheet', async () => {
   const { section } = await mountGoals([goal({ id: 1, attribute_id: 1 })])
   const add = within(section).getByRole('button', { name: 'Add goal' })
   expect(add.hasAttribute('disabled')).toBe(false)
   expect(add.hasAttribute('aria-describedby')).toBe(false)
   expect(within(section).queryByText('Add an attribute first')).toBeNull()
+  expect(add.getAttribute('aria-haspopup')).toBe('dialog')
   await act(async () => add.click())
-  await act(async () => goalButtons(section)[0]!.click())
+  expect(within(screen.getByRole('dialog')).getByRole('heading', { name: 'Add goal' })).toBeTruthy()
+  await act(async () => within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }).click())
   expect(screen.queryByRole('dialog')).toBeNull()
+  await act(async () => goalButtons(section)[0]!.click())
+  expect(within(screen.getByRole('dialog')).getByRole('heading', { name: 'Edit goal' })).toBeTruthy()
 })
 
 test('without attributes, Add goal is disabled and says to add an attribute first', async () => {

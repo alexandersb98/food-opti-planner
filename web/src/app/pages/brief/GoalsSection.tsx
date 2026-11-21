@@ -1,12 +1,13 @@
-import { useId, useMemo, useState, useSyncExternalStore } from 'react'
+import { useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { Attribute, Goal, Plan } from '../../../api/types'
 import { clashingGoalIds, clashRows } from '../../../clash'
 import { goalSentence, IMPORTANCE } from '../../../goals'
 import { useT } from '../../i18n/i18n'
 import * as solve from '../../stores/solve'
-import { Button } from '../../ui/button/Button'
+import { buttonClass } from '../../ui/button/Button'
 import { ImportanceDots } from '../../ui/importanceDots/ImportanceDots'
 import { BriefSection } from './BriefSection'
+import { GoalSheet } from './GoalSheet'
 import { richText } from './words'
 import './goals-section.css'
 
@@ -26,27 +27,29 @@ function splitImportance(goal: Goal): [number, number] | null {
  * "Between 1 500 and 2 000 kcal energy, as a daily average", tagged Must or
  * Prefer with Prefer's importance as dots, its name when it has one, and
  * marked in red pencil when it is in the last solve's clash. Each goal and
- * "Add goal" open the goal sheet.
+ * "Add goal" open the goal sheet (`GoalSheet`).
  */
 export function GoalsSection({ plan, attributes }: { plan: Plan; attributes: Attribute[] }) {
   const t = useT()
   const hintId = useId()
-  // Ticket 18 shows the goal sheet for the goal opened here.
-  const [, openGoal] = useState<GoalToOpen>(null)
+  const [toOpen, openGoal] = useState<GoalToOpen>(null)
+  const addRef = useRef<HTMLButtonElement>(null)
   const clash = useSyncExternalStore(solve.subscribe, lastClash)
   const clashing = useMemo(() => new Set(clash ? clashingGoalIds(clashRows(clash, plan)) : []), [clash, plan])
   const noAttributes = attributes.length === 0
 
   const add = (
-    <Button
-      variant="text"
-      className="goals-add"
+    <button
+      ref={addRef}
+      type="button"
+      className={buttonClass({ variant: 'text' }, 'goals-add')}
+      aria-haspopup="dialog"
       disabled={noAttributes}
       aria-describedby={noAttributes ? hintId : undefined}
       onClick={() => openGoal({ goal: null })}
     >
       {t('goals.section.add')}
-    </Button>
+    </button>
   )
 
   return (
@@ -78,6 +81,13 @@ export function GoalsSection({ plan, attributes }: { plan: Plan; attributes: Att
           prefer: <em>{t('goals.prefer')}</em>,
         })}
       </p>
+      <GoalSheet
+        toOpen={toOpen}
+        onClose={() => openGoal(null)}
+        plan={plan}
+        attributes={attributes}
+        afterRemove={addRef}
+      />
     </BriefSection>
   )
 }
@@ -102,7 +112,7 @@ function GoalStatement({
     .filter(Boolean)
     .join(' ')
   return (
-    <button type="button" className={className} onClick={onOpen}>
+    <button type="button" className={className} aria-haspopup="dialog" onClick={onOpen}>
       {/* spaces between the parts, for the name screen readers read out */}
       {inClash ? <span className="visually-hidden">{t('goals.section.inClash')}</span> : null}{' '}
       <span className="goals-tag">

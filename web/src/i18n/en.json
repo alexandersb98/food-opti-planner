@@ -769,7 +769,19 @@
       "guardRail": "Also keep each day in range",
       "guardRailImportance": "Importance of each day",
       "importanceInvalid": "An importance from {min} to {max}.",
-      "settingRefused": "Could not save this setting."
+      "settingRefused": "Could not save this setting.",
+      "unitIn": "({unit})",
+      "none": "none",
+      "preview": {
+        "text": "{sentence}: {how}.",
+        "must": "must",
+        "prefer": "preferred, importance {n}",
+        "preferSplit": "preferred, importance {below} below and {above} above"
+      },
+      "remove": "Remove goal",
+      "added": "Goal added.",
+      "changed": "Goal changed.",
+      "removed": "Goal removed."
     }
   },
   "schedule": {
