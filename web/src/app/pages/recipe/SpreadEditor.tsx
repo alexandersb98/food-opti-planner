@@ -266,9 +266,9 @@ export function SpreadEditor({
                 chosen={draft.extraTagIds}
                 locked={derived}
                 lockedNote={t('recipe.auto')}
+                hint={<p className="spread-hint">{t('recipe.tagsHint')}</p>}
                 onToggle={toggleTag}
               />
-              <p className="spread-hint">{t('recipe.tagsHint')}</p>
             </>
           ) : (
             <p className="spread-none">{t('ingredients.noTags')}</p>

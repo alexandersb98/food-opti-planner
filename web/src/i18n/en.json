@@ -174,7 +174,8 @@
     "more": "{n} more",
     "find": "Find a tag",
     "others": "Other tags",
-    "noMatch": "No tag matches “{query}”."
+    "noMatch": "No tag matches “{query}”.",
+    "matches": "No tags match | 1 tag matches | {n} tags match"
   },
   "ui": {
     "loading": "Loading…",

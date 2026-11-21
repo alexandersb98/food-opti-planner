@@ -15,6 +15,7 @@ const TAGS = ['Vegan', 'Quick', 'Grönsaker', 'Gryn', 'Fisk'].map((name, i) => t
 
 function mount({ chosen = [2], locked = [] as number[] } = {}) {
   const missing: string[] = []
+  const submits: number[] = []
   function Form() {
     const [on, setOn] = useState(() => new Set(chosen))
     const toggle = (id: number) =>
@@ -24,10 +25,16 @@ function mount({ chosen = [2], locked = [] as number[] } = {}) {
         return next
       })
     return (
-      <>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault()
+          submits.push(1)
+        }}
+      >
         <h2 id="title">Tags</h2>
         <TagPicker labelledBy="title" tags={TAGS} chosen={on} locked={new Set(locked)} lockedNote="auto" onToggle={toggle} />
-      </>
+        <button type="submit">Save</button>
+      </form>
     )
   }
   render(
@@ -35,7 +42,7 @@ function mount({ chosen = [2], locked = [] as number[] } = {}) {
       <Form />
     </I18nProvider>,
   )
-  return { user: userEvent.setup(), missing }
+  return { user: userEvent.setup(), missing, submits }
 }
 
 const chosen = () =>
@@ -113,4 +120,31 @@ test('a locked tag shows chosen, disabled, with its note, and is not offered', a
 test('with every tag chosen there is nothing to add', () => {
   mount({ chosen: [1, 2, 3, 4, 5] })
   expect(screen.queryByText('Add a tag')).toBeNull()
+})
+
+test('Enter in the find box never saves the form; with one match it adds that tag', async () => {
+  const { user, submits } = mount()
+  await user.click(screen.getByText('Add a tag'))
+  await user.type(find(), 'gr{Enter}')
+  expect(chosen()).toEqual(['Quick'])
+  await user.type(find(), 'ö{Enter}')
+  expect(chosen()).toEqual(['Quick', 'Grönsaker'])
+  expect((find() as HTMLInputElement).value).toBe('')
+  expect(document.activeElement).toBe(find())
+  expect(submits).toEqual([])
+})
+
+test('narrowing is announced: how many match, or that none do', async () => {
+  const { user } = mount()
+  await user.click(screen.getByText('Add a tag'))
+  expect(screen.getByRole('status').textContent).toBe('')
+  await user.type(find(), 'gr')
+  expect(screen.getByRole('status').textContent).toBe('2 tags match')
+})
+
+test('taking off the last chosen tag from the keyboard leaves focus on Add a tag', async () => {
+  const { user } = mount({ chosen: [2] })
+  within(screen.getByRole('group', { name: 'Tags' })).getByRole('button', { name: 'Quick' }).focus()
+  await user.keyboard('{Enter}')
+  expect(document.activeElement?.textContent).toContain('Add a tag')
 })
