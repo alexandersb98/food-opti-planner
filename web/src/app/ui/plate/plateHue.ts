@@ -14,12 +14,9 @@ function idNumber(id: number | string): number {
 const GOLDEN = 0.618033988749895
 
 /** Food colours only, as D2's hand-picked hues: berry reds through
- * tomato, saffron and herb greens (340°–125°), and a little cold blue
- * (190°–215°, skyr, fish); no purples or magentas on a plate. */
-const ARCS: ReadonlyArray<readonly [start: number, span: number]> = [
-  [340, 145],
-  [190, 25],
-]
+ * tomato, saffron and herb greens (340°–125°). No blues, purples or
+ * magentas: on a drawn plate they read as something other than food. */
+const ARCS: ReadonlyArray<readonly [start: number, span: number]> = [[340, 145]]
 const SPAN = ARCS.reduce((sum, [, span]) => sum + span, 0)
 
 /** The plate's hue (0–359) for a recipe id: the same for the same id, a

@@ -23,3 +23,7 @@ Status: ready-for-agent
 - [ ] Applied the frontend-design, react-best-practices and web-design-guidelines skills (`.claude/skills/frontend-design/`, `.claude/skills/react-best-practices/`, `.claude/skills/web-design-guidelines/`, read each SKILL.md) and fixed what they flag
 - [ ] Playwright screenshots (ticket 03's kit) at 390 × 844 and 1280 × 800, paper and evening editions, compared by eye with every D2 view (`#plan`, `#menu`, `#recipes`, `#recipe/<id>`, `#archive`, `#ingredients`, `#settings`) against the matching React page; differences and decisions noted under `## Comments` (screenshots not committed)
 - [ ] `npm run lint`, `npm run typecheck`, `npm test` pass in `web/`
+
+## Comments
+
+- (lead, after wave 4) Portions read differently on the brief ("× 0.7", rounded to a tenth with halves and quarters as fractions, `portionAmount`/`portionFigure` in `pages/brief/TodayMeals.tsx`) and on The Menu ("× 0.66"). Pick one rule, move it to a shared module and use it on both pages.

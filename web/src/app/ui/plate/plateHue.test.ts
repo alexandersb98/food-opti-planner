@@ -28,7 +28,7 @@ test('recipes that follow each other get hues far apart', () => {
 test('hues stay food colours: no purples or magentas', () => {
   for (let id = 0; id < 500; id++) {
     const hue = plateHue(id)
-    expect(hue >= 340 || hue <= 125 || (hue >= 190 && hue <= 215)).toBe(true)
+    expect(hue >= 340 || hue <= 125).toBe(true)
   }
 })
 
