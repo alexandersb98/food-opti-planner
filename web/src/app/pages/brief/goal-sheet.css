@@ -1,0 +1,57 @@
+/* The goal sheet, after D2's sheetGoal on #plan (.sheet-preview, .chips,
+   .row2, .seg, .imp-pick), with the Advanced part drawn in its idiom. */
+
+.goal-sheet { display: grid; gap: var(--s5); }
+.goal-sheet > .sheet-preview { margin-bottom: 0; }
+.goal-sheet > .sheet-actions { margin-top: 0; }
+
+/* the attribute set apart in the preview, as in the brief's sentences */
+.goal-sheet-attr { font-variant-caps: all-small-caps; letter-spacing: .04em; }
+.goal-sheet-preview em { color: var(--ink-2); }
+
+/* Min and Max side by side (D2's .row2); the unit after the label */
+.goal-sheet-bounds { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4); align-items: start; }
+.goal-sheet-unit { font-weight: 400; }
+.goal-sheet .goal-sheet-number,
+.goal-sheet .goal-sheet-name { font-family: var(--serif); font-size: 20px; font-variant-numeric: lining-nums; }
+
+/* importance from 1 to 5 (D2's .imp-pick): squares filled in red pencil up
+   to the one chosen */
+.goal-sheet-imp { display: flex; gap: 6px; }
+.goal-sheet-imp button {
+  width: var(--touch); height: var(--touch); padding: 0;
+  border: 1px solid var(--rule); border-radius: 0; background: none; color: var(--ink); touch-action: manipulation;
+  font-family: var(--serif); font-size: 18px; font-variant-numeric: lining-nums;
+  transition: background-color .15s, border-color .15s, color .15s;
+}
+.goal-sheet-imp button:active { background: var(--press); }
+.goal-sheet-imp .goal-sheet-imp-on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.goal-sheet-imp .goal-sheet-imp-on:active { background: color-mix(in srgb, var(--accent) 86%, var(--ink)); }
+@media (hover: hover) {
+  .goal-sheet-imp button:not(.goal-sheet-imp-on):hover { border-color: var(--ink); }
+}
+
+.goal-sheet-note { font-family: var(--serif); font-style: italic; font-size: 16px; line-height: var(--lh-sm); color: var(--muted); }
+
+/* Advanced: the fields under the disclosure's hairline */
+.goal-sheet-advanced { margin-top: calc(-1 * var(--s2)); }
+.goal-sheet-advanced > .disclosure-body { display: grid; gap: var(--s5); }
+.goal-sheet-part { display: grid; gap: var(--s4); padding-top: var(--s4); border-top: 1px solid var(--rule); }
+
+/* a setting on or off: the box, then its words */
+.goal-sheet-switch {
+  display: flex; align-items: center; gap: var(--s3); min-height: var(--touch);
+  font-family: var(--sans); font-size: 15px; line-height: 20px; font-weight: 500; color: var(--ink);
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.goal-sheet-switch input { flex: none; margin: 0; }
+
+.goal-sheet-error {
+  display: flex; gap: 6px; align-items: baseline;
+  font-family: var(--sans); font-size: var(--fs-sm); line-height: var(--lh-sm); font-weight: 500; color: var(--accent);
+}
+.goal-sheet-error::before { content: "\2020"; font-family: var(--serif); font-weight: 400; }
+
+@media (prefers-reduced-motion: reduce) {
+  .goal-sheet-imp button { transition: none; }
+}
