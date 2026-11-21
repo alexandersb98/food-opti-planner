@@ -89,6 +89,17 @@
   },
   "settings": {
     "loadFailed": "Could not load the settings.",
+    "kicker": "The small print",
+    "edition": {
+      "title": "Edition",
+      "device": "Follow the device",
+      "paper": "Paper",
+      "evening": "Evening",
+      "hint": "The evening edition is a dark theme for the couch. Kept on this device only."
+    },
+    "language": {
+      "title": "Language"
+    },
     "preferredUnits": {
       "title": "Preferred units",
       "intro": "Used for new ingredients and attributes, and for values copied from data sources. Changing it converts nothing already saved.",
