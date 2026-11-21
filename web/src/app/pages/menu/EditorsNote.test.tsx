@@ -93,7 +93,10 @@ test('Try again with nothing changed goes back to the brief and composes again',
   await user.click(within(note).getByRole('button', { name: 'Try again' }))
   await waitFor(() => expect(solves(calls)).toBe(2))
   expect(calls).not.toContain('PUT /api/plan')
-  expect(router.state.location.pathname).toBe(BASE_PATH)
+  // The solve runs from the brief (ticket 20); the fake server finds no plan
+  // possible again, so the owner lands back on the Editor's note.
+  await waitFor(() => expect(router.state.location.pathname).toBe(`${BASE_PATH}/plans/new`))
+  expect(await screen.findByRole('heading', { name: /no plan/i })).toBeDefined()
 })
 
 test('Try again saves a looser bound and Make Prefer, then composes', async () => {
