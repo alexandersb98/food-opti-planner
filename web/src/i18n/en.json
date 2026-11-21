@@ -450,6 +450,20 @@
     "savedAt": "saved {day}, {time}",
     "todayChip": "Today"
   },
+  "archive": {
+    "kicker": "Saved plans",
+    "titleArticle": "The",
+    "titleName": "archive",
+    "standfirst": "Past menus, newest first. The one marked Today feeds today’s meals.",
+    "loadFailed": "Could not load the saved plans.",
+    "plans": "Saved plans",
+    "days": "1 day | {n} days",
+    "meta": "{days}. Saved {weekday} {day} {month}, {time}.",
+    "metaUnsaved": "{days}.",
+    "today": "Today",
+    "empty": "No saved plans yet. Save a menu and it is filed here.",
+    "toMenu": "Go to The Menu"
+  },
   "goals": {
     "title": "Goals",
     "add": "+ Add goal",
