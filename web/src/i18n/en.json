@@ -236,6 +236,13 @@
     "search": "Search",
     "new": "New ingredient",
     "edit": "Edit ingredient",
+    "page": {
+      "back": "Back to Ingredients",
+      "values": "Values",
+      "saved": "Saved {name}.",
+      "deleted": "Deleted {name}.",
+      "usedInList": "Recipes that use {name}"
+    },
     "perBasis": "per {basis} {unit}",
     "usedIn": "Used in {recipes}",
     "loadOneFailed": "Could not load the ingredient.",

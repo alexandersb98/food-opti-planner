@@ -1,0 +1,140 @@
+/* The ingredient page and form, in the idiom of D2's recipe spread (its bar,
+   head, meta strip and numbered sections) and its form fields. Class prefix:
+   ingredient-. */
+
+/* the bar under the masthead: back to the list, and Save (D2 .spread-bar) */
+.ingredient-bar {
+  position: sticky; top: calc(var(--mast) + env(safe-area-inset-top)); z-index: 10;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 var(--s3);
+  margin: 0 calc(-1 * var(--gutter)); padding: 4px var(--gutter);
+  min-height: 52px;
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--rule);
+}
+.ingredient-bar .btn { flex: none; }
+/* a field focused or scrolled to stays clear of the masthead and the bar */
+.ingredient:not(.ingredient-in-sheet) :is(input, button, a) {
+  scroll-margin-top: calc(var(--mast) + 52px + var(--s4));
+}
+.ingredient-alert {
+  font-family: var(--sans); font-size: var(--fs-sm); line-height: var(--lh-sm); font-weight: 500; color: var(--accent);
+  display: flex; gap: 6px; align-items: baseline;
+}
+.ingredient-alert::before { content: "\2020"; font-family: var(--serif); font-weight: 400; }
+.ingredient-bar .ingredient-alert { flex: 1 0 100%; padding: 0 0 var(--s2); }
+
+/* head: kicker, the name written large, then the measure strip */
+.ingredient-head { padding: var(--s5) 0 0; }
+.ingredient-kicker { margin: 0; color: var(--accent); }
+.ingredient-name { margin: var(--s2) 0 var(--s5); }
+.ingredient-name input {
+  font-family: var(--serif); font-size: 34px; line-height: 40px; font-weight: 380;
+  letter-spacing: -.02em; font-variation-settings: "opsz" 96, "SOFT" 30;
+  padding: 4px 2px;
+}
+.ingredient-name input::placeholder { font-style: italic; font-weight: 300; }
+.ingredient-name-small { margin-top: 0; }
+.ingredient-name-small input { font-size: 24px; line-height: 32px; }
+
+/* the measure strip under the name's ink line, closed by a hairline (D2
+   .spread-meta) */
+.ingredient-measure {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--s4) var(--s6);
+  align-items: end;
+  padding: 0 0 var(--s4);
+  border-bottom: 1px solid var(--rule);
+}
+.ingredient-basis { display: grid; gap: var(--s1); }
+.ingredient-basis-line {
+  display: flex; align-items: baseline; gap: var(--s2);
+  font-family: var(--serif); font-style: italic; font-size: 17px; line-height: 24px; color: var(--muted);
+}
+.ingredient-basis-line .ingredient-number { width: 5.5em; }
+
+/* numbers: right-aligned, tabular, written on the ruled line */
+.ingredient-number {
+  text-align: right; font-style: normal; color: var(--ink);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.ingredient-unit {
+  font-family: var(--sans); font-style: normal; font-size: 15px; color: var(--muted);
+  min-width: 0; overflow-wrap: anywhere;
+}
+
+/* numbered sections (D2 .section-head in a spread) */
+.ingredient-section { margin-top: var(--s6); }
+.ingredient-section-head {
+  display: grid; grid-template-columns: auto 1fr; align-items: baseline; column-gap: var(--s3);
+  margin-bottom: var(--s2);
+}
+.ingredient-section-no {
+  font-family: var(--serif); font-style: italic; font-weight: 300;
+  font-size: var(--fs-h2); line-height: var(--lh-h2); color: var(--accent);
+  font-variant-numeric: oldstyle-nums; font-variation-settings: "opsz" 144;
+}
+.ingredient-section-title {
+  font-family: var(--serif); font-size: var(--fs-h2); line-height: var(--lh-h2); font-weight: 380;
+  margin: 0; letter-spacing: -.02em; font-variation-settings: "opsz" 96;
+}
+.ingredient-note {
+  font-family: var(--serif); font-style: italic; font-size: 15px; line-height: 20px; color: var(--muted);
+  margin-top: var(--s2); max-width: 36em;
+}
+
+/* values: D2's nutrition table, each number on its own ruled line */
+.ingredient-values { border-top: 2px solid var(--rule-strong); }
+.ingredient-value {
+  display: grid; grid-template-columns: minmax(0, 1fr) 7.5em 4.5em; align-items: baseline; column-gap: var(--s3);
+  padding: 2px 0; border-bottom: 1px solid var(--rule);
+}
+.ingredient-value-name { font-family: var(--serif); font-size: 17px; line-height: 24px; min-width: 0; overflow-wrap: anywhere; }
+.ingredient-value .ingredient-number {
+  border-bottom: 1px dashed color-mix(in srgb, var(--ink) 38%, transparent);
+}
+@media (hover: hover) {
+  .ingredient-value .ingredient-number:hover { border-bottom-style: solid; }
+}
+.ingredient-value .ingredient-number:focus-visible,
+.ingredient-value .ingredient-number[aria-invalid="true"] { border-bottom-color: var(--accent); }
+.ingredient-value-error { grid-column: 1 / -1; padding-bottom: var(--s2); }
+
+/* the foot: where it is used, and Delete */
+.ingredient-use {
+  margin-top: var(--s7); padding-top: var(--s3);
+  border-top: 3px double var(--rule-strong);
+}
+.ingredient-used {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s2);
+  font-family: var(--serif); font-size: 17px; line-height: 24px; color: var(--ink-2); min-height: var(--touch);
+}
+.ingredient-dot { color: var(--muted); }
+.ingredient-recipes { list-style: none; padding: 0; margin: var(--s2) 0 0; border-top: 1px solid var(--rule); }
+.ingredient-recipes a {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
+  min-height: var(--touch); padding: 10px 0; border-bottom: 1px dotted var(--rule);
+  font-family: var(--serif); font-size: 17px; line-height: 24px; text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.ingredient-recipes a::after { content: "\203a"; color: var(--muted); font-size: 22px; }
+.ingredient-recipes a:active { background: var(--press); }
+@media (hover: hover) {
+  .ingredient-recipes a:hover { color: var(--accent); }
+}
+.ingredient-delete { display: grid; justify-items: start; gap: var(--s1); margin-top: var(--s5); }
+.ingredient-delete .ingredient-note { margin-top: 0; }
+
+/* the delete question's list of conversions */
+.ingredient-delete-list { margin: var(--s2) 0 0; padding-left: var(--s5); font-variant-numeric: lining-nums; }
+
+/* in a sheet: no bar, smaller sections */
+.ingredient-in-sheet .ingredient-head { padding-top: 0; }
+.ingredient-in-sheet .ingredient-section { margin-top: var(--s5); }
+.ingredient-in-sheet .ingredient-section-no,
+.ingredient-in-sheet .ingredient-section-title { font-size: var(--fs-h3); line-height: var(--lh-h3); }
+.ingredient-in-sheet .sheet-actions .btn { flex: 1 1 120px; }
+
+@media (min-width: 768px) {
+  .ingredient-name input { font-size: 44px; line-height: 48px; }
+  .ingredient-in-sheet .ingredient-name input { font-size: 28px; line-height: 36px; }
+}
