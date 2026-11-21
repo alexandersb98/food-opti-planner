@@ -604,6 +604,20 @@
       "note": "Every meal is skipped: there is nothing to fill. | Picks a recipe and a portion size for the one meal. | Picks a recipe and a portion size for each of the {n} meals."
     }
   },
+  "archive": {
+    "kicker": "Saved plans",
+    "titleArticle": "The",
+    "titleName": "archive",
+    "standfirst": "Past menus, newest first. The one marked Today feeds today’s meals.",
+    "loadFailed": "Could not load the saved plans.",
+    "plans": "Saved plans",
+    "days": "1 day | {n} days",
+    "meta": "{days}. Saved {weekday} {day} {month}, {time}.",
+    "metaUnsaved": "{days}.",
+    "today": "Today",
+    "empty": "No saved plans yet. Save a menu and it is filed here.",
+    "toMenu": "Go to The Menu"
+  },
   "goals": {
     "title": "Goals",
     "add": "+ Add goal",
