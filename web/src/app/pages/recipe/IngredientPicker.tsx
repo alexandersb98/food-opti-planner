@@ -20,6 +20,9 @@ export interface IngredientPickerProps {
   initialSearch?: string
   /** An extra action under the list (ticket 35's "+ New ingredient"). */
   extra?: ReactNode
+  /** What to say when no ingredient matches the search; by default, to add
+   * it on the Ingredients page. */
+  noMatch?: (search: string) => string
   /** Where focus goes when the sheet closes; the opener by default. */
   finalFocus?: { readonly current: HTMLElement | null }
 }
@@ -29,7 +32,17 @@ export interface IngredientPickerProps {
  * row to pick. Drawn at the end of the body, so it can be opened from inside
  * the recipe's form.
  */
-export function IngredientPicker({ open, onClose, title, ingredients, onPick, initialSearch = '', extra, finalFocus }: IngredientPickerProps) {
+export function IngredientPicker({
+  open,
+  onClose,
+  title,
+  ingredients,
+  onPick,
+  initialSearch = '',
+  extra,
+  noMatch,
+  finalFocus,
+}: IngredientPickerProps) {
   // A fresh search, from `initialSearch`, each time the sheet opens.
   const [opened, setOpened] = useState({ open, count: 0 })
   if (open !== opened.open) setOpened({ open, count: opened.count + (open ? 1 : 0) })
@@ -37,7 +50,14 @@ export function IngredientPicker({ open, onClose, title, ingredients, onPick, in
 
   return createPortal(
     <Sheet open={open} onClose={onClose} title={title} initialFocus={searchRef} finalFocus={finalFocus}>
-      <PickerBody key={opened.count} ingredients={ingredients} onPick={onPick} initialSearch={initialSearch} searchRef={searchRef} />
+      <PickerBody
+        key={opened.count}
+        ingredients={ingredients}
+        onPick={onPick}
+        initialSearch={initialSearch}
+        noMatch={noMatch}
+        searchRef={searchRef}
+      />
       {extra ? <div className="picker-extra">{extra}</div> : null}
     </Sheet>,
     document.body,
@@ -48,8 +68,9 @@ function PickerBody({
   ingredients,
   onPick,
   initialSearch,
+  noMatch,
   searchRef,
-}: Pick<IngredientPickerProps, 'ingredients' | 'onPick'> & {
+}: Pick<IngredientPickerProps, 'ingredients' | 'onPick' | 'noMatch'> & {
   initialSearch: string
   searchRef: RefObject<HTMLInputElement | null>
 }) {
@@ -103,7 +124,11 @@ function PickerBody({
         </ul>
       ) : (
         <p className="picker-none" role="status">
-          {ingredients.length === 0 ? t('recipe.pickEmpty') : t('recipe.pickNone', { search: search.trim() })}
+          {noMatch
+            ? noMatch(search.trim())
+            : ingredients.length === 0
+              ? t('recipe.pickEmpty')
+              : t('recipe.pickNone', { search: search.trim() })}
         </p>
       )}
     </>

@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { api } from '../../../api/client'
 import type { Attribute, Ingredient, Recipe, Tag } from '../../../api/types'
 import { loadAll } from '../../../load'
+import { useImportedDraft } from '../../hooks/useImportedDraft'
 import { useLoad } from '../../hooks/useLoad'
 import { useUnits } from '../../hooks/useUnits'
 import { useT } from '../../i18n/i18n'
@@ -46,11 +47,14 @@ function catalogue(signal: AbortSignal) {
   }
 }
 
-/** Keeps an ingredient that gained a conversion in the page's catalogue. */
+/** Keeps an ingredient that gained a conversion, or a new one (the import
+ * review's "+ New ingredient"), in the page's catalogue. */
 function withIngredient<T extends { ingredients: Ingredient[] }>(ingredient: Ingredient) {
   return (data: T): T => ({
     ...data,
-    ingredients: data.ingredients.map((known) => (known.id === ingredient.id ? ingredient : known)),
+    ingredients: data.ingredients.some((known) => known.id === ingredient.id)
+      ? data.ingredients.map((known) => (known.id === ingredient.id ? ingredient : known))
+      : [...data.ingredients, ingredient],
   })
 }
 
@@ -185,11 +189,14 @@ function StoredRecipe({ id }: { id: number }) {
   )
 }
 
-/** A new recipe: a blank spread, already in edit mode. Saving opens the
- * stored recipe's spread; Cancel goes back to the index. */
+/** A new recipe: a blank spread, already in edit mode, or an imported
+ * recipe to review (left by the import page). Saving opens the stored
+ * recipe's spread; Cancel goes back to the index. */
 function NewRecipe() {
   const t = useT()
   const navigate = useNavigate()
+  // Taken on mounting, before the catalogue loads, so a retry keeps it.
+  const imported = useImportedDraft()
   const page = useLoad((signal) => loadAll(catalogue(signal)))
   const [saving, setSaving] = useState(false)
   useRunningHead(t('recipes.new'))
@@ -216,13 +223,17 @@ function NewRecipe() {
         <div className="spread-plate spread-plate-blank" />
         <figcaption className="spread-cap">
           <span className="spread-pn">{t('recipe.unnumbered')}</span>
-          <span>{t('recipe.lineCount', 0)}</span>
+          <span>{t('recipe.lineCount', imported ? imported.sections.reduce((n, s) => n + s.lines.length, 0) : 0)}</span>
         </figcaption>
       </figure>
-      <EditBar hint={t('recipe.annotatingNew')} saving={saving} onCancel={cancel} />
-      {/* Ticket 35: an imported draft (useImportedDraft) opens here, passed as `imported`. */}
+      <EditBar
+        hint={imported ? t('recipe.review.annotating') : t('recipe.annotatingNew')}
+        saving={saving}
+        onCancel={cancel}
+      />
       <SpreadEditor
         recipe={null}
+        imported={imported}
         attributes={data.attributes}
         tags={data.tags}
         ingredients={ingredients}

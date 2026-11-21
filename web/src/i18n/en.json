@@ -522,7 +522,20 @@
     "newTab": "(opens in a new tab)",
     "missingName": "Unknown ingredient",
     "missing": "It no longer exists, so it is left out of the totals.",
-    "unconvertible": "{unit} doesn’t convert to {own}, so this line is left out of the totals."
+    "unconvertible": "{unit} doesn’t convert to {own}, so this line is left out of the totals.",
+    "review": {
+      "annotating": "Reviewing an imported recipe",
+      "kicker": "Imported, not yet saved",
+      "next": "Show the next line that needs you",
+      "fromText": "From the text:",
+      "needs": "Needs review.",
+      "unmatched": "None of your ingredients is matched to “{food}” yet.",
+      "noFactor": "We don’t know what 1 {unit} of {name} weighs, so it’s left out of the totals.",
+      "notAnIngredient": "Not an ingredient, so left out",
+      "pickTitle": "Match “{food}”",
+      "pickNone": "No ingredient is called “{search}” yet. Make it here:",
+      "pickEmpty": "There are no ingredients yet. Make the first one here:"
+    }
   },
   "clash": {
     "title": "No plan possible",

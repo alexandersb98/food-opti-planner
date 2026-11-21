@@ -10,6 +10,7 @@ import { toast } from '../../shell/toast'
 import { Select, type SelectGroup, type SelectOption } from '../../ui/select/Select'
 import { Sheet } from '../../ui/sheet/Sheet'
 import { ConversionSheet } from '../ingredient/ConversionSheet'
+import type { LineReview } from './ImportReview'
 import { IngredientPicker } from './IngredientPicker'
 import * as lines from './lineEdits'
 import type { LineErrorsCleared } from './useRecipeDraft'
@@ -25,6 +26,8 @@ export interface LineEditorProps {
   edit: (change: (draft: RecipeDraft) => RecipeDraft, clears?: LineErrorsCleared) => void
   /** An ingredient gained a conversion ("New unit…"). */
   onIngredientChanged: (ingredient: Ingredient) => void
+  /** An imported recipe under review (ticket 35): what each line needs. */
+  review?: (line: DraftLine, name: string) => LineReview
 }
 
 /** The ids the editor moves the focus to. */
@@ -76,7 +79,15 @@ function focusTarget() {
  * the catalogue units that convert and its conversions; "New unit…" adds a
  * conversion. A line whose unit doesn't convert says why.
  */
-export const LineEditor = memo(function LineEditor({ sections, pending, errors, ingredients, edit, onIngredientChanged }: LineEditorProps) {
+export const LineEditor = memo(function LineEditor({
+  sections,
+  pending,
+  errors,
+  ingredients,
+  edit,
+  onIngredientChanged,
+  review,
+}: LineEditorProps) {
   const t = useT()
   const units = useUnits()
   // The sheets keep what they were opened for while they slide away.
@@ -177,6 +188,7 @@ export const LineEditor = memo(function LineEditor({ sections, pending, errors, 
                   errors={errors}
                   canMove={several}
                   units={units}
+                  review={review?.(line, nameOf(line))}
                   onAmount={(amount) => edit((draft) => lines.changeLine(draft, line.key, { amount }), { amounts: line.key })}
                   onUnit={(unit) => edit((draft) => lines.changeLine(draft, line.key, { unit }), { unitErrors: line.key })}
                   onNewUnit={(ingredient, stale) =>
@@ -310,6 +322,7 @@ function LineRow({
   errors,
   canMove,
   units,
+  review,
   onAmount,
   onUnit,
   onNewUnit,
@@ -323,6 +336,8 @@ function LineRow({
   errors: RecipeErrors
   canMove: boolean
   units: Units
+  /** The import review's part of the line, for an imported recipe. */
+  review?: LineReview
   onAmount: (amount: string) => void
   onUnit: (unit: string) => void
   /** "New unit…": `stale` when the line's unit doesn't convert (the sheet
@@ -339,14 +354,25 @@ function LineRow({
   // catalogue the page can't tell, so it says nothing (the server decides).
   const withPending = ingredient && ingredientWithPending(ingredient, pending)
   const known = units.units.length > 0
-  const stale = !!withPending && known && lineFactor(units.ratio, withPending, line.unit) === null
+  // Under review, the review says what a line's unit needs.
+  const stale = !review && !!withPending && known && lineFactor(units.ratio, withPending, line.unit) === null
+  const skipped = review?.state === 'skipped'
+  const needsYou = review?.state === 'unmatched' || review?.state === 'needs_factor' || review?.state === 'bad_unit'
   const unitError = errors.unitErrors[key] ? t('recipes.unitNotConvertible', { unit: line.unit.trim(), name }) : ''
   const amountErrorId = `${ids.amount(key)}-error`
   const unitNoteId = `${ids.unit(key)}-note`
 
-  const classes = ['lines-line', stale || unitError ? 'lines-line-flagged' : '', ingredient ? '' : 'lines-line-missing']
+  const classes = [
+    'lines-line',
+    stale || unitError ? 'lines-line-flagged' : '',
+    ingredient ? '' : 'lines-line-missing',
+    review ? 'review-line' : '',
+    needsYou ? 'review-needs' : '',
+    skipped ? 'review-skipped' : '',
+  ]
   return (
     <li className={classes.filter(Boolean).join(' ')}>
+      {review?.source}
       <input
         id={ids.amount(key)}
         className="spread-annot lines-amount"
@@ -355,6 +381,7 @@ function LineRow({
         aria-label={t('recipes.amountOf', { name })}
         aria-invalid={amountError ? true : undefined}
         aria-describedby={amountError ? amountErrorId : undefined}
+        disabled={skipped}
         value={line.amount}
         onChange={(event) => onAmount(event.target.value)}
       />
@@ -367,6 +394,7 @@ function LineRow({
           stale={stale}
           units={units}
           invalid={!!unitError}
+          disabled={skipped}
           describedBy={stale || unitError ? unitNoteId : undefined}
           onUnit={onUnit}
           onNewUnit={() => onNewUnit(ingredient!, stale)}
@@ -411,6 +439,7 @@ function LineRow({
         </p>
       ) : null}
       {!ingredient && line.ingredientId !== null ? <p className="lines-note lines-flag">{t('recipe.missing')}</p> : null}
+      {review?.panel}
     </li>
   )
 }
@@ -426,6 +455,7 @@ function LineUnit({
   stale,
   units,
   invalid,
+  disabled,
   describedBy,
   onUnit,
   onNewUnit,
@@ -437,6 +467,7 @@ function LineUnit({
   stale: boolean
   units: Units
   invalid: boolean
+  disabled?: boolean
   describedBy?: string
   onUnit: (unit: string) => void
   onNewUnit: () => void
@@ -493,6 +524,7 @@ function LineUnit({
         aria-label={t('recipes.unitOf', { name })}
         aria-invalid={invalid || stale ? true : undefined}
         aria-describedby={describedBy}
+        disabled={disabled}
         value={value}
         options={[...all, { value: NEW_UNIT, label: t('recipes.newUnit') }]}
         onValueChange={(next) => (next === NEW_UNIT ? onNewUnit() : onUnit(next))}

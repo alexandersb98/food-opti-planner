@@ -13,6 +13,7 @@ import { useConfirm } from '../../ui/confirm/Confirm'
 import { Disclosure } from '../../ui/disclosure/Disclosure'
 import { Field, Fieldset } from '../../ui/field/Field'
 import { Segmented } from '../../ui/segmented/Segmented'
+import { LeaveGuard, useImportReview } from './ImportReview'
 import { SectionHead } from './SpreadView'
 import { LineEditor } from './LineEditor'
 import { spreadTags } from './spread'
@@ -28,7 +29,8 @@ export interface SpreadEditorProps {
   attributes: Attribute[]
   tags: Tag[]
   ingredients: ReadonlyMap<number, Ingredient>
-  /** An imported recipe to review (ticket 35). */
+  /** An imported recipe to review (ticket 35): the banner above the head,
+   * each line's review, Save waiting for every line, and leaving asks. */
   imported?: ImportedRecipe | null
   /** Stored: the page leaves edit mode (or opens the new recipe). */
   onSaved: (recipe: Recipe) => void
@@ -45,9 +47,9 @@ export interface SpreadEditorProps {
  * The spread's edit mode, "annotating the page" (D2): the name, servings,
  * portion size and its advanced settings, the method as one text, the tags
  * as chips and the source, each underlined in red pencil with its error on
- * it; Delete at the foot. The bar's Save submits it. Places left:
- * - ticket 35: the import banner, above the head, for an imported draft.
- * The ingredient lines are ticket 33's `LineEditor`.
+ * it; Delete at the foot. The bar's Save submits it. The ingredient lines
+ * are ticket 33's `LineEditor`; an imported draft is reviewed (ticket 35's
+ * `useImportReview`).
  */
 export function SpreadEditor({
   recipe,
@@ -71,6 +73,9 @@ export function SpreadEditor({
   const formRef = useRef<HTMLFormElement>(null)
   const nameRef = useRef<HTMLInputElement>(null)
   const titleRef = useRef<HTMLHeadingElement>(null)
+  const review = useImportReview({ draft, edit, ingredients, ratio: units.ratio, onIngredientChanged, formRef })
+  // Set once the recipe is saved, so leaving after it doesn't ask.
+  const done = useRef(false)
   // Open from the start when it holds something other than the defaults.
   const [advancedSet] = useState(() => draft.hardMax !== '' || draft.penalty !== '1')
 
@@ -96,8 +101,11 @@ export function SpreadEditor({
 
   async function submit(event: FormEvent) {
     event.preventDefault()
+    if (review && review.needs > 0) return review.refuse()
     const saved = await save(tags, converts)
-    if (saved) onSaved(saved)
+    if (!saved) return
+    done.current = true
+    onSaved(saved)
   }
 
   async function askDelete() {
@@ -148,7 +156,7 @@ export function SpreadEditor({
         </p>
       ) : null}
 
-      {/* Ticket 35: the import banner goes here, above the head. */}
+      {review?.banner}
       <div className="spread-head">
         <h1 id="spread-title" className="visually-hidden" ref={titleRef} tabIndex={-1}>
           {recipe ? t('recipe.editing', { name: recipe.name }) : t('recipes.new')}
@@ -228,6 +236,7 @@ export function SpreadEditor({
           ingredients={ingredients}
           edit={edit}
           onIngredientChanged={onIngredientChanged}
+          review={review?.line}
         />
         {errors.items ? (
           <p className="field-error" role="alert">
@@ -316,6 +325,8 @@ export function SpreadEditor({
         </div>
       ) : null}
       {confirmSheet}
+      {review?.sheets}
+      {draft.imported ? <LeaveGuard done={done} /> : null}
     </form>
   )
 }
