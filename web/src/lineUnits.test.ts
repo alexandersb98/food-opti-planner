@@ -1,20 +1,13 @@
-import { beforeAll, expect, test } from 'vitest'
-import { fakeServer } from './test-app'
+import { expect, test } from 'vitest'
+import { catalogue } from './app/stores/units'
 import { conversion, ingredient, unitCatalogue } from './test-data'
 import { fraction, same, times, type Fraction } from './fractions'
 import { isOwn, lineFactor, pickerOptions } from './lineUnits'
-import { resetUnits, useUnits } from './units'
 
 // The same cases as tests/server/test_line_units.py: the editor and the
 // server must route a line's unit alike.
 
-const units = useUnits()
-
-beforeAll(async () => {
-  resetUnits()
-  fakeServer({ 'GET /api/units': { body: unitCatalogue() } })
-  await units.load()
-})
+const units = catalogue(unitCatalogue().units)
 
 const ratio = (a: string, b: string) => units.ratio(a, b)
 const dl40 = [conversion({ id: 1, unit: 'dl', factor: '40' })]

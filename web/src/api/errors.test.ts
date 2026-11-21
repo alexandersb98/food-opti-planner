@@ -27,7 +27,7 @@ test('errorType gives the first type whatever its place', () => {
 })
 
 test.each(['conversion_too_large', 'unit_mismatch', 'unit_has_dependents'])(
-  "a unit change refused as %s gives the server's sentence",
+  "a unit change refused as %s gives the server’s sentence",
   (type) => {
     const error = { detail: [{ loc: ['body', 'unit'], type, msg: 'The sentence.' }] }
     expect(conversionRefusal(error)).toBe('The sentence.')

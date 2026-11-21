@@ -1,16 +1,9 @@
-import { beforeAll, expect, test } from 'vitest'
+import { expect, test } from 'vitest'
 import { acceptable, suggestedFactorFor, factorSource, ingredientWithPending, lineState, needsYou, pendingKey, siteName, type PendingConversion } from './importReview'
-import { fakeServer } from './test-app'
+import { catalogue } from './app/stores/units'
 import { conversion, ingredient, unitCatalogue } from './test-data'
-import { resetUnits, useUnits } from './units'
 
-const units = useUnits()
-
-beforeAll(async () => {
-  resetUnits()
-  fakeServer({ 'GET /api/units': { body: unitCatalogue() } })
-  await units.load()
-})
+const units = catalogue(unitCatalogue().units)
 
 const ratio = (a: string, b: string) => units.ratio(a, b)
 const oats = ingredient({ id: 1, name: 'Oats', unit: 'g' })
@@ -55,7 +48,7 @@ test('pendingKey ignores case and spaces', () => {
   expect(pendingKey(1, 'dl')).not.toBe(pendingKey(2, 'dl'))
 })
 
-test('ingredientWithPending adds only that ingredient\'s conversions', () => {
+test('ingredientWithPending adds only that ingredient’s conversions', () => {
   const pending: PendingConversion[] = [
     { ingredientId: 1, unit: 'dl', factor: '40', source: 'ai' },
     { ingredientId: 9, unit: 'msk', factor: '1', source: 'user' },

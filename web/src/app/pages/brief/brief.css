@@ -1,0 +1,158 @@
+/* This week's brief, after D2's #plan (prototypes/d2-editorial-refined):
+   the cover, the numbered sections' frame, time allowed and Compose. The
+   sections' own contents bring their own stylesheets. */
+
+/* ---------- cover ---------- */
+/* the cover is base.css's .cover, .cover-title and .standfirst (D2's) */
+
+/* in this brief: four links in a two-by-two table of contents */
+.brief-toc {
+  list-style: none; margin: var(--s5) 0 0; padding: 0;
+  display: grid; grid-template-columns: 1fr 1fr;
+  border-top: 3px double var(--rule-strong);
+}
+.brief-toc li { border-bottom: 1px solid var(--rule); min-width: 0; }
+.brief-toc li:nth-child(odd) { border-right: 1px solid var(--rule); }
+.brief-toc li:nth-last-child(-n+2) { border-bottom: 0; }
+.brief-toc a {
+  display: flex; align-items: baseline; gap: 10px;
+  min-height: var(--touch); padding: 10px 8px 10px 0; text-decoration: none;
+  font-family: var(--serif); font-size: 17px; line-height: 24px;
+}
+.brief-toc li:nth-child(even) a { padding-left: 12px; }
+.brief-toc-no { font-style: italic; color: var(--accent); font-variant-numeric: oldstyle-nums; }
+.brief-toc a:active { background: var(--press); }
+@media (hover: hover) {
+  .brief-toc a:hover { color: var(--accent); }
+}
+@media (max-width: 340px) {
+  .brief-toc { grid-template-columns: 1fr; }
+  .brief-toc li:nth-child(odd) { border-right: 0; }
+  .brief-toc li:nth-child(even) a { padding-left: 0; }
+  .brief-toc li:nth-last-child(2) { border-bottom: 1px solid var(--rule); }
+}
+
+/* ---------- a new plan, not saved ---------- */
+.brief-newplan {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0 var(--s4);
+  margin-bottom: var(--s5); padding: var(--s2) 0 var(--s2) var(--s4);
+  border-left: 3px solid var(--accent);
+}
+.brief-newplan-text {
+  flex: 1 1 16em; min-width: 0;
+  font-family: var(--serif); font-size: 17px; line-height: 24px; color: var(--ink-2);
+  font-variant-numeric: oldstyle-nums proportional-nums;
+}
+.brief-newplan-kicker { font-style: italic; color: var(--accent); }
+.brief-newplan-link { text-decoration: underline; text-underline-offset: 5px; text-decoration-thickness: 1px; text-decoration-color: color-mix(in srgb, currentColor 45%, transparent); }
+
+/* ---------- today's meals, set like a day of The Menu ---------- */
+.brief-today { margin-bottom: var(--s6); }
+.brief-today-head {
+  display: flex; align-items: baseline; gap: var(--s3);
+  padding-bottom: var(--s1); margin-bottom: var(--s1); border-bottom: 1px solid var(--rule-strong);
+}
+.brief-today-title {
+  font-family: var(--serif); font-style: italic; font-weight: 400;
+  font-size: 26px; line-height: 32px; letter-spacing: -.01em; font-variation-settings: "opsz" 72;
+}
+.brief-today-date {
+  margin-left: auto; font-family: var(--serif); color: var(--muted); font-size: 15px; line-height: 20px;
+  font-variant-numeric: oldstyle-nums;
+}
+.brief-today-meals { list-style: none; margin: 0; padding: 0; }
+.brief-today-meals li { border-bottom: 1px dotted var(--rule); }
+.brief-today-meals li:last-child { border-bottom: 0; }
+.brief-today-meal {
+  display: grid; gap: 0; min-height: var(--touch);
+  padding: var(--s2) 0 var(--s3); color: inherit; text-decoration: none;
+}
+.brief-today-meal:active { background: var(--press); }
+.brief-today-name { font-family: var(--serif); font-size: 13px; line-height: 20px; color: var(--muted); }
+.brief-today-dish {
+  font-family: var(--serif); font-size: 20px; line-height: 24px; font-weight: 400;
+  font-variation-settings: "opsz" 30;
+}
+.brief-today-recipe {
+  text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 5px;
+  text-decoration-color: transparent; transition: text-decoration-color .15s;
+}
+@media (hover: hover) {
+  .brief-today-meal:hover .brief-today-recipe { text-decoration-color: currentColor; }
+}
+.brief-today-portion {
+  margin-left: 6px; font-family: var(--serif); font-style: italic; font-size: 18px; color: var(--accent);
+  white-space: nowrap; font-variant-numeric: lining-nums;
+}
+.brief-today-skipped { font-family: var(--serif); font-style: italic; color: var(--muted); font-size: 17px; line-height: 24px; }
+
+/* ---------- the numbered sections ---------- */
+.brief-section { padding: var(--s6) 0 var(--s2); border-top: 1px solid var(--rule-strong); }
+.brief-section + .brief-section { margin-top: var(--s5); }
+.brief-section-head {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; column-gap: var(--s3);
+  margin-bottom: var(--s4);
+}
+.brief-section-no {
+  font-family: var(--serif); font-style: italic; font-weight: 300;
+  font-size: var(--fs-h2); line-height: var(--lh-h2); color: var(--accent);
+  font-variant-numeric: oldstyle-nums;
+  font-variation-settings: "opsz" 144;
+}
+.brief-section-title {
+  font-family: var(--serif); font-size: var(--fs-h2); line-height: var(--lh-h2); font-weight: 380;
+  margin: 0; letter-spacing: -.02em; font-variation-settings: "opsz" 96;
+}
+/* reached from "In this brief": focused for screen readers, no ring on a heading */
+.brief-section-title:focus { outline: none; box-shadow: none; }
+.brief-section-title:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.brief-section-intro { color: var(--muted); font-size: var(--fs-sm); line-height: var(--lh-sm); margin-top: var(--s3); max-width: 36em; }
+.brief-section-intro b { color: var(--ink); font-weight: 600; }
+
+/* ---------- 4 time allowed ---------- */
+.brief-time-row { display: flex; align-items: center; gap: var(--s4); flex-wrap: wrap; }
+.brief-time-text { flex: 1 1 180px; }
+/* the figure is a field to write in, marked like D2's annotations */
+.brief-time-input {
+  display: inline-block; width: auto; min-width: 1.6ch; min-height: 0;
+  margin: 0 2px; padding: 0 2px 2px;
+  border: 0; border-bottom: 1.5px dashed var(--accent); border-radius: 0; background: none;
+  font-family: var(--serif); font-size: 40px; line-height: 28px; font-weight: 340; color: var(--ink);
+  font-variant-numeric: lining-nums tabular-nums; text-align: center;
+  vertical-align: -2px;
+  field-sizing: content;
+}
+.brief-time-input:focus-visible {
+  border-bottom-style: solid; box-shadow: none;
+  background-color: color-mix(in srgb, var(--accent) 13%, var(--paper));
+}
+.brief-time-input[aria-invalid="true"] { border-bottom-style: solid; }
+.brief-time-error {
+  display: flex; gap: 6px; align-items: baseline; margin-top: var(--s3);
+  font-family: var(--sans); font-size: var(--fs-sm); line-height: var(--lh-sm); font-weight: 500; color: var(--accent);
+}
+.brief-time-error::before { content: "\2020"; font-family: var(--serif); font-weight: 400; }
+
+/* ---------- compose ---------- */
+.brief-compose {
+  margin-top: var(--s7); padding: var(--s6) 0 0;
+  border-top: 3px double var(--rule-strong); text-align: center;
+}
+.brief-compose-button {
+  position: relative; display: block; width: 100%;
+  padding: 24px 20px 20px; border: 0; border-radius: 0; background: var(--ink); color: var(--paper);
+  font-family: var(--serif); font-size: 32px; line-height: 36px; font-weight: 340; font-style: italic;
+  font-variation-settings: "opsz" 144, "SOFT" 100; letter-spacing: -.015em;
+  transition: transform .12s var(--ease), opacity .15s;
+}
+.brief-compose-button::after {
+  content: ""; position: absolute; inset: 6px; border: 1px solid color-mix(in srgb, var(--paper) 35%, transparent);
+  pointer-events: none;
+}
+.brief-compose-button:active:not(:disabled) { transform: scale(.99); }
+.brief-compose-button:disabled { opacity: .45; }
+.brief-compose-button small {
+  display: block; font-family: var(--sans); font-style: normal; font-size: 14px; line-height: 20px;
+  font-weight: 500; letter-spacing: .01em; opacity: .78; margin-top: 4px;
+}
+.brief-compose-note { font-size: var(--fs-sm); line-height: var(--lh-sm); color: var(--muted); margin-top: var(--s3); }

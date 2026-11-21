@@ -1,0 +1,45 @@
+/* The login page, outside the shell: a page of the paper on the desk, the
+   wordmark set as on the masthead, then a cover with the form. After D2's
+   cover (.cover, .cover-title, .standfirst) and form fields on #plan. */
+
+.login-desk { min-height: 100vh; min-height: 100dvh; }
+.login {
+  min-height: 100vh; min-height: 100dvh;
+  padding-bottom: calc(var(--s7) + env(safe-area-inset-bottom));
+}
+/* from about 768px: the same centred column on the desk as the shell */
+@media (min-width: 768px) {
+  .login-desk { padding: 28px var(--s5); }
+  .login {
+    --gutter: var(--gutter-wide);
+    max-width: var(--page-max);
+    min-height: calc(100vh - 56px);
+    min-height: calc(100dvh - 56px);
+    margin: 0 auto;
+    box-shadow: var(--shadow);
+  }
+}
+
+/* the masthead's wordmark, not a link here: there is nowhere to go yet */
+.login-wordmark {
+  /* a block, not flex: flex would drop the space after "The" */
+  height: calc(var(--mast) + env(safe-area-inset-top));
+  padding: calc(env(safe-area-inset-top) + (var(--mast) - 28px) / 2) var(--gutter) 0;
+  border-bottom: 1px solid var(--rule);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.login-body { padding: var(--s6) var(--gutter) 0; }
+/* the title and standfirst are base.css's .cover-title and .standfirst */
+
+.login-form {
+  display: grid; gap: var(--s5);
+  max-width: 22rem;
+  margin-top: var(--s6);
+}
+/* the password is written on the ruled line in the serif, as D2's .input.serif */
+.login-form input { font-family: var(--serif); font-size: 20px; }
+.login-submit { justify-self: start; min-width: 9rem; }
+@media (max-width: 480px) {
+  .login-submit { justify-self: stretch; }
+}

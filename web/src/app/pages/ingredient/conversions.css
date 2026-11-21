@@ -1,0 +1,41 @@
+/* The ingredient's conversions and the conversion sheet (ticket 30), in
+   D2's list idiom (the recipe's ingredient lines: a hairline on top, dotted
+   rules between) and its sheets. Class prefix: conv-. */
+
+/* the list: "1 dl = 100 g" in the serif, Edit and Delete at the right */
+.conv-list { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--rule); }
+.conv-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--s3);
+  padding: 2px 0; border-bottom: 1px dotted var(--rule);
+}
+.conv-text {
+  font-family: var(--serif); font-size: 18px; line-height: 24px; padding: 8px 0;
+  font-variant-numeric: lining-nums tabular-nums; overflow-wrap: anywhere;
+}
+.conv-actions { display: flex; gap: var(--s3); }
+/* who made it and where it is used: a muted italic line under the sum */
+.conv-notes {
+  grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0 var(--s3);
+  margin-top: -6px; padding-bottom: var(--s2);
+  font-family: var(--serif); font-style: italic; font-size: 14px; line-height: 20px; color: var(--muted);
+  font-variant-numeric: oldstyle-nums;
+}
+/* suggested by AI and not yet checked: in the red pencil */
+.conv-ai { color: var(--accent); }
+.conv-add { margin-top: var(--s1); }
+
+/* a failed delete or save: a red-pencil line with D2's dagger */
+.conv-alert {
+  display: flex; gap: 6px; align-items: baseline; margin-top: var(--s2);
+  font-family: var(--sans); font-size: var(--fs-sm); line-height: var(--lh-sm); font-weight: 500; color: var(--accent);
+}
+.conv-alert::before { content: "\2020"; font-family: var(--serif); font-weight: 400; }
+
+/* the sheet: the sentence it makes, the unit, then the number in the
+   ingredient's own unit */
+.conv-sheet { display: grid; gap: var(--s4); }
+.conv-sheet .sheet-preview { margin-bottom: 0; overflow-wrap: anywhere; }
+.conv-sheet .sheet-actions { margin-top: var(--s1); }
+.conv-factor-line { display: flex; align-items: baseline; gap: var(--s2); }
+.conv-number { width: 8em; text-align: right; font-variant-numeric: tabular-nums lining-nums; }
+.conv-own { font-family: var(--sans); font-size: 15px; color: var(--muted); }

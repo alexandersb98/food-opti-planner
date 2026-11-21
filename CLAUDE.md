@@ -16,3 +16,13 @@ currently deferred)".
 - Prefer the description alone when the number adds nothing.
 - This applies to your messages to the user, not to the design docs, where
   numbers are defined in place.
+
+## Agent skills
+
+### Issue tracker
+
+Specs and issues live as Markdown files under `.scratch/<feature-slug>/`, committed to the repo. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` and `docs/adr/` at the repo root, created when first needed. See `docs/agents/domain.md`.

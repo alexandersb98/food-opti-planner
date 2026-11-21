@@ -1,0 +1,21 @@
+/* The drawn colour plate, after D2's .plate-svg. Colours from one hue (--h,
+   set per recipe) and the edition's --pl-* tokens. */
+
+.plate { display: block; width: 100%; height: 100%; }
+.plate-swatch { width: 44px; height: 44px; flex: none; }
+.plate .cloth { fill: hsl(var(--h) var(--pl-cloth-s) var(--pl-cloth-l)); }
+.plate .band { fill: hsl(var(--h) var(--pl-band-s) var(--pl-band-l)); }
+.plate .china { fill: var(--pl-china); }
+.plate .china-2 { fill: var(--pl-china-2); }
+.plate .rimline { fill: none; stroke: var(--pl-china-2); stroke-width: 1.5; }
+.plate .iron { fill: var(--pl-iron); }
+.plate .iron-2 { fill: var(--pl-iron-2); }
+.plate .food { fill: hsl(var(--h) var(--pl-food-s) var(--pl-food-l)); }
+.plate .food-2 { fill: hsl(calc(var(--h) + 24) var(--pl-food-s) var(--pl-food2-l)); }
+.plate .cream { fill: var(--pl-china); opacity: .85; }
+.plate .swirl { fill: none; stroke: var(--pl-china); stroke-width: 3; stroke-linecap: round; opacity: .8; }
+.plate .leaf { fill: var(--pl-leaf); }
+.plate .shade { fill: var(--pl-shadow); }
+.plate .napkin { fill: var(--accent-soft); }
+.plate .napkin-line { stroke: var(--accent); stroke-width: 1; opacity: .5; fill: none; }
+.plate .cutlery { fill: var(--pl-china); stroke: var(--ink); stroke-opacity: .28; stroke-width: 1.2; }

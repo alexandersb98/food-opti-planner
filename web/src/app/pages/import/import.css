@@ -1,0 +1,63 @@
+/* The Import page, in D2's idiom: a cover like the other pages' openers,
+   then the brief sheets' form (fields on ruled lines, a segmented choice,
+   the actions row). D2 has no import screen. */
+
+/* the cover is base.css's .cover, .cover-title and .standfirst (D2's) */
+
+/* the form: D2's sheet fields, a field's worth of air between them */
+.import-form {
+  display: grid; gap: var(--s5);
+  padding-top: var(--s5);
+  border-top: 1px solid var(--rule);
+}
+.import-form .field-set { border: 0; padding: 0; margin: 0; }
+.import-link { font-family: var(--serif); font-size: 20px; }
+/* the pasted text: a writing block, serif like the method steps */
+.import-text {
+  min-height: 12rem;
+  font-family: var(--serif); font-size: 17px; line-height: 26px;
+  border: 1px solid var(--rule); border-bottom-color: var(--ink);
+  padding: var(--s2) var(--s3);
+  overflow-wrap: anywhere;
+}
+.import-link[readonly], .import-text[readonly] { color: var(--muted); }
+
+/* a refusal: the red-pencil note with D2's dagger (as a field error) */
+.import-error {
+  display: flex; gap: 6px; align-items: baseline;
+  font-family: var(--sans); font-size: 15px; line-height: var(--lh-sm); font-weight: 500;
+  color: var(--accent);
+}
+.import-error::before { content: "\2020"; font-family: var(--serif); font-weight: 400; }
+
+.import-no-key {
+  font-family: var(--serif); font-style: italic; font-size: 17px; line-height: var(--lh-text);
+  color: var(--ink-2); max-width: 34em;
+}
+.import-by-hand { font-style: normal; font-family: var(--sans); font-size: 15px; font-weight: 600; color: var(--accent); white-space: nowrap; }
+
+/* D2's .sheet-actions: the main action first, Cancel beside it */
+.import-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3) var(--s5); }
+.import-run { flex: 1 1 14rem; }
+/* reading is busy, not unavailable: the button keeps its full ink */
+.import-run[data-reading]:disabled { opacity: 1; cursor: progress; }
+.import-cancel { justify-content: center; }
+@media (max-width: 480px) {
+  .import-cancel { flex: 1 1 100%; }
+}
+
+/* while the AI reads: a short red-pencil stroke drawn again and again */
+.import-pen {
+  display: inline-block; width: 18px; height: 2px;
+  background: currentColor;
+  transform-origin: left center;
+  animation: import-pen 1.1s var(--ease) infinite;
+}
+@keyframes import-pen {
+  0% { transform: scaleX(0); opacity: 1; }
+  70% { transform: scaleX(1); opacity: 1; }
+  100% { transform: scaleX(1); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .import-pen { animation: none; }
+}

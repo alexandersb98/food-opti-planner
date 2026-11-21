@@ -1,0 +1,30 @@
+/* Where a linked ingredient comes from: a tag in the source's colour, after
+   D2's .rule-tag (square), with readable text from the colours module, the
+   withdrawn note and Unlink as a text button. Class prefix:
+   ingredient-source-. Sits between the name and the measure strip. */
+
+.ingredient-source { margin: calc(-1 * var(--s2)) 0 var(--s5); }
+.ingredient-source-line {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3);
+  margin: 0;
+}
+.ingredient-source-tag {
+  display: inline-flex; align-items: center; max-width: 100%; min-height: 36px;
+  padding: 6px 12px;
+  background: var(--source); color: var(--source-ink);
+  /* an ink hairline keeps a colour close to the paper's (or the evening's) visible */
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 28%, transparent);
+  font-family: var(--serif); font-size: 17px; line-height: 22px; font-weight: 400;
+  font-variation-settings: "opsz" 24;
+  overflow-wrap: anywhere;
+}
+/* the withdrawn note: D2's never rule, an outlined tag in red pencil */
+.ingredient-source-withdrawn {
+  display: inline-flex; align-items: center; min-height: 36px; padding: 6px 12px;
+  border: 1px solid var(--accent); color: var(--accent);
+  font-family: var(--sans); font-size: var(--fs-sm); line-height: var(--lh-sm); font-weight: 600;
+}
+.ingredient-source-alert {
+  margin: var(--s2) 0 0;
+  font-family: var(--sans); font-size: var(--fs-sm); line-height: var(--lh-sm); font-weight: 500; color: var(--accent);
+}

@@ -1,0 +1,94 @@
+/* The import review (ticket 35), in D2's "review" colours: the banner above
+   the head and each imported line's band (D2's .ing-edit.review, .review-note
+   and .review-fix). The line's grid is line-editor.css's .lines-line. */
+
+/* The banner: where the recipe came from and what it still needs. */
+.review-banner {
+  margin: var(--s4) 0 0; padding: var(--s3) var(--s4) var(--s2);
+  background: var(--review); color: var(--review-ink);
+  border-top: 2px solid var(--review-ink);
+}
+.review-banner p { margin: 0; }
+.review-banner-kicker {
+  font-family: var(--sans); font-size: 14px; line-height: 16px; font-weight: 600; letter-spacing: .08em;
+  font-variant-caps: all-small-caps;
+}
+.review-banner-text {
+  margin-top: 2px; font-family: var(--serif); font-size: 19px; line-height: 26px; text-wrap: pretty; overflow-wrap: anywhere;
+}
+.review-banner-cut, .review-banner-block {
+  margin-top: var(--s1); font-family: var(--serif); font-style: italic; font-size: 15px; line-height: 21px;
+}
+.review-banner-block::before { content: "\2020\00a0"; font-style: normal; }
+.review-banner-ready {
+  background: color-mix(in srgb, var(--review) 45%, transparent);
+  border-top-color: color-mix(in srgb, var(--review-ink) 50%, transparent);
+}
+
+/* The banner's "Next line to review" is Button's pencil variant, in the review's ink. */
+.btn-pencil.review-next { color: inherit; }
+.review-next:focus-visible, .review-btn:focus-visible { outline-color: currentColor; }
+
+/* An imported line: its source text above it. */
+.review-source {
+  grid-column: 1 / -1; margin: 0 0 2px; min-width: 0;
+  font-family: var(--serif); font-style: italic; font-size: 14.5px; line-height: 20px; color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.review-source::before { content: "\201C"; }
+.review-source::after { content: "\201D"; }
+
+/* A line that needs the owner: D2's review band. */
+.lines-line.review-needs {
+  background: var(--review); color: var(--review-ink);
+  margin: 4px calc(-1 * var(--s2)); padding: 8px var(--s2); border-bottom: 0;
+}
+/* Brought into view from the banner, clear of the sticky edit bar. */
+.review-line { scroll-margin: 140px 0 var(--s5); }
+.lines-line.review-needs .lines-name, .review-needs .review-source, .review-needs .lines-unit-text { color: var(--review-ink); }
+.spread-editor .review-needs .annot { color: var(--review-ink); border-bottom-color: var(--review-ink); }
+.review-needs .lines-unit-shown { color: var(--review-ink); }
+.review-needs .lines-icon { color: var(--review-ink); }
+
+/* A skipped line: greyed, out of the save, with Add back at hand. */
+.review-skipped .lines-amount, .review-skipped .lines-unit, .review-skipped .lines-unit-text, .review-skipped .lines-name {
+  opacity: .5;
+}
+.review-skipped .lines-name { text-decoration: line-through; text-decoration-thickness: 1px; }
+
+/* What the line needs, under it. */
+.review-panel { grid-column: 1 / -1; display: grid; gap: 4px; padding: 4px 0 2px; font-size: 14.5px; line-height: 20px; }
+.review-panel p { margin: 0; }
+.review-why strong { display: block; font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 16px; }
+.review-actions { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); align-items: center; }
+.review-panel-skipped {
+  display: flex; flex-wrap: wrap; gap: 0 var(--s4); align-items: center; padding: 0;
+  grid-column: 2 / -1; color: var(--muted);
+}
+.review-skipped-note { font-family: var(--serif); font-style: italic; font-size: 15px; }
+.review-panel-settled { grid-column: 2 / -1; padding: 0; color: var(--muted); }
+
+/* "1 dl = [50] g ✨ Accept" */
+.review-fix {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  font-family: var(--serif); font-size: 16px; line-height: 22px;
+}
+.spread-editor .review-fix .review-factor {
+  width: 84px; text-align: right; font-size: 16px; font-variant-numeric: tabular-nums lining-nums;
+  background-color: color-mix(in srgb, var(--paper) 45%, transparent);
+}
+.review-factor-value { font-variant-numeric: lining-nums; color: var(--ink); }
+.review-ai { font-size: 14px; cursor: help; }
+.review-error { margin: 0; }
+
+/* The review's buttons: Button's small outline, in the review's ink; Skip
+   without its border; Add back and Change in the pencil variant. */
+.btn.review-btn { color: inherit; border-color: currentColor; padding: 0 16px; }
+.btn.review-btn-quiet {
+  border-color: transparent; padding: 0 8px;
+  text-decoration: underline; text-underline-offset: 4px; text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+}
+.review-panel-settled .review-btn-text { margin-left: var(--s2); }
+
+/* "+ New ingredient" under the picker's list: Button's pencil variant, a size up. */
+.btn-pencil.review-new { font-size: 17px; }

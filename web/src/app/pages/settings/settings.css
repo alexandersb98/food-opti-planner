@@ -1,0 +1,55 @@
+/* Settings, after D2's #settings: a cover, then each part between rules. */
+
+/* the cover is base.css's .cover; the title is set all in the light italic */
+.cover-title.settings-title { font-style: italic; font-weight: 300; font-variation-settings: "opsz" 144, "SOFT" 100; }
+
+.settings-part { padding: var(--s5) 0; border-bottom: 1px solid var(--rule); min-width: 0; }
+.settings-cover + .settings-part { border-top: 1px solid var(--rule-strong); }
+/* the last part ends on its own list's rule */
+.settings-part:last-child { border-bottom: 0; }
+.settings-heading {
+  font-family: var(--serif); font-size: var(--fs-h3); line-height: var(--lh-h3); font-weight: 400;
+  letter-spacing: normal; font-variation-settings: normal; /* optical size follows the size, as in D2 */
+  margin: 0 0 var(--s3);
+}
+.settings-hint {
+  font-family: var(--serif); font-style: italic; font-size: 15px; line-height: 20px;
+  color: var(--muted); margin: var(--s2) 0 0; max-width: 34em;
+}
+.settings-text { color: var(--ink-2); margin: 0 0 var(--s4); max-width: 34em; }
+
+/* the three lists side by side where there is room, stacked on a phone */
+.settings-units { display: grid; gap: var(--s4); }
+@media (min-width: 560px) {
+  .settings-units { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s5); }
+}
+.settings-error {
+  display: flex; gap: 6px; align-items: baseline; margin: var(--s3) 0 0;
+  font-family: var(--sans); font-size: var(--fs-sm); line-height: var(--lh-sm); font-weight: 500; color: var(--accent);
+}
+.settings-error::before { content: "\2020"; font-family: var(--serif); font-weight: 400; }
+
+/* data sources: entries like D2's archive, with the source's colour */
+.settings-sources { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule-strong); }
+.settings-source {
+  display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: var(--s4); align-items: center;
+  min-height: var(--touch); padding: var(--s4) 0;
+  border-bottom: 1px solid var(--rule); color: inherit; text-decoration: none;
+}
+.settings-source:active { background: var(--press); }
+.settings-source-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 25%, transparent);
+}
+.settings-source-text { min-width: 0; }
+.settings-source-name {
+  display: block; font-family: var(--serif); font-size: 21px; line-height: 28px; overflow-wrap: anywhere;
+}
+.settings-source-meta {
+  display: block; font-size: var(--fs-sm); line-height: var(--lh-sm); color: var(--muted);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.settings-source-chev { color: var(--muted); font-family: var(--serif); font-size: 22px; }
+@media (hover: hover) {
+  .settings-source:hover .settings-source-name { text-decoration: underline; text-underline-offset: .18em; text-decoration-thickness: 1px; }
+}

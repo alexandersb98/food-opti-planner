@@ -1,0 +1,7 @@
+/* Confirm (ticket 09): a sheet with a warning and two actions. */
+.confirm-warning {
+  font-family: var(--serif); font-size: var(--fs-text); line-height: var(--lh-text); font-weight: 360;
+  font-variation-settings: "opsz" 18; font-variant-numeric: oldstyle-nums proportional-nums;
+  color: var(--ink-2);
+}
+.confirm-warning > * + * { margin-top: var(--s3); }

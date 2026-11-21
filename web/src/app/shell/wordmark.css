@@ -1,0 +1,7 @@
+/* The wordmark's type (D2's .wordmark): Fraunces, heavy, the article in a
+   lighter italic. */
+.wordmark {
+  font-family: var(--serif); font-size: 21px; line-height: 28px; font-weight: 620; letter-spacing: -.015em;
+  font-variation-settings: "opsz" 48;
+}
+.wordmark-article { font-style: italic; font-weight: 380; }

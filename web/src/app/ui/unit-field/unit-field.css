@@ -1,0 +1,82 @@
+/* The unit field: D2's ruled input (base.css) with a list hung under it like
+   a slip of paper. Class prefix: unit-field-. */
+
+.unit-field { display: grid; gap: var(--s1); min-width: 0; }
+.unit-field-label {
+  font-family: var(--sans); font-size: var(--fs-sm); line-height: var(--lh-sm);
+  font-weight: 500; color: var(--muted);
+}
+.unit-field-hint {
+  margin: 0; font-family: var(--serif); font-style: italic;
+  font-size: 15px; line-height: var(--lh-sm); color: var(--muted);
+}
+/* the error, with Field's dagger so it does not rely on colour alone */
+.unit-field-error {
+  display: flex; gap: 6px; align-items: baseline;
+  margin: 0; font-size: var(--fs-sm); line-height: var(--lh-sm);
+  font-weight: 500; color: var(--accent);
+}
+.unit-field-error::before { content: "\2020"; font-family: var(--serif); font-weight: 400; }
+
+.unit-field-box { position: relative; min-width: 0; }
+.unit-field-input { padding-right: 24px; }
+.unit-field-input[aria-invalid="true"] { border-bottom-color: var(--accent); }
+.unit-field-input:disabled { opacity: .5; }
+
+/* the drop-down mark: a small chevron in red pencil, turned when open */
+.unit-field-caret {
+  position: absolute; right: 6px; top: 50%; width: 7px; height: 7px; margin-top: -4px;
+  border-right: 1.5px solid var(--accent); border-bottom: 1.5px solid var(--accent);
+  transform: translateY(-2px) rotate(45deg); pointer-events: none;
+  transition: transform .15s var(--ease);
+}
+.unit-field-caret[data-open] { transform: translateY(2px) rotate(-135deg); }
+
+.unit-field-list {
+  position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + var(--s1));
+  min-width: 200px; max-height: min(320px, 50vh); overflow-y: auto; overscroll-behavior: contain;
+  padding: 0 0 var(--s2);
+  background-color: var(--paper); border: 1px solid var(--rule-strong);
+  box-shadow: var(--shadow);
+  font-size: 16px; line-height: var(--lh-body);
+}
+.unit-field-list[hidden] { display: none; }
+
+/* group heads: small capitals, as D2's menu labels, held at the top while
+   their group scrolls under them */
+.unit-field-head {
+  position: sticky; top: 0; z-index: 1;
+  padding: var(--s2) var(--s3) var(--s1);
+  background-color: var(--paper);
+  border-bottom: 1px solid var(--rule);
+  font-size: var(--fs-sm); line-height: var(--lh-sm); font-weight: 500; color: var(--muted);
+  cursor: default;
+}
+.unit-field-group + .unit-field-group .unit-field-head { margin-top: var(--s1); }
+
+.unit-field-option {
+  display: flex; align-items: baseline; gap: var(--s1);
+  min-height: var(--touch); padding: 10px var(--s3);
+  cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+.unit-field-symbol { font-weight: 500; font-variant-numeric: lining-nums; color: var(--ink); }
+.unit-field-name { min-width: 0; overflow-wrap: anywhere; font-family: var(--serif); font-style: italic; color: var(--muted); }
+/* the unit in the box: a red-pencil tick after it */
+.unit-field-option[data-current]::after {
+  content: "✓"; margin-left: auto; color: var(--accent); font-weight: 600;
+}
+/* the active option: pressed paper with a red rule at the margin */
+.unit-field-option[aria-selected="true"] {
+  background-color: var(--press);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+@media (hover: hover) {
+  .unit-field-option:hover { background-color: var(--press); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .unit-field-caret { transition: none; }
+}
+@media (forced-colors: active) {
+  .unit-field-option[aria-selected="true"] { outline: 2px solid Highlight; outline-offset: -2px; }
+}

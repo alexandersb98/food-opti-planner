@@ -1,0 +1,95 @@
+/* The data source page. D2 has no such page: it is set like D2's Settings
+   (a cover, then ruled rows) with the Ingredients search and empty state,
+   and the columns as a two-column ruled list (name, Attribute choice). */
+
+.ds { padding-bottom: var(--s7); }
+.ds-back { margin: var(--s3) 0 0 -2px; }
+
+/* base.css's .cover, closer under the back link; the source's name can be long */
+.cover.ds-cover { padding-top: var(--s4); }
+.cover-title.ds-title {
+  margin: var(--s2) 0 0; overflow-wrap: anywhere;
+  font-size: clamp(var(--fs-h1), 11vw, var(--fs-hero)); line-height: 1;
+  font-style: italic; font-weight: 300; font-variation-settings: "opsz" 144, "SOFT" 100;
+}
+
+/* ---------- particulars: ruled rows, label left, value right ---------- */
+.ds-facts { margin: 0; border-top: 1px solid var(--rule-strong); }
+.ds-fact {
+  display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); column-gap: var(--s4); align-items: baseline;
+  padding: var(--s3) 0; border-bottom: 1px solid var(--rule);
+}
+.ds-fact > dt {
+  font-family: var(--sans); font-size: var(--fs-sm); line-height: var(--lh-sm); font-weight: 500; color: var(--muted);
+}
+.ds-fact > dd {
+  margin: 0; min-width: 0;
+  font-family: var(--serif); font-size: 17px; line-height: 24px; font-variation-settings: "opsz" 18;
+}
+.ds-attribution { font-style: italic; color: var(--ink-2); overflow-wrap: anywhere; }
+
+.ds-fact-colour { align-items: center; }
+.ds-colour { display: flex; flex-wrap: wrap; align-items: center; column-gap: var(--s3); row-gap: var(--s1); }
+.ds-colour-input {
+  -webkit-appearance: none; appearance: none;
+  width: var(--touch); height: var(--touch); padding: 4px; margin: -10px 0;
+  border: 1px solid var(--rule-strong); border-radius: 50%; background: var(--paper); cursor: pointer;
+}
+.ds-colour-input::-webkit-color-swatch-wrapper { padding: 0; }
+.ds-colour-input::-webkit-color-swatch { border: 0; border-radius: 50%; }
+.ds-colour-input::-moz-color-swatch { border: 0; border-radius: 50%; }
+.ds-colour-input:focus-visible { border-radius: 50%; }
+@media (hover: hover) {
+  .ds-colour-input:hover { border-color: var(--accent); }
+}
+.ds-colour-code { font-family: var(--sans); font-size: var(--fs-sm); color: var(--muted); text-transform: uppercase; }
+.ds-colour-error { flex-basis: 100%; margin-top: var(--s2); }
+
+/* ---------- the columns ---------- */
+.ds-columns { margin-top: var(--s7); padding-top: var(--s4); border-top: 3px double var(--rule-strong); }
+.ds-columns-head {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; column-gap: var(--s4);
+  margin-bottom: var(--s4);
+}
+
+/* the search, after D2's Ingredients */
+.ds-search { position: relative; margin: 0 0 var(--s4); }
+.ds-search > input { padding-left: 30px; font-family: var(--serif); font-size: 19px; }
+.ds-search > svg { position: absolute; left: 0; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+
+.ds-list-head {
+  display: none; margin: 0;
+  padding-bottom: var(--s1); border-bottom: 1px solid var(--rule-strong);
+  font-size: var(--fs-sm); line-height: var(--lh-sm); font-weight: 500; color: var(--muted);
+}
+.ds-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule-strong); }
+.ds-row {
+  display: grid; grid-template-columns: minmax(0, 1fr); row-gap: var(--s1); align-items: baseline;
+  padding: var(--s3) 0; border-bottom: 1px solid var(--rule);
+  /* a source can have many columns: rows off screen are laid out lazily */
+  content-visibility: auto; contain-intrinsic-size: auto 96px;
+}
+.ds-row-name { display: grid; min-width: 0; }
+.ds-name {
+  font-family: var(--serif); font-size: 17px; line-height: 24px; font-variation-settings: "opsz" 18;
+  overflow-wrap: anywhere;
+}
+.ds-meta { display: flex; flex-wrap: wrap; column-gap: var(--s3); font-size: var(--fs-sm); line-height: var(--lh-sm); color: var(--muted); }
+.ds-withdrawn { font-family: var(--serif); font-style: italic; font-size: 15px; }
+.ds-row-withdrawn .ds-name { color: var(--muted); }
+.ds-row-choice select { font-size: 16px; }
+
+@media (min-width: 560px) {
+  .ds-list-head, .ds-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 16rem); column-gap: var(--s5);
+  }
+  .ds-list-head { display: grid; }
+  .ds-list { border-top: 0; }
+  /* the name sits on the choice's line; an error below the choice doesn't move it */
+  .ds-row { align-items: start; }
+  .ds-row-name { padding-top: 10px; }
+}
+
+/* the empty search, after D2's .empty-state */
+/* base.css's .empty-state, a little closer under the search */
+.empty-state.ds-empty { margin-top: var(--s5); }

@@ -1,0 +1,76 @@
+/* The ingredient lines in edit mode, after D2's .ing-edit rows (amount, unit,
+   name, ×) and its "Add a line to …" text buttons. The annotation look
+   (.annot) comes from base.css. */
+
+.lines-section { margin-top: var(--s4); }
+.lines-section:first-child { margin-top: var(--s2); }
+
+/* A section's heading, written in place: D2's small-caps accent h3, on the
+   dashed pencil line but without the wash, so it reads as a heading. */
+.lines-heading { margin-bottom: var(--s1); }
+.spread-editor .lines-heading .lines-heading-in {
+  width: 100%; min-height: var(--touch); padding: 4px 0; background-color: transparent;
+  font-family: var(--serif); font-size: 17px; line-height: 24px; font-weight: 500; color: var(--accent);
+  font-variant-caps: all-small-caps; letter-spacing: .1em;
+}
+.spread-editor .lines-heading .lines-heading-in:focus-visible { background-color: color-mix(in srgb, var(--accent) 8%, transparent); }
+.spread-editor .lines-heading .lines-heading-in::placeholder {
+  font-variant-caps: normal; letter-spacing: 0; font-weight: 400; color: var(--muted);
+}
+.lines-heading .field-error { margin-top: var(--s1); }
+
+.lines-list { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--rule); }
+.lines-line {
+  display: grid; grid-template-columns: 64px 84px minmax(0, 1fr) auto; gap: 6px; align-items: center;
+  padding: 8px 0; border-bottom: 1px dotted var(--rule);
+}
+.spread-editor .lines-amount {
+  width: 100%; min-width: 0; font-size: 16px; text-align: right; font-variant-numeric: tabular-nums lining-nums;
+}
+.lines-name { font-family: var(--serif); font-size: 17px; line-height: 20px; min-width: 0; overflow-wrap: anywhere; }
+.lines-line-missing .lines-name { font-style: italic; color: var(--muted); }
+.lines-unit-text { font-size: 16px; color: var(--muted); padding: 0 6px; overflow-wrap: anywhere; }
+.lines-tools { display: flex; }
+/* the line's tools are Button's icon variant (.lines-icon is a hook for the review) */
+
+/* What is wrong with a line, or why it is left out of the totals: under it,
+   from the unit to the end (D2's .cv-edit place). */
+.lines-note { grid-column: 2 / -1; margin: 0; }
+.lines-flag {
+  font-family: var(--serif); font-style: italic; font-size: 14px; line-height: 20px; color: var(--accent);
+  font-variant-numeric: oldstyle-nums;
+}
+.lines-flag::before { content: "\2020\00a0"; font-style: normal; }
+.lines-line-flagged .lines-amount { color: var(--muted); }
+
+/* The unit: the native list, with just the unit drawn over its box (the list
+   itself names each conversion's number and marks the AI's). */
+.lines-unit { position: relative; display: block; min-width: 0; }
+.lines-unit .select-annotation { display: block; }
+.lines-unit .select-annotation > select {
+  width: 100%; min-height: var(--touch); color: transparent; padding-left: 6px;
+}
+.lines-unit select option, .lines-unit select optgroup { color: var(--ink); background-color: var(--paper); }
+.lines-unit-shown {
+  position: absolute; inset: 0 20px 0 0; display: flex; align-items: center; padding-left: 6px;
+  font-size: 16px; color: var(--ink); pointer-events: none;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.lines-unit-stale .select-annotation > select { border-bottom-style: solid; box-shadow: inset 0 -1px 0 var(--accent); }
+.lines-unit-stale .lines-unit-shown { color: var(--accent); }
+
+.lines-none { margin: var(--s2) 0 0; font-family: var(--serif); font-style: italic; color: var(--muted); }
+
+/* "Add a line to …", "Remove this section", "Add a section": Button's pencil variant */
+.lines-actions { display: flex; flex-wrap: wrap; gap: 0 var(--s4); margin-top: 4px; }
+.btn-pencil.lines-quiet { color: var(--muted); }
+.lines-add-section { margin-top: var(--s3); }
+
+/* The line menu's sheet: a quiet note above the sections to move to */
+.lines-menu-hint {
+  margin: 0 0 var(--s3); font-family: var(--serif); font-style: italic; font-size: 15px; line-height: 20px; color: var(--muted);
+}
+
+@media (max-width: 380px) {
+  .lines-line { grid-template-columns: 58px 76px minmax(0, 1fr) auto; }
+}

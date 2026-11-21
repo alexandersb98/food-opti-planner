@@ -1,9 +1,9 @@
 import { expect, test } from 'vitest'
-import { makeI18n } from './i18n'
+import { findLocale, makeTranslator } from './translator'
 import { dayLine, missRows, percentText } from './misses'
 import { planResult, resultGoal, resultMiss } from './test-data'
 
-const { t } = makeI18n().global
+const t = makeTranslator(findLocale('en'))
 
 const energy = { name: 'Energy', unit: 'kcal', decimals: 0 }
 const protein = { name: 'Protein', unit: 'g', decimals: 0 }
@@ -138,7 +138,7 @@ test('a value missed that day shows with its bound, the larger percent when miss
     resultMiss({ goal: 2, day: 3 }),
   ]
   expect(dayLine(plan({ id: 1, goals, misses }), 2, t)).toEqual([
-    { text: 'Protein 98 / 120 g', missed: true },
+    { text: 'Protein 98 g, under 120', missed: true },
     { text: 'Fat 30 g', missed: false },
   ])
 })

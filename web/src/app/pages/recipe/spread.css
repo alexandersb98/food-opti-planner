@@ -1,0 +1,192 @@
+/* The recipe spread, after D2's "recipe spread" (prototypes/d2-editorial-refined/styles.css). */
+
+.spread-fig { margin: 0; }
+.spread-plate {
+  margin: 0 calc(-1 * var(--gutter)); height: 232px; position: relative; overflow: hidden;
+  border-bottom: 1px solid var(--rule-strong);
+}
+.spread-cap {
+  display: flex; justify-content: space-between; gap: var(--s3);
+  padding: var(--s2) 0 0; font-family: var(--serif); font-style: italic; font-size: 14px; line-height: 20px; color: var(--muted);
+  font-variant-numeric: oldstyle-nums;
+}
+.spread-pn { color: var(--accent); font-style: normal; font-variant-caps: all-small-caps; letter-spacing: .08em; }
+
+/* The bar under the plate: back to the index and Edit; sticks under the masthead. */
+.spread-bar {
+  position: sticky; top: calc(var(--mast) + env(safe-area-inset-top)); z-index: 10;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
+  margin: var(--s2) calc(-1 * var(--gutter)) 0; padding: 4px var(--gutter);
+  min-height: 52px;
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--rule);
+}
+/* Keyboard focus scrolls clear of the masthead and the sticky bar. */
+.spread :focus-visible { scroll-margin-top: calc(var(--mast) + 52px + var(--s2)); }
+.spread-bar-editing { background: var(--accent-soft); }
+.spread-hint-bar {
+  min-width: 0; font-family: var(--serif); font-style: italic; font-size: 15px; line-height: 20px; color: var(--ink-2);
+}
+.spread-bar-actions { display: flex; flex: none; gap: var(--s2); margin-left: auto; }
+
+.spread-head { padding: var(--s5) 0 var(--s4); }
+.spread-title { font-size: var(--fs-h1); line-height: var(--lh-h1); margin: var(--s2) 0 var(--s4); overflow-wrap: anywhere; hyphens: auto; text-wrap: balance; }
+.spread-meta {
+  display: flex; flex-wrap: wrap; gap: var(--s2) var(--s6); margin: 0;
+  padding: var(--s3) 0; border-top: 1px solid var(--rule-strong); border-bottom: 1px solid var(--rule);
+}
+.spread-meta div { display: grid; }
+.spread-meta dt { font-family: var(--serif); font-style: italic; font-size: 14px; line-height: 20px; color: var(--muted); }
+.spread-meta dd {
+  margin: 0; font-family: var(--serif); font-size: 24px; line-height: 28px; font-variant-numeric: lining-nums;
+}
+.spread-meta dd small { font-size: 16px; font-style: italic; color: var(--muted); margin-left: 8px; }
+
+/* Numbered sections: i Ingredients, ii Method, iii Notes. */
+.spread-sec { margin-top: var(--s6); }
+.spread-head + .spread-sec { margin-top: var(--s2); }
+.spread-sec-head {
+  display: grid; grid-template-columns: auto 1fr; align-items: baseline; column-gap: var(--s3);
+  margin-bottom: var(--s2);
+}
+.spread-sec-no {
+  font-family: var(--serif); font-style: italic; font-weight: 300;
+  font-size: var(--fs-h2); line-height: var(--lh-h2); color: var(--accent);
+  font-variation-settings: "opsz" 144;
+}
+.spread-sec-title {
+  font-family: var(--serif); font-size: var(--fs-h2); line-height: var(--lh-h2); font-weight: 380;
+  margin: 0; letter-spacing: -.02em; font-variation-settings: "opsz" 96;
+}
+
+/* Ingredients */
+.spread-ing-section { margin-top: var(--s4); }
+.spread-ing-section h3 {
+  font-family: var(--serif); font-size: 16px; line-height: 24px; font-weight: 500; margin: 0 0 var(--s1); color: var(--accent);
+  font-variant-caps: all-small-caps; letter-spacing: .1em;
+}
+.spread-lines { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--rule); }
+.spread-line {
+  display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: var(--s3); align-items: baseline;
+  padding: 8px 0; border-bottom: 1px dotted var(--rule);
+}
+.spread-amt {
+  font-variant-numeric: tabular-nums lining-nums; text-align: right; font-weight: 500; font-size: 16px; line-height: 24px;
+  overflow-wrap: anywhere;
+}
+.spread-unit { color: var(--muted); font-weight: 400; }
+.spread-nm { font-family: var(--serif); font-size: 18px; line-height: 24px; overflow-wrap: anywhere; }
+.spread-flag {
+  display: block; font-family: var(--serif); font-style: italic; font-size: 14px; line-height: 20px; color: var(--accent);
+  font-variant-numeric: oldstyle-nums;
+}
+.spread-flag::before { content: "† "; font-style: normal; }
+.spread-line-flagged .spread-amt { color: var(--muted); }
+
+/* Method */
+.spread-method { list-style: none; padding: 0; margin: 0; counter-reset: step; border-top: 1px solid var(--rule); }
+.spread-method li {
+  display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: var(--s2);
+  padding: var(--s4) 0; border-bottom: 1px solid var(--rule); counter-increment: step;
+}
+.spread-method li::before {
+  content: counter(step); font-family: var(--serif); font-size: 44px; line-height: 36px; font-weight: 280; color: var(--accent);
+  font-variant-numeric: lining-nums; font-variation-settings: "opsz" 144;
+}
+.spread-method p {
+  font-family: var(--serif); font-size: var(--fs-text); line-height: var(--lh-text); font-weight: 360;
+  font-variant-numeric: oldstyle-nums; margin-top: -2px; white-space: pre-line; max-width: 34em;
+}
+
+/* Notes: tags, nutrition, source */
+.spread-tags .kicker { margin: 0 0 4px; }
+.spread-tag-line {
+  list-style: none; padding: 0; margin: 0;
+  display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; font-family: var(--serif); font-size: 18px; line-height: 28px;
+}
+.spread-tag-line li + li::before { content: "/"; margin-right: 10px; color: var(--rule-strong); opacity: .4; }
+.spread-derived { font-family: var(--serif); font-style: italic; color: var(--muted); font-size: 15px; line-height: 24px; }
+
+.spread-nutri { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums lining-nums; margin-top: var(--s5); }
+.spread-nutri caption { text-align: left; font-family: var(--serif); font-style: italic; color: var(--muted); padding-bottom: 4px; font-size: 15px; }
+.spread-nutri th, .spread-nutri td { padding: 6px 0; line-height: 20px; border-bottom: 1px solid var(--rule); font-weight: 400; text-align: left; }
+.spread-nutri th { font-family: var(--serif); font-size: 17px; }
+.spread-nutri td { text-align: right; white-space: nowrap; }
+.spread-nutri tr:first-child th, .spread-nutri tr:first-child td { border-top: 2px solid var(--rule-strong); }
+.spread-none { margin-top: var(--s5); font-family: var(--serif); font-style: italic; color: var(--muted); }
+
+.spread-source { margin-top: var(--s5); display: grid; justify-items: start; }
+.spread-source-link {
+  display: inline-flex; align-items: center; min-height: var(--touch);
+  font-family: var(--serif); font-style: italic; overflow-wrap: anywhere;
+}
+
+/* ---------- edit mode: "annotating the page" with the red pencil (D2) ---------- */
+
+/* A new recipe's plate: blank paper with the rim drawn in pencil, waiting for its number. */
+.spread-plate-blank {
+  display: grid; place-items: center;
+  background: repeating-linear-gradient(-45deg, transparent 0 11px, color-mix(in srgb, var(--rule) 45%, transparent) 11px 12px);
+}
+.spread-plate-blank::before {
+  content: ""; width: 176px; height: 176px; border-radius: 50%;
+  border: 1.5px dashed var(--accent); background: var(--paper);
+}
+
+/* the fields are base.css's .annot (D2's), with a little more room at the sides */
+.spread-editor .annot { padding-inline: 6px; }
+
+.spread-editor .spread-head { padding-bottom: var(--s2); }
+.spread-name { margin: var(--s2) 0 var(--s4); }
+.spread-editor .spread-title-in {
+  width: 100%; font-family: var(--serif); font-size: 34px; line-height: 40px; letter-spacing: -.02em; padding: 4px;
+}
+.spread-num-in { width: 5.5em; text-align: right; font-variant-numeric: tabular-nums lining-nums; }
+
+.spread-edit-meta {
+  display: grid; gap: var(--s5); padding: var(--s4) 0 var(--s2);
+  border-top: 1px solid var(--rule-strong); border-bottom: 1px solid var(--rule);
+}
+.spread-edit-meta .field-label { font-size: var(--fs-sm); }
+/* Serves: the label on the left, the number on the right, as D2's row */
+.spread-serves { grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--s3); }
+.spread-serves > .field-hint, .spread-serves > .field-error { grid-column: 1 / -1; }
+/* the portion size: the mode, then From, To and the step in a row */
+.spread-portion-row { display: flex; flex-wrap: wrap; gap: var(--s3) var(--s4); align-items: start; }
+.spread-portion .seg { justify-self: start; }
+.spread-multiplier { flex: 0 1 9.5em; }
+.spread-multiplier .field-label {
+  font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 14px; color: var(--muted);
+}
+.spread-times { display: flex; align-items: baseline; gap: 6px; font-family: var(--serif); color: var(--muted); }
+.spread-times .annot { flex: 1 1 auto; width: 100%; min-width: 0; }
+.spread-advanced .disclosure-body { display: grid; gap: var(--s4); }
+.spread-advanced .spread-multiplier { flex: none; max-width: 12em; }
+
+/* the method, written as one text, steps between blank lines */
+.spread-editor .spread-method-in {
+  width: 100%; min-height: 12rem; resize: vertical; field-sizing: content;
+  font-family: var(--serif); font-size: 17px; line-height: 26px; padding: var(--s2) 6px;
+  font-variant-numeric: oldstyle-nums;
+}
+.spread-editor .spread-sec .field-hint { margin-top: var(--s1); }
+
+.spread-hint {
+  font-family: var(--serif); font-style: italic; font-size: 15px; line-height: 20px; color: var(--muted); margin-top: var(--s2);
+}
+.spread-editor .spread-tags .kicker { margin-bottom: var(--s2); }
+.spread-source-field { margin-top: var(--s5); }
+.spread-source-field .annot { width: 100%; font-family: var(--serif); font-style: italic; }
+
+.spread-save-error {
+  display: flex; gap: 6px; align-items: baseline; margin-top: var(--s3);
+  font-size: var(--fs-sm); line-height: var(--lh-sm); font-weight: 500; color: var(--accent);
+}
+.spread-save-error::before { content: "\2020"; font-family: var(--serif); font-weight: 400; }
+.spread-editor .spread-sec > .field-error { margin-top: var(--s2); }
+
+.spread-delete {
+  margin-top: var(--s7); padding-top: var(--s3); border-top: 1px solid var(--rule);
+  display: grid; justify-items: start;
+}

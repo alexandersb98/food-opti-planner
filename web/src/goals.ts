@@ -110,3 +110,66 @@ export function goalNames(goals: NameInput[], attributes: Pick<Attribute, 'id' |
     return name
   })
 }
+
+/** A figure as the brief sets it: the stored value, its whole part grouped
+ * in threes with a narrow no-break space from four digits on ("1500" →
+ * "1 500", "12000.5" → "12 000.5"). Anything that is no plain number stays
+ * as it is. */
+export function figureText(value: string): string {
+  const match = /^(-?)(\d+)(\.\d+)?$/.exec(value.trim())
+  if (!match) return value
+  const [, sign = '', whole = '', fraction = ''] = match
+  const grouped = whole.length < 4 ? whole : whole.replace(/\B(?=(\d{3})+$)/g, ' ')
+  return `${sign}${grouped}${fraction}`
+}
+
+/** What a goal sentence says, as a message key and its named parts, so that
+ * a page can set `amount` and `attribute` in their own type:
+ * "Between {1 500 and 2 000 kcal} {energy}, as a daily average". */
+export interface GoalSentence {
+  key: string
+  named: { lead: string; amount: string; attribute: string; scope: string }
+}
+
+type Lead = 'between' | 'exactly' | 'atLeast' | 'atMost'
+
+/** A goal as a sentence (the brief's section 2 and the goal sheet's
+ * preview): "Between 1 500 and 2 000 kcal energy, as a daily average",
+ * "At least 120 g protein, each day", "Exactly 30 g fibre, over the whole
+ * plan", or "No limit yet on energy, each day" without bounds. The bounds
+ * are as stored (or typed), `null` or '' for none; the attribute's name is
+ * set in lower case. Read it whole with `t(sentence.key, sentence.named)`. */
+export function goalSentence(
+  goal: Pick<Goal, 'applies_to'> & { min: string | null; max: string | null },
+  attribute: Pick<Attribute, 'name' | 'unit'> | undefined,
+  t: Translate,
+): GoalSentence {
+  const min = goal.min?.trim() || null
+  const max = goal.max?.trim() || null
+  const unit = attribute?.unit ?? ''
+  const one = (value: string) => t('goals.sentence.amount.one', { value: figureText(value), unit }).trim()
+  let lead: Lead | null = null
+  let amount = ''
+  if (min !== null && max !== null) {
+    lead = Number(min) === Number(max) ? 'exactly' : 'between'
+    amount =
+      lead === 'exactly'
+        ? one(min)
+        : t('goals.sentence.amount.between', { min: figureText(min), max: figureText(max), unit }).trim()
+  } else if (min !== null) {
+    lead = 'atLeast'
+    amount = one(min)
+  } else if (max !== null) {
+    lead = 'atMost'
+    amount = one(max)
+  }
+  return {
+    key: lead ? 'goals.sentence.text' : 'goals.sentence.noBound',
+    named: {
+      lead: lead ? t(`goals.sentence.lead.${lead}`, {}) : '',
+      amount,
+      attribute: (attribute?.name ?? '').toLowerCase(),
+      scope: t(`goals.sentence.scope.${goal.applies_to}`, {}),
+    },
+  }
+}

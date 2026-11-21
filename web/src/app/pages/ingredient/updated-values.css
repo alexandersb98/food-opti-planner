@@ -1,0 +1,38 @@
+/* The updated-values note on a linked ingredient, after D2's editor's note
+   card (.editors-note .note-card): a red-pencil rule on the left, an italic
+   serif title, then old and new per attribute and the two answers. Class
+   prefix: updated-values-. */
+
+.updated-values {
+  margin: var(--s5) 0 0;
+  padding: var(--s1) 0 var(--s1) var(--s4);
+  border-left: 4px solid var(--accent);
+}
+.updated-values-title {
+  margin: 0;
+  font-family: var(--serif); font-style: italic; font-weight: 340;
+  font-size: var(--fs-h3); line-height: var(--lh-h3); letter-spacing: -.015em;
+  font-variation-settings: "opsz" 72, "SOFT" 100;
+  text-wrap: balance;
+}
+.updated-values-lead {
+  margin: var(--s2) 0 0;
+  font-family: var(--serif); font-size: 17px; line-height: 24px; color: var(--ink-2);
+}
+.updated-values-list { list-style: none; margin: var(--s3) 0 0; padding: 0; }
+.updated-values-line {
+  padding: var(--s2) 0; border-top: 1px solid var(--rule);
+  font-family: var(--serif); font-size: 17px; line-height: 24px;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.updated-values-line:last-child { border-bottom: 1px solid var(--rule); }
+/* a number keeps its unit on the same line */
+.updated-values-old, .updated-values-new { white-space: nowrap; }
+.updated-values-old { color: var(--muted); }
+.updated-values-arrow { color: var(--accent); }
+.updated-values-new { font-weight: 600; }
+.updated-values-alert {
+  margin: var(--s3) 0 0;
+  font-family: var(--sans); font-size: var(--fs-sm); line-height: var(--lh-sm); font-weight: 500; color: var(--accent);
+}
+.updated-values-actions { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s4); }

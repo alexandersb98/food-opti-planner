@@ -1,0 +1,196 @@
+/* The app shell after D2 (prototypes/d2-editorial-refined/styles.css):
+   the page on the desk, the masthead with its running head, the Contents
+   dialog, the toast and the stand-in for pages not built yet. */
+
+/* ---------- the page on the desk ---------- */
+.shell-desk { min-height: 100vh; min-height: 100dvh; }
+.shell {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: clip;
+}
+/* from about 768px: a centred column on the desk with D2's page shadow,
+   with wider margins to suit it */
+@media (min-width: 768px) {
+  .shell-desk { padding: 28px var(--s5); }
+  .shell {
+    --gutter: var(--gutter-wide);
+    max-width: var(--page-max);
+    min-height: calc(100vh - 56px);
+    min-height: calc(100dvh - 56px);
+    margin: 0 auto;
+    box-shadow: var(--shadow);
+  }
+}
+
+.shell-page {
+  padding: 0 var(--gutter) calc(var(--s7) + env(safe-area-inset-bottom));
+  /* the whole page below the masthead takes a swipe (turn.css), however short its text */
+  min-height: calc(100vh - var(--mast));
+  min-height: calc(100dvh - var(--mast) - env(safe-area-inset-top));
+}
+@media (min-width: 768px) {
+  .shell-page { min-height: calc(100vh - 56px - var(--mast)); min-height: calc(100dvh - 56px - var(--mast)); }
+}
+/* whatever is scrolled to or focused stays clear of the sticky masthead */
+html:has(.masthead) { scroll-padding-top: calc(var(--mast) + var(--s2)); }
+/* focused on a page change, for screen readers; not a control */
+.shell-page:focus { outline: none; box-shadow: none; }
+
+/* ---------- masthead with running head ---------- */
+.masthead {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: var(--s3);
+  padding: env(safe-area-inset-top) var(--gutter) 0;
+  height: calc(var(--mast) + env(safe-area-inset-top));
+  background: color-mix(in srgb, var(--paper) 90%, transparent);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  backdrop-filter: blur(10px) saturate(1.2);
+  border-bottom: 1px solid var(--rule);
+}
+.masthead-wordmark {
+  position: relative; flex: 1; min-width: 0;
+  display: grid; align-items: center; justify-items: start;
+  min-height: var(--touch);
+  color: var(--ink); text-decoration: none;
+}
+/* the wordmark and the running head share one place; scrolling swaps them */
+.masthead-wordmark > span {
+  grid-area: 1 / 1; max-width: 100%;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: opacity .16s, transform .24s var(--ease);
+}
+/* .masthead-name is the Wordmark (wordmark.css) */
+.masthead-run {
+  opacity: 0; transform: translateY(6px);
+  font-family: var(--serif); font-style: italic; font-size: 17px; line-height: 24px; color: var(--ink-2);
+  font-variant-numeric: oldstyle-nums; padding-right: .25em;
+}
+.masthead-folio { color: var(--accent); margin-right: 10px; font-style: normal; }
+.masthead[data-scrolled] .masthead-name { opacity: 0; transform: translateY(-6px); }
+.masthead[data-scrolled] .masthead-run { opacity: 1; transform: none; }
+@media (hover: hover) {
+  .masthead-wordmark:hover .masthead-name { color: var(--accent); }
+}
+
+.masthead-contents {
+  flex: none;
+  display: inline-flex; align-items: center; gap: 10px;
+  min-height: var(--touch); padding: 0 4px 0 10px; margin-right: -4px;
+  border: 0; background: none;
+  font-family: var(--sans); font-size: 15px; font-weight: 500;
+}
+.masthead-contents:active { background: var(--press); }
+@media (hover: hover) {
+  .masthead-contents:hover { color: var(--accent); }
+}
+.masthead-contents-icon { display: grid; gap: 4px; width: 18px; }
+.masthead-contents-icon i { display: block; height: 1.5px; background: currentColor; }
+.masthead-contents-icon i:nth-child(2) { width: 66%; }
+
+/* ---------- Contents ---------- */
+.contents {
+  position: fixed; inset: 0; z-index: 50;
+  background-color: var(--paper);
+  overflow-y: auto; overscroll-behavior: contain;
+  animation: contents-in .32s var(--ease-out) both;
+}
+.contents[data-closing] { animation: contents-out .22s var(--ease) both; }
+@keyframes contents-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
+@keyframes contents-out { from { opacity: 1; } to { opacity: 0; transform: translateY(-6px); } }
+.contents-inner {
+  max-width: 430px; margin: 0 auto;
+  padding: env(safe-area-inset-top) var(--gutter) calc(env(safe-area-inset-bottom) + var(--s6));
+}
+@media (min-width: 768px) {
+  .contents-inner { max-width: 560px; }
+}
+.contents-top {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
+  height: var(--mast); border-bottom: 1px solid var(--rule);
+}
+.contents-close {
+  width: var(--touch); height: var(--touch); display: grid; place-items: center; flex: none;
+  margin-right: -10px; border: 0; border-radius: 50%; background: none; color: var(--muted);
+}
+.contents-close:active { background: var(--press); }
+@media (hover: hover) {
+  .contents-close:hover { color: var(--ink); }
+}
+.contents-title {
+  font-family: var(--serif); font-weight: 300; font-style: italic;
+  font-size: 64px; line-height: 64px; letter-spacing: -.035em;
+  margin: var(--s6) 0 var(--s5);
+  font-variation-settings: "opsz" 144, "SOFT" 100;
+}
+.contents-list { list-style: none; padding: 0; margin: 0; border-top: 3px double var(--rule-strong); }
+.contents-list a {
+  display: grid; grid-template-columns: 28px minmax(0, 1fr); column-gap: var(--s2);
+  padding: var(--s4) 0; border-bottom: 1px solid var(--rule);
+  color: inherit; text-decoration: none;
+}
+.contents-list a:active { background: var(--press); }
+.contents-no {
+  font-family: var(--serif); font-style: italic; color: var(--accent);
+  font-size: 20px; line-height: 32px; font-variant-numeric: oldstyle-nums;
+}
+.contents-row { display: flex; align-items: baseline; gap: var(--s2); }
+.contents-name {
+  min-width: 0;
+  font-family: var(--serif); font-size: 26px; line-height: 32px; letter-spacing: -.01em;
+  font-variation-settings: "opsz" 72;
+}
+/* dotted leader to the page number */
+.contents-leader {
+  flex: 1; min-width: 16px;
+  border-bottom: 1.5px dotted var(--rule-strong); opacity: .35; transform: translateY(-7px);
+}
+.contents-folio { font-family: var(--serif); color: var(--muted); font-size: 17px; font-variant-numeric: oldstyle-nums; }
+.contents-here { font-family: var(--serif); font-style: italic; font-size: 14px; color: var(--accent); }
+.contents-list a[aria-current="page"] .contents-name { font-style: italic; }
+.contents-list a[aria-current="page"] .contents-folio { color: var(--accent); }
+@media (hover: hover) {
+  .contents-list a:hover .contents-name { color: var(--accent); }
+}
+.contents-description {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 var(--s3);
+  margin-top: 2px;
+  font-family: var(--sans); font-size: var(--fs-sm); line-height: var(--lh-sm); color: var(--muted);
+}
+/* how many there are: set under the page number, like a page count */
+.contents-count {
+  margin-left: auto;
+  font-family: var(--serif); font-style: italic; font-size: 15px;
+  font-variant-numeric: oldstyle-nums proportional-nums;
+}
+.contents-end { border-bottom: 1px solid var(--rule); }
+.contents-logout {
+  display: block; width: 100%; min-height: var(--touch);
+  padding: var(--s3) 0 var(--s3) 36px; border: 0; background: none; text-align: left;
+  font-family: var(--serif); font-style: italic; font-size: 20px; line-height: 28px; color: var(--ink-2);
+}
+.contents-logout:active { background: var(--press); }
+.contents-logout:disabled { color: var(--muted); }
+@media (hover: hover) {
+  .contents-logout:not(:disabled):hover { color: var(--accent); }
+}
+.contents-error { padding: 0 0 var(--s3) 36px; font-size: var(--fs-sm); line-height: var(--lh-sm); color: var(--accent); }
+.contents-foot { font-family: var(--serif); font-style: italic; color: var(--muted); margin-top: var(--s5); }
+/* swipes are touch only: no hint for a mouse */
+@media (pointer: fine) {
+  .contents-foot { display: none; }
+}
+
+/* ---------- toast ---------- */
+.toast {
+  position: fixed; z-index: 90; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 20px);
+  transform: translate(-50%, 16px); opacity: 0; pointer-events: none;
+  width: max-content; max-width: min(390px, calc(100% - 32px));
+  background: var(--ink); color: var(--paper); padding: 12px 18px;
+  font-family: var(--serif); font-style: italic; font-size: 16px; line-height: 24px;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, .4);
+  transition: opacity .22s, transform .3s var(--ease-out);
+}
+.toast[data-shown] { opacity: 1; transform: translate(-50%, 0); }
+

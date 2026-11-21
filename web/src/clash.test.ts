@@ -1,11 +1,11 @@
 import { expect, test } from 'vitest'
 import type { ClashMember } from './api/types'
 import { changed, clashDrafts, clashErrors, clashFields, clashingGoalIds, clashRows, clashServerErrors, rowsKey } from './clash'
-import { makeI18n } from './i18n'
-import { goalFields, planFields } from './plan'
+import { findLocale, makeTranslator } from './translator'
+import { goalFields, planFields } from './planFields'
 import { attribute, goal, plan } from './test-data'
 
-const { t } = makeI18n().global
+const t = makeTranslator(findLocale('en'))
 const attributes = [attribute({ id: 1, name: 'Energy' }), attribute({ id: 2, name: 'Protein', decimals: 1 })]
 
 function member(fields: Partial<ClashMember>): ClashMember {
@@ -105,7 +105,7 @@ test('a changed goal is checked as the goal editor checks it; an unchanged one i
   expect(clashFields(plan({ goals: [zero] }), drafts)!.goals[0]).toMatchObject({ must: false, zero_reference: '100' })
 })
 
-test("the server's refusals are marked on the card's goals; one elsewhere marks none", () => {
+test("the server’s refusals are marked on the card’s goals; one elsewhere marks none", () => {
   const setup = plan({ goals: [prefer, energy] })
   expect(clashServerErrors({ 'goals.1.max': 'too_many_decimals' }, setup, attributes, [7], t)).toEqual({
     7: expect.objectContaining({ max: 'At most 0 decimals for Energy.' }),

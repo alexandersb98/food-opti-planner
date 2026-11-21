@@ -1,0 +1,123 @@
+/* The Tags page (ticket 38). D2 has no tags page: the cover, the ruled list
+   and the open entry follow D2's cover, archive list and "annotating the
+   page" edit style (prototypes/d2-editorial-refined/styles.css). */
+
+/* ---------- cover ---------- */
+/* the cover is base.css's .cover, .cover-title and .standfirst (D2's) */
+
+/* ---------- the list (D2's .archive) ---------- */
+.tags-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule-strong); }
+.tags-entry { border-bottom: 1px solid var(--rule); }
+
+.tags-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s3); align-items: center;
+  width: 100%; min-height: var(--touch); padding: var(--s3) 0;
+  border: 0; background: none; text-align: left; color: var(--ink);
+  transition: background-color .15s;
+}
+.tags-row:active { background: var(--press); }
+@media (hover: hover) {
+  .tags-row:hover { background: var(--press); }
+}
+.tags-row-text { display: grid; min-width: 0; }
+.tags-row-name {
+  font-family: var(--serif); font-size: 21px; line-height: 28px; font-variation-settings: "opsz" 36;
+  overflow-wrap: anywhere;
+}
+.tags-row-rule {
+  font-size: var(--fs-sm); line-height: var(--lh-sm); color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.tags-chev { color: var(--muted); font-family: var(--serif); font-size: 22px; line-height: 1; }
+
+/* a source tag's colour, as a small printed swatch before its name */
+.tags-swatch {
+  display: inline-block; width: 11px; height: 11px; margin-right: 10px; border-radius: 50%;
+  background: var(--tags-source, var(--muted));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 18%, transparent);
+  vertical-align: 1px;
+}
+
+/* base.css's .empty-state, close under the cover */
+.empty-state.tags-empty { margin-top: var(--s2); }
+
+.tags-new { margin-top: var(--s2); }
+
+/* ---------- the open entry, annotated with the red pencil ---------- */
+.tags-entry-open {
+  /* a red rule in the margin marks the entry being edited */
+  box-shadow: inset 3px 0 0 var(--accent);
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+}
+.tags-edit { display: grid; gap: var(--s4); padding: var(--s4) var(--s3) var(--s4) var(--s4); }
+
+.tags-name-in, .tags-edit-name {
+  font-family: var(--serif); font-size: 24px; line-height: 32px; letter-spacing: -.01em;
+  font-variation-settings: "opsz" 48;
+}
+.tags-edit-name { overflow-wrap: anywhere; }
+.tags-edit-note {
+  font-family: var(--serif); font-style: italic; font-size: 15px; line-height: var(--lh-sm); color: var(--muted);
+  margin-top: var(--s1);
+}
+
+/* "A recipe gets this tag when [all ingredients have it]" */
+.tags-rule-line {
+  font-family: var(--serif); font-size: 19px; line-height: 32px; font-variation-settings: "opsz" 24;
+}
+.tags-rule-line .select-annotation > select { font-family: var(--serif); font-size: 19px; min-height: var(--touch); }
+
+.tags-equiv { display: grid; gap: var(--s2); justify-items: start; }
+.tags-equiv-title {
+  font-family: var(--sans); font-size: var(--fs-sm); line-height: var(--lh-sm); font-weight: 500;
+  letter-spacing: 0; color: var(--muted); margin: 0;
+}
+.tags-equiv-hint { font-family: var(--serif); font-style: italic; font-size: 15px; line-height: var(--lh-sm); color: var(--muted); max-width: 36em; }
+.tags-none { font-family: var(--serif); font-style: italic; color: var(--muted); }
+
+/* an equivalent tag: its name and a × that takes it out of the group */
+.tags-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--s2); }
+.tags-chip {
+  display: inline-flex; align-items: center;
+  min-height: var(--touch); padding-left: 12px; border: 1px solid var(--ink);
+  font-family: var(--serif); font-size: 17px; line-height: 24px;
+}
+.tags-chip-remove {
+  width: var(--touch); height: calc(var(--touch) - 2px); display: grid; place-items: center;
+  border: 0; background: none; color: var(--muted); font-size: 20px; line-height: 1; padding: 0;
+}
+.tags-chip-remove:active { background: var(--press); color: var(--accent); }
+@media (hover: hover) {
+  .tags-chip-remove:hover { color: var(--accent); }
+}
+
+.tags-edit-error {
+  display: flex; gap: 6px; align-items: baseline;
+  font-size: var(--fs-sm); line-height: var(--lh-sm); font-weight: 500; color: var(--accent);
+}
+.tags-edit-error::before { content: "\2020"; font-family: var(--serif); font-weight: 400; }
+
+.tags-edit-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--s3); flex-wrap: wrap; }
+.tags-delete { margin-right: auto; }
+.tags-done { min-width: 120px; }
+
+/* ---------- the picker sheet ---------- */
+.tags-pick-list { list-style: none; padding: 0; margin: var(--s3) 0 0; border-top: 1px solid var(--rule); }
+.tags-pick {
+  display: grid; width: 100%; min-height: var(--touch); padding: 10px 0; text-align: left;
+  border: 0; border-bottom: 1px solid var(--rule); background: none; color: var(--ink);
+}
+.tags-pick:active { background: var(--press); }
+@media (hover: hover) {
+  .tags-pick:hover { background: var(--press); }
+}
+.tags-pick-name { font-family: var(--serif); font-size: 18px; line-height: 24px; }
+.tags-pick-note { font-family: var(--serif); font-style: italic; font-size: 14px; line-height: 20px; color: var(--muted); }
+.tags-pick-none { padding: var(--s4) 0; font-family: var(--serif); font-style: italic; color: var(--muted); }
+
+/* ---------- a question about a group ---------- */
+.tags-question {
+  font-family: var(--serif); font-size: var(--fs-text); line-height: var(--lh-text); font-weight: 360;
+  font-variation-settings: "opsz" 18; font-variant-numeric: oldstyle-nums proportional-nums; color: var(--ink-2);
+}
+.tags-question-count { font-style: italic; font-size: 15px; line-height: var(--lh-sm); color: var(--accent); margin-bottom: var(--s2); }

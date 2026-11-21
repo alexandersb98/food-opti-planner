@@ -1,4 +1,4 @@
-import type { PlanResult, ResultMiss } from './api/types'
+import type { Attribute, PlanResult, ResultMiss } from './api/types'
 import { dayLabel } from './dates'
 import { valueText } from './format'
 import { roundedText } from './totals'
@@ -63,9 +63,16 @@ export function missRows(plan: PlanResult, t: Translate): MissRow[] {
     })
 }
 
+/** "Protein 98 g, under 120": a value missed on a day, with the goal's
+ * bound it fell under or went over. */
+export function missedValue(attribute: Pick<Attribute, 'name' | 'unit'>, miss: ResultMiss, t: Translate): string {
+  const named = { name: attribute.name, actual: miss.actual, bound: miss.bound, unit: attribute.unit }
+  return t(miss.side === 'below' ? 'misses.dayBelow' : 'misses.dayAbove', named).replace(/\s+,/, ',').trim()
+}
+
 /** A day's line: the attributes that have a goal, in the attributes' order,
  * or the first three without goals. A value missed that day (a day goal or a
- * guard-rail) reads "Protein 98 / 120 g"; the larger percent when missed twice. */
+ * guard-rail) reads "Protein 98 g, under 120"; the larger percent when missed twice. */
 export function dayLine(plan: PlanResult, day: number, t: Translate): DayPart[] {
   const withGoals = new Set(plan.goals.map((goal) => goal.attribute))
   const missed = new Map<number, ResultMiss>()
@@ -78,10 +85,7 @@ export function dayLine(plan: PlanResult, day: number, t: Translate): DayPart[] 
   return plan.attributes.flatMap((attribute, i): DayPart[] => {
     if (withGoals.size > 0 ? !withGoals.has(i) : i >= LINE_ATTRIBUTES) return []
     const miss = missed.get(i)
-    if (miss) {
-      const named = { name: attribute.name, actual: miss.actual, bound: miss.bound, unit: attribute.unit }
-      return [{ text: t('misses.dayValue', named).trim(), missed: true }]
-    }
+    if (miss) return [{ text: missedValue(attribute, miss, t), missed: true }]
     return [{ text: valueText(attribute, plan.day_totals[day]?.[i] ?? '0'), missed: false }]
   })
 }

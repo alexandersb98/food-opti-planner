@@ -7,49 +7,58 @@ constraints conflict, it finds a good-enough compromise instead of
 failing outright.
 
 **Status:** The solver library (`meal_planner/`), a server (`server/`) and a web
-app (`web/`) are built and deployable to Cloud Run. What the app does now:
+app (`web/`, a React app called The Weekly Table, laid out like a printed
+weekly) are built and deployable to Cloud Run. The pages are listed in the
+**Contents** (masthead, top right) and turn with a swipe or the turn links at
+the foot of each page. What the app does now:
 
-- **Planning.** A Plan page with the schedule, Make plan (which can be
-  cancelled), the results page, today's meals and saved plans. Goals are added
-  and edited on the Plan page (names, importance below and above, a day
-  guard-rail under Advanced; missed goals show on the results page). Recipe
-  filters (tags set to Only or Never) show a count of the recipes left. A No plan
-  possible card appears when Must goals clash (the clashing goals and days, fixed
-  in place: a looser bound or Make Prefer, then Try again).
-- **Catalogue.** Recipes, Ingredients, Attributes and Tags pages. Tags can be
-  grouped as equivalent (filtering on one includes recipes whose ingredients have
-  any of them; the Recipes pages show a recipe's derived tags by the same rule).
-- **Units and settings.** A Settings page with preferred units for mass, volume
-  and energy, on a unit catalogue in `server/units.py`. Unit fields of
-  ingredients and attributes are combo boxes over that catalogue (grouped by
-  category, the preferred unit first, free text allowed; a new ingredient starts
-  in the preferred mass unit). A unit change within its category converts the
-  stored numbers after a dialog (ingredient values, goal bounds and references,
-  basis, recipe amounts, conversions); another category or free text only changes
-  the unit.
-- **Data sources.** Settings lists data sources in a Data sources card. A
-  source's page shows its attribution and columns, sets its colour and maps each
-  column to an attribute. An ingredient can be added from a source, keeps a link
-  to its food and shows updated values. The data file is described below.
-- **Recipe structure.** **Serves N** (amounts are for the whole recipe;
-  per-portion totals and the planner's portion divide by N), sections with
-  optional headings, the same ingredient on several lines, instructions and a
-  source link. An ingredient's "Used in N recipes" counts recipes, not lines.
+- **Planning.** This week's brief holds the schedule (a grid of place
+  settings, changed in its sheet), the goals (added and edited in a sheet:
+  names, importance below and above, a day guard-rail under Advanced), the
+  recipe filters (tags set to Only or Never, with a count of the recipes left)
+  and the time allowed, and **Compose the week** (which can be stopped). The
+  composed week opens on The Menu, day by day, with a colophon of the goals met
+  or missed, **Save to the archive** and the other actions; saved plans are in
+  The archive. When Must goals clash, The Menu shows an Editor's note instead
+  (the clashing goals and days, fixed in place: a looser bound or Make Prefer,
+  then Try again).
+- **Catalogue.** The recipe index, Ingredients, Attributes and Tags pages. Tags
+  can be grouped as equivalent (filtering on one includes recipes whose
+  ingredients have any of them; a recipe shows its derived tags by the same
+  rule).
+- **Units and settings.** A Settings page with the edition (paper, evening or
+  the device's), preferred units for mass, volume and energy, on a unit
+  catalogue in `server/units.py`. Unit fields of ingredients and attributes are
+  combo boxes over that catalogue (grouped by category, the preferred unit
+  first, free text allowed; a new ingredient starts in the preferred mass
+  unit). A unit change within its category converts the stored numbers after a
+  question (ingredient values, goal bounds and references, basis, recipe
+  amounts, conversions); another category or free text only changes the unit.
+- **Data sources.** Settings lists the data sources. A source's page shows its
+  attribution and columns, sets its colour and maps each column to an
+  attribute. An ingredient can be added from a source (**Add an ingredient**,
+  **Add from data source**), keeps a link to its food and shows updated values.
+  The data file is described below.
+- **Recipe structure.** A recipe reads as a spread and is edited in place:
+  **Serves N** (amounts are for the whole recipe; per-portion totals and the
+  planner's portion divide by N), sections with optional headings, the same
+  ingredient on several lines, a method and a source link. An ingredient's
+  "Used in N recipes" counts recipes, not lines.
 - **Line units and conversions.** A recipe line has a unit: the ingredient's
   own, a catalogue unit that converts to it (also through one of its
   conversions), or the unit of a stored conversion ("1 dl = 40 g", added on the
   ingredient's page under Conversions or with **New unit...** on the line). The
   planner and the totals convert every line to the ingredient's unit, and a line
   that does not convert is refused when the recipe is saved.
-- **AI import, from text and from a link.** Recipes, **+**, **Import recipe**
-  (disabled with "Needs an AI key" until a key is set; it opens on a **Link**
-  field, with a **Paste text** switch for the text box) takes the page or the
-  text to a draft that opens on the recipe editor as an unsaved recipe in review
-  (a banner counting the lines that need you, each line's source line, **Pick
-  ingredient** with **+ New ingredient**, "1 dl = 100 g **Accept**" for a line
-  that needs a conversion factor, **Skip**, and **Save** disabled until every
-  line is matched and converts or is skipped). Saving also creates the accepted
-  conversions, with their source. Nothing is stored before Save.
+- **AI import, from text and from a link.** The recipe index, **Add recipe**,
+  **Import recipe** (it says when the server has no AI key; it opens on **A
+  link**, with **Pasted text** beside it) takes the page or the text to a draft
+  that opens as an unsaved recipe in review (a banner counting the lines that
+  need you, each line's source line, **Pick ingredient** with **+ New
+  ingredient**, "1 dl = 100 g **Accept**" for a line that needs a conversion
+  factor, **Skip**, and saving refused until every line is matched and
+  converts or is skipped). Saving also creates the accepted conversions, with
+  their source. Nothing is stored before Save.
   The AI layer is in `server/ai/` (interfaces, prompt and schema, adapters for
   four providers and a canned `fake` one), with a comparison script,
   `scripts/compare_models.py`, that the owner runs by hand to choose a model (the
@@ -119,6 +128,10 @@ export SESSION_KEY="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32
 python3 -m uvicorn --factory server.app:create_app --reload   # API on :8000, SQLite in ./planner.db
 cd web && npm install && npm run dev                          # app on :5173, forwards /api
 ```
+
+The app is React (`web/src/app/`, entry `web/index.html`), served at `/`.
+In the dev server only, `/specimen` shows the type, colours and building
+blocks; it is left out of the production build.
 
 Recipe import needs an AI service. Optional settings: `AI_PROVIDER` (`anthropic`
 by default, also `gemini`, `openai`, `mistral`), `AI_MODEL`, `AI_API_KEY` (the key of

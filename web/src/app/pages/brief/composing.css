@@ -1,0 +1,96 @@
+/* Composing the week (D2's solving view, prototypes/d2-editorial-refined
+   `.solving`): a full-screen modal dialog with the week being typeset, and
+   the note on the brief when a solve made no plan. */
+
+.composing {
+  position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none;
+  margin: 0; padding: 0; border: 0;
+  display: grid; place-items: center; overflow-y: auto; overscroll-behavior: contain;
+  background-color: var(--paper); color: var(--ink);
+  animation: composing-in .3s var(--ease) both;
+}
+.composing::backdrop { background: var(--paper); }
+:root:has(.composing[open]) { overflow: hidden; }
+
+.composing-inner {
+  width: min(430px, 100%);
+  padding: calc(env(safe-area-inset-top) + 24px) var(--gutter) calc(env(safe-area-inset-bottom) + 24px);
+}
+.composing .composing-kicker { color: var(--accent); text-align: center; } /* over .kicker's muted */
+.composing-title {
+  font-size: var(--fs-h1); line-height: var(--lh-h1); text-align: center; text-wrap: balance;
+  margin: var(--s2) 0 var(--s5);
+}
+.composing-title em { font-weight: 300; font-variation-settings: "opsz" 144, "SOFT" 100; }
+
+/* the seconds, big, against the time allowed */
+.composing-count { display: flex; align-items: baseline; justify-content: center; gap: 10px; margin: 0; }
+.composing-seconds {
+  font-family: var(--serif); font-size: 96px; line-height: 88px; font-weight: 280;
+  font-variant-numeric: lining-nums tabular-nums; letter-spacing: -.04em;
+  font-variation-settings: "opsz" 144;
+}
+.composing-count small { font-family: var(--serif); font-size: 20px; font-style: italic; color: var(--muted); }
+
+/* a ruler: one tick per tenth of the time allowed, filled in red pencil */
+.composing-ruler {
+  position: relative; height: 12px; margin: var(--s5) 0 var(--s4);
+  background:
+    linear-gradient(var(--rule-strong), var(--rule-strong)) bottom / 100% 1px no-repeat,
+    repeating-linear-gradient(90deg, var(--rule-strong) 0 1px, transparent 1px 10%) bottom left / 100% 6px no-repeat;
+}
+.composing-ruler::after {
+  content: ""; position: absolute; right: 0; bottom: 0; width: 1px; height: 6px; background: var(--rule-strong);
+}
+.composing-ruler i {
+  position: absolute; left: 0; bottom: -1px; width: 100%; height: 3px; background: var(--accent);
+  transform: scaleX(0); transform-origin: left; transition: transform .25s linear;
+}
+
+/* the galley: one line per day, its meals in waiting italics; a slow wave
+   runs down the lines while the week is set */
+.composing-galley { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule); }
+.composing-galley li {
+  display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: var(--s3); align-items: baseline;
+  padding: 6px 0; border-bottom: 1px dotted var(--rule);
+}
+.composing-day { font-family: var(--serif); font-size: 13px; color: var(--muted); font-variant-numeric: oldstyle-nums; }
+.composing-meals {
+  font-family: var(--serif); font-style: italic; font-size: 17px; line-height: 24px; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  animation: composing-setting 2.8s var(--ease) infinite;
+  animation-delay: calc(var(--row, 0) * 180ms);
+}
+/* pencils down: the wave stops while Cancel is answered */
+.composing[data-stopping] .composing-meals { animation: none; }
+
+.composing-line {
+  font-family: var(--serif); font-style: italic; font-size: 17px; line-height: 24px; color: var(--ink-2);
+  min-height: 48px; margin: var(--s4) 0 var(--s5); text-align: center;
+}
+.btn.composing-cancel[aria-disabled="true"] { opacity: .55; cursor: default; }
+.btn.composing-cancel[aria-disabled="true"]:active { transform: none; background: none; }
+
+@keyframes composing-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes composing-setting {
+  0%, 100% { opacity: 1; }
+  40% { opacity: .35; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composing, .composing-meals { animation: none; }
+  .composing-ruler i { transition: none; }
+}
+
+/* ---------- the note when a solve made no plan ---------- */
+.composing-failure {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0 var(--s4);
+  margin-top: var(--s6); padding: var(--s2) 0 var(--s2) var(--s4);
+  border-left: 3px solid var(--accent);
+}
+.composing-failure-text {
+  flex: 1 1 16em; min-width: 0; margin: 0;
+  font-family: var(--serif); font-size: 17px; line-height: 24px; color: var(--ink-2);
+  font-variant-numeric: oldstyle-nums proportional-nums;
+}
+.composing-failure-title { font-style: italic; color: var(--accent); }

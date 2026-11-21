@@ -1,0 +1,29 @@
+/* Section 3 of the brief, the recipe filters, and its sheet (D2's .rules,
+   .usable and .filter-list). */
+
+.filters-rules { display: flex; flex-wrap: wrap; gap: var(--s3); margin: 0 0 var(--s3); padding: 0; list-style: none; }
+.filters-rules > li { max-width: 100%; }
+
+.filters-usable {
+  display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--s3); margin: 0;
+  font-family: var(--serif); font-style: italic; color: var(--muted); font-variant-numeric: oldstyle-nums;
+}
+.filters-usable.filters-none { margin-bottom: var(--s2); }
+.filters-usable.filters-warn { color: var(--accent); }
+
+/* the sheet */
+.filters-preview.filters-warn { border-left-color: var(--accent); color: var(--accent); }
+.filters-preview.filters-warn b { color: var(--accent); }
+.filters-list { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
+.filters-row {
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 4px var(--s3);
+  padding: 8px 0; border-bottom: 1px solid var(--rule);
+}
+.filters-row-name { min-width: 0; font-family: var(--serif); font-size: 19px; line-height: 24px; overflow-wrap: anywhere; }
+.filters-row-modes { margin-left: auto; }
+.filters-empty { font-family: var(--serif); font-size: 19px; line-height: 28px; margin: 0 0 var(--s4); }
+.filters-error {
+  display: flex; gap: 6px; align-items: baseline; margin: var(--s4) 0 0;
+  font-family: var(--sans); font-size: var(--fs-sm); line-height: var(--lh-sm); font-weight: 500; color: var(--accent);
+}
+.filters-error::before { content: "\2020"; font-family: var(--serif); font-weight: 400; }

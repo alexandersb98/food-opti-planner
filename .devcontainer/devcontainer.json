@@ -17,7 +17,7 @@
   },
   "customizations": {
     "vscode": {
-      "extensions": ["ms-python.python", "Vue.volar", "dbaeumer.vscode-eslint"]
+      "extensions": ["ms-python.python", "dbaeumer.vscode-eslint"]
     }
   }
 }

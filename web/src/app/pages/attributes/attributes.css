@@ -1,0 +1,84 @@
+/* The Attributes page, in D2's language: a cover like #ingredients, entries
+   like the recipe index, and the open entry annotated in red pencil like
+   the editing spread (D2's .annot). Class prefix: attributes-. */
+
+/* ---------- cover ---------- */
+/* the cover is base.css's .cover, .cover-title and .standfirst (D2's) */
+
+/* ---------- the list ---------- */
+.attributes-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule-strong); }
+
+.attributes-entry {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--s3); align-items: baseline;
+  width: 100%; min-height: 68px; padding: var(--s3) 0;
+  border: 0; border-bottom: 1px solid var(--rule); border-radius: 0; background: none; text-align: left;
+}
+.attributes-entry:active { background: var(--press); }
+@media (hover: hover) {
+  .attributes-entry:hover { background: var(--press); }
+}
+.attributes-entry-name {
+  grid-column: 1; font-family: var(--serif); font-size: 19px; line-height: 24px;
+  overflow-wrap: anywhere;
+}
+/* the unit sits in the margin, like the index's time */
+.attributes-entry-unit {
+  grid-column: 2; grid-row: 1;
+  font-family: var(--serif); font-style: italic; font-size: 17px; line-height: 24px; color: var(--ink-2);
+  white-space: nowrap; max-width: 10em; overflow: hidden; text-overflow: ellipsis;
+}
+.attributes-entry-meta {
+  grid-column: 1 / -1; font-size: 13.5px; line-height: 20px; color: var(--muted);
+  font-variant-numeric: lining-nums;
+}
+
+/* the empty state is base.css's .empty-state, straight under the cover */
+.empty-state.attributes-empty { margin-top: 0; }
+
+.attributes-add { margin-top: var(--s2); }
+
+/* ---------- the open entry: annotated in red pencil ---------- */
+.attributes-item-open {
+  margin: 0 calc(-1 * var(--s3));
+  padding: var(--s4) var(--s3) var(--s3);
+  border-bottom: 1px solid var(--rule);
+  border-left: 2px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+}
+.attributes-form { display: grid; gap: var(--s4); }
+.attributes-form-row { display: grid; gap: var(--s4); align-items: start; }
+@media (min-width: 560px) {
+  .attributes-form-row { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+}
+
+/* The name and decimals are base.css's .annot (D2's red-pencil
+   annotation); the unit box takes the same look inside the entry. */
+.attributes-form .unit-field-input {
+  border: 0; border-bottom: 1.5px dashed var(--accent); border-radius: 0;
+  background-color: color-mix(in srgb, var(--accent) 6%, transparent);
+  min-height: var(--touch); padding: 4px 6px; color: var(--ink);
+}
+.attributes-form .unit-field-input { padding-right: 24px; }
+.attributes-form .unit-field-input:focus-visible {
+  outline: none; border-bottom-style: solid;
+  box-shadow: inset 0 -1px 0 var(--accent);
+  background-color: color-mix(in srgb, var(--accent) 13%, transparent);
+}
+.attributes-form .unit-field-input[aria-invalid="true"] { border-bottom-style: solid; }
+
+.attributes-name-input {
+  font-family: var(--serif); font-size: 24px; line-height: 32px; letter-spacing: -.01em;
+}
+.attributes-decimals-input {
+  max-width: 6rem; text-align: right;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.attributes-save-error {
+  display: flex; gap: 6px; align-items: baseline;
+  font-size: var(--fs-sm); line-height: var(--lh-sm); font-weight: 500; color: var(--accent);
+}
+.attributes-save-error::before { content: "\2020"; font-family: var(--serif); font-weight: 400; }
+
+.attributes-actions { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
+.attributes-actions > :last-child { margin-left: auto; }

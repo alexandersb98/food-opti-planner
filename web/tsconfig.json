@@ -12,7 +12,8 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
-    "noEmit": true
+    "noEmit": true,
+    "jsx": "react-jsx"
   },
-  "include": ["src/**/*.ts", "src/**/*.vue", "e2e/**/*.ts", "vite.config.ts", "eslint.config.ts", "playwright.config.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "e2e/**/*.ts", "scripts/**/*.ts", "vite.config.ts", "eslint.config.ts", "playwright.config.ts"]
 }
