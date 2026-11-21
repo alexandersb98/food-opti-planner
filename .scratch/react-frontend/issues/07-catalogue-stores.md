@@ -13,8 +13,20 @@ Spec: "Implementation Decisions › Modules" ("Shared stores", "Recipe count"); 
 
 Blocked by: 02
 
-Status: ready-for-agent
+Status: done
 
-- [ ] Ported tests pass: units and preferences load once, retry after failure, generation reset; preference saves serialised; unit-change question resolves with the chosen answer; draft taken once; recipe count drops a late answer
-- [ ] No file of the stores imports `vue` or React
-- [ ] `npm run lint`, `npm run typecheck`, `npm test` pass in `web/`
+- [x] Ported tests pass: units and preferences load once, retry after failure, generation reset; preference saves serialised; unit-change question resolves with the chosen answer; draft taken once; recipe count drops a late answer
+- [x] No file of the stores imports `vue` or React
+- [x] `npm run lint`, `npm run typecheck`, `npm test` pass in `web/`
+
+## Comments
+
+- **Where.** Stores in `web/src/app/stores/` (`units.ts`, `preferences.ts`, `unitChangeQuestion.ts`, `importDraft.ts`, `recipeCount.ts`, on a tiny `state.ts` helper: `createState` with `subscribe`/`getSnapshot`/`set`/`update`, immutable snapshots). React hooks over them in `web/src/app/hooks/` (`useUnits`, `usePreferences`, `useUnitChangeQuestion`, `useImportedDraft`, `useRecipeCount`).
+- **Lint.** `eslint.config.ts` gained a block for `src/app/stores/**/*.ts` forbidding React (and still Vue) imports, so "no store imports a framework" is checked, not just promised. Ticket 06 may add the same; keep one block.
+- **Units.** `unitsStore` (`load`, `reset`, snapshot `{ units, loading, failed }`) plus the pure `catalogue(units)` with the Vue module's lookups (`offered`, `findUnit`, `convertible`, `ratio`, `label`, `basisFor`). The lookups are a copy of the Vue `units.ts` logic (the Vue store is not edited, per this ticket); ticket 42 removes the Vue copy. `useUnits()` loads on mount and memoises the lookups on the catalogue.
+- **Preferences.** `preferencesStore` (`load`, `set` serialised, `reset`) plus `preferredUnit(preferences, category)`.
+- **Unit-change question.** `unitChangeQuestion.ask(request)` resolves to a yes/no, as today: yes is Convert (preview converts) or Change unit (preview keeps the numbers), the label coming from `request.change.kind`; no is Cancel. A second `ask` settles the first as no; `reset` settles an open one as no. Ticket 37's sheet reads `useUnitChangeQuestion()` and calls `unitChangeQuestion.answer(ok)`; it should also answer no when it unmounts (as the Vue dialog does).
+- **Imported draft.** `importDraftStore.put/take`. React's StrictMode (on in `main.tsx`) renders twice, so the spread must not `take()` during render: `useImportedDraft()` reads the draft in a `useState` initialiser and takes it in an effect (tested under StrictMode). Tickets 26/34/35 use this.
+- **Recipe count.** `createRecipeCount()` is one store per reader (the filters sheet), not shared, so it has no `resetStores` line; `useRecipeCount()` holds one per component. Ticket 19 uses it.
+- **resetStores.** Four lines: units, preferences, unit-change question, imported draft.
+- Ported tests: `web/src/app/stores/*.test.ts` (all Vue scenarios, plus reset-in-flight and subscriber tests); hooks: `web/src/app/hooks/hooks.test.tsx`.

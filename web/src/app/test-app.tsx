@@ -7,6 +7,10 @@ import { BASE_PATH } from './base'
 import { routes } from './routes'
 import * as planSetup from './stores/planSetup'
 import * as solve from './stores/solve'
+import { importDraftStore } from './stores/importDraft'
+import { preferencesStore } from './stores/preferences'
+import { unitChangeQuestion } from './stores/unitChangeQuestion'
+import { unitsStore } from './stores/units'
 
 // The React app test harness: the app at a URL with a fake server. Tests
 // drive it by roles and labels through the returned user-event instance.
@@ -17,6 +21,10 @@ export { fakeServer, unitRoutes, type FakeReply, type FakeServer } from '../test
 const resetStores: Array<() => void> = [
   solve.reset,
   planSetup.reset,
+  unitsStore.reset,
+  preferencesStore.reset,
+  unitChangeQuestion.reset,
+  importDraftStore.reset,
 ]
 
 /** Keys the app asked for that have no message; a test that leaves any
