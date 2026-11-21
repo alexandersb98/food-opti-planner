@@ -5,6 +5,8 @@ import { api, setUnauthorizedHandler } from '../../api/client'
 import { useT } from '../i18n/i18n'
 import { Contents, type ContentsClose, type Counts } from './Contents'
 import { Masthead } from './Masthead'
+import { PageFoot, SkipLink } from './PageTurn'
+import { usePageTurns } from './turning'
 import { pageFor } from './registry'
 import { createRunningHeadOverride, RunningHeadContext } from './runningHead'
 import { loginPath } from './session'
@@ -25,6 +27,7 @@ export function Shell() {
   const countsAsked = useRef(0)
   const contentsButton = useRef<HTMLButtonElement>(null)
   const main = useRef<HTMLElement>(null)
+  usePageTurns(main, page)
 
   // A 401 from any later call (login and the session check answer their
   // own) means the session ended: log in again, then come back here.
@@ -70,6 +73,7 @@ export function Shell() {
         <div className="shell paper">
           {/* the page behind an open Contents can't be reached */}
           <div className="shell-frame" inert={contentsOpen}>
+            <SkipLink main={main} />
             <Masthead
               page={page}
               contentsOpen={contentsOpen}
@@ -78,6 +82,7 @@ export function Shell() {
             />
             <main ref={main} id="page" className="shell-page" tabIndex={-1}>
               <Outlet />
+              {page ? <PageFoot page={page} /> : null}
             </main>
           </div>
           {contentsOpen ? (
