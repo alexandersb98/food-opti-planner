@@ -333,6 +333,8 @@
     "noSources": "No data sources loaded.",
     "search": "Search foods",
     "noResults": "No foods match.",
+    "foods": "no foods | 1 food | {n} foods",
+    "showing": "{shown} of {total} foods",
     "showMore": "Show more",
     "loadFailed": "Could not load the foods.",
     "loadFoodFailed": "Could not load the food.",
@@ -344,7 +346,8 @@
     "duplicate": "You already have an ingredient from this food: {names}",
     "add": "Add",
     "backToResults": "Back to results",
-    "withdrawn": "This food is no longer in the source."
+    "withdrawn": "This food is no longer in the source.",
+    "from": "From {source}"
   },
   "recipes": {
     "intro": "Dishes made of ingredients.",
