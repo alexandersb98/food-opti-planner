@@ -450,6 +450,79 @@
     "savedAt": "saved {day}, {time}",
     "todayChip": "Today"
   },
+  "brief": {
+    "issue": "Week {week}, {range}",
+    "range": {
+      "sameMonth": "{from}–{to} {month}",
+      "across": "{from} {fromMonth} – {to} {toMonth}",
+      "oneDay": "{day} {month}"
+    },
+    "title": "This week’s {brief}",
+    "titleWord": "brief",
+    "loadFailed": "Could not load the brief.",
+    "numbers": {
+      "1": "one",
+      "2": "two",
+      "3": "three",
+      "4": "four",
+      "5": "five",
+      "6": "six",
+      "7": "seven",
+      "8": "eight",
+      "9": "nine",
+      "10": "ten",
+      "11": "eleven",
+      "12": "twelve"
+    },
+    "standfirst": {
+      "schedule": "{days}, {meals}: {toPlan}.",
+      "days": "{word} day | {word} days",
+      "meals": "{word} meal a day | {word} meals a day",
+      "toPlan": "nothing to plan | {n} to plan | {n} to plan",
+      "noGoals": "No goals yet.",
+      "oneGoalMust": "One goal, a Must.",
+      "oneGoalPrefer": "One goal, not a Must.",
+      "goals": "{goals}, {must}.",
+      "goalCount": "{word} goals",
+      "must": "none of them Must | one of them Must | {word} of them Must",
+      "recipes": "No recipe can be used. | One recipe in play. | {word} recipes in play."
+    },
+    "inThisBrief": "In this brief",
+    "sections": {
+      "schedule": "The schedule",
+      "goals": "The goals",
+      "filters": "Recipe filters",
+      "time": "Time allowed"
+    },
+    "sectionStub": "This section is still being set.",
+    "newPlan": {
+      "kicker": "New plan, not saved:",
+      "text": "{dates}, {status}.",
+      "status": {
+        "optimal": "the best plan possible",
+        "time_ran_out": "time ran out, so it may not be the best",
+        "stopped": "stopped early, so it may not be the best"
+      },
+      "open": "Open The Menu"
+    },
+    "today": {
+      "title": "Today",
+      "portions": "{n} portion | {n} portions",
+      "skipped": "Skipped"
+    },
+    "time": {
+      "sentence": "Up to {seconds} second to think it over. | Up to {seconds} seconds to think it over.",
+      "input": "Seconds allowed",
+      "less": "Less time",
+      "more": "More time",
+      "note": "If time runs out, you still get the best plan found so far."
+    },
+    "compose": {
+      "button": "Compose the week",
+      "sub": "Make plan",
+      "note": "Every meal is skipped: there is nothing to fill. | Picks a recipe and a portion size for the one meal. | Picks a recipe and a portion size for each of the {n} meals."
+    }
+  },
   "goals": {
     "title": "Goals",
     "add": "+ Add goal",
