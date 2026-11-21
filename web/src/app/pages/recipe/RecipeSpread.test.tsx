@@ -241,9 +241,10 @@ test('Back to the index returns to the list', async () => {
 test('Edit opens the edit mode, and Cancel returns to the spread with focus on Edit', async () => {
   const { user } = await open()
   await user.click(screen.getByRole('button', { name: 'Edit Porridge' }))
-  expect(screen.queryByRole('region', { name: 'Ingredients' })).toBeNull()
+  expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Editing Porridge')
+  expect(screen.queryByRole('link', { name: 'Back to the index' })).toBeNull()
   await user.click(screen.getByRole('button', { name: 'Cancel' }))
-  expect(screen.getByRole('region', { name: 'Ingredients' })).toBeDefined()
+  expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Porridge')
   expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Edit Porridge' }))
 })
 
