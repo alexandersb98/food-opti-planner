@@ -148,7 +148,10 @@
     "password": "Password",
     "submit": "Log in",
     "wrong": "Wrong password.",
-    "failed": "Could not log in. Try again."
+    "failed": "Could not log in. Try again.",
+    "standfirst": "Enter the password to open the planner.",
+    "enterPassword": "Enter the password.",
+    "busy": "Logging in…"
   },
   "common": {
     "name": "Name",
