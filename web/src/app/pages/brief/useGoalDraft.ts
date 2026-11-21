@@ -22,7 +22,6 @@ import * as planSetup from '../../stores/planSetup'
 
 // The goal sheet's draft in React: the pure rules (`src/goalDraft.ts`) held
 // in state, with saving and removing the goal through the plan-setup store.
-// The Vue twin is `composables/useGoalDraft.ts`.
 
 /** How a save or a removal ended: the saved setup, or null with the errors
  * marked (the sheet stays open). */

@@ -4,7 +4,7 @@ import { typedNumber } from './numbers'
 
 // The goal editor's draft rules (A3, A3b): the fields as typed, which of them
 // show, what is wrong with them, and the goal they make. Framework-neutral:
-// the Vue hook (`composables/useGoalDraft`) and the React app both use them.
+// the React hook (`app/pages/brief/useGoalDraft`) wraps them.
 
 /** The fields as typed: the bounds, the reference and the name stay text.
  * Settings the form hides keep their value here and are sent as defaults. */

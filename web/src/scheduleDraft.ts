@@ -5,8 +5,8 @@ import { planFields } from './planFields'
 
 // The schedule editor's draft rules: the start date, the number of days, the
 // meals, the skipped cells and each day's minimum, how they are checked before
-// saving and where the server's refusals show. Framework-neutral: the Vue hook
-// (`composables/useScheduleDraft`) and the React app both use them.
+// saving and where the server's refusals show. Framework-neutral: the React
+// hook (`app/pages/brief/useScheduleDraft`) wraps them.
 
 /** The server's limits on the number of days. */
 export const DAYS = { min: 1, max: 31 }

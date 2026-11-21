@@ -3,7 +3,6 @@ import { afterEach, expect, test, vi } from 'vitest'
 import type { PlanFields } from '../../../api/types'
 import { localDate } from '../../../dates'
 import { goal, plan, planSummary, resultMeal } from '../../../test-data'
-import { BASE_PATH } from '../../base'
 import { fakeServer, mountApp, type FakeReply, type FakeServer } from '../../test-app'
 import { stepTime } from './TimeSection'
 import { portionAmount, portionFigure } from './TodayMeals'
@@ -33,10 +32,10 @@ async function mountBrief(server: FakeServer = {}) {
   return { ...app, calls }
 }
 
-/** Where the router is, within the app (without the base path). */
+/** Where the router is: path and query. */
 function where(router: Awaited<ReturnType<typeof mountApp>>['router']) {
   const { pathname, search } = router.state.location
-  return (pathname.slice(BASE_PATH.length) || '/') + search
+  return pathname + search
 }
 
 function standfirst() {
@@ -174,9 +173,9 @@ test('today’s meals come from the plan used for today, asked for by the browse
   expect(section.textContent).toContain('Tuesday 22 September')
   const meals = within(section).getAllByRole('link')
   expect(meals.map((meal) => meal.getAttribute('href'))).toEqual([
-    `${BASE_PATH}/plans/3?day=1&meal=0`,
-    `${BASE_PATH}/plans/3?day=1&meal=1`,
-    `${BASE_PATH}/plans/3?day=1`,
+    `/plans/3?day=1&meal=0`,
+    `/plans/3?day=1&meal=1`,
+    `/plans/3?day=1`,
   ])
   // jsdom joins the name's parts without the space a browser puts between grid items
   expect(within(section).getByRole('link', { name: /^Lunch: ?Chili, 1\.5 portions$/ })).toBe(meals[1])

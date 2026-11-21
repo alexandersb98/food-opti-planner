@@ -119,7 +119,7 @@ describe('the edition store', () => {
 })
 
 describe('the script in the HTML entry that applies the edition before first paint', () => {
-  const html = readFileSync(resolve(__dirname, '../../../next/index.html'), 'utf8')
+  const html = readFileSync(resolve(__dirname, '../../../index.html'), 'utf8')
   const inline = /<script>([\s\S]*?)<\/script>/.exec(html)?.[1] ?? ''
   const runInline = () => new Function(inline)()
 

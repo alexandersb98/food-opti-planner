@@ -2,7 +2,6 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { TagFilter } from '../../../api/types'
 import { plan, tag } from '../../../test-data'
-import { BASE_PATH } from '../../base'
 import { fakeServer, mountApp, type FakeReply, type FakeServer } from '../../test-app'
 
 // Section 3 of the brief, the recipe filters, and its sheet. Ports the Vue
@@ -120,7 +119,7 @@ test('a count that fails says so', async () => {
 test('See them goes to the recipe index', async () => {
   const { user, router } = await mountBrief()
   await user.click(within(section()).getByRole('link', { name: 'See them' }))
-  await waitFor(() => expect(router.state.location.pathname).toBe(`${BASE_PATH}/recipes`))
+  await waitFor(() => expect(router.state.location.pathname).toBe('/recipes'))
 })
 
 test('Change opens the sheet with every tag in tag order and its mode', async () => {
@@ -206,7 +205,7 @@ test('with no tags, the sheet points to the Tags page and has no Done', async ()
   expect(sheet.textContent).toContain('No tags yet. Add them on the Tags page, then come back to filter by them.')
   expect(within(sheet).queryByRole('button', { name: 'Done' })).toBeNull()
   await user.click(within(sheet).getByRole('link', { name: 'Tags page' }))
-  await waitFor(() => expect(router.state.location.pathname).toBe(`${BASE_PATH}/tags`))
+  await waitFor(() => expect(router.state.location.pathname).toBe('/tags'))
 })
 
 test('Done sends the new filters with the rest of the setup unchanged', async () => {
@@ -289,5 +288,5 @@ test('/plan/recipes opens the brief with the sheet, and the address loses the pa
   const { router } = await mountBrief({}, '/plan/recipes')
   expect(screen.getByRole('dialog', { name: 'Recipe filters' })).toBeDefined()
   await waitFor(() => expect(router.state.location.search).toBe(''))
-  expect(router.state.location.pathname.replace(/\/$/, '')).toBe(BASE_PATH)
+  expect(router.state.location.pathname).toBe('/')
 })

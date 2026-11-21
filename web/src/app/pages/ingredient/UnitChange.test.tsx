@@ -1,7 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { attribute, ingredient, ingredientSource, unitChange, unitChangeRefusal } from '../../../test-data'
-import { BASE_PATH } from '../../base'
 import { unitChangeQuestion } from '../../stores/unitChangeQuestion'
 import { fakeServer, mountApp, unitRoutes, type FakeServer } from '../../test-app'
 
@@ -48,7 +47,7 @@ async function openOats(server: FakeServer = {}) {
 type Page = Awaited<ReturnType<typeof openOats>>
 
 function where(router: Page['router']) {
-  return router.state.location.pathname.slice(BASE_PATH.length) || '/'
+  return router.state.location.pathname
 }
 
 function unitBox() {

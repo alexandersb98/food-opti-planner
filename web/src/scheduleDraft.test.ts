@@ -1,9 +1,9 @@
 import { expect, test } from 'vitest'
-import { makeI18n } from './i18n'
+import { findLocale, makeTranslator } from './translator'
 import { plan } from './test-data'
 import { planDraft, scheduleFields, scheduleRows, serverErrors, validDate, validDays } from './scheduleDraft'
 
-const { t } = makeI18n().global
+const t = makeTranslator(findLocale('en'))
 
 /** Keys 0, 1, 2, … as the composable gives them. */
 function keys() {

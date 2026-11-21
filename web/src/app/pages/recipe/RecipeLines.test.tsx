@@ -2,7 +2,6 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { Recipe } from '../../../api/types'
 import { attribute, conversion, ingredient, lines, recipe, tag } from '../../../test-data'
-import { BASE_PATH } from '../../base'
 import { fakeServer, mountApp, unitRoutes, type FakeServer } from '../../test-app'
 
 // The line editor in the spread's edit mode (ticket 33): the parity
@@ -383,7 +382,7 @@ test('New unit… adds a conversion, gives it to the line and counts it; a new r
       new_conversions: [],
     },
   ])
-  await waitFor(() => expect(router.state.location.pathname).toBe(`${BASE_PATH}/recipes/12`))
+  await waitFor(() => expect(router.state.location.pathname).toBe('/recipes/12'))
   expect((await screen.findByRole('heading', { level: 1, name: 'Overnight oats' })).textContent).toBe('Overnight oats')
 })
 

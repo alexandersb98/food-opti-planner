@@ -1,13 +1,12 @@
 import { fireEvent, screen, within } from '@testing-library/react'
 import { expect, test } from 'vitest'
-import { BASE_PATH } from '../base'
 import { fakeServer, mountApp, type FakeServer } from '../test-app'
 
 const session: FakeServer = { 'GET /api/session': 204 }
 
-/** Where the router is, within the app (without the base path). */
+/** Where the router is (its path). */
 function where(router: Awaited<ReturnType<typeof mountApp>>['router']) {
-  return router.state.location.pathname.slice(BASE_PATH.length) || '/'
+  return router.state.location.pathname
 }
 
 /** A one-finger stroke from (x, y) by (dx, dy), starting on `element`. */
@@ -81,7 +80,7 @@ test('the foot of a page turns to the pages either side, named, and gives the fo
   const { user, router } = await mountApp('/recipes')
   await heading('The recipe index')
   expect(turnLinks().map((link) => link.textContent)).toEqual(['Previous pageThe Menu', 'Next pageThe archive'])
-  expect(turnLinks().map((link) => link.getAttribute('href'))).toEqual([BASE_PATH + '/plans/new', BASE_PATH + '/plans'])
+  expect(turnLinks().map((link) => link.getAttribute('href'))).toEqual(['/plans/new', '/plans'])
   expect(within(screen.getByRole('main')).getByText('Page 3')).toBeDefined()
 
   await user.click(screen.getByRole('link', { name: /^Next page/ }))

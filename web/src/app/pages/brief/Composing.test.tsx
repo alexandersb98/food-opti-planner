@@ -1,7 +1,6 @@
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { plan, planResult, planSummary } from '../../../test-data'
-import { BASE_PATH } from '../../base'
 import { fakeServer, mountApp, type FakeReply, type FakeServer } from '../../test-app'
 import { isComposed } from '../menu/composed'
 
@@ -31,9 +30,9 @@ async function mountBrief(server: FakeServer = {}) {
   return { ...app, calls }
 }
 
-/** Where the router is, within the app (without the base path). */
+/** Where the router is: path and query. */
 function where(router: Awaited<ReturnType<typeof mountApp>>['router']) {
-  return router.state.location.pathname.slice(BASE_PATH.length) || '/'
+  return router.state.location.pathname
 }
 
 /** A solve that answers when the test lets it go, keeping the solve id sent. */

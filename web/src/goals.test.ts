@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import type { Goal } from './api/types'
-import { makeI18n } from './i18n'
+import { findLocale, makeTranslator } from './translator'
 import {
   boundError,
   figureText,
@@ -14,7 +14,7 @@ import {
 } from './goals'
 import { attribute } from './test-data'
 
-const { t } = makeI18n().global
+const t = makeTranslator(findLocale('en'))
 type AppliesTo = Goal['applies_to']
 
 test.each([

@@ -5,7 +5,7 @@ import { typedNumber } from './numbers'
 
 // The recipe editor's draft rules: the fields as typed, how they are checked
 // before sending and the server's refusals on their fields. Framework-neutral:
-// the Vue hook (`composables/useRecipeDraft`) and the React app both use them.
+// the React hook (`app/pages/recipe/useRecipeDraft`) wraps them.
 
 /** A line of a section. `key` identifies it in the editor (the same
  * ingredient may be on several lines); `unit` is the unit the amount is in,

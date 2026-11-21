@@ -1,7 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { attribute, conversion, ingredient, ingredientSource, lines, recipe, tag } from '../../../test-data'
-import { BASE_PATH } from '../../base'
 import { fakeServer, mountApp, unitRoutes, type FakeServer } from '../../test-app'
 
 // The ingredient page (stories 155–157, 161, 162), ported from the Vue
@@ -58,7 +57,7 @@ async function openForm(path: string, server: FakeServer = {}) {
 type Page = Awaited<ReturnType<typeof mountPage>>
 
 function where(router: Page['router']) {
-  return router.state.location.pathname.slice(BASE_PATH.length) || '/'
+  return router.state.location.pathname
 }
 
 function box(name: string) {

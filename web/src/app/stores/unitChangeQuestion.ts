@@ -3,8 +3,7 @@ import { createState } from './state'
 
 // The unit-change question (C4, C5): a page asks it and awaits the owner's
 // answer; the one sheet (ticket 37) reads the open question and answers it.
-// One question at a time, as one form is open. A port of the Vue
-// `useUnitChange` composable.
+// One question at a time, as one form is open.
 //
 // The answer is a yes or a no: yes is "Convert" when the server's preview
 // converts and "Change unit" when it keeps the numbers (the sheet picks the

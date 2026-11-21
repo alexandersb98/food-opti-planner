@@ -2,7 +2,6 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { PlanFields } from '../../../api/types'
 import { goal, plan } from '../../../test-data'
-import { BASE_PATH } from '../../base'
 import { fakeServer, mountApp, type FakeServer } from '../../test-app'
 
 // The schedule sheet of the brief: start date, days and meal names. Ports
@@ -314,5 +313,5 @@ test('/plan/schedule opens the brief with the sheet, and the address loses the p
   const { router } = await mountBrief({}, '/plan/schedule')
   expect(await screen.findByRole('dialog', { name: 'The schedule' })).toBeDefined()
   await waitFor(() => expect(router.state.location.search).toBe(''))
-  expect(router.state.location.pathname.replace(/\/$/, '')).toBe(BASE_PATH)
+  expect(router.state.location.pathname).toBe('/')
 })

@@ -1,7 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { attribute, conversion, ingredient, lines, recipe, tag } from '../../../test-data'
-import { BASE_PATH } from '../../base'
 import { fakeServer, mountApp, unitRoutes, type FakeServer } from '../../test-app'
 import { methodSteps, plateNumeral, portionText, sourceLink } from './spread'
 
@@ -235,7 +234,7 @@ test('a source that is not an http(s) link is not offered', async () => {
 test('Back to the index returns to the list', async () => {
   const { user, router } = await open({ 'GET /api/recipes': { body: [] } })
   await user.click(screen.getByRole('link', { name: 'Back to the index' }))
-  expect(router.state.location.pathname).toBe(`${BASE_PATH}/recipes`)
+  expect(router.state.location.pathname).toBe('/recipes')
 })
 
 test('Edit opens the edit mode, and Cancel returns to the spread with focus on Edit', async () => {

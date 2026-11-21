@@ -1,37 +1,18 @@
-import { defineConfigWithVueTs, vueTsConfigs } from '@vue/eslint-config-typescript'
-import pluginVue from 'eslint-plugin-vue'
 import reactHooks from 'eslint-plugin-react-hooks'
+import { defineConfig } from 'eslint/config'
+import tseslint from 'typescript-eslint'
 
-// The React app's folder (until the swap, ticket 42, the Vue app lives beside it).
+// The React app's folder.
 const reactFiles = ['src/app/**/*.{ts,tsx}']
 
-const vueOnly = 'The React app must not import the Vue app or its libraries (Vue, vue-i18n, Quasar, .vue files).'
-const vuePatterns = [
-  { group: ['vue', 'vue/*', 'vue-i18n', 'vue-i18n/*', 'vue-router', 'vue-router/*', '@vue/*'], message: vueOnly },
-  { group: ['quasar', 'quasar/*', '@quasar/*'], message: vueOnly },
-  { group: ['**/*.vue'], message: vueOnly },
-]
-
-// The framework-neutral stores (tickets 06, 07) import neither framework.
+// The framework-neutral stores (tickets 06, 07) import no React.
 const storeFiles = ['src/app/stores/**/*.ts']
-const neutralOnly = 'A store is framework-neutral: no React (read it with useSyncExternalStore elsewhere) and no Vue.'
+const neutralOnly = 'A store is framework-neutral: no React (read it with useSyncExternalStore elsewhere).'
 
-export default defineConfigWithVueTs(
-  { ignores: ['dist/**', 'src/api/schema.ts', 'playwright-report/**', 'test-results/**'] },
-  pluginVue.configs['flat/recommended'],
-  vueTsConfigs.recommended,
+export default defineConfig(
+  { ignores: ['dist/**', 'src/api/schema.ts', 'playwright-report/**', 'test-results/**', 'screenshots/**'] },
+  { files: ['**/*.{ts,tsx}'], extends: [tseslint.configs.recommended] },
   { ...reactHooks.configs.flat.recommended, files: reactFiles },
-  {
-    files: reactFiles,
-    rules: {
-      'no-restricted-imports': [
-        'error',
-        {
-          patterns: vuePatterns,
-        },
-      ],
-    },
-  },
   {
     files: storeFiles,
     rules: {
@@ -39,8 +20,10 @@ export default defineConfigWithVueTs(
         'error',
         {
           patterns: [
-            ...vuePatterns,
-            { group: ['react', 'react/*', 'react-dom', 'react-dom/*', 'react-router', 'react-router/*'], message: neutralOnly },
+            {
+              group: ['react', 'react/*', 'react-dom', 'react-dom/*', 'react-router', 'react-router/*'],
+              message: neutralOnly,
+            },
           ],
         },
       ],

@@ -5,7 +5,7 @@ import type { Category } from './units'
 
 // The preferences the server holds (GET /api/preferences), loaded once and
 // shared, so a changed preferred unit reaches every unit field without a
-// refetch. Saves go one at a time. A port of the Vue `preferences` module.
+// refetch. Saves go one at a time.
 
 export interface PreferencesState {
   preferences: Preferences | null // null until loaded

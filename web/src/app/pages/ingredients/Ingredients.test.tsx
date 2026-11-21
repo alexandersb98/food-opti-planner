@@ -1,7 +1,6 @@
 import { act, screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { attribute, ingredient } from '../../../test-data'
-import { BASE_PATH } from '../../base'
 import { fakeServer, mountApp, type FakeServer } from '../../test-app'
 
 const energy = attribute({ id: 1, name: 'Energy', unit: 'kcal', ingredient_count: 2 })
@@ -40,7 +39,7 @@ async function shownEntries() {
 }
 
 function where(router: Awaited<ReturnType<typeof mountApp>>['router']) {
-  return router.state.location.pathname.slice(BASE_PATH.length)
+  return router.state.location.pathname
 }
 
 test('ingredients are listed A to Z with their basis, values and recipes', async () => {

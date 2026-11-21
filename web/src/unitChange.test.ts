@@ -1,10 +1,9 @@
 import { expect, test } from 'vitest'
-import { createI18n } from 'vue-i18n'
-import en from './i18n/en.json'
 import { unitChangeRefusal } from './test-data'
+import { findLocale, makeTranslator } from './translator'
 import { refusalText } from './unitChange'
 
-const { t } = createI18n({ legacy: false, locale: 'en', messages: { en } }).global
+const t = makeTranslator(findLocale('en'))
 const mgToG = { from: 'mg', to: 'g', attribute: 'Iron' }
 
 test('a goal bound that needs decimals says how many and what to raise', () => {

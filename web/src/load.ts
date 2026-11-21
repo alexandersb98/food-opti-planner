@@ -1,5 +1,5 @@
-// Loading several calls at once, framework-neutral: the Vue `useLoad` and the
-// React load hook both take its answer.
+// Loading several calls at once, framework-neutral: the React load hook
+// (`app/hooks/useLoad`) takes its answer.
 
 type Answer = Promise<{ data?: unknown }>
 type AllData<T extends Record<string, Answer>> = { [K in keyof T]: Exclude<Awaited<T[K]>['data'], undefined> }

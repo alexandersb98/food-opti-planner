@@ -2,7 +2,6 @@ import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { PlanResult } from '../../../api/types'
 import { planResult, planSummary, resultGoal, resultMeal, resultMiss } from '../../../test-data'
-import { BASE_PATH } from '../../base'
 import { fakeServer, mountApp, type FakeServer } from '../../test-app'
 
 afterEach(() => {
@@ -67,7 +66,7 @@ const rows = (colophon: HTMLElement) =>
 
 /** On the page at `path`, which replaced the plan (Back does not return to it). */
 async function expectReplacedBy(router: Awaited<ReturnType<typeof mount>>['router'], path: string) {
-  await waitFor(() => expect(router.state.location.pathname).toBe(BASE_PATH + path))
+  await waitFor(() => expect(router.state.location.pathname).toBe(path))
   expect(router.state.historyAction).toBe('REPLACE')
 }
 
@@ -127,14 +126,14 @@ test('an unsaved plan is saved to the archive, which returns to the brief', asyn
   await user.click(within(colophon).getByRole('button', { name: 'Save to the archive' }))
   expect(calls).toContain('POST /api/plan-results/7/save')
   expect(await screen.findByText('Saved to the archive.')).toBeDefined()
-  await expectReplacedBy(router, '')
+  await expectReplacedBy(router, '/')
 })
 
 test('a save that fails says so and stays', async () => {
   const { user, router, colophon } = await mount(unsaved(), { 'POST /api/plan-results/7/save': 500 })
   await user.click(within(colophon).getByRole('button', { name: 'Save to the archive' }))
   expect((await within(colophon).findByRole('alert')).textContent).toBe('Could not save. Try again.')
-  expect(router.state.location.pathname).toBe(`${BASE_PATH}/plans/new`)
+  expect(router.state.location.pathname).toBe('/plans/new')
 })
 
 test('Discard asks first, and Keep it keeps the plan', async () => {
@@ -145,7 +144,7 @@ test('Discard asks first, and Keep it keeps the plan', async () => {
   await user.click(within(question).getByRole('button', { name: 'Keep it' }))
   await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
   expect(calls).not.toContain('DELETE /api/plan-results/7')
-  expect(router.state.location.pathname).toBe(`${BASE_PATH}/plans/new`)
+  expect(router.state.location.pathname).toBe('/plans/new')
 })
 
 test('Discard deletes the unsaved plan and returns to the brief; a failure says so', async () => {
@@ -154,13 +153,13 @@ test('Discard deletes the unsaved plan and returns to the brief; a failure says 
   await user.click(within(colophon).getByRole('button', { name: 'Discard' }))
   await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Discard' }))
   expect((await within(colophon).findByRole('alert')).textContent).toBe('Could not delete. Try again.')
-  expect(router.state.location.pathname).toBe(`${BASE_PATH}/plans/new`)
+  expect(router.state.location.pathname).toBe('/plans/new')
   fail = false
   await user.click(within(colophon).getByRole('button', { name: 'Discard' }))
   await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Discard' }))
   expect(calls.filter((call) => call === 'DELETE /api/plan-results/7')).toHaveLength(2)
   expect(await screen.findByText('Plan discarded.')).toBeDefined()
-  await expectReplacedBy(router, '')
+  await expectReplacedBy(router, '/')
 })
 
 test('a saved plan is filed in the archive, and Delete asks first naming the plan', async () => {
@@ -203,7 +202,7 @@ test('Use for today shows for a saved plan covering today that is not the one us
   expect(await within(colophon).findByText('Today’s meals come from this menu.')).toBeDefined()
   expect(within(colophon).queryByRole('button', { name: 'Use for today' })).toBeNull()
   expect(within(colophon).queryByRole('alert')).toBeNull()
-  expect(router.state.location.pathname).toBe(`${BASE_PATH}/plans/7`)
+  expect(router.state.location.pathname).toBe('/plans/7')
 })
 
 test('Use for today is not offered for the plan used today, nor for one not covering today', async () => {

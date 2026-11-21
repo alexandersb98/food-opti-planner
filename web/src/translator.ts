@@ -1,8 +1,8 @@
 import en from './i18n/en.json'
 
 // The app's translator, framework-neutral: it reads the message files as they
-// are (written for vue-i18n) and implements the part of vue-i18n's message
-// format they use: named placeholders ("{name}"), plural forms separated by
+// are (first written for vue-i18n, which the app used before) and implements
+// the part of vue-i18n's message format they use: named placeholders ("{name}"), plural forms separated by
 // "|" (one | other, or zero | one | other), and the implicit "{n}" and
 // "{count}" when a count is given. Linked messages ("@:"), literals ("{'…'}")
 // and list placeholders ("{0}") are not supported; the translator test fails

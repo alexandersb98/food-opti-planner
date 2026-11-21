@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { makeI18n } from './i18n'
+import { findLocale, makeTranslator } from './translator'
 import { importedLine, importedRecipe, recipe, tag } from './test-data'
 import {
   checkRecipe,
@@ -13,7 +13,7 @@ import {
   type RecipeDraft,
 } from './recipeDraft'
 
-const { t } = makeI18n().global
+const t = makeTranslator(findLocale('en'))
 
 /** A draft that passes, with `changes`. */
 function draft(changes: Partial<RecipeDraft> = {}): RecipeDraft {

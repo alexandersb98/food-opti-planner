@@ -1,7 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { attribute, recipe, tag } from '../../../test-data'
-import { BASE_PATH } from '../../base'
 import { fakeServer, mountApp, type FakeServer } from '../../test-app'
 
 afterEach(() => {
@@ -62,7 +61,7 @@ async function letters() {
 }
 
 function where(router: Awaited<ReturnType<typeof mountApp>>['router']) {
-  return router.state.location.pathname.slice(BASE_PATH.length)
+  return router.state.location.pathname
 }
 
 function chip(name: string) {
@@ -76,7 +75,7 @@ test('recipes are filed A to Z under letter headings, with their tags and totals
   expect(screen.getByRole('heading', { level: 2, name: 'P, 2 recipes' })).toBeDefined()
 
   const entry = screen.getByRole('link', { name: /^Porridge/ })
-  expect(entry.getAttribute('href')).toBe(`${BASE_PATH}/recipes/1`)
+  expect(entry.getAttribute('href')).toBe('/recipes/1')
   expect(entry.textContent).toBe('Porridgevegan, quickPer portion: Energy 233 kcal · Protein 10.1 g')
   expect(screen.getByRole('link', { name: /^Salad/ }).textContent).toBe('Saladvegan')
   expect(screen.getByRole('link', { name: /^Pancakes/ }).textContent).toBe('Pancakes')

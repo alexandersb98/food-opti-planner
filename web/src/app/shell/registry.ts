@@ -63,7 +63,7 @@ export function registryPage(id: PageId): RegistryPage {
   return byId.get(id)!
 }
 
-/** The registry page a path (without the base path) belongs to: a Contents
+/** The registry page a path belongs to: a Contents
  * page itself, or the page a detail route names; none for a path the app
  * doesn't have. */
 export function pageFor(pathname: string): RegistryPage | undefined {

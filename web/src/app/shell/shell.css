@@ -192,7 +192,3 @@ html:has(.masthead) { scroll-padding-top: calc(var(--mast) + var(--s2)); }
 }
 .toast[data-shown] { opacity: 1; transform: translate(-50%, 0); }
 
-/* ---------- a page not built yet ---------- */
-.page-stub { display: grid; gap: var(--s3); padding: var(--s6) 0 var(--s5); }
-.page-stub-title { overflow-wrap: anywhere; }
-.page-stub-path { color: var(--muted); font-size: var(--fs-sm); line-height: var(--lh-sm); overflow-wrap: anywhere; }

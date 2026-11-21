@@ -1,11 +1,11 @@
 import { expect, test } from 'vitest'
 import type { ClashMember } from './api/types'
 import { changed, clashDrafts, clashErrors, clashFields, clashingGoalIds, clashRows, clashServerErrors, rowsKey } from './clash'
-import { makeI18n } from './i18n'
+import { findLocale, makeTranslator } from './translator'
 import { goalFields, planFields } from './planFields'
 import { attribute, goal, plan } from './test-data'
 
-const { t } = makeI18n().global
+const t = makeTranslator(findLocale('en'))
 const attributes = [attribute({ id: 1, name: 'Energy' }), attribute({ id: 2, name: 'Protein', decimals: 1 })]
 
 function member(fields: Partial<ClashMember>): ClashMember {

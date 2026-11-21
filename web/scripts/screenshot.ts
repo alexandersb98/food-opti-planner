@@ -1,7 +1,7 @@
 // Screenshots of one view at 390 × 844 (phone) and 1280 × 800 (desktop), in the paper
 // and evening editions: four PNGs named <name>-<phone|desktop>-<paper|evening>.png.
 //
-//   npm run shot -- /next/recipes            a route of the dev server (React under /next/, Vue at /)
+//   npm run shot -- /recipes                 a route of the dev server
 //   npm run shot -- d2:recipe/r1             a D2 prototype view, opened from disk
 //
 // Options:
@@ -53,7 +53,7 @@ interface Options {
   login: boolean
 }
 
-const usage = 'Usage: npm run shot -- <route like /next/recipes | d2:<view> like d2:menu> [--name n] [--click name]... ' +
+const usage = 'Usage: npm run shot -- <route like /recipes | d2:<view> like d2:menu> [--name n] [--click name]... ' +
   '[--step file] [--wait text] [--reduced-motion] [--full-page] [--out dir] [--no-login]'
 
 // npm runs scripts in web/; paths given on the command line are read from where npm was started.

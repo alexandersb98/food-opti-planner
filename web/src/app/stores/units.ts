@@ -6,7 +6,7 @@ import { createState } from './state'
 // The unit catalogue the server sent (GET /api/units), loaded once and shared
 // by every unit field. The server holds the rules (prefixes, factors); the
 // lookups below only find a typed text among the spellings it sent,
-// normalising the text as the server does. A port of the Vue `units` module.
+// normalising the text as the server does.
 
 export type Category = 'mass' | 'volume' | 'energy'
 

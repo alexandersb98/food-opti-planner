@@ -1,7 +1,6 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { attribute, ingredient, lines, recipe, tag } from '../../../test-data'
-import { BASE_PATH } from '../../base'
 import { fakeServer, mountApp, unitRoutes, type FakeServer } from '../../test-app'
 
 // The spread's edit mode (ticket 27): the parity checklist is the field,
@@ -79,7 +78,7 @@ async function retype(user: Awaited<ReturnType<typeof edit>>['user'], label: str
 }
 
 function where(router: Awaited<ReturnType<typeof edit>>['router']) {
-  return router.state.location.pathname.slice(BASE_PATH.length)
+  return router.state.location.pathname
 }
 
 test('Edit annotates the spread: every field holds the recipe, the name has the focus and swipes are off', async () => {

@@ -3,7 +3,6 @@ import userEvent from '@testing-library/user-event'
 import { createMemoryRouter } from 'react-router'
 import { afterEach } from 'vitest'
 import { App } from './App'
-import { BASE_PATH } from './base'
 import { routes } from './routes'
 import * as planSetup from './stores/planSetup'
 import * as solve from './stores/solve'
@@ -46,10 +45,10 @@ afterEach(() => {
 })
 
 /** Render the whole React app at `path`, one of the app's own paths such
- * as "/recipes/3" (the base path is added here, as the browser would). */
+ * as "/recipes/3". */
 export async function mountApp(path: string) {
   for (const reset of resetStores) reset()
-  const router = createMemoryRouter(routes, { basename: BASE_PATH, initialEntries: [BASE_PATH + path] })
+  const router = createMemoryRouter(routes, { initialEntries: [path] })
   const user = userEvent.setup()
   const view = render(<App router={router} onMissingMessage={reportMissing} />)
   return { user, router, ...view }

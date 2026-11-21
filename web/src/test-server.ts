@@ -2,9 +2,8 @@ import { vi } from 'vitest'
 import { preferences, unitCatalogue } from './test-data'
 import type { Preferences } from './api/types'
 
-// The fake server both apps' tests answer calls with. Framework-free: the
-// Vue harness (test-app.ts) and the React harness (app/test-app.tsx) both
-// re-export it.
+// The fake server the tests answer calls with. Framework-free: the app's
+// harness (app/test-app.tsx) re-exports it.
 
 /** What the fake server answers: a status, a status with a JSON body, or a
  * function of the request's JSON body giving either, at once or later (a

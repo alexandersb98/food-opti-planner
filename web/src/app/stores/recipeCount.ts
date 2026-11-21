@@ -6,8 +6,7 @@ import { createState } from './state'
 // How many recipes a plan with these filters could use, asked of the server
 // with "the latest question wins": an answer to an earlier question that
 // arrives after a later one is dropped. One per reader (the filters sheet),
-// not shared, so there is nothing to reset between tests. A port of the Vue
-// `useRecipeCount`.
+// not shared, so there is nothing to reset between tests.
 
 export interface RecipeCountState {
   /** The last count answered; it stays while a new one is asked. */

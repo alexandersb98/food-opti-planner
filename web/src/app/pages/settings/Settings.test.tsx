@@ -1,6 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
-import { BASE_PATH } from '../../base'
 import { EDITION_STORAGE_KEY } from '../../stores/edition'
 import { fakeServer, mountApp, type FakeServer } from '../../test-app'
 import { dataSourceSummary, preferences, unitCatalogue } from '../../../test-data'
@@ -54,7 +53,7 @@ function dataSources() {
 }
 
 function where(router: Awaited<ReturnType<typeof mountApp>>['router']) {
-  return router.state.location.pathname.slice(BASE_PATH.length)
+  return router.state.location.pathname
 }
 
 test('the page has its heading, the edition and the preferred units', async () => {
@@ -172,8 +171,8 @@ test('a second visit reads the changed value without asking again', async () => 
   const { user, router } = await mountApp('/settings')
   await user.selectOptions(await list('Mass'), 'kg')
   await waitFor(() => expect(puts).toHaveLength(1))
-  await router.navigate(BASE_PATH + '/tags')
-  await router.navigate(BASE_PATH + '/settings')
+  await router.navigate('/tags')
+  await router.navigate('/settings')
   expect(await shown('Mass')).toBe('kg (kilogram)')
   expect(calls.filter((c) => c === 'GET /api/preferences')).toHaveLength(1)
   expect(calls.filter((c) => c === 'GET /api/units')).toHaveLength(1)
@@ -240,8 +239,8 @@ test('each data source is an entry with its colour, name, version, foods and map
     expect.stringMatching(/TEST Other\s*Version 2026-02-02 · 1 food · 0 of 3 columns mapped/),
   ])
   expect(links.map((link) => link.getAttribute('href'))).toEqual([
-    `${BASE_PATH}/settings/data-sources/testsource`,
-    `${BASE_PATH}/settings/data-sources/other`,
+    `/settings/data-sources/testsource`,
+    `/settings/data-sources/other`,
   ])
   const dots = links.map((link) => link.querySelector<HTMLElement>('.settings-source-dot')!)
   expect(dots.map((dot) => dot.style.backgroundColor)).toEqual(['rgb(25, 118, 210)', 'rgb(255, 0, 0)'])

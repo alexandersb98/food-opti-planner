@@ -3,7 +3,6 @@ import { createMemoryRouter } from 'react-router'
 import { afterEach, expect, test, vi } from 'vitest'
 import { api } from '../../api/client'
 import { App } from '../App'
-import { BASE_PATH } from '../base'
 import { fakeServer, mountApp, type FakeServer } from '../test-app'
 import { Shell } from './Shell'
 import { useRunningHead } from './runningHead'
@@ -17,10 +16,10 @@ afterEach(() => {
 const counts = { recipes: 8, ingredients: 16, attributes: 5, tags: 6 }
 const session: FakeServer = { 'GET /api/session': 204, 'GET /api/counts': { body: counts }, 'POST /api/logout': 204 }
 
-/** Where the router is, within the app (without the base path). */
+/** Where the router is: path and query. */
 function where(router: Awaited<ReturnType<typeof mountApp>>['router']) {
   const { pathname, search } = router.state.location
-  return (pathname.slice(BASE_PATH.length) || '/') + search
+  return pathname + search
 }
 
 async function openContents(user: Awaited<ReturnType<typeof mountApp>>['user']) {
@@ -65,7 +64,7 @@ test('the Contents list the eight pages in order, with folios and descriptions',
     ['Settings', 'page 8'],
   ])
   expect(links.map((link) => link.getAttribute('href'))).toEqual(
-    ['/', '/plans/new', '/recipes', '/plans', '/ingredients', '/attributes', '/tags', '/settings'].map((path) => BASE_PATH + (path === '/' ? '' : path)),
+    ['/', '/plans/new', '/recipes', '/plans', '/ingredients', '/attributes', '/tags', '/settings'],
   )
   expect(within(links[1]).getByText('The composed week, day by day')).toBeDefined()
   expect(within(links[2]).getByText('Every dish, A to Z')).toBeDefined()
@@ -110,7 +109,7 @@ test('the Contents mark the current page, a detail page by its registry page', a
   const current = within(contents)
     .getAllByRole('link')
     .filter((link) => link.getAttribute('aria-current') === 'page')
-  expect(current.map((link) => link.getAttribute('href'))).toEqual([`${BASE_PATH}/recipes`])
+  expect(current.map((link) => link.getAttribute('href'))).toEqual(['/recipes'])
 })
 
 test('a Contents link turns to that page and closes the Contents', async () => {
@@ -185,7 +184,7 @@ test('without a session, a page sends the owner to log in and back', async () =>
   fakeServer({ 'GET /api/session': 401 })
   const { router } = await mountApp('/recipes?q=soup')
   expect(await screen.findByRole('heading', { level: 1, name: 'Log in' })).toBeDefined()
-  expect(router.state.location.pathname).toBe(`${BASE_PATH}/login`)
+  expect(router.state.location.pathname).toBe('/login')
   expect(new URLSearchParams(router.state.location.search).get('redirect')).toBe('/recipes?q=soup')
 })
 
@@ -209,7 +208,7 @@ test('a 401 from a later call leads to the login page, then back here', async ()
   await screen.findByRole('heading', { level: 1, name: 'Tags' })
 
   await act(() => api.GET('/api/health'))
-  await waitFor(() => expect(router.state.location.pathname).toBe(`${BASE_PATH}/login`))
+  await waitFor(() => expect(router.state.location.pathname).toBe('/login'))
   expect(new URLSearchParams(router.state.location.search).get('redirect')).toBe('/tags?x=1')
 })
 
@@ -284,7 +283,7 @@ test('a page can put its own text in the running head while it is open', async (
   }
   const router = createMemoryRouter(
     [{ path: '/', Component: Shell, children: [{ path: 'recipes/:id', Component: PeaSoup }, { path: 'recipes', Component: () => <h1>Index</h1> }] }],
-    { basename: BASE_PATH, initialEntries: [`${BASE_PATH}/recipes/1`] },
+    { initialEntries: ['/recipes/1'] },
   )
   render(<App router={router} />)
   await screen.findByRole('heading', { name: 'Pea soup' })

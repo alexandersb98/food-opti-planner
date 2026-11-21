@@ -1,7 +1,7 @@
 // "The latest question wins", framework-neutral: when the same question is
 // asked again before the earlier answer arrives, only the answer to the
-// latest one counts. Used by the recipe count (Vue `useRecipeCount`, and the
-// React hook over the same rule).
+// latest one counts. Used by the recipe count store
+// (`app/stores/recipeCount`).
 
 /** A sequence of questions: `next()` starts one and gives a check that says
  * whether it is still the latest asked, for when its answer arrives. */

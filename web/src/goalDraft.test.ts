@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { makeI18n } from './i18n'
+import { findLocale, makeTranslator } from './translator'
 import { attribute, goal } from './test-data'
 import {
   draftErrors,
@@ -12,7 +12,7 @@ import {
   type GoalDraft,
 } from './goalDraft'
 
-const { t } = makeI18n().global
+const t = makeTranslator(findLocale('en'))
 const attributes = [attribute({ id: 1, name: 'Energy' }), attribute({ id: 2, name: 'Protein', decimals: 1 })]
 
 /** A new goal's draft with `fields` typed. */

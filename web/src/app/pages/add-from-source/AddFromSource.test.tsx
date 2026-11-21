@@ -1,7 +1,6 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { dataSourceSummary, foodPreview, foodSummary, ingredient, preferences } from '../../../test-data'
-import { BASE_PATH } from '../../base'
 import { fakeServer, mountApp, type FakeReply, type FakeServer } from '../../test-app'
 
 // Add from data source, opened from the Ingredients page's add menu. A port
@@ -271,7 +270,7 @@ test('Add posts the food, the edited name and the tags left on, then opens the i
   await app.user.type(name, 'Source oats')
   await app.user.click(within(app.sheet).getByRole('button', { name: 'TEST Other' }))
   await app.user.click(within(app.sheet).getByRole('button', { name: 'Add' }))
-  await waitFor(() => expect(app.router.state.location.pathname).toBe(`${BASE_PATH}/ingredients/9`))
+  await waitFor(() => expect(app.router.state.location.pathname).toBe('/ingredients/9'))
   expect(posts).toEqual([{ food_id: 1, name: 'Source oats', tag_ids: [5] }])
   await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Add from data source' })).toBeNull())
 })
@@ -299,7 +298,7 @@ test('a name in use shows under Name and the sheet stays', async () => {
   const name = nameBox(app.sheet)
   expect(name.getAttribute('aria-invalid')).toBe('true')
   expect(document.activeElement).toBe(name)
-  expect(app.router.state.location.pathname).toBe(`${BASE_PATH}/ingredients`)
+  expect(app.router.state.location.pathname).toBe('/ingredients')
 })
 
 test('a withdrawn food is refused with its text and the preview is loaded again', async () => {

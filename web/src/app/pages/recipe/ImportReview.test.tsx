@@ -2,7 +2,6 @@ import { act, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { ImportedLine, ImportedRecipe, Ingredient } from '../../../api/types'
 import { attribute, importedLine, importedRecipe, ingredient, recipe } from '../../../test-data'
-import { BASE_PATH } from '../../base'
 import { importDraftStore } from '../../stores/importDraft'
 import { fakeServer, mountApp, unitRoutes, type FakeServer } from '../../test-app'
 
@@ -94,7 +93,7 @@ const needing = () => document.querySelectorAll('.review-needs').length
 const skippedLines = () => document.querySelectorAll('.review-skipped').length
 const saveButton = () => screen.getByRole<HTMLButtonElement>('button', { name: 'Save' })
 const path = (router: Awaited<ReturnType<typeof openImport>>['router']) =>
-  router.state.location.pathname.slice(BASE_PATH.length)
+  router.state.location.pathname
 const factorBox = (index: number) => line(index).getByRole<HTMLInputElement>('textbox', { name: /^How many/ })
 
 async function retype(user: User, box: HTMLInputElement, text: string) {

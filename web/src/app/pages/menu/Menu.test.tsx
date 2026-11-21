@@ -2,7 +2,6 @@ import { act, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { PlanResult } from '../../../api/types'
 import { planResult, planSummary, recipe, resultGoal, resultMeal, resultMiss } from '../../../test-data'
-import { BASE_PATH } from '../../base'
 import * as solve from '../../stores/solve'
 import { fakeServer, mountApp, type FakeServer } from '../../test-app'
 import { composedState } from './composed'
@@ -148,9 +147,9 @@ test('the dish links to its recipe only when a recipe has that exact name', asyn
   const [breakfast, lunch] = courses(day('Monday 21 Sep'))
   expect(within(breakfast!).queryByRole('link')).toBeNull() // no recipe "Porridge"
   const chili = within(lunch!).getByRole('link', { name: 'Chili' })
-  expect(chili.getAttribute('href')).toBe(`${BASE_PATH}/recipes/12`)
+  expect(chili.getAttribute('href')).toBe('/recipes/12')
   await user.click(chili)
-  expect(router.state.location.pathname).toBe(`${BASE_PATH}/recipes/12`)
+  expect(router.state.location.pathname).toBe('/recipes/12')
 })
 
 test('the menu reads without the recipe list', async () => {
@@ -267,7 +266,7 @@ test('no unsaved plan and no clash: a blank card that leads to the brief', async
   const card = await screen.findByRole('article', { name: 'The Menu' })
   expect(within(card).getByText('Nothing is on the menu yet. Compose the week from the brief.')).toBeDefined()
   await user.click(within(card).getByRole('link', { name: 'Compose the week' }))
-  expect(router.state.location.pathname).toBe(BASE_PATH)
+  expect(router.state.location.pathname).toBe('/')
   expect(calls).not.toContain('GET /api/plan-results/null')
 })
 

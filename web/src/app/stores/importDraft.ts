@@ -4,7 +4,7 @@ import { createState } from './state'
 // The hand-over from the import page to the recipe spread: the import page
 // puts the server's draft here and goes to /recipes/new, which takes it. In
 // memory only: a reload opens an empty new recipe, as nothing is stored until
-// Save. A port of the Vue `importDraft` module.
+// Save.
 
 const state = createState<ImportedRecipe | null>(null)
 

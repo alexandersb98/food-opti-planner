@@ -1,6 +1,5 @@
 import { screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
-import { BASE_PATH } from '../../base'
 import { fakeServer, mountApp, type FakeServer } from '../../test-app'
 
 afterEach(() => {
@@ -9,10 +8,10 @@ afterEach(() => {
 
 type Mounted = Awaited<ReturnType<typeof mountApp>>
 
-/** Where the router is, within the app (without the base path). */
+/** Where the router is: path and query. */
 function where(router: Mounted['router']) {
   const { pathname, search } = router.state.location
-  return (pathname.slice(BASE_PATH.length) || '/') + search
+  return pathname + search
 }
 
 async function logIn(user: Mounted['user'], password: string) {

@@ -3,7 +3,6 @@ import { expect, test } from 'vitest'
 import type { PlanFields } from '../../../api/types'
 import { goalFields } from '../../../planFields'
 import { attribute, goal, plan } from '../../../test-data'
-import { BASE_PATH } from '../../base'
 import * as solve from '../../stores/solve'
 import { fakeServer, mountApp, type FakeServer } from '../../test-app'
 
@@ -95,7 +94,7 @@ test('Try again with nothing changed goes back to the brief and composes again',
   expect(calls).not.toContain('PUT /api/plan')
   // The solve runs from the brief (ticket 20); the fake server finds no plan
   // possible again, so the owner lands back on the Editor's note.
-  await waitFor(() => expect(router.state.location.pathname).toBe(`${BASE_PATH}/plans/new`))
+  await waitFor(() => expect(router.state.location.pathname).toBe('/plans/new'))
   expect(await screen.findByRole('heading', { name: /no plan/i })).toBeDefined()
 })
 
@@ -121,7 +120,7 @@ test('Try again saves a looser bound and Make Prefer, then composes', async () =
   await waitFor(() => expect(solves(calls)).toBe(2))
   expect(sent!.goals).toEqual([goalFields(other), { ...goalFields(daily), max: '500', must: false }, goalFields(total)])
   expect(calls.indexOf('PUT /api/plan')).toBeLessThan(calls.lastIndexOf('POST /api/plan/solve'))
-  expect(router.state.location.pathname).toBe(BASE_PATH)
+  expect(router.state.location.pathname).toBe('/')
 })
 
 test('a bound that is no number, or one the server refuses, is marked in the note and nothing is made', async () => {
@@ -143,7 +142,7 @@ test('a bound that is no number, or one the server refuses, is marked in the not
   expect((await within(perDay!).findByText('At most 0 decimals for Energy.')).textContent).toBeTruthy()
   expect(calls).toContain('PUT /api/plan')
   expect(solves(calls)).toBe(1)
-  expect(router.state.location.pathname).toBe(`${BASE_PATH}/plans/new`)
+  expect(router.state.location.pathname).toBe('/plans/new')
 })
 
 test('a goal with only a Max, cleared, is marked on Max', async () => {
@@ -182,7 +181,7 @@ test('a save that fails otherwise says so inside the note, keeping what was type
 test('Change the schedule opens the schedule on the brief', async () => {
   const { note, user, router } = await showNote()
   await user.click(within(note).getAllByRole('link', { name: 'Change the schedule' })[0]!)
-  expect(router.state.location.pathname).toBe(BASE_PATH)
+  expect(router.state.location.pathname).toBe('/')
   expect(router.state.location.search).toBe('?sheet=schedule')
 })
 

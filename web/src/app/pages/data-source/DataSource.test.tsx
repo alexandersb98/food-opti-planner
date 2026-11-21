@@ -62,7 +62,7 @@ test('the heading is the source name, with the version, import time and attribut
   expect(imported.getAttribute('datetime')).toBe('2026-01-01T12:00:00Z')
   expect(imported.textContent).toBe(new Date('2026-01-01T12:00:00Z').toLocaleString('en', { dateStyle: 'long', timeStyle: 'short' }))
   expect(within(facts).getByText('Attribution').nextElementSibling?.textContent).toBe('TEST data, not real: for tests only.')
-  expect(screen.getByRole('link', { name: 'Back to Settings' }).getAttribute('href')).toBe('/next/settings')
+  expect(screen.getByRole('link', { name: 'Back to Settings' }).getAttribute('href')).toBe('/settings')
   // the running head names the source, on Settings' folio
   const masthead = within(screen.getByRole('banner'))
   await waitFor(() => expect(masthead.getByText('TEST Source')).toBeDefined())

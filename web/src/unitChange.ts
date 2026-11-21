@@ -1,7 +1,7 @@
 import type { UnitChange, UnitChangeRefusal } from './api/types'
 
 // The unit-change question's types and the text of a refused unit change,
-// framework-neutral: the Vue `useUnitChange` and the React app both use them.
+// framework-neutral.
 
 /** What the unit-change dialog shows: the thing whose unit changes, the old
  * and new unit and the server's preview. */
@@ -12,7 +12,7 @@ export interface UnitChangeRequest {
   change: UnitChange
 }
 
-/** The part of a translator's `t` used here (vue-i18n's, or the React app's). */
+/** The part of a translator's `t` used here (the app's translator). */
 export type Translate = (key: string, named?: Record<string, unknown>, plural?: number) => string
 
 /** What a refusal needs from its form besides the server's facts. */

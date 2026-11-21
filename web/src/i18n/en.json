@@ -1,17 +1,4 @@
 {
-  "app": {
-    "title": "Meal planner",
-    "menu": "Menu",
-    "logout": "Log out"
-  },
-  "pages": {
-    "plan": "Plan",
-    "recipes": "Recipes",
-    "ingredients": "Ingredients",
-    "attributes": "Attributes",
-    "tags": "Tags",
-    "settings": "Settings"
-  },
   "shell": {
     "wordmark": "The Weekly Table",
     "wordmarkArticle": "The",
@@ -81,13 +68,6 @@
       "attributes": "no attributes | 1 attribute | {n} attributes",
       "tags": "no tags | 1 tag | {n} tags"
     },
-    "stub": {
-      "note": "This page is still being set.",
-      "recipe": "A recipe",
-      "import": "Import a recipe",
-      "ingredient": "An ingredient",
-      "dataSource": "A data source"
-    },
     "notFound": {
       "title": "No such page",
       "text": "Nothing is printed at this address.",
@@ -134,7 +114,6 @@
     "columns": "Columns",
     "columnCount": "no columns | 1 column | {n} columns",
     "searchColumns": "Search columns",
-    "noColumnMatch": "No columns match.",
     "noColumnNamed": "No column is called “{search}”.",
     "clearSearch": "Clear the search",
     "column": "Column",
@@ -144,7 +123,6 @@
     "convertsWith": "Converts with {unit}",
     "notMapped": "Not mapped",
     "createAttribute": "Create attribute…",
-    "takenBy": "taken by {column}",
     "takenOption": "{attribute} (taken by {column})",
     "mapFailed": "Could not save the mapping.",
     "takenError": "{attribute} is already mapped from {column}.",
@@ -185,8 +163,7 @@
     "cancel": "Cancel",
     "deleteTitle": "Delete {name}?",
     "deleteNothing": "Nothing else uses it.",
-    "save": "Save",
-    "back": "Back"
+    "save": "Save"
   },
   "sheet": {
     "close": "Close"
@@ -216,7 +193,6 @@
     "unit": "Unit",
     "unitHint": "The amount per the ingredient's basis, e.g. g or kcal.",
     "decimals": "Decimals",
-    "decimalsHint": "Decimals: how precisely the planner counts it",
     "nameInUse": "An attribute with this name already exists.",
     "decimalsRange": "A whole number from {min} to {max}.",
     "new": "+ New attribute",
@@ -274,7 +250,6 @@
     "empty": "No ingredients yet.",
     "noMatch": "No ingredients match.",
     "loadFailed": "Could not load the ingredients.",
-    "search": "Search",
     "larder": "The larder is empty | One in the larder | {n} in the larder",
     "searchLabel": "Search ingredients",
     "clearSearch": "Clear the search",
@@ -330,7 +305,6 @@
   "addFromSource": {
     "button": "Add from data source",
     "title": "Add from data source",
-    "close": "Close",
     "dataSource": "Data source",
     "noSources": "No data sources loaded.",
     "search": "Search foods",
@@ -352,7 +326,6 @@
     "from": "From {source}"
   },
   "recipes": {
-    "intro": "Dishes made of ingredients.",
     "index": {
       "kicker": "No dishes yet | One dish, A to Z | {n} dishes, A to Z",
       "title": "The recipe {em}",
@@ -372,43 +345,29 @@
     "empty": "No recipes yet.",
     "noMatch": "No recipes match.",
     "loadFailed": "Could not load the recipes.",
-    "search": "Search",
     "new": "New recipe",
-    "edit": "Edit recipe",
     "totalsLine": "Per portion: {totals}",
     "loadOneFailed": "Could not load the recipe.",
-    "itemsFor": "Ingredients, for 1 portion | Ingredients, for {n} portions",
-    "servings": "Serves",
     "servingsHint": "Amounts are for the whole recipe.",
     "servingsInvalid": "Enter a whole number from 1 to 1000.",
-    "sectionName": "Section name",
     "sectionNameRequired": "Name every section.",
-    "addSection": "+ Add section",
-    "removeSection": "Remove section",
     "moveTo": "Move to {section}",
     "sectionN": "Section {n}",
     "lineMenu": "Line menu for {name}",
     "instructions": "Instructions",
-    "source": "Source",
     "sourceInvalid": "Enter a link that starts with http:// or https://.",
-    "openSource": "Open source",
     "unknownIngredient": "An ingredient of this recipe no longer exists. Remove it and save again.",
     "amountOf": "Amount of {name}",
     "remove": "Remove {name}",
-    "addIngredientButton": "+ Add ingredient",
     "addIngredient": "Add ingredient",
-    "noIngredients": "No ingredients yet; add them on the Ingredients page.",
     "noItems": "Add at least one ingredient.",
     "amountInvalid": "Enter an amount above 0.",
-    "perPortion": "Per portion",
     "tags": "Tags",
-    "tagsHint": "Tags from the ingredients are on already, by each tag's rule.",
     "portionSize": "Portion size",
     "from": "From",
     "to": "To",
     "anyAmount": "Any amount",
     "inSteps": "In steps",
-    "step": "Step",
     "advanced": "Advanced",
     "hardMax": "Never more than",
     "hardMaxHint": "Empty: 3 × To, which is {max} ×.",
@@ -440,7 +399,6 @@
     "skipped": "Skipped",
     "addAnyway": "Add anyway",
     "addBack": "Add back",
-    "sourceLine": "From the text: {text}",
     "factorRow": "1 {unit} =",
     "factorLabel": "How many {own} one {unit} makes",
     "accept": "Accept",
@@ -539,20 +497,17 @@
   },
   "clash": {
     "title": "No plan possible",
-    "intro": "These rules can't all be met:",
     "onDays": "Clashes on {days}",
     "wholePlan": "Clashes over the whole plan",
     "meals": "Meals on {day}",
     "allPlanned": "All planned meals are served",
     "atLeast": "At least {n} meal is served | At least {n} meals are served",
-    "editSchedule": "Edit schedule",
     "makePrefer": "Make Prefer",
     "keepMust": "Keep Must",
     "willBePrefer": "Will be Prefer",
     "more": "Fixing these may show another clash.",
     "notMinimal": "Stopped early: some of these may not take part.",
     "tryAgain": "Try again",
-    "inClash": "In the clash",
     "note": {
       "kicker": "Editor’s note",
       "lede": "These rules can’t all be met at once. Loosen one and the week can be composed.",
@@ -564,47 +519,17 @@
   },
   "plan": {
     "loadFailed": "Could not load the plan.",
-    "schedule": "Schedule",
-    "recipes": "Recipes",
-    "filterChip": {
-      "only": "Only: {tag}",
-      "never": "Never: {tag}"
-    },
-    "edit": "Edit",
-    "mealsADay": "no meals a day | 1 meal a day | {n} meals a day",
-    "skipped": "nothing skipped | 1 skipped | {n} skipped",
-    "maxTime": "Max solving time",
     "seconds": "{n} s",
-    "maxTimeHint": "Whole seconds, at most {max} (5 minutes).",
     "maxTimeRange": "A whole number of seconds from {min} to {max}.",
-    "makePlan": "Make plan",
-    "making": "Making plan…",
-    "elapsed": "{n} of {max} s",
-    "cancel": "Cancel",
-    "stopping": "Stopping…",
-    "failedTitle": "Couldn't make a plan",
     "failure": {
-      "no_plan_in_time": "No plan found within {n} s. Try a longer Max solving time.",
-      "infeasible": "No plan possible with these settings.",
-      "no_recipes": "There are no recipes to plan with yet. Add some on the Recipes page.",
-      "no_usable_recipes": "No recipe passes the recipe filters. Change them under Recipes.",
-      "too_large": "This plan is too large to solve. Try fewer days or meals.",
-      "stopped": "Stopped before any plan was found.",
-      "busy": "A plan is already being made. Try again when it is done.",
-      "error": "Could not make a plan. Try again."
+      "infeasible": "No plan possible with these settings."
     },
     "dismiss": "Dismiss",
-    "newPlan": "New plan, not saved",
-    "open": "Open",
     "statusShort": {
       "optimal": "Best plan",
       "time_ran_out": "Time ran out",
       "stopped": "Stopped early"
-    },
-    "today": "Today · {day}",
-    "savedPlans": "Saved plans",
-    "savedAt": "saved {day}, {time}",
-    "todayChip": "Today"
+    }
   },
   "brief": {
     "issue": "Week {week}, {range}",
@@ -818,7 +743,6 @@
     }
   },
   "schedule": {
-    "title": "Schedule",
     "edit": {
       "change": "Change",
       "changeLabel": "Change the schedule",
@@ -828,8 +752,6 @@
       "saving": "Saving…",
       "changed": "Schedule changed."
     },
-    "starts": "Starts",
-    "pickDate": "Pick a date",
     "startInvalid": "Enter a date, such as 2026-10-21.",
     "days": "Number of days",
     "fewerDays": "Fewer days",
@@ -837,15 +759,8 @@
     "daysRange": "A whole number from {min} to {max}.",
     "meals": "Meals each day",
     "mealsHint": "Meal names are labels for you; the planner only counts meals.",
-    "mealsWrong": "Check the meal names.",
-    "atLeast": "At least",
-    "atLeastOn": "At least on {day}",
     "all": "all",
     "cell": "{meal} on {day}",
-    "skip": "skip",
-    "legendPlanned": "Plan this meal",
-    "legendSkipped": "Skip (eating out, not home)",
-    "legendTap": "Tap a meal to switch. “At least” lets the planner leave some meals empty that day.",
     "abovePlanned": "Must be at most the meals planned that day.",
     "grid": {
       "sentence": "From {start}, for {days}: {meals}.",
@@ -876,23 +791,19 @@
     "moveUp": "Move {name} up",
     "moveDown": "Move {name} down",
     "remove": "Remove {name}",
-    "addMeal": "+ Add meal",
     "mostMeals": "At most {max} meals a day.",
     "nameInUse": "Another meal has this name.",
     "nameTooLong": "Use at most {max} characters."
   },
   "recipeFilters": {
     "title": "Recipe filters",
-    "count": "{usable} of {total} recipe can be used | {usable} of {total} recipes can be used",
     "countFailed": "Could not count the recipes.",
-    "showRecipes": "Show recipes",
     "filterOf": "Filter for {tag}",
     "mode": {
       "any": "Any",
       "only": "Only",
       "never": "Never"
     },
-    "noTags": "No tags yet. Add them on the Tags page.",
     "change": "Change",
     "changeLabel": "Change the recipe filters",
     "noRules": "No filters: every recipe may be used.",
@@ -913,19 +824,11 @@
       "time_ran_out": "Time ran out: may not be the best plan",
       "stopped": "Stopped early: may not be the best plan"
     },
-    "summary": "Summary",
-    "perDay": "{value}/day",
     "showAll": "Show all {n}",
     "showFewer": "Show fewer",
-    "position": "{day} · {n} of {days}",
-    "previousDay": "Previous day",
-    "nextDay": "Next day",
-    "today": "Today",
-    "portion": "{recipe} · {portion} ×",
     "skipped": "skipped",
     "discard": "Discard",
     "discardTitle": "Discard this plan?",
-    "cannotUndo": "This can't be undone.",
     "useForToday": "Use for today",
     "missedGoals": "Missed goals",
     "allGoalsMet": "All goals met"
@@ -963,7 +866,6 @@
     "goalsMet": "Every goal was met.",
     "pullFor": "for the week’s {name}, about {average} a day.",
     "missed": "Missed",
-    "met": "Met",
     "totals": "Plan totals",
     "forTheWeek": "For the week",
     "total": "Total",
@@ -1073,15 +975,11 @@
     "deleteOf": "Delete the conversion for {unit}"
   },
   "import": {
-    "title": "Import recipe",
-    "intro": "Paste a link or the recipe text. The AI reads it and makes a draft for you to check.",
     "link": "Link",
     "linkHint": "Works for most recipe sites. If a site won't open, paste the recipe text instead.",
-    "pasteText": "Paste text",
     "text": "Recipe text",
     "run": "Import",
     "reading": "Reading the recipe…",
-    "needsKey": "Needs an AI key.",
     "cover": {
       "kicker": "For the recipe index",
       "title": "Import a",

@@ -1,7 +1,6 @@
 import { act, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { importedRecipe } from '../../../test-data'
-import { BASE_PATH } from '../../base'
 import { importDraftStore } from '../../stores/importDraft'
 import { fakeServer, mountApp, type FakeServer } from '../../test-app'
 
@@ -38,7 +37,7 @@ async function mountPage(server: FakeServer = {}, configured = true, startInLink
   return { ...mounted, sent }
 }
 
-const where = ({ router }: Mounted) => router.state.location.pathname.slice(BASE_PATH.length) || '/'
+const where = ({ router }: Mounted) => router.state.location.pathname
 
 const modeButton = (name: 'A link' | 'Pasted text') => screen.getByRole('button', { name })
 
@@ -76,7 +75,7 @@ test('without an AI key Import is disabled and the hint says why, with a way to 
   await type(page, box(), 'Porridge')
   expect(await screen.findByText(/Importing needs an AI key/)).toBeDefined()
   expect(importButton().disabled).toBe(true)
-  expect(screen.getByRole('link', { name: 'Write a new recipe' }).getAttribute('href')).toBe(`${BASE_PATH}/recipes/new`)
+  expect(screen.getByRole('link', { name: 'Write a new recipe' }).getAttribute('href')).toBe('/recipes/new')
 })
 
 test('the key hint does not show before health has answered', async () => {

@@ -5,7 +5,7 @@
  * Framework-neutral: state, `subscribe` and `getSnapshot` for
  * `useSyncExternalStore`, `set` to change it, `reset` for tests.
  *
- * The inline script in the React HTML entry (web/next/index.html) applies
+ * The inline script in the HTML entry (web/index.html) applies
  * the stored edition before first paint with the same key and values; keep
  * the two in step. The screenshot script (web/scripts/screenshot.ts) writes
  * the same key. */

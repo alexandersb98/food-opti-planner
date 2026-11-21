@@ -1,7 +1,6 @@
 import { screen, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
 import { planSummary } from '../../../test-data'
-import { BASE_PATH } from '../../base'
 import { fakeServer, mountApp, type FakeServer } from '../../test-app'
 
 afterEach(() => {
@@ -61,9 +60,9 @@ test('a saved plan opens its menu', async () => {
   const { user, router } = await mountApp('/plans')
 
   const [entry] = await entries()
-  expect(entry!.getAttribute('href')).toBe(`${BASE_PATH}/plans/7`)
+  expect(entry!.getAttribute('href')).toBe('/plans/7')
   await user.click(entry!)
-  expect(router.state.location.pathname).toBe(`${BASE_PATH}/plans/7`)
+  expect(router.state.location.pathname).toBe('/plans/7')
 })
 
 test('an empty archive says how plans get there and links to The Menu', async () => {
@@ -73,7 +72,7 @@ test('an empty archive says how plans get there and links to The Menu', async ()
   expect(await screen.findByText('No saved plans yet. Save a menu and it is filed here.')).toBeDefined()
   expect(screen.queryByRole('list', { name: 'Saved plans' })).toBeNull()
   await user.click(screen.getByRole('link', { name: 'Go to The Menu' }))
-  expect(router.state.location.pathname).toBe(`${BASE_PATH}/plans/new`)
+  expect(router.state.location.pathname).toBe('/plans/new')
 })
 
 test('an archive that fails to load says so, and Try again loads it', async () => {
