@@ -1,14 +1,17 @@
 import { screen, within } from '@testing-library/react'
-import { expect, test } from 'vitest'
+import { expect, test, vi } from 'vitest'
 import { fakeServer, mountApp } from '../../test-app'
 
 // Through the specimen page.
 
+// The specimen loads its sections lazily; a cold transform on a busy machine can take seconds.
+vi.setConfig({ testTimeout: 20000 })
+
 test('a stepper stops at its ends and announces its value', async () => {
   fakeServer({})
   const { user } = await mountApp('/specimen')
-  const steppers = await screen.findByRole('region', { name: 'Steppers' }, { timeout: 5000 })
-  const time = await within(steppers).findByRole('group', { name: 'Most time to spend' })
+  const steppers = await screen.findByRole('region', { name: 'Steppers' }, { timeout: 15000 })
+  const time = await within(steppers).findByRole('group', { name: 'Most time to spend' }, { timeout: 15000 })
   const less = within(time).getByRole('button', { name: 'Less time' })
   const more = within(time).getByRole('button', { name: 'More time' })
   expect(within(time).getByRole('status').textContent).toBe('30 s')
