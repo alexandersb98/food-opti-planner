@@ -1,0 +1,111 @@
+/* The Ingredients page, after D2's #ingredients: a cover, a ruled search
+   line and the larder as a list ruled in dots. D2 lists bare names in two
+   columns; here every entry also carries its basis and values, so the list
+   is one column with the recipe count set in the margin. */
+
+/* ---------- cover ---------- */
+.ingr-cover { padding: var(--s6) 0 var(--s5); }
+.ingr-cover > .ingr-kicker { color: var(--accent); }
+.ingr-title {
+  font-size: var(--fs-hero); line-height: var(--lh-hero);
+  margin: var(--s2) 0 var(--s4);
+  overflow-wrap: anywhere;
+}
+.ingr-title em { font-weight: 300; font-variation-settings: "opsz" 144, "SOFT" 100; }
+.ingr-standfirst {
+  font-family: var(--serif); font-size: var(--fs-lead); line-height: var(--lh-lead);
+  font-weight: 340; color: var(--ink-2);
+  font-variation-settings: "opsz" 24;
+  font-variant-numeric: oldstyle-nums proportional-nums;
+  max-width: 34em;
+}
+
+/* ---------- the add menu ---------- */
+.ingr-add { position: relative; display: inline-block; margin-top: var(--s5); }
+.ingr-add-caret {
+  width: 7px; height: 7px; margin: -4px 2px 0 2px;
+  border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg); transition: transform .2s var(--ease);
+}
+.ingr-add-toggle[aria-expanded="true"] .ingr-add-caret { transform: translateY(4px) rotate(-135deg); }
+.ingr-add-list {
+  position: absolute; z-index: 5; top: calc(100% + 4px); left: 0;
+  min-width: 100%; width: max-content; max-width: calc(100vw - 2 * var(--gutter));
+  margin: 0; padding: var(--s1) 0; list-style: none;
+  background-color: var(--paper); border: 1px solid var(--ink);
+  box-shadow: 0 10px 24px -12px color-mix(in srgb, var(--ink) 40%, transparent);
+}
+.ingr-add-list[hidden] { display: none; }
+.ingr-add-list > li + li { border-top: 1px dotted var(--rule); }
+/* an entry is a link or a button, one per way to add */
+.ingr-add-entry {
+  display: flex; align-items: center; width: 100%; min-height: var(--touch);
+  padding: 10px var(--s4); border: 0; background: none; text-align: left; text-decoration: none;
+  font-family: var(--serif); font-size: 17px; line-height: 24px; color: var(--ink);
+}
+.ingr-add-entry:active { background: var(--press); }
+.ingr-add-entry:focus-visible { outline-offset: -3px; }
+@media (hover: hover) {
+  .ingr-add-entry:hover { background: var(--press); }
+}
+
+/* ---------- search and filter ---------- */
+.ingr-tools { display: grid; gap: var(--s3); margin: 0 0 var(--s4); }
+.ingr-search { position: relative; }
+.ingr-search-icon {
+  position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  color: var(--muted); pointer-events: none;
+}
+.ingr-search-input { padding-left: 30px; font-family: var(--serif); font-size: 19px; }
+.ingr-only-updated { justify-self: start; }
+
+/* ---------- the larder ---------- */
+.ingr-list { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--rule-strong); }
+/* a long larder: entries off screen skip layout and paint */
+.ingr-list > li { content-visibility: auto; contain-intrinsic-size: auto 92px; }
+.ingr-entry {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--s4); align-items: baseline;
+  min-height: var(--touch); padding: 10px 0 11px;
+  border-bottom: 1px dotted var(--rule);
+  text-decoration: none; color: var(--ink);
+}
+.ingr-entry:active { background: var(--press); }
+@media (hover: hover) {
+  .ingr-entry:hover .ingr-name { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .2em; text-decoration-color: var(--accent); }
+}
+.ingr-entry-main { display: grid; justify-items: start; min-width: 0; }
+.ingr-name {
+  font-family: var(--serif); font-size: 19px; line-height: 24px;
+  font-variation-settings: "opsz" 24; overflow-wrap: anywhere;
+}
+.ingr-values {
+  font-size: 13.5px; line-height: 20px; color: var(--muted);
+  font-variant-numeric: lining-nums tabular-nums; overflow-wrap: anywhere;
+}
+/* the data source has new values: a slip to review, like D2's review notes */
+.ingr-updated {
+  margin-top: var(--s1); padding: 1px 6px;
+  background: var(--review); color: var(--review-ink);
+  font-size: 12.5px; line-height: 16px; font-weight: 600;
+}
+.ingr-used {
+  font-family: var(--serif); font-style: italic; font-size: 15px; line-height: 24px; color: var(--muted);
+  font-variant-numeric: oldstyle-nums; white-space: nowrap;
+}
+@media (max-width: 420px) {
+  /* a phone: the recipe count goes under the values */
+  .ingr-entry { grid-template-columns: minmax(0, 1fr); }
+  .ingr-used { line-height: 20px; }
+}
+
+/* ---------- nothing to list ---------- */
+.ingr-empty {
+  display: grid; justify-items: center; gap: var(--s3);
+  margin-top: var(--s6); padding: var(--s5) 0;
+  border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
+  text-align: center;
+}
+.ingr-empty > p:first-child {
+  font-family: var(--serif); font-style: italic; font-size: var(--fs-lead); line-height: var(--lh-lead); color: var(--ink-2);
+}
+.ingr-empty-hint { color: var(--muted); font-size: var(--fs-sm); line-height: var(--lh-sm); }
