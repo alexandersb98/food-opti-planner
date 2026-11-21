@@ -120,6 +120,11 @@ python3 -m uvicorn --factory server.app:create_app --reload   # API on :8000, SQ
 cd web && npm install && npm run dev                          # app on :5173, forwards /api
 ```
 
+While the frontend is being rewritten in React, the dev server also serves
+the new React app (`web/src/app/`, entry `web/next/index.html`) under
+`http://localhost:5173/next/`; the Vue app stays at `/` and is what the
+production build contains.
+
 Recipe import needs an AI service. Optional settings: `AI_PROVIDER` (`anthropic`
 by default, also `gemini`, `openai`, `mistral`), `AI_MODEL`, `AI_API_KEY` (the key of
 that provider; without it Import is disabled) and `AI_DAILY_LIMIT` (model calls a
