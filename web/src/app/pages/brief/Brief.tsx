@@ -125,7 +125,7 @@ export function Brief() {
           {page.data.results.unsaved ? <NewPlanLine plan={page.data.results.unsaved} /> : null}
           {page.data.today ? <TodayMeals today={page.data.today} /> : null}
           <ScheduleSection />
-          <GoalsSection />
+          <GoalsSection plan={plan} attributes={page.data.attributes} />
           <FiltersSection />
           <TimeSection seconds={plan.solve_time_limit} />
         </>
