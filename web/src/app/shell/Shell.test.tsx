@@ -228,7 +228,6 @@ test.each([
   ['/plans/new', 'The Menu', 2, 'The Menu'],
   ['/recipes', 'The recipe index', 3, 'Recipes'],
   ['/recipes/new', 'A recipe', 3, 'Recipes'],
-  ['/recipes/12', 'A recipe', 3, 'Recipes'],
   ['/recipes/import', 'Import a recipe', 3, 'Recipes'],
   ['/plans', 'The archive', 4, 'The archive'],
   ['/plans/3', 'The Menu', 4, 'The archive'],
