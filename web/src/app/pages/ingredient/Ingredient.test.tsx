@@ -388,7 +388,8 @@ test('Show lists the recipes that use the ingredient, which open their spread', 
   expect(within(list).getAllByRole('link').map((link) => link.textContent)).toEqual(['Muesli', 'Porridge'])
   expect(screen.queryByRole('button', { name: 'Show' })).toBeNull()
   await page.user.click(within(list).getByRole('link', { name: 'Muesli' }))
-  expect(where(page.router)).toBe('/recipes/3')
+  // the recipe spread is a lazy route: the router stays put until its bundle is in
+  await waitFor(() => expect(where(page.router)).toBe('/recipes/3'), { timeout: 5000 })
 })
 
 test('Show lists a recipe that has the ingredient only in a second section', async () => {
