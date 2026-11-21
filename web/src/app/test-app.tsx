@@ -14,7 +14,19 @@ export { fakeServer, unitRoutes, type FakeReply, type FakeServer } from '../test
  * store adds one line here. */
 const resetStores: Array<() => void> = []
 
+/** Keys the app asked for that have no message; a test that leaves any
+ * fails. */
+const missingMessages = new Set<string>()
+const reportMissing = (key: string) => {
+  missingMessages.add(key)
+}
+
 afterEach(cleanup)
+afterEach(() => {
+  const keys = [...missingMessages]
+  missingMessages.clear()
+  if (keys.length) throw new Error(`No message for: ${keys.join(', ')}`)
+})
 
 /** Render the whole React app at `path`, one of the app's own paths such
  * as "/recipes/3" (the base path is added here, as the browser would). */
@@ -22,6 +34,6 @@ export async function mountApp(path: string) {
   for (const reset of resetStores) reset()
   const router = createMemoryRouter(routes, { basename: BASE_PATH, initialEntries: [BASE_PATH + path] })
   const user = userEvent.setup()
-  const view = render(<App router={router} />)
+  const view = render(<App router={router} onMissingMessage={reportMissing} />)
   return { user, router, ...view }
 }

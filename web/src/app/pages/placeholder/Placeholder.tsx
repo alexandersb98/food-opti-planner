@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router'
 import { api } from '../../../api/client'
+import { useT } from '../../i18n/i18n'
 
 type Server = 'checking' | 'up' | 'down'
 
@@ -16,6 +17,7 @@ const serverText: Record<Server, string> = {
 export function Placeholder() {
   const { pathname } = useLocation()
   const [server, setServer] = useState<Server>('checking')
+  const t = useT()
 
   useEffect(() => {
     let current = true
@@ -30,7 +32,7 @@ export function Placeholder() {
 
   return (
     <main>
-      <h1>Meal planner</h1>
+      <h1>{t('app.title')}</h1>
       <p>The new app is being built here. Until it is ready, use <a href="/">the current app</a>.</p>
       <p>
         Page: <code>{pathname}</code>
