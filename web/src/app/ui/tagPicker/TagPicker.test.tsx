@@ -164,3 +164,19 @@ test('the tag just added is marked so the eye finds it mid-row; the others are n
   expect(chip('Gryn').classList.contains('tag-picker-added')).toBe(true)
   expect(chip('Grönsaker').classList.contains('tag-picker-added')).toBe(false)
 })
+
+test('a locked tag is never offered, even when the find box text matches it, and Enter cannot add it', async () => {
+  const { user } = mount({ chosen: [], locked: [3] })
+  await user.click(screen.getByText('Add a tag'))
+  await user.type(find(), 'grö')
+  expect(screen.queryByRole('group', { name: 'Other tags' })).toBeNull()
+  expect(screen.getByRole('status').textContent).toBe('No tag matches “grö”.')
+  await user.type(find(), '{Enter}')
+  expect(chosen()).toEqual(['Grönsakerauto'])
+  // with "gr" only Gryn matches, so Enter adds Gryn and never the locked Grönsaker again
+  await user.clear(find())
+  await user.type(find(), 'gr')
+  expect(others()).toEqual(['Gryn'])
+  await user.type(find(), '{Enter}')
+  expect(chosen()).toEqual(['Grönsakerauto', 'Gryn'])
+})
