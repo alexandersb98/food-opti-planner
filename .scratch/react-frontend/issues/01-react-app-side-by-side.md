@@ -13,11 +13,19 @@ Spec: "Implementation Decisions › Stack" and "› Migration: side by side, swa
 
 Blocked by: None (can start immediately)
 
-Status: ready-for-agent
+Status: done
 
-- [ ] `npm run dev` serves the Vue app at `/` and the React placeholder under `/next/` (including deep paths such as `/next/recipes/3`)
-- [ ] A React app test renders the placeholder through `mountApp` with a fake server and finds it by role; a second test shows the harness records server calls
-- [ ] The Vue app, its tests and the e2e flow are unchanged and pass
-- [ ] Lint fails if a file in the React folder imports from Vue/Quasar (checked once by hand, not left failing)
-- [ ] The README's Conventions section is updated if the folder names or base path chosen differ from the defaults written there
-- [ ] `npm run lint`, `npm run typecheck`, `npm test` pass in `web/`
+- [x] `npm run dev` serves the Vue app at `/` and the React placeholder under `/next/` (including deep paths such as `/next/recipes/3`)
+- [x] A React app test renders the placeholder through `mountApp` with a fake server and finds it by role; a second test shows the harness records server calls
+- [x] The Vue app, its tests and the e2e flow (e2e not run: production build unchanged) are unchanged and pass
+- [x] Lint fails if a file in the React folder imports from Vue/Quasar (checked once by hand, not left failing)
+- [x] The README's Conventions section is updated if the folder names or base path chosen differ from the defaults written there
+- [x] `npm run lint`, `npm run typecheck`, `npm test` pass in `web/`
+
+## Comments
+
+- React HTML entry is `web/next/index.html`, dev-only; ticket 42 adds it to the production build.
+- Base path lives in `web/src/app/base.ts` and `reactBase` in `web/vite.config.ts`.
+- Harness: `web/src/app/test-app.tsx`; `mountApp` is async and returns `{ user, router, ...render result }`.
+- Placeholder copy is hard-coded English until ticket 04 (translator).
+- Locked versions: react/react-dom 19.3.1, react-router 7.18.6, @vitejs/plugin-react 6.3.0, eslint-plugin-react-hooks 7.1.1.
