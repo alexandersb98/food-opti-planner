@@ -845,6 +845,7 @@
     "title": "Conversions",
     "empty": "No conversions yet.",
     "row": "1 {unit} = {factor} {own}",
+    "preview": "1 {unit} of {name} makes {factor} {own}.",
     "add": "+ Add conversion",
     "addTitle": "New unit",
     "editTitle": "Edit conversion",

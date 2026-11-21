@@ -148,7 +148,7 @@ test('Save sends the typed values, leaving out empty ones, and returns to the li
 })
 
 test('a new ingredient starts in grams per 100, and the basis follows the unit', async () => {
-  const { sent, handler } = recorder(201, (body) => ({ ...body, id: 8, recipe_count: 0 }))
+  const { sent, handler } = recorder(201, (body) => ({ ...ingredient({ id: 8, name: '' }), ...body }))
   const page = await openForm('/ingredients/new', { 'POST /api/ingredients': handler })
   expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('New ingredient')
   expect([value('Name'), value('Measured in'), value('Value basis')]).toEqual(['', 'g', '100'])
@@ -181,7 +181,7 @@ test('a new ingredient starts in the preferred mass unit', async () => {
 })
 
 test('without the preferences a new ingredient starts in grams and the page still saves', async () => {
-  const { sent, handler } = recorder(201, (body) => ({ ...body, id: 8, recipe_count: 0 }))
+  const { sent, handler } = recorder(201, (body) => ({ ...ingredient({ id: 8, name: '' }), ...body }))
   const page = await openForm('/ingredients/new', { 'GET /api/preferences': 500, 'POST /api/ingredients': handler })
   expect([value('Measured in'), value('Value basis')]).toEqual(['g', '100'])
   await type(page, 'Name', 'Egg')
