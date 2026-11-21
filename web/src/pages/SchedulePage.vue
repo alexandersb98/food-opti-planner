@@ -5,7 +5,8 @@ import { useRouter } from 'vue-router'
 import EditorHeader from '../components/EditorHeader.vue'
 import LoadState from '../components/LoadState.vue'
 import MealNamesDialog from '../components/MealNamesDialog.vue'
-import { DAYS, useScheduleDraft } from '../composables/useScheduleDraft'
+import { useScheduleDraft } from '../composables/useScheduleDraft'
+import { DAYS } from '../scheduleDraft'
 
 const { t } = useI18n()
 const router = useRouter()

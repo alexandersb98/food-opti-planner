@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest'
-import { makeI18n } from '../i18n'
-import { plan } from '../test-data'
-import { planDraft, scheduleFields, scheduleRows, serverErrors, validDate, validDays } from './useScheduleDraft'
+import { makeI18n } from './i18n'
+import { plan } from './test-data'
+import { planDraft, scheduleFields, scheduleRows, serverErrors, validDate, validDays } from './scheduleDraft'
 
 const { t } = makeI18n().global
 

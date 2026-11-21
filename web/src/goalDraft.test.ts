@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
-import { makeI18n } from '../i18n'
-import { attribute, goal } from '../test-data'
+import { makeI18n } from './i18n'
+import { attribute, goal } from './test-data'
 import {
   draftErrors,
   draftFields,
@@ -10,7 +10,7 @@ import {
   showsReference,
   showsSplit,
   type GoalDraft,
-} from './useGoalDraft'
+} from './goalDraft'
 
 const { t } = makeI18n().global
 const attributes = [attribute({ id: 1, name: 'Energy' }), attribute({ id: 2, name: 'Protein', decimals: 1 })]

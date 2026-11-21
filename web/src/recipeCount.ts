@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { api } from './api/client'
 import type { RecipeCount, TagFilter } from './api/types'
+import { latestQuestion } from './latest'
 
 /** How many recipes a plan with these filters could use. `ask(filters)`
  * asks the server; an answer to an earlier question that arrives after a
@@ -9,17 +10,17 @@ import type { RecipeCount, TagFilter } from './api/types'
 export function useRecipeCount() {
   const count = ref<RecipeCount | null>(null)
   const failed = ref(false)
-  let latest = 0
+  const next = latestQuestion()
 
   async function ask(filters: TagFilter[]) {
-    const question = ++latest
+    const isLatest = next()
     let answer: RecipeCount | undefined
     try {
       answer = (await api.POST('/api/plan/recipe-count', { body: { tag_filters: filters } })).data
     } catch {
       answer = undefined
     }
-    if (question !== latest) return
+    if (!isLatest()) return
     failed.value = !answer
     if (answer) count.value = answer
   }

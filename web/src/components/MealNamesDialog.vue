@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import type { MealName } from '../scheduleDraft'
 
 // "Meals each day" in the schedule (A2): the meal names in the order of
 // the day, added, renamed, moved and removed on a copy; Done hands the
 // copy back, once every name is set and none is given twice. One meal
 // always stays.
-export type MealName = { key: number | null; name: string } // key null: added here
 
 const open = defineModel<boolean>({ required: true })
 const props = defineProps<{

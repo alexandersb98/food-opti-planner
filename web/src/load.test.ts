@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { loadAll } from './useLoad'
+import { loadAll } from './load'
 
 test("loadAll gives every call's data by name", async () => {
   const result = await loadAll({ a: Promise.resolve({ data: [1] }), b: Promise.resolve({ data: null }) })

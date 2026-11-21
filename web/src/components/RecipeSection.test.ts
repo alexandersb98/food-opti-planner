@@ -3,9 +3,10 @@ import { Quasar } from 'quasar'
 import { defineComponent, h, provide } from 'vue'
 import { afterEach, expect, test } from 'vitest'
 import { makeI18n } from '../i18n'
-import { importReviewKey, type ImportReview } from '../importReview'
+import { importReviewKey } from '../composables/importReviewKey'
+import type { ImportReview } from '../importReview'
 import { ingredient } from '../test-data'
-import type { DraftLine, DraftSection } from '../composables/useRecipeDraft'
+import type { DraftLine, DraftSection } from '../recipeDraft'
 import RecipeSection from './RecipeSection.vue'
 
 const oats = ingredient({ id: 1, name: 'Oats' })

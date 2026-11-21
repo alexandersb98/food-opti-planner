@@ -11,7 +11,8 @@ import EditorHeader from '../components/EditorHeader.vue'
 import LoadState from '../components/LoadState.vue'
 import NewAttributeDialog from '../components/NewAttributeDialog.vue'
 import SourceColumnRow from '../components/SourceColumnRow.vue'
-import { loadAll, useLoad } from '../composables/useLoad'
+import { useLoad } from '../composables/useLoad'
+import { loadAll } from '../load'
 import { useUnits } from '../units'
 
 const route = useRoute()

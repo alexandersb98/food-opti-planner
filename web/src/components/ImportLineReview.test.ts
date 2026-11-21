@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { Quasar } from 'quasar'
 import { afterEach, expect, test } from 'vitest'
-import type { DraftLine } from '../composables/useRecipeDraft'
+import type { DraftLine } from '../recipeDraft'
 import { makeI18n } from '../i18n'
 import type { FactorRow, LineState } from '../importReview'
 import { ingredient } from '../test-data'

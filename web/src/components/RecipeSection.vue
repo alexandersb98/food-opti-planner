@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { inject } from 'vue'
 import type { Ingredient } from '../api/types'
-import type { DraftLine, DraftSection } from '../composables/useRecipeDraft'
-import { importReviewKey } from '../importReview'
+import { importReviewKey } from '../composables/importReviewKey'
+import type { DraftLine, DraftSection } from '../recipeDraft'
 import ImportLineReview from './ImportLineReview.vue'
 import LineUnitPicker from './LineUnitPicker.vue'
 
