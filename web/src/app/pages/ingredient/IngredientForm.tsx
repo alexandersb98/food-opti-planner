@@ -18,6 +18,8 @@ import { Field } from '../../ui/field/Field'
 import { LoadState } from '../../ui/loadState/LoadState'
 import { UnitField, type UnitGroup } from '../../ui/unit-field/UnitField'
 import './ingredient.css'
+import { IngredientSource } from './IngredientSource'
+import { UpdatedValues } from './UpdatedValues'
 
 // The form of a new ingredient (id null) or an existing one: name, the unit
 // it is measured in, the value basis, a value per attribute and its tags.
@@ -353,7 +355,7 @@ function IngredientEditor({
       <div className="ingredient-head">
         {inSheet ? null : <h1 className="kicker ingredient-kicker">{stored ? t('ingredients.edit') : t('ingredients.new')}</h1>}
         {nameField}
-        {/* Ticket 31: the source link goes here, e.g. <IngredientSource ingredient={stored} onChange={setStored} />. */}
+        <IngredientSource ingredient={stored} onChange={setStored} />
 
         <div className="ingredient-measure">
           <UnitField label={t('ingredients.measuredIn')} value={draft.unit} onChange={changeUnit} kinds={kinds} error={errors.unit} />
@@ -389,7 +391,7 @@ function IngredientEditor({
         </div>
       </div>
 
-      {/* Ticket 31: the updated-values banner goes here, e.g. <UpdatedValues ingredient={stored} … />. */}
+      <UpdatedValues ingredient={stored} attributes={attributes} onAnswered={(answered, fill) => { setStored(answered); setDraft((d) => ({ ...d, values: fill(d.values) })) }} />
 
       <section className="ingredient-section" aria-labelledby={`${ids}-values`}>
         <SectionHead number="i" id={`${ids}-values`}>
