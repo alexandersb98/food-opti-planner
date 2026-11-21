@@ -30,11 +30,11 @@ const SIZES = {
   desktop: { viewport: { width: 1280, height: 800 } },
 } satisfies Record<string, BrowserContextOptions>
 
-// Editions are forced through the colour-scheme emulation. Ticket 05 adds a stored
-// edition choice: put its localStorage key (and stored values) here, and the script
-// also writes it before the app loads, so a stored choice can't override the emulation.
+// Editions are forced through the colour-scheme emulation, and the stored edition
+// choice (src/app/stores/edition.ts) is written before the app loads, so a stored
+// choice can't override the emulation.
 const EDITION_STORAGE: { key: string | null; values: Record<Edition, string> } = {
-  key: process.env.EDITION_STORAGE_KEY ?? null,
+  key: process.env.EDITION_STORAGE_KEY ?? 'planner.edition.v1',
   values: { paper: 'paper', evening: 'evening' },
 }
 const EDITIONS = { paper: 'light', evening: 'dark' } as const

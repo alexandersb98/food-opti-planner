@@ -4,6 +4,7 @@ import { createBrowserRouter } from 'react-router'
 import { App } from './App'
 import { BASE_PATH } from './base'
 import { routes } from './routes'
+import './styles/global.css'
 
 const router = createBrowserRouter(routes, { basename: BASE_PATH })
 

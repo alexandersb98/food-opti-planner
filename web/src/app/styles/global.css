@@ -1,0 +1,5 @@
+/* The React app's global styles, in order: fonts, tokens, base. Imported
+   once, by the entry (main.tsx). */
+@import './fonts.css';
+@import './tokens.css';
+@import './base.css';
