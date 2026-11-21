@@ -122,7 +122,7 @@ export function SpreadView({
 }
 
 /** A numbered section head of the spread: "i Ingredients". */
-function SectionHead({ id, n, title }: { id: string; n: number; title: string }) {
+export function SectionHead({ id, n, title }: { id: string; n: number; title: string }) {
   return (
     <div className="spread-sec-head">
       <span className="spread-sec-no" aria-hidden="true">
