@@ -1,0 +1,17 @@
+/* Segmented control, after D2's .seg. */
+
+.seg { display: flex; flex-wrap: wrap; border: 1px solid var(--ink); }
+.seg-button {
+  flex: 1 1 auto; min-width: 0; min-height: var(--touch); padding: 6px 12px;
+  border: 0; border-radius: 0; background: none; color: var(--ink);
+  font-family: var(--sans); font-size: 15px; line-height: 20px; font-weight: 500;
+  transition: background-color .15s, color .15s;
+}
+.seg-button + .seg-button { box-shadow: -1px 0 0 var(--rule); }
+.seg-button:active { background: var(--press); }
+.seg-button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.seg-button:disabled { opacity: .4; }
+@media (hover: hover) {
+  .seg-button:hover:not([aria-pressed="true"], :disabled) { background: var(--press); }
+}
+.seg-compact .seg-button { min-width: 60px; padding: 6px 8px; font-size: 14px; }

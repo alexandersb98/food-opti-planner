@@ -1,0 +1,31 @@
+/* Select: the native list on the ruled line, with a drawn caret instead of
+   the platform arrow. The annotation look follows D2's select.annot. */
+
+.select { display: block; min-width: 0; }
+.select > select {
+  appearance: none; -webkit-appearance: none;
+  padding-right: 24px; text-overflow: ellipsis;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--ink) 50%),
+    linear-gradient(-45deg, transparent 50%, var(--ink) 50%);
+  background-position: right 9px center, right 4px center;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
+.select > select:disabled { opacity: .55; }
+.select > select optgroup { font-style: normal; font-weight: 600; }
+
+.select-annotation { display: inline-block; }
+.select-annotation > select {
+  width: auto; max-width: 100%; padding: 4px 18px 4px 4px;
+  border-bottom: 1.5px dashed var(--accent);
+  font-size: 16px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--accent) 50%),
+    linear-gradient(-45deg, transparent 50%, var(--accent) 50%);
+  background-color: color-mix(in srgb, var(--accent) 6%, var(--paper));
+}
+.select-annotation > select:focus-visible {
+  border-bottom-style: solid; box-shadow: none;
+  background-color: color-mix(in srgb, var(--accent) 13%, var(--paper));
+}

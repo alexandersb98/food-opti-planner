@@ -82,6 +82,10 @@
     "save": "Save",
     "back": "Back"
   },
+  "ui": {
+    "loading": "Loading…",
+    "loadFailed": "Could not load this page."
+  },
   "count": {
     "ingredients": "no ingredients | 1 ingredient | {n} ingredients",
     "goals": "no goals | 1 goal | {n} goals",

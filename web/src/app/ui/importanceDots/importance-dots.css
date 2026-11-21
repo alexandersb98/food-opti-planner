@@ -1,0 +1,5 @@
+/* Importance dots, after D2's .imp. */
+
+.dots { display: inline-flex; gap: 3px; align-items: center; vertical-align: middle; }
+.dots-dot { width: 6px; height: 6px; border-radius: 50%; border: 1px solid var(--muted); }
+.dots-on { border-color: var(--accent); background: var(--accent); }
