@@ -9,7 +9,9 @@
     "lint": "eslint . --max-warnings=0",
     "test": "vitest run",
     "gen:api": "cd .. && python3 -m server.export_openapi web/openapi.json && python3 -m server.export_units web/src/test-units.json && cd web && openapi-typescript openapi.json -o src/api/schema.ts",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "sample-data": "node scripts/sample-data.ts",
+    "shot": "node scripts/screenshot.ts"
   },
   "dependencies": {
     "@quasar/extras": "^2.1.0",
