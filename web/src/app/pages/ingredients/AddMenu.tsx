@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { useT } from '../../i18n/i18n'
 import { buttonClass } from '../../ui/button/Button'
+import { AddFromSourceEntry } from '../add-from-source/AddFromSourceEntry'
 
 /**
  * "Add an ingredient": a button that opens a short list of the ways to add
@@ -58,6 +59,9 @@ export function AddMenu() {
           <Link className="ingr-add-entry" to="/ingredients/new">
             {t('ingredients.new')}
           </Link>
+        </li>
+        <li>
+          <AddFromSourceEntry returnFocus={toggle} />
         </li>
       </ul>
     </div>

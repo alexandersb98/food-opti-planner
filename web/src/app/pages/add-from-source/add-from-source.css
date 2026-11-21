@@ -1,0 +1,86 @@
+/* Add from data source (ticket 32): a full-screen sheet. D2 has no such
+   screen; it borrows D2's search line, picker list and sheet parts, and
+   the full-screen Contents' ruled list. */
+
+.afs { display: grid; gap: var(--s4); padding-bottom: var(--s5); }
+.afs-quiet { font-family: var(--serif); font-style: italic; color: var(--muted); padding: var(--s3) 0; }
+
+/* ---------- search and results ---------- */
+.afs-results { display: grid; gap: var(--s2); }
+.afs-results[hidden] { display: none; }
+.afs-results > .field { margin-bottom: var(--s3); }
+.afs-search { position: relative; }
+.afs-search-icon {
+  position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  color: var(--muted); pointer-events: none;
+}
+.afs-search-input { padding-left: 30px; font-family: var(--serif); font-size: 19px; }
+.afs-count {
+  min-height: var(--lh-sm);
+  font-family: var(--sans); font-size: var(--fs-sm); line-height: var(--lh-sm); color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* the foods: D2's picker list, each with its source groups under it */
+.afs-foods { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--rule-strong); }
+.afs-foods[aria-busy="true"] { opacity: .6; transition: opacity .15s .2s; }
+.afs-foods > li { content-visibility: auto; contain-intrinsic-size: auto 64px; }
+.afs-food {
+  display: grid; justify-items: start; gap: 2px; width: 100%; min-height: var(--touch);
+  padding: 10px 0 11px; border: 0; border-bottom: 1px dotted var(--rule); background: none;
+  text-align: left; color: var(--ink);
+}
+.afs-food:active { background: var(--press); }
+.afs-food:focus-visible { outline-offset: -2px; }
+.afs-food-name { font-family: var(--serif); font-size: 19px; line-height: 24px; font-variation-settings: "opsz" 24; overflow-wrap: anywhere; }
+.afs-food-groups { font-family: var(--sans); font-size: var(--fs-sm); line-height: var(--lh-sm); color: var(--muted); overflow-wrap: anywhere; }
+@media (hover: hover) {
+  .afs-food:hover .afs-food-name { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: .2em; text-decoration-color: var(--accent); }
+}
+.afs-more { margin-top: var(--s3); }
+.afs-more[aria-disabled="true"] { opacity: .55; }
+
+/* ---------- the chosen food ---------- */
+.afs-chosen { display: grid; gap: var(--s2); }
+.afs-from {
+  display: flex; align-items: center; gap: var(--s2);
+  font-family: var(--sans); font-size: var(--fs-sm); line-height: var(--lh-sm); color: var(--muted);
+}
+.afs-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.afs-food-title {
+  font-family: var(--serif); font-size: 32px; line-height: 36px; font-weight: 340; letter-spacing: -.01em;
+  font-variation-settings: "opsz" 72, "SOFT" 100; overflow-wrap: anywhere;
+  text-wrap: balance;
+  padding-bottom: var(--s3); border-bottom: 3px double var(--rule-strong);
+  /* reached by focus when a food is chosen, never by Tab: no ring */
+  outline: none;
+}
+
+.afs-form { display: grid; gap: var(--s5); margin-top: var(--s3); }
+.afs-name { font-family: var(--serif); font-size: 21px; }
+
+/* what is copied: the measure (the sheet's preview line), the values as a
+   ruled list with the figures set right, and what is not copied */
+.afs-copied > .afs-measured { margin-bottom: 0; }
+.afs-values { margin: var(--s2) 0 0; }
+.afs-value {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--s4);
+  padding: 8px 0; border-bottom: 1px dotted var(--rule);
+}
+.afs-value dt { font-family: var(--serif); font-size: 17px; line-height: 24px; min-width: 0; overflow-wrap: anywhere; }
+.afs-value dd { margin: 0; font-family: var(--serif); font-size: 17px; line-height: 24px; font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
+.afs-skipped { margin-top: var(--s2); font-family: var(--serif); font-style: italic; font-size: 15px; line-height: var(--lh-sm); color: var(--muted); }
+
+/* an earlier ingredient from the same food: a pencilled margin note */
+.afs-note {
+  padding: var(--s2) var(--s3); border-left: 3px solid var(--accent);
+  font-family: var(--serif); font-style: italic; font-size: 17px; line-height: 24px; color: var(--ink-2);
+}
+.afs-alert {
+  display: flex; gap: 6px; align-items: baseline;
+  font-family: var(--sans); font-size: var(--fs-sm); line-height: var(--lh-sm); font-weight: 500; color: var(--accent);
+}
+.afs-alert::before { content: "\2020"; font-family: var(--serif); font-weight: 400; }
+.afs-form > .sheet-actions { margin-top: 0; }
+/* Add while its answer is awaited (a second press sends nothing) */
+.afs-form .sheet-btn[aria-busy="true"] { opacity: .7; cursor: progress; }
