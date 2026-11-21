@@ -14,7 +14,7 @@ import { Disclosure } from '../../ui/disclosure/Disclosure'
 import { Field, Fieldset } from '../../ui/field/Field'
 import { Segmented } from '../../ui/segmented/Segmented'
 import { SectionHead } from './SpreadView'
-import { SpreadIngredients } from './SpreadIngredients'
+import { LineEditor } from './LineEditor'
 import { spreadTags } from './spread'
 import { useRecipeDraft, type TextField } from './useRecipeDraft'
 
@@ -36,6 +36,9 @@ export interface SpreadEditorProps {
   onDeleted?: (recipe: Recipe) => void
   /** Whether a save is under way, for the bar's Save. */
   onSavingChange?: (saving: boolean) => void
+  /** An ingredient gained a conversion from a line's "New unit…": the page
+   * keeps it, so the lines and totals count it. */
+  onIngredientChanged: (ingredient: Ingredient) => void
 }
 
 /**
@@ -43,14 +46,24 @@ export interface SpreadEditorProps {
  * portion size and its advanced settings, the method as one text, the tags
  * as chips and the source, each underlined in red pencil with its error on
  * it; Delete at the foot. The bar's Save submits it. Places left:
- * - ticket 35: the import banner, above the head, for an imported draft;
- * - ticket 33: the line editor, in place of the read-only `SpreadIngredients`.
+ * - ticket 35: the import banner, above the head, for an imported draft.
+ * The ingredient lines are ticket 33's `LineEditor`.
  */
-export function SpreadEditor({ recipe, attributes, tags, ingredients, imported = null, onSaved, onDeleted, onSavingChange }: SpreadEditorProps) {
+export function SpreadEditor({
+  recipe,
+  attributes,
+  tags,
+  ingredients,
+  imported = null,
+  onSaved,
+  onDeleted,
+  onSavingChange,
+  onIngredientChanged,
+}: SpreadEditorProps) {
   const t = useT()
   const units = useUnits()
   const [confirm, confirmSheet] = useConfirm()
-  const { draft, errors, saving, marked, derivedTagIds, defaultHardMax, set, setInSteps, toggleTag, save, remove } = useRecipeDraft({
+  const { draft, errors, saving, marked, derivedTagIds, defaultHardMax, set, setInSteps, toggleTag, edit, save, remove } = useRecipeDraft({
     recipe,
     imported,
   })
@@ -118,7 +131,6 @@ export function SpreadEditor({ recipe, attributes, tags, ingredients, imported =
     )
   }, [sections, pending, servings, attributes, ingredients, units.ratio])
 
-  const ratio = units.units.length > 0 ? units.ratio : null
   const first = recipe ? spreadTags(recipe, tags)[0]?.tag.name : undefined
   const derived = new Set(derivedTagIds)
 
@@ -209,12 +221,14 @@ export function SpreadEditor({ recipe, attributes, tags, ingredients, imported =
 
       <section className="spread-sec" aria-labelledby="spread-ingredients">
         <SectionHead id="spread-ingredients" n={1} title={t('recipe.ingredients')} />
-        {/* Ticket 33: the line editor takes the place of these read-only lines. */}
-        {recipe ? (
-          <SpreadIngredients recipe={recipe} ingredients={ingredients} ratio={ratio} />
-        ) : (
-          <p className="spread-none">{t('recipe.noLines')}</p>
-        )}
+        <LineEditor
+          sections={draft.sections}
+          pending={draft.pending}
+          errors={errors}
+          ingredients={ingredients}
+          edit={edit}
+          onIngredientChanged={onIngredientChanged}
+        />
         {errors.items ? (
           <p className="field-error" role="alert">
             {errors.items}

@@ -46,6 +46,14 @@ function catalogue(signal: AbortSignal) {
   }
 }
 
+/** Keeps an ingredient that gained a conversion in the page's catalogue. */
+function withIngredient<T extends { ingredients: Ingredient[] }>(ingredient: Ingredient) {
+  return (data: T): T => ({
+    ...data,
+    ingredients: data.ingredients.map((known) => (known.id === ingredient.id ? ingredient : known)),
+  })
+}
+
 /** The edit mode's bar: what is going on, Cancel and Save (which submits
  * the editor's form). */
 function EditBar({ hint, saving, onCancel }: { hint: string; saving: boolean; onCancel: () => void }) {
@@ -115,6 +123,7 @@ function StoredRecipe({ id }: { id: number }) {
     },
     [setData, t],
   )
+  const ingredientChanged = useCallback((ingredient: Ingredient) => setData(withIngredient(ingredient)), [setData])
   const deleted = useCallback(
     (recipe: Recipe) => {
       leftMessage.current = ''
@@ -167,6 +176,7 @@ function StoredRecipe({ id }: { id: number }) {
           onSaved={saved}
           onDeleted={deleted}
           onSavingChange={setSaving}
+          onIngredientChanged={ingredientChanged}
         />
       ) : (
         <SpreadView data={data} ingredients={ingredients} ratio={ratio} />
@@ -187,6 +197,8 @@ function NewRecipe() {
   const data = page.data
   const ingredients = useMemo(() => new Map(data?.ingredients.map((i) => [i.id, i])), [data])
   const cancel = useCallback(() => void navigate('/recipes'), [navigate])
+  const { setData } = page
+  const ingredientChanged = useCallback((ingredient: Ingredient) => setData(withIngredient(ingredient)), [setData])
   const saved = useCallback(
     (recipe: Recipe) => {
       toast(t('recipe.saved', { name: recipe.name }))
@@ -216,6 +228,7 @@ function NewRecipe() {
         ingredients={ingredients}
         onSaved={saved}
         onSavingChange={setSaving}
+        onIngredientChanged={ingredientChanged}
       />
     </article>
   )

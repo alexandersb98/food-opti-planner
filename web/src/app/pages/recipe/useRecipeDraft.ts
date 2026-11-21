@@ -27,6 +27,13 @@ import { useT } from '../../i18n/i18n'
 /** The draft's text fields, each with an error of the same name. */
 export type TextField = 'name' | 'servings' | 'instructions' | 'sourceUrl' | 'min' | 'max' | 'step' | 'hardMax' | 'penalty'
 
+/** The errors kept per line or section, by its key. */
+const LINE_ERRORS = ['sectionNames', 'amounts', 'unitErrors', 'lineIngredients'] as const
+export type LineErrorField = (typeof LINE_ERRORS)[number]
+/** The errors a change answers: a line's or section's by its key; `items`
+ * for "no lines". */
+export type LineErrorsCleared = Partial<Record<LineErrorField, number>> & { items?: boolean }
+
 export type DraftAction =
   | { type: 'set'; field: TextField; value: string }
   | { type: 'inSteps'; value: boolean }
@@ -134,6 +141,24 @@ export function useRecipeDraft({ recipe, imported = null }: RecipeDraftOptions) 
 
   const toggleTag = useCallback((tagId: number) => dispatch({ type: 'toggleTag', tagId }), [])
 
+  /** A change to the sections or lines (ticket 33), as a pure function of
+   * the draft. `clears` names the errors it answers, which go until the next
+   * save: a line's or section's by its key, and `items` ("no lines"). */
+  const edit = useCallback((change: (draft: RecipeDraft) => RecipeDraft, clears: LineErrorsCleared = {}) => {
+    dispatch({ type: 'edit', change })
+    setErrors((e) => {
+      const keyed = LINE_ERRORS.filter((field) => clears[field] !== undefined && e[field][clears[field]!] !== undefined)
+      if (keyed.length === 0 && !(clears.items && e.items)) return e
+      const next = { ...e, items: clears.items ? '' : e.items }
+      for (const field of keyed) {
+        const rest = { ...e[field] }
+        delete rest[clears[field]!]
+        next[field] = rest as never
+      }
+      return next
+    })
+  }, [])
+
   /** The hard upper limit when none is typed: 3 times To, as text ('' while
    * To isn't a number). */
   const max = multiplier(draft.max)
@@ -181,5 +206,5 @@ export function useRecipeDraft({ recipe, imported = null }: RecipeDraftOptions) 
     }
   }
 
-  return { draft, dispatch, errors, saving, marked, derivedTagIds, defaultHardMax, set, setInSteps, toggleTag, save, remove }
+  return { draft, dispatch, errors, saving, marked, derivedTagIds, defaultHardMax, set, setInSteps, toggleTag, edit, save, remove }
 }

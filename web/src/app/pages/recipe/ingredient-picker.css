@@ -1,0 +1,28 @@
+/* The ingredient picker sheet, after D2's .search and .picker-list. The line
+   menu's sheet uses the same list. */
+
+.picker-search { position: relative; margin: 0 0 var(--s4); }
+.picker-search svg {
+  position: absolute; left: 0; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none;
+}
+.picker-search .picker-search-in {
+  width: 100%; min-height: var(--touch); padding-left: 30px; font-family: var(--serif); font-size: 19px;
+}
+.picker-search-in::-webkit-search-cancel-button { cursor: pointer; }
+
+.picker-list { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--rule); }
+.picker-row {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3);
+  width: 100%; min-height: var(--touch); padding: 10px 0; text-align: left;
+  border: 0; border-bottom: 1px solid var(--rule); background: none; color: var(--ink);
+  touch-action: manipulation;
+}
+.picker-row:active { background: var(--press); }
+@media (hover: hover) {
+  .picker-row:hover { background: var(--press); }
+}
+.picker-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.picker-name { font-family: var(--serif); font-size: 18px; line-height: 24px; min-width: 0; overflow-wrap: anywhere; }
+.picker-unit { flex: none; font-size: 14px; color: var(--muted); }
+.picker-none { padding: var(--s4) 0; font-family: var(--serif); font-style: italic; color: var(--muted); }
+.picker-extra { margin-top: var(--s4); }

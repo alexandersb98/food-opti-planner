@@ -104,9 +104,10 @@ test('Edit annotates the spread: every field holds the recipe, the name has the 
   // the advanced settings are open when they hold something other than the defaults
   expect(box('Never more than').value).toBe('5')
   expect(box('Never more than').closest('details')!.open).toBe(true)
-  // the lines are read-only here until the line editor comes
+  // the lines are annotated too (ticket 33's line editor)
   const ingredients = within(screen.getByRole('region', { name: 'Ingredients' }))
-  expect(ingredients.getAllByRole('listitem').map((li) => li.textContent)).toEqual(['60 gOats', '200 mlMilk'])
+  expect(ingredients.getByRole<HTMLInputElement>('textbox', { name: 'Amount of Oats' }).value).toBe('60')
+  expect(ingredients.getByRole<HTMLInputElement>('textbox', { name: 'Amount of Milk' }).value).toBe('200')
   expect(document.querySelector('form.spread-editor')!.hasAttribute('data-no-swipe')).toBe(true)
   // the bar says what is going on
   expect(screen.getByText('Annotating: change anything underlined')).toBeDefined()
