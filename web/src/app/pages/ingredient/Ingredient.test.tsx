@@ -78,12 +78,13 @@ async function chooseUnit(page: Page, option: string) {
   await page.user.click(await screen.findByRole('option', { name: option }))
 }
 
-/** Each tag chip's name and whether it is on. */
+/** The chosen tags' chips, and the others offered under "Add a tag". */
 function tags() {
-  const group = screen.getByRole('group', { name: 'Tags' })
-  return within(group)
-    .getAllByRole('button')
-    .map((chip) => [chip.textContent, chip.getAttribute('aria-pressed')])
+  const names = (name: string) =>
+    within(screen.getByRole('group', { name }))
+      .getAllByRole('button')
+      .map((chip) => chip.textContent)
+  return { chosen: names('Tags'), others: names('Other tags') }
 }
 
 function save(page: Page) {
@@ -115,10 +116,7 @@ test('an ingredient opens with its fields, values and tags', async () => {
   expect([value('Name'), value('Measured in'), value('Value basis')]).toEqual(['Oats', 'g', '100'])
   expect([value('Energy'), value('Protein'), value('Fat')]).toEqual(['389', '16.9', ''])
   expect(document.body.textContent).toContain('kcal')
-  expect(tags()).toEqual([
-    ['vegan', 'true'],
-    ['contains-nuts', 'false'],
-  ])
+  expect(tags()).toEqual({ chosen: ['vegan'], others: ['contains-nuts'] })
   expect(document.body.textContent).toContain('Used in no recipes')
   expect(screen.queryByRole('button', { name: 'Show' })).toBeNull()
 })

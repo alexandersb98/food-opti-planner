@@ -1,0 +1,26 @@
+/* Tag picker: the chosen chips, then "Add a tag" with a find box and the
+   other tags, so a long catalogue never lengthens the page by itself. */
+
+.tag-picker { display: grid; gap: var(--s3); }
+.tag-picker-none { margin: 0; font-family: var(--serif); font-style: italic; font-size: 15px; line-height: 20px; color: var(--muted); }
+.tag-picker-count { margin-left: var(--s2); font-weight: 400; color: var(--muted); font-variant-numeric: lining-nums; }
+
+/* the find box: the recipe index's search, a step smaller */
+.tag-picker-find { position: relative; margin-bottom: var(--s3); }
+.tag-picker-find svg { position: absolute; left: 0; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.tag-picker-find-input {
+  display: block; width: 100%; min-height: var(--touch);
+  padding: 8px 2px 8px 28px; border: 0; border-bottom: 1px solid var(--ink); border-radius: 0;
+  background: transparent; color: var(--ink);
+  font-family: var(--serif); font-size: 17px; font-weight: 360; font-variation-settings: "opsz" 24;
+}
+.tag-picker-find-input:focus-visible { outline: none; box-shadow: inset 0 -2px 0 var(--accent); border-bottom-color: var(--accent); }
+.tag-picker-find-input::-webkit-search-cancel-button { cursor: pointer; }
+
+/* the others: lighter than the chosen chips (they are offers), and a
+   bounded, scrolling field so a long catalogue never runs down the page */
+.tag-picker-others {
+  max-height: min(40vh, 22rem); overflow-y: auto; overscroll-behavior: contain;
+  padding-bottom: var(--s2); border-bottom: 1px solid var(--rule);
+}
+.tag-picker-others .chip { padding: 4px 14px; font-size: 14.5px; color: var(--ink-2); }

@@ -8,7 +8,7 @@ import { portionTotals } from '../../../totals'
 import { useUnits } from '../../hooks/useUnits'
 import { useT } from '../../i18n/i18n'
 import { Button } from '../../ui/button/Button'
-import { Chip, Chips } from '../../ui/chips/Chips'
+import { TagPicker } from '../../ui/tagPicker/TagPicker'
 import { useConfirm } from '../../ui/confirm/Confirm'
 import { Disclosure } from '../../ui/disclosure/Disclosure'
 import { Field, Fieldset } from '../../ui/field/Field'
@@ -260,20 +260,15 @@ export function SpreadEditor({
           </h3>
           {tags.length > 0 ? (
             <>
-              <Chips labelledBy="spread-tags-title">
-                {tags.map((tag) =>
-                  derived.has(tag.id) ? (
-                    <Chip key={tag.id} pressed disabled note={t('recipe.auto')}>
-                      {tag.name}
-                    </Chip>
-                  ) : (
-                    <Chip key={tag.id} pressed={draft.extraTagIds.has(tag.id)} onClick={() => toggleTag(tag.id)}>
-                      {tag.name}
-                    </Chip>
-                  ),
-                )}
-              </Chips>
-              <p className="spread-hint">{t('recipe.tagsHint')}</p>
+              <TagPicker
+                labelledBy="spread-tags-title"
+                tags={tags}
+                chosen={draft.extraTagIds}
+                locked={derived}
+                lockedNote={t('recipe.auto')}
+                hint={<p className="spread-hint">{t('recipe.tagsHint')}</p>}
+                onToggle={toggleTag}
+              />
             </>
           ) : (
             <p className="spread-none">{t('ingredients.noTags')}</p>

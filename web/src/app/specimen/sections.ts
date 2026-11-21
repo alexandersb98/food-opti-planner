@@ -27,6 +27,7 @@ export const specimenSections: SpecimenSection[] = [
   { id: 'chips', title: 'Chips', load: () => import('../ui/chips/Specimen') },
   { id: 'select', title: 'Selects', load: () => import('../ui/select/Specimen') },
   { id: 'disclosure', title: 'Disclosures', load: () => import('../ui/disclosure/Specimen') },
+  { id: 'tag-picker', title: 'Tag picker', load: () => import('../ui/tagPicker/Specimen') },
   { id: 'importance', title: 'Importance dots', load: () => import('../ui/importanceDots/Specimen') },
   { id: 'rule-tag', title: 'Rule tags', load: () => import('../ui/ruleTag/Specimen') },
   { id: 'plate', title: 'Colour plates', load: () => import('../ui/plate/Specimen') },
