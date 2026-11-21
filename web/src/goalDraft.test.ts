@@ -24,7 +24,7 @@ test('a new goal starts on the first attribute, each day, Prefer, importance 3',
   expect(draft()).toMatchObject({ attribute_id: 1, min: '', max: '', applies_to: 'day', must: false, importance: 3 })
 })
 
-test("a goal's draft has its bounds as text and, without a split, both sides at its importance", () => {
+test("a goal’s draft has its bounds as text and, without a split, both sides at its importance", () => {
   const protein = goal({ id: 7, attribute_id: 2, min: '120', max: null, importance: 4 })
   expect(draftFromGoal(protein, attributes)).toMatchObject({
     min: '120',
@@ -77,7 +77,7 @@ test('the fields send the bounds as numbers, and hidden settings as their defaul
   })
 })
 
-test("the server's errors are marked on the goal sent at its index only", () => {
+test("the server’s errors are marked on the goal sent at its index only", () => {
   const found = { 'goals.1.min': 'too_many_decimals', 'goals.1.custom_name': 'duplicate', 'goals.0.max': 'not_a_number' }
   expect(serverErrors(found, 1, attributes[1], t)).toMatchObject({
     min: 'At most 1 decimals for Protein.',

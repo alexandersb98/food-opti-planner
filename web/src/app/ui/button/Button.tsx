@@ -1,12 +1,16 @@
-import type { ButtonHTMLAttributes } from 'react'
+import type { ComponentPropsWithRef } from 'react'
 import './button.css'
 
-export type ButtonVariant = 'outline' | 'primary' | 'accent' | 'ghost' | 'text' | 'text-plain'
+export type ButtonVariant = 'outline' | 'primary' | 'accent' | 'ghost' | 'text' | 'text-plain' | 'pencil' | 'icon'
 
 export interface ButtonLook {
   /** outline (default): ink border; primary: ink fill; accent: red-pencil
-   * fill; ghost: hairline border; text: red sans words (D2's text button);
-   * text-plain: the same in ink. */
+   * fill (also a confirm that removes something); ghost: hairline border;
+   * text: red sans words, underlined (D2's .text-btn); text-plain: the same
+   * in ink; pencil: italic serif words in red pencil, for the small actions
+   * written on a page being edited ("Add a line to …"); icon: a round
+   * 44 px button holding one mark (D2's .icon-btn), which needs an
+   * `aria-label`. */
   variant?: ButtonVariant
   /** 44 px tall instead of 48 (outline, primary, accent and ghost). */
   small?: boolean
@@ -14,14 +18,21 @@ export interface ButtonLook {
   block?: boolean
 }
 
+const WORDS: Partial<Record<ButtonVariant, string>> = {
+  text: 'btn-text',
+  'text-plain': 'btn-text btn-plain',
+  pencil: 'btn-pencil',
+  icon: 'btn-icon',
+}
+
 /** The button classes, for a router `<Link>` that looks like a button:
  * `<Link className={buttonClass({ variant: 'primary' })} to="/menu">`. */
 export function buttonClass({ variant = 'outline', small = false, block = false }: ButtonLook = {}, extra?: string) {
-  const text = variant === 'text' || variant === 'text-plain'
+  const words = WORDS[variant]
   return [
-    text ? 'btn-text' : 'btn',
-    variant === 'text-plain' ? 'btn-plain' : !text && variant !== 'outline' ? `btn-${variant}` : '',
-    small && !text ? 'btn-small' : '',
+    words ?? 'btn',
+    !words && variant !== 'outline' ? `btn-${variant}` : '',
+    small && !words ? 'btn-small' : '',
     block ? 'btn-block' : '',
     extra ?? '',
   ]
@@ -29,7 +40,8 @@ export function buttonClass({ variant = 'outline', small = false, block = false 
     .join(' ')
 }
 
-/** A button in D2's look. `type` defaults to "button" (not "submit"). */
+/** A button in D2's look. `type` defaults to "button" (not "submit"); a
+ * `ref` reaches the `<button>`. */
 export function Button({
   variant,
   small,
@@ -37,6 +49,6 @@ export function Button({
   className,
   type = 'button',
   ...props
-}: ButtonLook & ButtonHTMLAttributes<HTMLButtonElement>) {
+}: ButtonLook & ComponentPropsWithRef<'button'>) {
   return <button type={type} className={buttonClass({ variant, small, block }, className)} {...props} />
 }

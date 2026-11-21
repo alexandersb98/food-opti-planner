@@ -2,22 +2,7 @@
    then the brief sheets' form (fields on ruled lines, a segmented choice,
    the actions row). D2 has no import screen. */
 
-/* the cover (D2's .cover, .cover-title and .standfirst) */
-.import-cover { padding: var(--s6) 0 var(--s5); }
-.import-cover > .kicker { color: var(--accent); }
-.import-title {
-  margin: var(--s2) 0 var(--s4);
-  font-size: var(--fs-hero); line-height: var(--lh-hero);
-  text-wrap: balance;
-}
-.import-title em { font-weight: 300; font-variation-settings: "opsz" 144, "SOFT" 100; }
-.import-standfirst {
-  font-family: var(--serif); font-size: var(--fs-lead); line-height: var(--lh-lead);
-  font-weight: 340; color: var(--ink-2);
-  font-variation-settings: "opsz" 24;
-  font-variant-numeric: oldstyle-nums proportional-nums;
-  max-width: 34em; text-wrap: pretty;
-}
+/* the cover is base.css's .cover, .cover-title and .standfirst (D2's) */
 
 /* the form: D2's sheet fields, a field's worth of air between them */
 .import-form {

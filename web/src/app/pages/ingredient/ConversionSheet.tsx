@@ -9,6 +9,7 @@ import { Field } from '../../ui/field/Field'
 import { Sheet } from '../../ui/sheet/Sheet'
 import { UnitField, type UnitGroup } from '../../ui/unit-field/UnitField'
 import './conversions.css'
+import { buttonClass } from '../../ui/button/Button'
 
 // The conversion sheet: "1 [unit] = [number] g" for one ingredient, added or
 // edited, saved at once through the API. Reusable: the ingredient page's
@@ -206,10 +207,10 @@ function ConversionForm({
         </p>
       ) : null}
       <div className="sheet-actions">
-        <button type="button" className="sheet-btn sheet-btn-ghost" onClick={onClose}>
+        <button type="button" className={buttonClass({ variant: 'ghost' })} onClick={onClose}>
           {t('common.cancel')}
         </button>
-        <button type="submit" className="sheet-btn sheet-btn-primary" disabled={saving}>
+        <button type="submit" className={buttonClass({ variant: 'primary' })} disabled={saving}>
           {t('common.save')}
         </button>
       </div>

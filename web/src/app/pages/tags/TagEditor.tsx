@@ -91,7 +91,7 @@ export function TagEditor({
           {(control) => (
             <input
               {...control}
-              className="tags-annot tags-name-in"
+              className="annot tags-name-in"
               name="name"
               autoComplete="off"
               enterKeyHint="done"

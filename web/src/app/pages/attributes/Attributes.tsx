@@ -214,7 +214,7 @@ export function Attributes() {
   return (
     <Cover count={attributes.length}>
       {attributes.length === 0 && openId !== 'new' ? (
-        <div className="attributes-empty">
+        <div className="empty-state attributes-empty">
           <p>{t('attributes.empty')}</p>
         </div>
       ) : (
@@ -259,12 +259,12 @@ function Cover({ count, children }: { count?: number; children: ReactNode }) {
   const t = useT()
   return (
     <article className="attributes">
-      <div className="attributes-cover">
+      <div className="cover attributes-cover">
         {count === undefined ? null : <p className="kicker">{t('attributes.tracked', count)}</p>}
-        <h1 className="attributes-title display">
+        <h1 className="cover-title display attributes-title">
           <em>{t('shell.pages.attributes.title')}</em>
         </h1>
-        <p className="attributes-standfirst">{t('attributes.intro')}</p>
+        <p className="standfirst attributes-standfirst">{t('attributes.intro')}</p>
       </div>
       {children}
     </article>

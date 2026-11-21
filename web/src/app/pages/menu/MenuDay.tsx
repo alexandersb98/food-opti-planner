@@ -2,11 +2,12 @@ import { memo, useCallback, useId, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router'
 import type { PlanResult, ResultMeal } from '../../../api/types'
 import { valueText } from '../../../format'
-import { dayLine, type DayPart } from '../../../misses'
+import { dayLine, missedValue, type DayPart } from '../../../misses'
+import { portionAmount, portionFigure } from '../../../portions'
 import { roundedText } from '../../../totals'
 import { useT } from '../../i18n/i18n'
 import type { Translate } from '../../../translator'
-import { dayParts, portionText } from './menuText'
+import { dayParts } from './menuText'
 
 /** Scaled ingredient amounts are shown with at most this many decimals. */
 const AMOUNT_DECIMALS = 2
@@ -14,14 +15,13 @@ const AMOUNT_DECIMALS = 2
 const MARGIN_ATTRIBUTES = 2
 
 /** Every attribute's total for the day, in attribute order; a value missed
- * that day (by the server's per-day misses) reads "Protein 98 / 120 g". */
+ * that day (by the server's per-day misses) reads "Protein 98 g, under 120". */
 function allValues(plan: PlanResult, day: number, t: Translate): DayPart[] {
   return plan.attributes.map((attribute, i) => {
     const misses = plan.misses.filter((miss) => miss.day === day && plan.goals[miss.goal]?.attribute === i)
     if (misses.length === 0) return { text: valueText(attribute, plan.day_totals[day]?.[i] ?? '0'), missed: false }
     const worst = misses.reduce((a, b) => (Number(b.percent) > Number(a.percent) ? b : a))
-    const named = { name: attribute.name, actual: worst.actual, bound: worst.bound, unit: attribute.unit }
-    return { text: t('misses.dayValue', named).trim(), missed: true }
+    return { text: missedValue(attribute, worst, t), missed: true }
   })
 }
 
@@ -139,8 +139,9 @@ function Course({
       </li>
     )
   }
-  const portion = meal.portion ?? '1'
-  const count = Number(portion)
+  // the portion as the brief reads it too: to a tenth, halves and quarters as fractions
+  const count = portionAmount(meal.portion ?? '1')
+  const portion = portionFigure(count)
   const margins = plan.attributes.slice(0, MARGIN_ATTRIBUTES)
   return (
     <li className={`menu-course${margins.length ? '' : ' is-bare'}`}>
@@ -163,9 +164,9 @@ function Course({
           <>
             {' '}
             <span className="menu-portion" aria-hidden="true">
-              × {portionText(portion)}
+              × {portion}
             </span>
-            <span className="visually-hidden">, {t('menu.portions', { portion: roundedText(portion, 2) }, count)}</span>
+            <span className="visually-hidden">, {t('menu.portions', { portion: String(count) }, count)}</span>
           </>
         ) : null}
       </p>
@@ -182,7 +183,7 @@ function Course({
       <div id={detailId} className="menu-detail" hidden={!open}>
         {open ? (
           <>
-            <p className="menu-detail-head">{t('menu.ingredientsFor', { portion: portionText(portion) }, count)}</p>
+            <p className="menu-detail-head">{t('menu.ingredientsFor', { portion }, count)}</p>
             <ul className="menu-items">
               {meal.items.map((item, i) => (
                 <li key={i} className="menu-item">

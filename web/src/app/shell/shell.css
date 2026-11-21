@@ -15,7 +15,7 @@
 @media (min-width: 768px) {
   .shell-desk { padding: 28px var(--s5); }
   .shell {
-    --gutter: 48px;
+    --gutter: var(--gutter-wide);
     max-width: var(--page-max);
     min-height: calc(100vh - 56px);
     min-height: calc(100dvh - 56px);
@@ -26,6 +26,12 @@
 
 .shell-page {
   padding: 0 var(--gutter) calc(var(--s7) + env(safe-area-inset-bottom));
+  /* the whole page below the masthead takes a swipe (turn.css), however short its text */
+  min-height: calc(100vh - var(--mast));
+  min-height: calc(100dvh - var(--mast) - env(safe-area-inset-top));
+}
+@media (min-width: 768px) {
+  .shell-page { min-height: calc(100vh - 56px - var(--mast)); min-height: calc(100dvh - 56px - var(--mast)); }
 }
 /* whatever is scrolled to or focused stays clear of the sticky masthead */
 html:has(.masthead) { scroll-padding-top: calc(var(--mast) + var(--s2)); }
@@ -55,11 +61,7 @@ html:has(.masthead) { scroll-padding-top: calc(var(--mast) + var(--s2)); }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   transition: opacity .16s, transform .24s var(--ease);
 }
-.masthead-name {
-  font-family: var(--serif); font-size: 21px; line-height: 28px; font-weight: 620; letter-spacing: -.015em;
-  font-variation-settings: "opsz" 48;
-}
-.masthead-article { font-style: italic; font-weight: 380; }
+/* .masthead-name is the Wordmark (wordmark.css) */
 .masthead-run {
   opacity: 0; transform: translateY(6px);
   font-family: var(--serif); font-style: italic; font-size: 17px; line-height: 24px; color: var(--ink-2);

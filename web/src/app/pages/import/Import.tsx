@@ -91,12 +91,12 @@ export function Import() {
 
   return (
     <article className="import" aria-labelledby={headingId}>
-      <div className="import-cover">
+      <div className="cover import-cover">
         <p className="kicker">{t('import.cover.kicker')}</p>
-        <h1 id={headingId} className="import-title display">
+        <h1 id={headingId} className="cover-title display import-title">
           {t('import.cover.title')} <em>{t('import.cover.titleEm')}</em>
         </h1>
-        <p className="import-standfirst">{t('import.cover.standfirst')}</p>
+        <p className="standfirst import-standfirst">{t('import.cover.standfirst')}</p>
       </div>
 
       <form className="import-form" onSubmit={run} noValidate aria-busy={reading}>

@@ -42,11 +42,6 @@
 }
 .turn-folio::before, .turn-folio::after { content: ""; width: 24px; height: 1px; background: var(--rule); }
 
-/* the whole page below the masthead takes a swipe, however short its text */
-.shell-page { min-height: calc(100vh - var(--mast)); min-height: calc(100dvh - var(--mast) - env(safe-area-inset-top)); }
-@media (min-width: 768px) {
-  .shell-page { min-height: calc(100vh - 56px - var(--mast)); min-height: calc(100dvh - 56px - var(--mast)); }
-}
 
 /* ---------- the page-enter slide, in the direction moved ---------- */
 .shell-page[data-enter="next"] { animation: turn-next .34s var(--ease-out) backwards; }

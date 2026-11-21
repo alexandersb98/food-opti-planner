@@ -11,7 +11,7 @@
 @media (min-width: 768px) {
   .login-desk { padding: 28px var(--s5); }
   .login {
-    --gutter: 48px;
+    --gutter: var(--gutter-wide);
     max-width: var(--page-max);
     min-height: calc(100vh - 56px);
     min-height: calc(100dvh - 56px);
@@ -26,23 +26,11 @@
   height: calc(var(--mast) + env(safe-area-inset-top));
   padding: calc(env(safe-area-inset-top) + (var(--mast) - 28px) / 2) var(--gutter) 0;
   border-bottom: 1px solid var(--rule);
-  font-family: var(--serif); font-size: 21px; line-height: 28px; font-weight: 620; letter-spacing: -.015em;
-  font-variation-settings: "opsz" 48;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.login-article { font-style: italic; font-weight: 380; }
 
 .login-body { padding: var(--s6) var(--gutter) 0; }
-.login-title {
-  font-size: var(--fs-hero); line-height: var(--lh-hero);
-  margin: var(--s2) 0 var(--s4);
-}
-.login-standfirst {
-  font-family: var(--serif); font-size: var(--fs-lead); line-height: var(--lh-lead);
-  font-weight: 340; color: var(--ink-2);
-  font-variation-settings: "opsz" 24;
-  max-width: 34em;
-}
+/* the title and standfirst are base.css's .cover-title and .standfirst */
 
 .login-form {
   display: grid; gap: var(--s5);

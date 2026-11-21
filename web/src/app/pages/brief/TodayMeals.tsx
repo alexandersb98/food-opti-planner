@@ -1,24 +1,7 @@
 import { Link } from 'react-router'
 import type { TodayPlan } from '../../../api/types'
+import { portionAmount, portionFigure } from '../../../portions'
 import { useLocale, useT } from '../../i18n/i18n'
-
-const FRACTIONS: Record<string, string> = { '0.25': '¼', '0.5': '½', '0.75': '¾' }
-
-/** A portion as a cook reads it: the solver's "0.657" to a tenth (0.7),
- * one within a hair of a quarter to that quarter ("1.5" stays 1.5). */
-export function portionAmount(portion: string): number {
-  const value = Number(portion)
-  if (!Number.isFinite(value)) return 1
-  const quarters = Math.round(value * 4) / 4
-  return Math.abs(value - quarters) < 0.02 ? quarters : Math.round(value * 10) / 10
-}
-
-/** "1½", "¾", "0.7": the amount in figures, halves and quarters as fractions. */
-export function portionFigure(amount: number): string {
-  const whole = Math.floor(amount)
-  const rest = FRACTIONS[String(amount - whole)]
-  return rest ? `${whole || ''}${rest}` : String(amount)
-}
 
 /** "Saturday 21 November": a "YYYY-MM-DD" date in words (UTC, so the
  * browser's time zone can't move the day). */

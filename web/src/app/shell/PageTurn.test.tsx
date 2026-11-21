@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { expect, test } from 'vitest'
 import { fakeServer, mountApp, type FakeServer } from '../test-app'
 
@@ -27,7 +27,8 @@ test('a left swipe on the brief turns to The Menu, and a right swipe turns back'
   fakeServer(session)
   const { router } = await mountApp('/')
   swipe(await heading('This week’s brief'), -120)
-  expect(where(router)).toBe('/plans/new')
+  // The Menu is a lazy route: the turn lands once its bundle is in
+  await waitFor(() => expect(where(router)).toBe('/plans/new'), { timeout: 5000 })
 
   swipe(await heading('The Menu'), 120)
   expect(where(router)).toBe('/')
@@ -38,7 +39,7 @@ test('a detail page turns from the page it belongs to', async () => {
   fakeServer(session)
   const { router } = await mountApp('/recipes/3')
   swipe(await screen.findByRole('main'), -120)
-  expect(where(router)).toBe('/plans')
+  await waitFor(() => expect(where(router)).toBe('/plans'), { timeout: 5000 })
 })
 
 test('a short, slow or mostly upright stroke is not a swipe', async () => {

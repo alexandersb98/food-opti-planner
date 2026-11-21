@@ -7,7 +7,7 @@ import { usePreferences } from '../../hooks/usePreferences'
 import { useLoad } from '../../hooks/useLoad'
 import { useT } from '../../i18n/i18n'
 import { preferencesStore } from '../../stores/preferences'
-import { Button } from '../../ui/button/Button'
+import { Button, buttonClass } from '../../ui/button/Button'
 import { Chip, Chips } from '../../ui/chips/Chips'
 import { Field, Fieldset } from '../../ui/field/Field'
 import { LoadState } from '../../ui/loadState/LoadState'
@@ -355,7 +355,7 @@ function FoodToAdd({ source, food, onBack }: { source: DataSourceSummary; food: 
         <>
           <LoadState of={preview} message={t('addFromSource.loadFoodFailed')} />
           <div className="sheet-actions">
-            <button type="button" className="sheet-btn sheet-btn-ghost" onClick={onBack}>
+            <button type="button" className={buttonClass({ variant: 'ghost' })} onClick={onBack}>
               {t('addFromSource.backToResults')}
             </button>
           </div>
@@ -468,10 +468,10 @@ function Preview({
       ) : null}
 
       <div className="sheet-actions">
-        <button type="button" className="sheet-btn sheet-btn-ghost" onClick={onBack}>
+        <button type="button" className={buttonClass({ variant: 'ghost' })} onClick={onBack}>
           {t('addFromSource.backToResults')}
         </button>
-        <button type="submit" className="sheet-btn sheet-btn-primary" disabled={preview.withdrawn} aria-busy={adding}>
+        <button type="submit" className={buttonClass({ variant: 'primary' })} disabled={preview.withdrawn} aria-busy={adding}>
           {t('addFromSource.add')}
         </button>
       </div>

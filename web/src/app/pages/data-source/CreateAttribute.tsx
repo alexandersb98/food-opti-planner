@@ -11,6 +11,7 @@ import { Field } from '../../ui/field/Field'
 import { Sheet } from '../../ui/sheet/Sheet'
 import { UnitField, type UnitGroup } from '../../ui/unit-field/UnitField'
 import './create-attribute.css'
+import { buttonClass } from '../../ui/button/Button'
 
 interface Errors {
   name?: string
@@ -151,10 +152,10 @@ export function CreateAttribute({
           </p>
         ) : null}
         <div className="sheet-actions">
-          <button type="button" className="sheet-btn sheet-btn-ghost" onClick={onClose}>
+          <button type="button" className={buttonClass({ variant: 'ghost' })} onClick={onClose}>
             {t('common.cancel')}
           </button>
-          <button type="submit" className="sheet-btn sheet-btn-primary" disabled={saving}>
+          <button type="submit" className={buttonClass({ variant: 'primary' })} disabled={saving}>
             {saving ? t('attributes.saving') : t('dataSource.add')}
           </button>
         </div>

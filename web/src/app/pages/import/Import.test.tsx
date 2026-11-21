@@ -127,8 +127,8 @@ test('a success posts the text, shows the wait, hands the draft over and opens a
 
 test.each([
   ['no_recipe', 422, 'No recipe found in this text.'],
-  ['limit_reached', 429, "Today's import limit is reached."],
-  ['ai_failed', 502, "The AI service didn't answer. Try again."],
+  ['limit_reached', 429, "Today’s import limit is reached."],
+  ['ai_failed', 502, "The AI service didn’t answer. Try again."],
   ['ai_not_configured', 503, 'Needs an AI key.'],
   ['text_required', 422, 'Paste the recipe text first.'],
   ['too_long', 422, 'That is too much text. Paste only the recipe.'],
@@ -184,7 +184,7 @@ test('the page opens on the Link field with its hint and no text box', async () 
   expect(linkField().type).toBe('url')
   expect(linkField().getAttribute('inputmode')).toBe('url')
   expect(linkField().getAttribute('aria-describedby')).toBeTruthy()
-  expect(screen.getByText("Works for most recipe sites. If a site won't open, paste the recipe text instead.")).toBeDefined()
+  expect(screen.getByText("Works for most recipe sites. If a site won’t open, paste the recipe text instead.")).toBeDefined()
   expect(screen.queryByRole('textbox', { name: 'Recipe text' })).toBeNull()
 })
 
@@ -246,12 +246,12 @@ const failure = (status: number, type: string): FakeServer => ({
 })
 
 test.each([
-  ['page_unreadable', 422, "Couldn't read this page. Paste the recipe text instead."],
+  ['page_unreadable', 422, "Couldn’t read this page. Paste the recipe text instead."],
   ['no_recipe', 422, 'No recipe found on this page. Paste the recipe text instead.'],
   ['url_required', 422, 'Enter the link to the recipe.'],
   ['url_invalid', 422, 'Enter a link that starts with http:// or https://.'],
-  ['limit_reached', 429, "Today's import limit is reached."],
-  ['ai_failed', 502, "The AI service didn't answer. Try again."],
+  ['limit_reached', 429, "Today’s import limit is reached."],
+  ['ai_failed', 502, "The AI service didn’t answer. Try again."],
   ['ai_not_configured', 503, 'Needs an AI key.'],
   ['input_required', 422, 'Could not import the recipe. Try again.'],
 ])('link mode: %s shows its sentence and keeps the link and the text', async (type_, status, message) => {

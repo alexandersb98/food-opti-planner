@@ -314,7 +314,8 @@ function IngredientEditor({
           autoComplete="off"
           placeholder={inSheet ? undefined : t('common.name')}
           value={draft.name}
-          autoFocus={stored === null}
+          // a new ingredient starts on its name; not on a touch screen, where the keyboard would cover the page
+          autoFocus={stored === null && !window.matchMedia?.('(pointer: coarse)').matches}
           onChange={(event) => {
             const name = event.target.value
             setDraft((d) => ({ ...d, name }))

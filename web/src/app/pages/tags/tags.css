@@ -2,19 +2,8 @@
    and the open entry follow D2's cover, archive list and "annotating the
    page" edit style (prototypes/d2-editorial-refined/styles.css). */
 
-/* ---------- cover (D2's .cover) ---------- */
-.tags-cover { padding: var(--s6) 0 var(--s5); }
-.tags-cover > .kicker { color: var(--accent); }
-.tags-title {
-  font-size: var(--fs-hero); line-height: var(--lh-hero);
-  margin: var(--s2) 0 var(--s4);
-}
-.tags-title em { font-weight: 300; font-variation-settings: "opsz" 144, "SOFT" 100; }
-.tags-standfirst {
-  font-family: var(--serif); font-size: var(--fs-lead); line-height: var(--lh-lead);
-  font-weight: 340; color: var(--ink-2); max-width: 34em;
-  font-variation-settings: "opsz" 24; font-variant-numeric: oldstyle-nums proportional-nums;
-}
+/* ---------- cover ---------- */
+/* the cover is base.css's .cover, .cover-title and .standfirst (D2's) */
 
 /* ---------- the list (D2's .archive) ---------- */
 .tags-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule-strong); }
@@ -49,11 +38,8 @@
   vertical-align: 1px;
 }
 
-.tags-empty {
-  margin-top: var(--s2); padding: var(--s5) 0; text-align: center;
-  border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
-}
-.tags-empty p { font-family: var(--serif); font-style: italic; font-size: var(--fs-lead); line-height: var(--lh-lead); color: var(--ink-2); }
+/* base.css's .empty-state, close under the cover */
+.empty-state.tags-empty { margin-top: var(--s2); }
 
 .tags-new { margin-top: var(--s2); }
 
@@ -65,17 +51,6 @@
 }
 .tags-edit { display: grid; gap: var(--s4); padding: var(--s4) var(--s3) var(--s4) var(--s4); }
 
-/* D2's .annot: a dashed red line under the words being changed */
-.tags-annot {
-  border: 0; border-bottom: 1.5px dashed var(--accent); border-radius: 0;
-  background: color-mix(in srgb, var(--accent) 6%, transparent);
-  padding: 4px; color: var(--ink);
-}
-.tags-annot:focus-visible {
-  border-bottom-style: solid; box-shadow: none;
-  background: color-mix(in srgb, var(--accent) 13%, transparent);
-}
-.tags-annot[aria-invalid="true"] { border-bottom-style: solid; }
 .tags-name-in, .tags-edit-name {
   font-family: var(--serif); font-size: 24px; line-height: 32px; letter-spacing: -.01em;
   font-variation-settings: "opsz" 48;

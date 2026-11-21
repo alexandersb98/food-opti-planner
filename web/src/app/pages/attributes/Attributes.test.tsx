@@ -184,7 +184,7 @@ test('an empty name or decimals outside 0 to 6 are shown on their fields and not
   expect(field('Decimals').getAttribute('aria-invalid')).toBe('true')
 })
 
-test("a unit the server refuses shows the server's sentence under the unit until the unit is edited", async () => {
+test("a unit the server refuses shows the server’s sentence under the unit until the unit is edited", async () => {
   const { user } = await mountPage({
     'PUT /api/attributes/1': {
       status: 422,
@@ -303,7 +303,7 @@ test('a failed delete keeps the entry open and says so', async () => {
 test('the unit list offers mass, volume and energy, and the unit has its hint', async () => {
   const { user } = await mountPage()
   await user.click(entry('Protein'))
-  expect(description(unitBox())).toBe("The amount per the ingredient's basis, e.g. g or kcal.")
+  expect(description(unitBox())).toBe("The amount per the ingredient’s basis, e.g. g or kcal.")
   await user.click(unitBox())
   await user.keyboard('{ArrowDown}')
   const list = screen.getByRole('listbox', { name: 'Unit' })

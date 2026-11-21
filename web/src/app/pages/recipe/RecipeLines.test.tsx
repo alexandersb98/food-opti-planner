@@ -165,7 +165,7 @@ test('a unit offers the own unit, the units that convert and the conversions (th
     group.label,
     [...group.querySelectorAll('option')].map((option) => option.textContent),
   ])
-  expect(groups[0]).toEqual(["Ingredient's unit", ['g']])
+  expect(groups[0]).toEqual(["Ingredient’s unit", ['g']])
   expect(groups[1]![0]).toBe('Other units')
   // mass units, and with the dl conversion the volume units too, but not dl itself
   expect(groups[1]![1]).toEqual(expect.arrayContaining(['kg (kilogram)', 'ml (millilitre)', 'l (litre)']))
@@ -175,7 +175,7 @@ test('a unit offers the own unit, the units that convert and the conversions (th
 
   // a piece-less ml ingredient offers no mass units
   const milkGroups = [...unit('Milk').querySelectorAll('optgroup')].map((group) => group.label)
-  expect(milkGroups).toEqual(["Ingredient's unit", 'Other units'])
+  expect(milkGroups).toEqual(["Ingredient’s unit", 'Other units'])
   expect([...unit('Milk').options].map((o) => o.textContent)).not.toContain('g (gram)')
 })
 
@@ -216,6 +216,36 @@ test('Add a line opens the picker, A to Z; picking adds the line, focuses its am
   await waitFor(() => expect(derived.sent).toEqual([{ ingredient_ids: [1, 2, 3] }]))
   const contains = within(screen.getByRole('group', { name: 'Tags' })).getByRole('button', { name: /contains-nuts/ })
   await waitFor(() => expect(contains.getAttribute('aria-pressed')).toBe('true'))
+})
+
+test('the amount takes typing at once after a pick, while the picker is still sliding away', async () => {
+  const { user } = await edit()
+  // the picker's closing animation runs until it is let go
+  let finish = () => {}
+  const finished = new Promise<void>((resolve) => (finish = resolve))
+  const proto = Element.prototype as { getAnimations?: () => unknown[] }
+  const own = proto.getAnimations
+  proto.getAnimations = function (this: Element) {
+    return this.matches('dialog[data-closing], dialog[data-closing] > .sheet-panel') ? [{ finished }] : []
+  }
+  try {
+    await user.click(screen.getByRole('button', { name: 'Add a line' }))
+    const sheet = await screen.findByRole('dialog', { name: 'Add an ingredient' })
+    await user.click(within(sheet).getByRole('button', { name: /^Almonds/ }))
+    // still drawn, but no longer modal: the page has the focus back
+    expect(sheet.isConnected && (sheet as HTMLDialogElement).open).toBe(true)
+    expect(sheet.hasAttribute('data-closing')).toBe(true)
+    expect(document.activeElement).toBe(amount('Almonds'))
+    await user.keyboard('40')
+    expect(amount('Almonds').value).toBe('40')
+  } finally {
+    finish()
+    if (own) proto.getAnimations = own
+    else delete proto.getAnimations
+  }
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  expect(amount('Almonds').value).toBe('40')
+  expect(document.activeElement).toBe(amount('Almonds'))
 })
 
 test('the same ingredient can be picked for a second line; the picker still offers it and starts afresh', async () => {
@@ -328,7 +358,7 @@ test('a line whose unit does not convert says why, is left out of the totals, an
   expect(totals()).toEqual(['0 kcal', '0 g'])
 
   await user.click(screen.getByRole('button', { name: 'Save' }))
-  expect(describing(unit('Oats'))).toBe("dl of Oats doesn't convert. Pick another unit or add a conversion.")
+  expect(describing(unit('Oats'))).toBe("dl of Oats doesn’t convert. Pick another unit or add a conversion.")
   expect(unit('Oats').getAttribute('aria-invalid')).toBe('true')
   expect(document.activeElement).toBe(unit('Oats'))
   expect(put.sent).toEqual([])
@@ -407,7 +437,7 @@ test('an amount that is not a number is marked on its line, and goes as it is re
   expect(describing(amount('Milk'))).toBe('')
 })
 
-test("the server's section, amount and unit refusals show on their fields; an unknown ingredient on the page", async () => {
+test("the server’s section, amount and unit refusals show on their fields; an unknown ingredient on the page", async () => {
   const withOz = recipe({
     ...layered,
     sections: [layered.sections[0]!, { name: 'Topping', items: [{ ingredient_id: 3, amount: '2', unit: 'oz', original_text: '' }] }],
@@ -429,7 +459,7 @@ test("the server's section, amount and unit refusals show on their fields; an un
   await user.click(screen.getByRole('button', { name: 'Save' }))
   await waitFor(() => expect(describing(amount('Oats'))).toBe('Use at most 9 digits before the point and 6 after.'))
   expect(describing(region().getByRole('textbox', { name: 'Name of section 2' }))).toBe('Name every section.')
-  expect(describing(unit('Almonds'))).toBe("oz of Almonds doesn't convert. Pick another unit or add a conversion.")
+  expect(describing(unit('Almonds'))).toBe("oz of Almonds doesn’t convert. Pick another unit or add a conversion.")
 
   fakeServer({
     ...catalogue,

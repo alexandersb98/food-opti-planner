@@ -1,20 +1,7 @@
 /* The archive, after D2's #archive: a cover, then the saved plans as a
    ruled list, each with its ISO week in large light red-pencil figures. */
 
-.archive-cover { padding: var(--s6) 0 var(--s5); }
-.archive-cover > .kicker { color: var(--accent); }
-.archive-title {
-  font-size: var(--fs-hero); line-height: var(--lh-hero);
-  margin: var(--s2) 0 var(--s4);
-}
-.archive-title em { font-weight: 300; font-variation-settings: "opsz" 144, "SOFT" 100; }
-.archive-standfirst {
-  font-family: var(--serif); font-size: var(--fs-lead); line-height: var(--lh-lead);
-  font-weight: 340; color: var(--ink-2);
-  font-variation-settings: "opsz" 24;
-  font-variant-numeric: oldstyle-nums proportional-nums;
-  max-width: 34em;
-}
+/* the cover is base.css's .cover, .cover-title and .standfirst (D2's) */
 
 .archive-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule-strong); }
 .archive-entry {
@@ -52,13 +39,4 @@
 }
 .archive-chevron { color: var(--muted); font-family: var(--serif); font-size: 22px; transition: color .15s; }
 
-.archive-empty {
-  display: grid; justify-items: center; gap: var(--s3);
-  margin-top: var(--s6); padding: var(--s5) 0;
-  border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
-  text-align: center;
-}
-.archive-empty p {
-  font-family: var(--serif); font-style: italic; font-size: var(--fs-lead); line-height: var(--lh-lead);
-  color: var(--ink-2); max-width: 22em;
-}
+/* the empty state is base.css's .empty-state */

@@ -66,31 +66,11 @@
 }
 .sheet-preview b { white-space: nowrap; font-variant-numeric: lining-nums; }
 .sheet-actions { display: flex; gap: var(--s3); margin-top: var(--s5); flex-wrap: wrap; }
-.sheet-actions .sheet-btn { flex: 1 1 120px; }
-
-/* D2's .btn, for the actions at the foot of a sheet */
-.sheet-btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
-  min-height: 48px; padding: 0 20px; text-align: center; text-decoration: none;
-  border: 1px solid var(--ink); border-radius: 0; background: none; color: var(--ink);
-  font-size: 16.5px; line-height: 20px; font-weight: 500;
-  transition: transform .12s var(--ease), background-color .15s, opacity .15s;
-}
-.sheet-btn:active:not(:disabled) { transform: translateY(1px); background: var(--press); }
-.sheet-btn-primary { background: var(--ink); color: var(--paper); }
-.sheet-btn-primary:active:not(:disabled) { background: var(--ink-2); }
-/* a confirm that removes something: the red pencil */
-.sheet-btn-danger { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-.sheet-btn-danger:active:not(:disabled) { background: color-mix(in srgb, var(--accent) 86%, var(--ink)); }
-.sheet-btn-ghost { border-color: var(--rule); }
-.sheet-btn:disabled { opacity: .55; }
+.sheet-actions > .btn { flex: 1 1 120px; }
+/* the actions are Button's (ui/button): ghost for the way out, primary to do it, accent to remove */
 
 @media (hover: hover) {
   .sheet-close:hover { color: var(--ink); background: var(--press); }
-  .sheet-btn:hover:not(:disabled) { background: var(--press); }
-  .sheet-btn-ghost:hover:not(:disabled) { border-color: var(--ink); }
-  .sheet-btn-primary:hover:not(:disabled) { background: var(--ink-2); }
-  .sheet-btn-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 86%, var(--ink)); }
 }
 
 /* desktop: centred and as wide as the page column */

@@ -149,7 +149,8 @@ test('the dish links to its recipe only when a recipe has that exact name', asyn
   const chili = within(lunch!).getByRole('link', { name: 'Chili' })
   expect(chili.getAttribute('href')).toBe('/recipes/12')
   await user.click(chili)
-  expect(router.state.location.pathname).toBe('/recipes/12')
+  // the spread is a lazy route
+  await waitFor(() => expect(router.state.location.pathname).toBe('/recipes/12'))
 })
 
 test('the menu reads without the recipe list', async () => {
@@ -211,7 +212,7 @@ test('the day totals show the goal attributes, a miss that day marked for everyo
   today('2026-10-10')
   await mountSaved(week({ goals: [proteinGoal], misses: [proteinMiss] }))
   const wednesday = within(dayTotals(day('Wednesday 23 Sep'))).getAllByRole('listitem')
-  expect(wednesday.map(text)).toEqual(['Protein 10 / 12 g (goal missed)'])
+  expect(wednesday.map(text)).toEqual(['Protein 10 g, under 12 (goal missed)'])
   expect(wednesday[0]!.className).toBe('menu-miss')
   const tuesday = within(dayTotals(day('Tuesday 22 Sep'))).getAllByRole('listitem')
   expect(tuesday.map(text)).toEqual(['Protein 10 g'])

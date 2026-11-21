@@ -6,6 +6,7 @@ import { Sheet } from '../../ui/sheet/Sheet'
 import { Stepper } from '../../ui/stepper/Stepper'
 import { longDay, minimumOn, plannedOn, setMinimum } from './scheduleGrid'
 import { capitalised, numberWord, richText } from './words'
+import { buttonClass } from '../../ui/button/Button'
 
 /**
  * A day's "at least" sheet (D2's): how many of the day's planned meals must
@@ -110,7 +111,7 @@ export function DaySheet({
       <div className="sheet-actions">
         <button
           type="button"
-          className="sheet-btn sheet-btn-primary"
+          className={buttonClass({ variant: 'primary' })}
           aria-busy={saving || undefined}
           onClick={() => void done()}
         >

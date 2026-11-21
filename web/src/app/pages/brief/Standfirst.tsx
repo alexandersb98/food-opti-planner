@@ -42,7 +42,7 @@ export function Standfirst({ plan, usable }: { plan: Plan; usable: number | null
           })
 
   return (
-    <p className="brief-standfirst dropcap">
+    <p className="standfirst brief-standfirst dropcap">
       {typeof first === 'string' ? sentence(first) : first}
       {rest} {sentence(goalsText)}
       {usable === null ? null : <> {sentence(t('brief.standfirst.recipes', { word: word(usable) }, usable))}</>}

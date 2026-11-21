@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { Link } from 'react-router'
 import { api } from '../../api/client'
 import type { components } from '../../api/schema'
+import { isoWeek } from '../../dates'
 import { useLocale, useT } from '../i18n/i18n'
 import { registry, type PageId } from './registry'
 
@@ -13,15 +14,6 @@ const counted: Partial<Record<PageId, keyof Counts>> = {
   ingredients: 'ingredients',
   attributes: 'attributes',
   tags: 'tags',
-}
-
-/** The ISO week number of a date (weeks start on Monday; week 1 holds the
- * year's first Thursday). */
-export function isoWeek(date: Date): number {
-  const day = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
-  day.setUTCDate(day.getUTCDate() + 4 - (day.getUTCDay() || 7))
-  const yearStart = Date.UTC(day.getUTCFullYear(), 0, 1)
-  return Math.ceil(((day.getTime() - yearStart) / 86_400_000 + 1) / 7)
 }
 
 /** How the Contents closed: dismissed (focus goes back to the Contents

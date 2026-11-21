@@ -249,7 +249,7 @@ export function Tags() {
       <Cover count={tags.length} />
 
       {rows.length === 0 ? (
-        <div className="tags-empty">
+        <div className="empty-state tags-empty">
           <p>{t('tags.empty')}</p>
         </div>
       ) : (
@@ -322,12 +322,12 @@ export function Tags() {
 function Cover({ count }: { count?: number }) {
   const t = useT()
   return (
-    <div className="tags-cover">
+    <div className="cover tags-cover">
       {count === undefined ? null : <p className="kicker">{t('shell.count.tags', count)}</p>}
-      <h1 id={TITLE_ID} className="tags-title display">
+      <h1 id={TITLE_ID} className="cover-title display tags-title">
         <em>{t('shell.pages.tags.title')}</em>
       </h1>
-      <p className="tags-standfirst">{t('tags.intro')}</p>
+      <p className="standfirst tags-standfirst">{t('tags.intro')}</p>
     </div>
   )
 }

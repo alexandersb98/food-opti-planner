@@ -122,9 +122,9 @@ export function DataSource() {
       <Link className={buttonClass({ variant: 'text-plain' }, 'ds-back')} to="/settings">
         {t('dataSource.backToSettings')}
       </Link>
-      <div className="ds-cover">
+      <div className="cover ds-cover">
         <p className="kicker">{t('dataSource.kicker')}</p>
-        <h1 className="ds-title display">{source.name}</h1>
+        <h1 className="cover-title display ds-title">{source.name}</h1>
       </div>
       <SourceFacts source={source} sourceKey={key} onSaved={(saved) => setSource(() => saved)} />
       <SourceColumns

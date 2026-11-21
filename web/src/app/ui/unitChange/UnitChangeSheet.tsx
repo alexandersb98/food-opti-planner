@@ -6,6 +6,7 @@ import { useT } from '../../i18n/i18n'
 import { unitChangeQuestion } from '../../stores/unitChangeQuestion'
 import { Sheet } from '../sheet/Sheet'
 import './unit-change.css'
+import { buttonClass } from '../button/Button'
 
 // The counts the server sends that have text of their own. Another one (a
 // later slice's) shows by its key, never hidden, as it is converted all the same.
@@ -65,10 +66,10 @@ export function UnitChangeSheet() {
         {rounded > 0 ? <p className="unit-change-rounded">{t('unitChange.rounded', { n: rounded }, rounded)}</p> : null}
       </div>
       <div className="sheet-actions">
-        <button ref={cancelRef} type="button" className="sheet-btn sheet-btn-ghost" onClick={no}>
+        <button ref={cancelRef} type="button" className={buttonClass({ variant: 'ghost' })} onClick={no}>
           {t('common.cancel')}
         </button>
-        <button type="button" className="sheet-btn sheet-btn-primary" onClick={() => unitChangeQuestion.answer(true)}>
+        <button type="button" className={buttonClass({ variant: 'primary' })} onClick={() => unitChangeQuestion.answer(true)}>
           {converts ? t('unitChange.convert') : t('unitChange.changeUnit')}
         </button>
       </div>

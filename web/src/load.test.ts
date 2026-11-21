@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest'
 import { loadAll } from './load'
 
-test("loadAll gives every call's data by name", async () => {
+test("loadAll gives every call’s data by name", async () => {
   const result = await loadAll({ a: Promise.resolve({ data: [1] }), b: Promise.resolve({ data: null }) })
   expect(result).toEqual({ data: { a: [1], b: null } })
 })

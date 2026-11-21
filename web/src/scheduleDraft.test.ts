@@ -66,7 +66,7 @@ test('the fields send the days asked for only, keeping skips with their meal', (
   })
 })
 
-test("the server's refusals show on their fields, by meal key and by day", () => {
+test("the server’s refusals show on their fields, by meal key and by day", () => {
   const stored = plan({ minimums: [{ day: 4, at_least: 2 }] })
   const draft = planDraft(stored, keys())
   const fields = scheduleFields(stored, draft, stored.start_date, stored.days)

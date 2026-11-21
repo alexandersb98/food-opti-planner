@@ -32,14 +32,14 @@ export function RecipeIndex() {
   const [before, after] = t('recipes.index.title', { em: '\u0000' }).split('\u0000')
   return (
     <article className="recipes">
-      <div className="recipes-cover">
+      <div className="cover recipes-cover">
         <p className="kicker">{page.data ? t('recipes.index.kicker', page.data.recipes.length) : ' '}</p>
-        <h1 className="recipes-title display">
+        <h1 className="cover-title display recipes-title">
           {before}
           <em>{t('recipes.index.titleEm')}</em>
           {after}
         </h1>
-        <p className="recipes-standfirst">{t('recipes.index.standfirst')}</p>
+        <p className="standfirst recipes-standfirst">{t('recipes.index.standfirst')}</p>
       </div>
       {page.data ? <Index {...page.data} /> : <LoadState of={page} message={t('recipes.loadFailed')} />}
       <AddMenu
@@ -93,9 +93,9 @@ function Index({ recipes, attributes, tags }: { recipes: Recipe[]; attributes: A
 
   if (recipes.length === 0) {
     return (
-      <div className="recipes-empty">
+      <div className="empty-state recipes-empty">
         <p>{t('recipes.empty')}</p>
-        <p className="recipes-empty-hint">{t('recipes.index.emptyHint')}</p>
+        <p className="empty-state-hint">{t('recipes.index.emptyHint')}</p>
       </div>
     )
   }
@@ -185,7 +185,7 @@ function Index({ recipes, attributes, tags }: { recipes: Recipe[]; attributes: A
         {narrowed ? t('recipes.index.shown', shown.length) : ''}
       </p>
       {shown.length === 0 ? (
-        <div className="recipes-empty">
+        <div className="empty-state recipes-empty">
           <p>{t('recipes.noMatch')}</p>
           <Button variant="text" onClick={clear}>
             {query.trim() ? t('recipes.index.clearSearch') : t('recipes.index.clearTags')}

@@ -116,6 +116,7 @@ function SheetDialog({
   // selection dragged out of the panel is not a tap outside).
   const pressedOutside = useRef(false)
   const asking = useRef(false)
+  const entryRef = useRef<OpenSheet | null>(null)
 
   const focusOnOpen = useEffectEvent(() => {
     ;(initialFocus?.current ?? titleRef.current)?.focus({ preventScroll: true })
@@ -132,6 +133,7 @@ function SheetDialog({
     const dialog = dialogRef.current
     if (!dialog) return
     const entry: OpenSheet = { dialog, opener: document.activeElement }
+    entryRef.current = entry
     openSheets.push(entry)
     if (!dialog.open) dialog.showModal()
     focusOnOpen()
@@ -151,10 +153,29 @@ function SheetDialog({
     }
   }, [])
 
-  // Closing: wait for the slide down and fade (none with reduced motion, or
-  // where animations are not run), then leave the page.
+  /** Stops being modal (the page under it is no longer inert) but stays
+   * drawn for its closing animation, and gives the focus back now. Only for
+   * the bottom sheet: one closing above another (a Confirm) stays modal, so
+   * its fade is not drawn under the sheet below. */
+  const releaseFocus = useEffectEvent(() => {
+    const dialog = dialogRef.current
+    const entry = entryRef.current
+    if (!dialog || !entry || !dialog.open) return
+    if (openSheets.some((other) => other !== entry && other.dialog.open)) return
+    const focused = document.activeElement
+    const ours = !focused || focused === document.body || dialog.contains(focused)
+    dialog.close()
+    dialog.show()
+    if (ours) focusOnClose(entry.opener)
+  })
+
+  // Closing: the page is the reader's again at once (what they type next,
+  // such as a new line's amount, goes where the focus went), while the sheet
+  // slides down and fades (none with reduced motion, or where animations are
+  // not run); then it leaves the page.
   useEffect(() => {
     if (open) return
+    releaseFocus()
     let current = true
     const animations = [dialogRef.current, panelRef.current].flatMap((el) => el?.getAnimations?.() ?? [])
     void Promise.allSettled(animations.map((animation) => animation.finished)).then(() => {

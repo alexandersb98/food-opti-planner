@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useConfirm } from '../confirm/Confirm'
 import { Sheet } from './Sheet'
+import { buttonClass } from '../button/Button'
 
 /** Specimen section: the Sheet in its three uses and a Confirm. Dev-only
  * copy, not translated. */
@@ -31,16 +32,16 @@ export default function SheetSpecimen() {
         outside or the close button closes them, and focus goes back to the button that opened them.
       </p>
       <div className="sheet-actions">
-        <button type="button" className="sheet-btn sheet-btn-ghost" onClick={() => setWhich('day')}>
+        <button type="button" className={buttonClass({ variant: 'ghost' })} onClick={() => setWhich('day')}>
           Thursday’s meals
         </button>
-        <button type="button" className="sheet-btn sheet-btn-ghost" onClick={() => setWhich('note')}>
+        <button type="button" className={buttonClass({ variant: 'ghost' })} onClick={() => setWhich('note')}>
           A note that asks before closing
         </button>
-        <button type="button" className="sheet-btn sheet-btn-ghost" onClick={() => setWhich('full')}>
+        <button type="button" className={buttonClass({ variant: 'ghost' })} onClick={() => setWhich('full')}>
           A full-screen sheet
         </button>
-        <button type="button" className="sheet-btn sheet-btn-ghost" onClick={deleteRecipe}>
+        <button type="button" className={buttonClass({ variant: 'ghost' })} onClick={deleteRecipe}>
           Delete a recipe…
         </button>
       </div>
@@ -75,7 +76,7 @@ export default function SheetSpecimen() {
         </div>
         <p className="specimen-note">Three meals are planned on Thursday. “At least” lets the planner leave some of them empty.</p>
         <div className="sheet-actions">
-          <button type="button" className="sheet-btn sheet-btn-primary" onClick={close}>
+          <button type="button" className={buttonClass({ variant: 'primary' })} onClick={close}>
             Done
           </button>
         </div>
@@ -111,7 +112,7 @@ export default function SheetSpecimen() {
           />
         </div>
         <div className="sheet-actions">
-          <button type="button" className="sheet-btn sheet-btn-primary" onClick={close}>
+          <button type="button" className={buttonClass({ variant: 'primary' })} onClick={close}>
             Done
           </button>
         </div>

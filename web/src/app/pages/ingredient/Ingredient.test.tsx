@@ -375,7 +375,7 @@ test('an ingredient recipes use cannot be deleted', async () => {
   expect(remove.hasAttribute('disabled')).toBe(true)
   expect(document.body.textContent).toContain('Used in 2 recipes')
   expect(document.getElementById(remove.getAttribute('aria-describedby')!)?.textContent).toBe(
-    "Recipes use it, so it can't be deleted.",
+    "Recipes use it, so it can’t be deleted.",
   )
 })
 

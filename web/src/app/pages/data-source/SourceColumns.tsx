@@ -122,7 +122,7 @@ export function SourceColumns({
           </ul>
         </>
       ) : (
-        <div className="ds-empty">
+        <div className="empty-state ds-empty">
           <p role="status">{t('dataSource.noColumnNamed', { search: search.trim() })}</p>
           <Button variant="text" onClick={clearSearch}>
             {t('dataSource.clearSearch')}

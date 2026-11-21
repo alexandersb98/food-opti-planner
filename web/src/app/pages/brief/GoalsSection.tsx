@@ -4,7 +4,7 @@ import { clashingGoalIds, clashRows } from '../../../clash'
 import { goalSentence, IMPORTANCE } from '../../../goals'
 import { useT } from '../../i18n/i18n'
 import * as solve from '../../stores/solve'
-import { buttonClass } from '../../ui/button/Button'
+import { Button } from '../../ui/button/Button'
 import { ImportanceDots } from '../../ui/importanceDots/ImportanceDots'
 import { BriefSection } from './BriefSection'
 import { GoalSheet } from './GoalSheet'
@@ -39,17 +39,17 @@ export function GoalsSection({ plan, attributes }: { plan: Plan; attributes: Att
   const noAttributes = attributes.length === 0
 
   const add = (
-    <button
+    <Button
       ref={addRef}
-      type="button"
-      className={buttonClass({ variant: 'text' }, 'goals-add')}
+      variant="text"
+      className="goals-add"
       aria-haspopup="dialog"
       disabled={noAttributes}
       aria-describedby={noAttributes ? hintId : undefined}
       onClick={() => openGoal({ goal: null })}
     >
       {t('goals.section.add')}
-    </button>
+    </Button>
   )
 
   return (

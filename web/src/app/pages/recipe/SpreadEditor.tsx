@@ -173,7 +173,7 @@ export function SpreadEditor({
             <input
               {...control}
               ref={nameRef}
-              className="spread-annot spread-title-in display"
+              className="annot spread-title-in display"
               autoComplete="off"
               placeholder={t('recipe.namePlaceholder')}
               {...text('name')}
@@ -184,7 +184,7 @@ export function SpreadEditor({
         <div className="spread-edit-meta">
           <Field label={t('recipe.serves')} hint={t('recipes.servingsHint')} error={errors.servings} className="spread-serves">
             {(control) => (
-              <input {...control} className="spread-annot spread-num-in" inputMode="numeric" autoComplete="off" {...text('servings')} />
+              <input {...control} className="annot spread-num-in" inputMode="numeric" autoComplete="off" {...text('servings')} />
             )}
           </Field>
 
@@ -220,7 +220,7 @@ export function SpreadEditor({
             />
             <Field label={t('recipes.penalty')} hint={t('recipes.penaltyHint')} error={errors.penalty}>
               {(control) => (
-                <input {...control} className="spread-annot spread-num-in" inputMode="decimal" autoComplete="off" {...text('penalty')} />
+                <input {...control} className="annot spread-num-in" inputMode="decimal" autoComplete="off" {...text('penalty')} />
               )}
             </Field>
           </Disclosure>
@@ -248,7 +248,7 @@ export function SpreadEditor({
       <section className="spread-sec" aria-labelledby="spread-method">
         <SectionHead id="spread-method" n={2} title={t('recipe.method')} />
         <Field label={t('recipes.instructions')} hideLabel hint={t('recipe.methodHint')}>
-          {(control) => <textarea {...control} className="spread-annot spread-method-in" rows={8} {...text('instructions')} />}
+          {(control) => <textarea {...control} className="annot spread-method-in" rows={8} {...text('instructions')} />}
         </Field>
       </section>
 
@@ -300,7 +300,7 @@ export function SpreadEditor({
           {(control) => (
             <input
               {...control}
-              className="spread-annot"
+              className="annot"
               type="url"
               inputMode="url"
               autoComplete="off"
@@ -353,7 +353,7 @@ function Multiplier({
         <span className="spread-times">
           <input
             {...control}
-            className="spread-annot spread-num-in"
+            className="annot spread-num-in"
             inputMode="decimal"
             autoComplete="off"
             value={value}

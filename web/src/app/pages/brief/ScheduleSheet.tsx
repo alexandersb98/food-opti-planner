@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom'
 import type { Plan } from '../../../api/types'
 import { planFields } from '../../../planFields'
 import { DAYS, serverErrors, validDays } from '../../../scheduleDraft'
+import { issueLine } from '../../../dates'
 import { useLocale, useT } from '../../i18n/i18n'
 import { toast } from '../../shell/toast'
 import * as planSetup from '../../stores/planSetup'
@@ -10,7 +11,6 @@ import { buttonClass } from '../../ui/button/Button'
 import { Field, Fieldset } from '../../ui/field/Field'
 import { Sheet } from '../../ui/sheet/Sheet'
 import { Stepper } from '../../ui/stepper/Stepper'
-import { issueLine } from './Brief'
 import { check, MEALS_MAX, useScheduleDraft } from './useScheduleDraft'
 import { numberWord, richText } from './words'
 import './schedule-sheet.css'
@@ -242,12 +242,12 @@ function ScheduleForm({ plan, onDone }: { plan: Plan; onDone: () => void }) {
         </p>
       ) : null}
       <div className="sheet-actions">
-        <button type="button" className="sheet-btn sheet-btn-ghost" onClick={onDone}>
+        <button type="button" className={buttonClass({ variant: 'ghost' })} onClick={onDone}>
           {t('common.cancel')}
         </button>
         <button
           type="button"
-          className="sheet-btn sheet-btn-primary"
+          className={buttonClass({ variant: 'primary' })}
           aria-busy={saving || undefined}
           onClick={() => void done()}
         >

@@ -123,7 +123,7 @@ describe('the script in the HTML entry that applies the edition before first pai
   const inline = /<script>([\s\S]*?)<\/script>/.exec(html)?.[1] ?? ''
   const runInline = () => new Function(inline)()
 
-  test('uses the store\'s key', () => {
+  test('uses the store’s key', () => {
     expect(inline).toContain(`'${EDITION_STORAGE_KEY}'`)
   })
 

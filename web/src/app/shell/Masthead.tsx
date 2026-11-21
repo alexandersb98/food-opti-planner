@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { useT } from '../i18n/i18n'
 import type { RegistryPage } from './registry'
 import { useRunningHeadOverride } from './runningHead'
+import { Wordmark } from './Wordmark'
 
 /** How far down the page the wordmark gives way to the running head (D2). */
 const SCROLLED_PX = 160
@@ -35,16 +36,12 @@ export function Masthead({
   const t = useT()
   const scrolled = useScrolledPast(SCROLLED_PX)
   const override = useRunningHeadOverride()
-  const article = t('shell.wordmarkArticle')
   const run = override ?? (page ? t(page.run) : null)
 
   return (
     <header className="masthead" data-scrolled={scrolled || undefined}>
       <Link className="masthead-wordmark" to="/" aria-label={t('shell.wordmarkLabel')}>
-        <span className="masthead-name" translate="no">
-          {article ? <em className="masthead-article">{article} </em> : null}
-          {t('shell.wordmarkName')}
-        </span>
+        <Wordmark className="masthead-name" />
         {/* the page's name is its heading for assistive technology; this
             is the printed reminder of it */}
         <span className="masthead-run" aria-hidden="true">

@@ -1,12 +1,11 @@
 import { useEffect, useSyncExternalStore, type MouseEvent } from 'react'
 import { api } from '../../../api/client'
-import type { Plan, TagFilter } from '../../../api/types'
-import { localDate } from '../../../dates'
+import type { TagFilter } from '../../../api/types'
+import { issueLine, localDate } from '../../../dates'
 import { loadAll } from '../../../load'
 import { useLoad } from '../../hooks/useLoad'
 import { useRecipeCount } from '../../hooks/useRecipeCount'
 import { useLocale, useT } from '../../i18n/i18n'
-import { isoWeek } from '../../shell/Contents'
 import * as planSetup from '../../stores/planSetup'
 import * as solve from '../../stores/solve'
 import { LoadState } from '../../ui/loadState/LoadState'
@@ -32,27 +31,6 @@ async function loadSetup(): Promise<{ data?: true }> {
 }
 
 const isSolving = () => solve.getSnapshot().running
-
-/** "Week 39, 21–27 September": the plan's ISO week and its dates. */
-export function issueLine(t: ReturnType<typeof useT>, plan: Plan, locale: string): string {
-  const [year, month, day] = plan.start_date.split('-').map(Number)
-  const first = new Date(Date.UTC(year!, month! - 1, day!))
-  const last = new Date(Date.UTC(year!, month! - 1, day! + plan.days - 1))
-  const monthName = (date: Date, style: 'long' | 'short') =>
-    new Intl.DateTimeFormat(locale, { month: style, timeZone: 'UTC' }).format(date)
-  const range =
-    plan.days <= 1
-      ? t('brief.range.oneDay', { day: first.getUTCDate(), month: monthName(first, 'long') })
-      : first.getUTCMonth() === last.getUTCMonth()
-        ? t('brief.range.sameMonth', { from: first.getUTCDate(), to: last.getUTCDate(), month: monthName(first, 'long') })
-        : t('brief.range.across', {
-            from: first.getUTCDate(),
-            fromMonth: monthName(first, 'short'),
-            to: last.getUTCDate(),
-            toMonth: monthName(last, 'short'),
-          })
-  return t('brief.issue', { week: isoWeek(new Date(year!, month! - 1, day!)), range })
-}
 
 /** "In this brief": scroll to the section and move focus to its heading. */
 function jumpTo(event: MouseEvent<HTMLAnchorElement>, sectionId: string) {
@@ -96,9 +74,9 @@ export function Brief() {
 
   return (
     <article className="brief">
-      <div className="brief-cover">
+      <div className="cover brief-cover">
         <p className="kicker brief-kicker">{plan ? issueLine(t, plan, locale.code) : ' '}</p>
-        <h1 className="brief-title display">{richText(t, 'brief.title', { brief: <em>{t('brief.titleWord')}</em> })}</h1>
+        <h1 className="cover-title display brief-title">{richText(t, 'brief.title', { brief: <em>{t('brief.titleWord')}</em> })}</h1>
         {plan ? (
           <>
             <Standfirst plan={plan} usable={recipes.count?.usable ?? null} />

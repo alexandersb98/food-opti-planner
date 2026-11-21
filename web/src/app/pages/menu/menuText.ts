@@ -1,5 +1,4 @@
 import type { PlanResult } from '../../../api/types'
-import { roundedText } from '../../../totals'
 
 // The Menu's words for dates and portions, in English like the rest of the
 // app (R1). Plan dates are "YYYY-MM-DD" and worked out in UTC, so the
@@ -45,17 +44,6 @@ export function startWeek(start: string): number {
 export function dayOf(plan: Pick<PlanResult, 'start_date' | 'days'>, today: string): number | null {
   const index = Math.round((planDay(today, 0).getTime() - planDay(plan.start_date, 0).getTime()) / 86_400_000)
   return index >= 0 && index < plan.days ? index : null
-}
-
-const vulgar: Record<string, string> = { '25': '¼', '5': '½', '75': '¾' }
-
-/** A portion multiplier as a menu prints it: "1½", "¾", "2", "1.33". */
-export function portionText(portion: string): string {
-  const [whole = '0', part = ''] = roundedText(portion, 2).split('.')
-  const fraction = vulgar[part]
-  if (!part) return whole
-  if (!fraction) return `${whole}.${part}`
-  return whole === '0' ? fraction : `${whole}${fraction}`
 }
 
 /** A whole number from the query below `below`, if it is one. */

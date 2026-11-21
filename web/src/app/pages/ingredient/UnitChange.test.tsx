@@ -100,7 +100,7 @@ test('a unit change asks first, and Convert saves the basis as typed and returns
   const page = await openOats()
   await chooseUnit(page, 'kg (kilogram)')
   await save(page)
-  const sheet = await question("Convert Oats's numbers?")
+  const sheet = await question("Convert Oats’s numbers?")
   expect(page.previews).toEqual([{ unit: 'kg', basis: '100' }])
   expect(page.sent).toEqual([])
   expect(sheet.textContent).toContain('Oats: the basis and 4 recipe amounts will be converted from g to kg (× 0.001).')
@@ -196,7 +196,7 @@ test.each([
   [
     unitChangeRefusal({ type: 'conversion_needs_decimals', kind: 'basis', name: 'Oats', field: 'basis', number: '0.5', decimals_needed: null }),
     'kg',
-    "The basis of Oats (0.5 g) can't be written exactly in kg.",
+    "The basis of Oats (0.5 g) can’t be written exactly in kg.",
   ],
   [
     unitChangeRefusal({ type: 'conversion_too_large', kind: 'recipe_amount', name: 'Porridge', field: 'amount', number: '5', converted: '5000000' }),
@@ -207,7 +207,7 @@ test.each([
   [
     unitChangeRefusal({ type: 'unit_has_dependents', name: 'Oats', conversions: 2, lines: 3 }),
     'dl',
-    "Oats has 2 conversions and 3 recipe lines in other units, so its unit can't change from g to dl. Delete or change them first.",
+    "Oats has 2 conversions and 3 recipe lines in other units, so its unit can’t change from g to dl. Delete or change them first.",
   ],
   [
     unitChangeRefusal({ type: 'conversion_for_new_unit', name: 'Oats', unit: 'dl' }),
@@ -233,7 +233,7 @@ test.each([
 test('a linked ingredient: a unit that is not mass is refused by the preview, g to kg still asks', async () => {
   const linked = { ...oats, source: ingredientSource() }
   const notMass =
-    "An ingredient from a data source can only be measured in a mass unit such as g or kg, as the source's values are per 100 g of food."
+    "An ingredient from a data source can only be measured in a mass unit such as g or kg, as the source’s values are per 100 g of food."
   const page = await openOats({
     'GET /api/ingredients/7': { body: linked },
     'POST /api/ingredients/7/unit-change': (body) => ({
@@ -248,7 +248,7 @@ test('a linked ingredient: a unit that is not mass is refused by the preview, g 
   expect(screen.queryByRole('alertdialog')).toBeNull()
   await chooseUnit(page, 'kg (kilogram)')
   await save(page)
-  await question("Convert Oats's numbers?")
+  await question("Convert Oats’s numbers?")
 })
 
 test('a save refused after the question shows the form text, or the server sentence, under the unit', async () => {

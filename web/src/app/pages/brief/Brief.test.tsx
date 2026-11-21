@@ -5,7 +5,6 @@ import { localDate } from '../../../dates'
 import { goal, plan, planSummary, resultMeal } from '../../../test-data'
 import { fakeServer, mountApp, type FakeReply, type FakeServer } from '../../test-app'
 import { stepTime } from './TimeSection'
-import { portionAmount, portionFigure } from './TodayMeals'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -183,18 +182,6 @@ test('today’s meals come from the plan used for today, asked for by the browse
 
   await user.click(meals[1]!)
   expect(where(router)).toBe('/plans/3?day=1&meal=1')
-})
-
-test('portions read as a cook reads them: to a tenth, halves and quarters as fractions', () => {
-  expect(['0.657', '1.939', '1.5', '0.75', '2', '0.26', '1.000'].map((p) => portionFigure(portionAmount(p)))).toEqual([
-    '0.7',
-    '1.9',
-    '1½',
-    '¾',
-    '2',
-    '¼',
-    '1',
-  ])
 })
 
 test('without a plan for today or an unsaved plan, neither shows', async () => {

@@ -117,7 +117,7 @@ test.each(['cup', '', '  ', '.', 'kgs', 'MJ', 'Ml', 'Mg'])('findUnit does not kn
   expect(units.findUnit(text)).toBeUndefined()
 })
 
-test.each([['mJ', 'mJ'], ['ml', 'ml'], ['MJ.', undefined]])('findUnit reads %j by the server\'s case rule', async (text, symbol) => {
+test.each([['mJ', 'mJ'], ['ml', 'ml'], ['MJ.', undefined]])('findUnit reads %j by the server’s case rule', async (text, symbol) => {
   const { units } = await loaded()
   expect(units.findUnit(text)?.symbol).toBe(symbol)
 })

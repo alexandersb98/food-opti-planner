@@ -12,12 +12,12 @@ import {
 } from 'react'
 import { useNavigate, type NavigateFunction } from 'react-router'
 import type { Plan } from '../../../api/types'
+import { issueLine } from '../../../dates'
 import { useLocale, useT } from '../../i18n/i18n'
 import * as planSetup from '../../stores/planSetup'
 import * as solve from '../../stores/solve'
 import { Button, buttonClass } from '../../ui/button/Button'
 import { composedState } from '../menu/composed'
-import { issueLine } from './Brief'
 import { richText } from './words'
 import './composing.css'
 

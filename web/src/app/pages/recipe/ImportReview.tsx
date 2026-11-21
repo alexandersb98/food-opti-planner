@@ -15,6 +15,7 @@ import {
 import { isOwn, type Ratio } from '../../../lineUnits'
 import { linesOf, type DraftLine, type RecipeDraft } from '../../../recipeDraft'
 import { useT } from '../../i18n/i18n'
+import { buttonClass } from '../../ui/button/Button'
 import { useConfirm } from '../../ui/confirm/Confirm'
 import { Sheet } from '../../ui/sheet/Sheet'
 import { IngredientForm } from '../ingredient/IngredientForm'
@@ -309,7 +310,7 @@ export function useImportReview({
         noMatch={(search) => (search ? t('recipe.review.pickNone', { search }) : t('recipe.review.pickEmpty'))}
         finalFocus={finalFocus}
         extra={
-          <button type="button" className="review-new" onClick={newIngredient}>
+          <button type="button" className={buttonClass({ variant: 'pencil' }, 'review-new')} onClick={newIngredient}>
             {t('recipes.newIngredient')}
           </button>
         }
@@ -383,7 +384,7 @@ function Banner({
           ) : (
             <p className="review-banner-block">{t('recipes.saveBlocked')}</p>
           )}
-          <button type="button" className="review-next" onClick={onNext}>
+          <button type="button" className={buttonClass({ variant: 'pencil' }, 'review-next')} onClick={onNext}>
             {t('recipe.review.next')}
           </button>
         </>
@@ -425,7 +426,7 @@ function ReviewPanel({
   const skipButton = (
     <button
       type="button"
-      className="review-btn review-btn-quiet"
+      className={buttonClass({ small: true }, 'review-btn review-btn-quiet')}
       aria-label={named(t('recipes.skip'))}
       onClick={() => onSkip(true)}
     >
@@ -448,7 +449,7 @@ function ReviewPanel({
         <button
           type="button"
           id={ids.unskip(key)}
-          className="review-btn review-btn-text"
+          className={buttonClass({ variant: 'pencil' }, 'review-btn-text')}
           aria-label={named(label)}
           onClick={() => onSkip(false)}
         >
@@ -469,7 +470,7 @@ function ReviewPanel({
           <button
             type="button"
             id={ids.pick(key)}
-            className="review-btn"
+            className={buttonClass({ small: true }, 'review-btn')}
             aria-label={named(t('recipes.pickIngredient'))}
             onClick={onPick}
           >
@@ -491,7 +492,7 @@ function ReviewPanel({
           <button
             type="button"
             id={ids.change(key)}
-            className="review-btn review-btn-text"
+            className={buttonClass({ variant: 'pencil' }, 'review-btn-text')}
             aria-label={named(t('recipes.change'))}
             onClick={onChange}
           >
@@ -526,7 +527,7 @@ function ReviewPanel({
           <span aria-hidden="true">{t('recipes.factorRow', { unit: line.unit.trim() })}</span>
           <input
             id={ids.factor(key)}
-            className="spread-annot review-factor"
+            className="annot review-factor"
             inputMode="decimal"
             autoComplete="off"
             aria-label={t('recipes.factorLabel', { own, unit: line.unit.trim() })}
@@ -547,7 +548,7 @@ function ReviewPanel({
           {factor.ai && factor.text ? ai : null}
           <button
             type="button"
-            className="review-btn"
+            className={buttonClass({ small: true }, 'review-btn')}
             aria-label={named(t('recipes.accept'))}
             disabled={factor.loading || acceptable(factor.text) === null}
             onClick={() => onAccept(factor.text)}

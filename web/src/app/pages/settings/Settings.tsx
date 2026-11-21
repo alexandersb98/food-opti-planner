@@ -14,9 +14,9 @@ export function Settings() {
   const t = useT()
   return (
     <article className="settings">
-      <div className="settings-cover">
+      <div className="cover settings-cover">
         <p className="kicker">{t('settings.kicker')}</p>
-        <h1 className="settings-title display">{t('shell.pages.settings.title')}</h1>
+        <h1 className="cover-title display settings-title">{t('shell.pages.settings.title')}</h1>
       </div>
       <EditionSetting />
       <LanguageSetting />

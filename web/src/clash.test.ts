@@ -105,7 +105,7 @@ test('a changed goal is checked as the goal editor checks it; an unchanged one i
   expect(clashFields(plan({ goals: [zero] }), drafts)!.goals[0]).toMatchObject({ must: false, zero_reference: '100' })
 })
 
-test("the server's refusals are marked on the card's goals; one elsewhere marks none", () => {
+test("the server’s refusals are marked on the card’s goals; one elsewhere marks none", () => {
   const setup = plan({ goals: [prefer, energy] })
   expect(clashServerErrors({ 'goals.1.max': 'too_many_decimals' }, setup, attributes, [7], t)).toEqual({
     7: expect.objectContaining({ max: 'At most 0 decimals for Energy.' }),

@@ -1,12 +1,11 @@
 import { Link } from 'react-router'
 import { api } from '../../../api/client'
 import type { PlanResultSummary } from '../../../api/types'
-import { dateRange, localDate } from '../../../dates'
+import { dateRange, isoWeek, localDate } from '../../../dates'
 import { loadAll } from '../../../load'
 import type { Translate } from '../../../translator'
 import { useLoad } from '../../hooks/useLoad'
 import { useT } from '../../i18n/i18n'
-import { isoWeek } from '../../shell/Contents'
 import { buttonClass } from '../../ui/button/Button'
 import { LoadState } from '../../ui/loadState/LoadState'
 import './archive.css'
@@ -54,12 +53,12 @@ export function Archive() {
 
   return (
     <article className="archive">
-      <div className="archive-cover">
+      <div className="cover archive-cover">
         <p className="kicker">{t('archive.kicker')}</p>
-        <h1 className="archive-title display">
+        <h1 className="cover-title display archive-title">
           {t('archive.titleArticle')} <em>{t('archive.titleName')}</em>
         </h1>
-        <p className="archive-standfirst">{t('archive.standfirst')}</p>
+        <p className="standfirst archive-standfirst">{t('archive.standfirst')}</p>
       </div>
       {page.data ? (
         <SavedPlans plans={page.data.results.saved} todayId={page.data.today?.id ?? null} />
@@ -74,7 +73,7 @@ function SavedPlans({ plans, todayId }: { plans: PlanResultSummary[]; todayId: n
   const t = useT()
   if (plans.length === 0) {
     return (
-      <div className="archive-empty">
+      <div className="empty-state archive-empty">
         <p>{t('archive.empty')}</p>
         <Link className={buttonClass({ variant: 'text' })} to="/plans/new">
           {t('archive.toMenu')}

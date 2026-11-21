@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { dateRange, dayLabel, localDate } from './dates'
+import { dateRange, dayLabel, isoWeek, localDate } from './dates'
 
 test('days are labelled by weekday and day of the month, across a month end', () => {
   expect(dayLabel('2026-10-26', 0)).toBe('Mon 26')
@@ -22,4 +22,11 @@ test('the local date is the browser clock’s day, not the UTC one', () => {
   expect(localDate(new Date(2026, 0, 5, 23, 59))).toBe('2026-01-05')
   expect(localDate(new Date(2026, 10, 30, 0, 1))).toBe('2026-11-30')
   expect(localDate()).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+})
+
+test('ISO weeks start on Monday; week 1 holds the first Thursday', () => {
+  expect(isoWeek(new Date(2026, 8, 21))).toBe(39)
+  expect(isoWeek(new Date(2026, 0, 1))).toBe(1)
+  expect(isoWeek(new Date(2027, 0, 1))).toBe(53)
+  expect(isoWeek(new Date(2024, 11, 30))).toBe(1)
 })

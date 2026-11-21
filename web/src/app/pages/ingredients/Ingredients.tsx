@@ -29,12 +29,12 @@ export function Ingredients() {
 
   return (
     <article className="ingr">
-      <div className="ingr-cover">
+      <div className="cover ingr-cover">
         <p className="kicker ingr-kicker">{count === undefined ? ' ' : t('ingredients.larder', { n: count })}</p>
-        <h1 className="ingr-title display">
+        <h1 className="cover-title display ingr-title">
           <em>{t('shell.pages.ingredients.title')}</em>
         </h1>
-        <p className="ingr-standfirst">{t('ingredients.intro')}</p>
+        <p className="standfirst ingr-standfirst">{t('ingredients.intro')}</p>
         <AddMenu />
       </div>
       {page.data ? (
@@ -70,9 +70,9 @@ function Larder({ ingredients, attributes }: { ingredients: Ingredient[]; attrib
 
   if (ingredients.length === 0) {
     return (
-      <div className="ingr-empty">
+      <div className="empty-state ingr-empty">
         <p>{t('ingredients.empty')}</p>
-        <p className="ingr-empty-hint">{t('ingredients.emptyHint')}</p>
+        <p className="empty-state-hint">{t('ingredients.emptyHint')}</p>
         <Link className={buttonClass()} to="/ingredients/new">
           {t('ingredients.new')}
         </Link>
@@ -132,7 +132,7 @@ function Larder({ ingredients, attributes }: { ingredients: Ingredient[]; attrib
           ))}
         </ul>
       ) : (
-        <div className="ingr-empty">
+        <div className="empty-state ingr-empty">
           <p>{filtering && found.length > 0 ? t('ingredients.noUpdated') : t('ingredients.noMatch')}</p>
           {search ? (
             <Button variant="text" onClick={clear}>

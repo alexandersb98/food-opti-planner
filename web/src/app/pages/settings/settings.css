@@ -1,13 +1,7 @@
 /* Settings, after D2's #settings: a cover, then each part between rules. */
 
-.settings-cover { padding: var(--s6) 0 var(--s5); }
-.settings-cover > .kicker { color: var(--accent); }
-.settings-title {
-  font-size: var(--fs-hero); line-height: var(--lh-hero);
-  margin: var(--s2) 0 var(--s4);
-  font-style: italic; font-weight: 300;
-  font-variation-settings: "opsz" 144, "SOFT" 100;
-}
+/* the cover is base.css's .cover; the title is set all in the light italic */
+.cover-title.settings-title { font-style: italic; font-weight: 300; font-variation-settings: "opsz" 144, "SOFT" 100; }
 
 .settings-part { padding: var(--s5) 0; border-bottom: 1px solid var(--rule); min-width: 0; }
 .settings-cover + .settings-part { border-top: 1px solid var(--rule-strong); }

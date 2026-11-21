@@ -138,7 +138,7 @@ test('a value missed that day shows with its bound, the larger percent when miss
     resultMiss({ goal: 2, day: 3 }),
   ]
   expect(dayLine(plan({ id: 1, goals, misses }), 2, t)).toEqual([
-    { text: 'Protein 98 / 120 g', missed: true },
+    { text: 'Protein 98 g, under 120', missed: true },
     { text: 'Fat 30 g', missed: false },
   ])
 })

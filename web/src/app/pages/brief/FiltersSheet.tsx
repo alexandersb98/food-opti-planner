@@ -8,6 +8,7 @@ import * as planSetup from '../../stores/planSetup'
 import { Segmented } from '../../ui/segmented/Segmented'
 import { Sheet } from '../../ui/sheet/Sheet'
 import { richText } from './words'
+import { buttonClass } from '../../ui/button/Button'
 
 type Mode = 'any' | TagFilter['mode']
 
@@ -155,7 +156,7 @@ function FiltersForm({
         </p>
       ) : null}
       <div className="sheet-actions">
-        <button type="button" className="sheet-btn sheet-btn-primary" disabled={saving} onClick={() => void done()}>
+        <button type="button" className={buttonClass({ variant: 'primary' })} disabled={saving} onClick={() => void done()}>
           {saving ? t('recipeFilters.saving') : t('common.done')}
         </button>
       </div>

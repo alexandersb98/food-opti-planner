@@ -125,14 +125,14 @@ test('Edit starts with the conversion, puts to it and updates the list', async (
   await waitFor(() => expect(rowTexts()).toEqual(['1 dl = 110 g', '1 pinch = 0.3 g']))
 })
 
-test('the factor names the ingredient\'s own unit', async () => {
+test('the factor names the ingredient’s own unit', async () => {
   const page = await openPage([])
   const sheet = await openSheet(page, '+ Add conversion', 'New unit')
   expect(factorBox(sheet)).toBeDefined()
   expect(within(sheet).getByText('g', { selector: '.conv-own' })).toBeDefined()
 })
 
-test('Delete asks, calls DELETE and the row goes (and the ingredient\'s delete question no longer lists it)', async () => {
+test('Delete asks, calls DELETE and the row goes (and the ingredient’s delete question no longer lists it)', async () => {
   const page = await openPage([dl, pinch], { 'DELETE /api/ingredients/3/conversions/1': 204 })
   await page.user.click(screen.getByRole('button', { name: 'Delete the conversion for dl' }))
   const question = await screen.findByRole('alertdialog', { name: 'Delete the conversion for dl?' })
@@ -169,7 +169,7 @@ test('a 409 on delete shows why and keeps the row', async () => {
   })
   await page.user.click(screen.getByRole('button', { name: 'Delete the conversion for dl' }))
   await page.user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Delete' }))
-  expect((await screen.findByRole('alert')).textContent).toBe("Can't be deleted while a recipe uses it.")
+  expect((await screen.findByRole('alert')).textContent).toBe("Can’t be deleted while a recipe uses it.")
   expect(rowTexts()).toEqual(['1 dl = 100 g'])
 })
 
@@ -196,7 +196,7 @@ test('an empty unit and a number not above 0 are marked on their fields and noth
 })
 
 test.each([
-  ['unit_is_own_unit', 'unit', "That is the ingredient's own unit."],
+  ['unit_is_own_unit', 'unit', "That is the ingredient’s own unit."],
   ['duplicate', 'unit', 'This ingredient has a conversion for that unit already.'],
   ['unit_not_for_ingredient', 'unit', 'An ingredient is measured in an amount of food'],
   ['decimal_max_places', 'factor', 'Use at most 9 digits before the point and 6 after.'],

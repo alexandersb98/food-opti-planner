@@ -25,18 +25,9 @@
   border-top-color: color-mix(in srgb, var(--review-ink) 50%, transparent);
 }
 
-/* D2's italic text buttons, in the review's ink. */
-.review-next, .review-btn-text {
-  min-height: var(--touch); padding: 0; border: 0; background: none; color: inherit; text-align: left;
-  font-family: var(--serif); font-style: italic; font-size: 16px; line-height: 22px; touch-action: manipulation;
-  text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 5px;
-  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
-}
-.review-next:focus-visible, .review-btn-text:focus-visible,
-.review-btn:focus-visible, .review-new:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
-@media (hover: hover) {
-  .review-next:hover, .review-btn-text:hover { text-decoration-color: currentColor; }
-}
+/* The banner's "Next line to review" is Button's pencil variant, in the review's ink. */
+.btn-pencil.review-next { color: inherit; }
+.review-next:focus-visible, .review-btn:focus-visible { outline-color: currentColor; }
 
 /* An imported line: its source text above it. */
 .review-source {
@@ -55,7 +46,7 @@
 /* Brought into view from the banner, clear of the sticky edit bar. */
 .review-line { scroll-margin: 140px 0 var(--s5); }
 .lines-line.review-needs .lines-name, .review-needs .review-source, .review-needs .lines-unit-text { color: var(--review-ink); }
-.spread-editor .review-needs .spread-annot { color: var(--review-ink); border-bottom-color: var(--review-ink); }
+.spread-editor .review-needs .annot { color: var(--review-ink); border-bottom-color: var(--review-ink); }
 .review-needs .lines-unit-shown { color: var(--review-ink); }
 .review-needs .lines-icon { color: var(--review-ink); }
 
@@ -75,7 +66,6 @@
   grid-column: 2 / -1; color: var(--muted);
 }
 .review-skipped-note { font-family: var(--serif); font-style: italic; font-size: 15px; }
-.review-panel-skipped .review-btn-text { color: var(--accent); }
 .review-panel-settled { grid-column: 2 / -1; padding: 0; color: var(--muted); }
 
 /* "1 dl = [50] g ✨ Accept" */
@@ -91,28 +81,14 @@
 .review-ai { font-size: 14px; cursor: help; }
 .review-error { margin: 0; }
 
-/* The review's buttons: D2's outlined .btn, small, in the review's ink. */
-.review-btn {
-  display: inline-flex; align-items: center; justify-content: center;
-  min-height: var(--touch); padding: 0 16px; border: 1px solid currentColor; border-radius: 0; background: none;
-  color: inherit; font-family: var(--sans); font-size: 15px; line-height: 20px; font-weight: 500;
-  touch-action: manipulation; transition: transform .12s var(--ease), background-color .15s, opacity .15s;
+/* The review's buttons: Button's small outline, in the review's ink; Skip
+   without its border; Add back and Change in the pencil variant. */
+.btn.review-btn { color: inherit; border-color: currentColor; padding: 0 16px; }
+.btn.review-btn-quiet {
+  border-color: transparent; padding: 0 8px;
+  text-decoration: underline; text-underline-offset: 4px; text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
 }
-.review-btn:active:not(:disabled) { transform: translateY(1px); background: var(--press); }
-.review-btn:disabled { opacity: .5; }
-.review-btn.review-btn-quiet { border-color: transparent; padding: 0 8px; text-decoration: underline; text-underline-offset: 4px;
-  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent); }
-.review-btn.review-btn-text { border: 0; padding: 0; }
-.review-panel-settled .review-btn-text { margin-left: var(--s2); color: var(--accent); }
+.review-panel-settled .review-btn-text { margin-left: var(--s2); }
 
-/* "+ New ingredient" under the picker's list. */
-.review-new {
-  min-height: var(--touch); padding: 0; border: 0; background: none; color: var(--accent); touch-action: manipulation;
-  font-family: var(--serif); font-style: italic; font-size: 17px; line-height: 22px;
-  text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 5px;
-  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .review-btn { transition: none; }
-}
+/* "+ New ingredient" under the picker's list: Button's pencil variant, a size up. */
+.btn-pencil.review-new { font-size: 17px; }

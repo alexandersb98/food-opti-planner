@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router'
 import { api } from '../../../api/client'
 import { useT } from '../../i18n/i18n'
 import { Button } from '../../ui/button/Button'
+import { Wordmark } from '../../shell/Wordmark'
 import { Field } from '../../ui/field/Field'
 import './login.css'
 
@@ -60,19 +61,17 @@ export function Login() {
   }
 
   const title = t('login.title')
-  const article = t('shell.wordmarkArticle')
 
   return (
     <div className="login-desk">
       <title>{t('shell.documentTitle', { page: title })}</title>
       <main className="login paper">
-        <p className="login-wordmark" translate="no">
-          {article ? <em className="login-article">{article} </em> : null}
-          {t('shell.wordmarkName')}
+        <p className="login-wordmark">
+          <Wordmark />
         </p>
         <div className="login-body">
-          <h1 className="login-title display">{title}</h1>
-          <p className="login-standfirst">{t('login.standfirst')}</p>
+          <h1 className="cover-title display login-title">{title}</h1>
+          <p className="standfirst">{t('login.standfirst')}</p>
           <form className="login-form" onSubmit={logIn} noValidate>
             <Field label={t('login.password')} error={problem ? t(`login.${problem}`) : null}>
               {(control) => (

@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router'
 import type { Plan, Tag } from '../../../api/types'
 import { useT } from '../../i18n/i18n'
 import type { RecipeCountState } from '../../stores/recipeCount'
-import { buttonClass } from '../../ui/button/Button'
+import { Button, buttonClass } from '../../ui/button/Button'
 import { RuleTag } from '../../ui/ruleTag/RuleTag'
 import { BriefSection } from './BriefSection'
 import { FiltersSheet } from './FiltersSheet'
@@ -75,16 +75,15 @@ export function FiltersSection({ plan, tags, count }: { plan: Plan; tags: Tag[];
     <BriefSection
       section="filters"
       action={
-        <button
+        <Button
           ref={changeRef}
-          type="button"
-          className={buttonClass({ variant: 'text' })}
+          variant="text"
           aria-label={t('recipeFilters.changeLabel')}
           aria-haspopup="dialog"
           onClick={() => openFrom(null)}
         >
           {t('recipeFilters.change')}
-        </button>
+        </Button>
       }
     >
       {rules.length ? (

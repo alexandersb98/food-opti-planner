@@ -7,6 +7,7 @@ import { newKey, plainLine, type DraftLine, type DraftSection, type RecipeDraft,
 import { useUnits } from '../../hooks/useUnits'
 import { useT } from '../../i18n/i18n'
 import { toast } from '../../shell/toast'
+import { buttonClass } from '../../ui/button/Button'
 import { Select, type SelectGroup, type SelectOption } from '../../ui/select/Select'
 import { Sheet } from '../../ui/sheet/Sheet'
 import { ConversionSheet } from '../ingredient/ConversionSheet'
@@ -206,13 +207,13 @@ export const LineEditor = memo(function LineEditor({
             <button
               type="button"
               id={ids.add(section.key)}
-              className="lines-text-btn"
+              className={buttonClass({ variant: 'pencil' })}
               onClick={() => setPicker({ open: true, section: section.key })}
             >
               {several || section.name.trim() ? t('recipe.addLineTo', { section: labelOf(section, index) }) : t('recipe.addLine')}
             </button>
             {several ? (
-              <button type="button" className="lines-text-btn lines-quiet" onClick={() => removeSection(index)}>
+              <button type="button" className={buttonClass({ variant: 'pencil' }, 'lines-quiet')} onClick={() => removeSection(index)}>
                 {t('recipe.removeSection')}
                 <span className="visually-hidden">{`: ${labelOf(section, index)}. ${t('recipe.removeSectionHint')}`}</span>
               </button>
@@ -220,7 +221,7 @@ export const LineEditor = memo(function LineEditor({
           </div>
         </div>
       ))}
-      <button type="button" className="lines-text-btn lines-add-section" onClick={addSection}>
+      <button type="button" className={buttonClass({ variant: 'pencil' }, 'lines-add-section')} onClick={addSection}>
         {t('recipe.addSection')}
       </button>
 
@@ -295,7 +296,7 @@ function SectionName({
       </label>
       <input
         id={id}
-        className="spread-annot lines-heading-in"
+        className="annot lines-heading-in"
         autoComplete="off"
         placeholder={t('recipe.sectionPlaceholder')}
         value={section.name}
@@ -375,7 +376,7 @@ function LineRow({
       {review?.source}
       <input
         id={ids.amount(key)}
-        className="spread-annot lines-amount"
+        className="annot lines-amount"
         inputMode="decimal"
         autoComplete="off"
         aria-label={t('recipes.amountOf', { name })}
@@ -407,7 +408,7 @@ function LineRow({
       <span className="lines-name">{name}</span>
       <span className="lines-tools">
         {canMove ? (
-          <button type="button" id={ids.more(key)} className="lines-icon" aria-label={t('recipes.lineMenu', { name })} onClick={onMenu}>
+          <button type="button" id={ids.more(key)} className={buttonClass({ variant: 'icon' }, 'lines-icon')} aria-label={t('recipes.lineMenu', { name })} onClick={onMenu}>
             <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
               <circle cx="5" cy="12" r="1.6" fill="currentColor" />
               <circle cx="12" cy="12" r="1.6" fill="currentColor" />
@@ -415,7 +416,7 @@ function LineRow({
             </svg>
           </button>
         ) : null}
-        <button type="button" className="lines-icon" aria-label={t('recipes.remove', { name })} onClick={onRemove}>
+        <button type="button" className={buttonClass({ variant: 'icon' }, 'lines-icon')} aria-label={t('recipes.remove', { name })} onClick={onRemove}>
           <span aria-hidden="true">×</span>
         </button>
       </span>

@@ -1,15 +1,7 @@
 /* The recipe index, after D2's #recipes: the cover, the search line, letter
    headings in red-pencil italics and entries with a drawn plate. */
 
-.recipes-cover { padding: var(--s6) 0 var(--s5); }
-.recipes-cover > .kicker { color: var(--accent); }
-.recipes-title { font-size: var(--fs-hero); line-height: var(--lh-hero); margin: var(--s2) 0 var(--s4); }
-.recipes-title em { font-weight: 300; font-variation-settings: "opsz" 144, "SOFT" 100; }
-.recipes-standfirst {
-  font-family: var(--serif); font-size: var(--fs-lead); line-height: var(--lh-lead);
-  font-weight: 340; color: var(--ink-2); font-variation-settings: "opsz" 24;
-  max-width: 34em;
-}
+/* the cover is base.css's .cover, .cover-title and .standfirst (D2's) */
 
 /* search: a ruled line with a drawn magnifier */
 .recipes-search { position: relative; margin: 0 0 var(--s4); }
@@ -62,15 +54,7 @@
 }
 
 /* empty and no-match states */
-.recipes-empty {
-  display: grid; justify-items: center; gap: var(--s2);
-  margin-top: var(--s6); padding: var(--s5) 0;
-  border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); text-align: center;
-}
-.recipes-empty > p:first-child {
-  font-family: var(--serif); font-style: italic; font-size: var(--fs-lead); line-height: var(--lh-lead); color: var(--ink-2);
-}
-.recipes-empty-hint { color: var(--muted); font-size: var(--fs-sm); line-height: var(--lh-sm); }
+/* the empty states are base.css's .empty-state */
 
 /* the add menu: a block button that opens its list in place below it */
 .recipes-add { margin-top: var(--s5); }

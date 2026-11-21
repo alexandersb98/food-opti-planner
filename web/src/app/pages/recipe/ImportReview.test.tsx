@@ -285,7 +285,7 @@ test('a unit that cannot be used says so, with Skip; another unit from the list 
     status: 'bad_unit',
   })
   const { user } = await openImport([energyLine])
-  expect(lineItems()[0]!.textContent).toContain("kcal can't be used for an ingredient. Pick another unit.")
+  expect(lineItems()[0]!.textContent).toContain("kcal can’t be used for an ingredient. Pick another unit.")
   expect(line(0).getByRole('button', { name: 'Skip: Oats' })).toBeDefined()
   expect(banner()).toBe('Imported from pasted text. 1 line needs you.')
   await user.selectOptions(line(0).getByRole('combobox', { name: 'Unit of Oats' }), 'kg')

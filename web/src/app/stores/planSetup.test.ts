@@ -118,7 +118,7 @@ test('a save that cannot reach the server is taken back too', async () => {
   expect(planSetup.getSnapshot()).toMatchObject({ plan: plan(), saving: false })
 })
 
-test("the server's field errors come back to the caller", async () => {
+test("the server’s field errors come back to the caller", async () => {
   fakeServer({
     'GET /api/plan': { body: plan() },
     'PUT /api/plan': {

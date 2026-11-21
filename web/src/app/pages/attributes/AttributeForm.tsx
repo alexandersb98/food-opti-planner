@@ -90,7 +90,7 @@ export function AttributeForm({
             {...control}
             ref={nameRef}
             name="name"
-            className="attributes-annot attributes-name-input"
+            className="annot attributes-name-input"
             value={draft.name}
             autoComplete="off"
             spellCheck={false}
@@ -113,7 +113,7 @@ export function AttributeForm({
           {(control) => (
             <input
               {...control}
-              className="attributes-annot attributes-decimals-input"
+              className="annot attributes-decimals-input"
               name="decimals"
               value={draft.decimals}
               inputMode="numeric"

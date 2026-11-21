@@ -283,7 +283,7 @@ test('unit_mismatch reloads the source, then says the units do not convert', asy
   })
   await entries('TEST Protein')
   await user.selectOptions(choice('TEST Protein'), 'Fat')
-  expect((await screen.findByRole('alert')).textContent).toBe("TEST Protein and Fat don't convert.")
+  expect((await screen.findByRole('alert')).textContent).toBe("TEST Protein and Fat don’t convert.")
   expect(reads).toBe(2)
   expect(shownChoice('TEST Protein')).toBe('Protein')
 })

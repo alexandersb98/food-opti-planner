@@ -87,7 +87,7 @@ test.each([
   expect(checkRecipe(draft(changes), [], t).errors[field]).toBe(key && t(key))
 })
 
-test("the server's refusals land on their fields", () => {
+test("the server’s refusals land on their fields", () => {
   const sections = sectioned(['A', [[1, '1']]], ['B', [[1, '2'], [2, '3']]])
   const errors = serverErrors(
     {
@@ -186,7 +186,7 @@ test('the same ingredient on two lines is accepted and sent as two lines', () =>
   expect(fields.sections.map((s) => s.items.map((i) => [i.ingredient_id, i.amount]))).toEqual([[[1, '40']], [[1, '20']]])
 })
 
-test("the server's section, servings, link and line errors land on their keys", () => {
+test("the server’s section, servings, link and line errors land on their keys", () => {
   const sections = sectioned(['A', [[1, '1']]], ['', [[2, '1']]])
   expect(
     serverErrors(
@@ -231,7 +231,7 @@ test('a line whose unit does not convert is refused on its key', () => {
   expect(hasErrors(errors)).toBe(true)
 })
 
-test("the server's unit errors land on the line", () => {
+test("the server’s unit errors land on the line", () => {
   const base = draft()
   const sections = [{ ...base.sections[0]!, items: [line(1, '60'), line(1, '1', '', 'dl')] }]
   const wrong = draft({ sections })

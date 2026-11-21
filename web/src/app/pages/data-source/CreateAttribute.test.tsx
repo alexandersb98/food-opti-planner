@@ -66,7 +66,7 @@ test('it opens with an empty name, 3 decimals and the preferred unit of the colu
   expect(field('Decimals').value).toBe('3')
   expect(document.activeElement).toBe(field('Name'))
   expect(within(sheet()).getByText('Add creates the attribute and maps TEST Protein to it.')).toBeDefined()
-  expect(within(sheet()).getByText("Converts with g, the column's unit.")).toBeDefined()
+  expect(within(sheet()).getByText("Converts with g, the column’s unit.")).toBeDefined()
   // the choice still shows what the column has
   expect(shownChoice('TEST Protein')).toBe('Protein')
 })

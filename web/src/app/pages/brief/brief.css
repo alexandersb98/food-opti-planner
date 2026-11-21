@@ -3,21 +3,7 @@
    sections' own contents bring their own stylesheets. */
 
 /* ---------- cover ---------- */
-.brief-cover { padding: var(--s6) 0 var(--s5); }
-.brief-cover .brief-kicker { color: var(--accent); } /* over .kicker's muted */
-.brief-title {
-  font-size: var(--fs-hero); line-height: var(--lh-hero);
-  margin: var(--s2) 0 var(--s4);
-}
-.brief-title em { font-weight: 300; font-variation-settings: "opsz" 144, "SOFT" 100; }
-.brief-standfirst {
-  font-family: var(--serif); font-size: var(--fs-lead); line-height: var(--lh-lead);
-  font-weight: 340; color: var(--ink-2);
-  font-variation-settings: "opsz" 24;
-  font-variant-numeric: oldstyle-nums proportional-nums;
-  max-width: 34em;
-}
-.brief-standfirst b { font-weight: 560; color: var(--ink); white-space: nowrap; }
+/* the cover is base.css's .cover, .cover-title and .standfirst (D2's) */
 
 /* in this brief: four links in a two-by-two table of contents */
 .brief-toc {

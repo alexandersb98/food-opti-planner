@@ -29,11 +29,6 @@
   min-width: 0; font-family: var(--serif); font-style: italic; font-size: 15px; line-height: 20px; color: var(--ink-2);
 }
 .spread-bar-actions { display: flex; flex: none; gap: var(--s2); margin-left: auto; }
-.spread-back.btn-text {
-  /* D2's text-btn.plain: underlined at rest */
-  text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 5px;
-  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
-}
 
 .spread-head { padding: var(--s5) 0 var(--s4); }
 .spread-title { font-size: var(--fs-h1); line-height: var(--lh-h1); margin: var(--s2) 0 var(--s4); overflow-wrap: anywhere; hyphens: auto; text-wrap: balance; }
@@ -139,18 +134,8 @@
   border: 1.5px dashed var(--accent); background: var(--paper);
 }
 
-/* D2's .annot: a dashed red line under the writing and a faint wash; solid when in use. */
-.spread-editor .spread-annot {
-  border: 0; border-bottom: 1.5px dashed var(--accent); border-radius: 0;
-  background-color: color-mix(in srgb, var(--accent) 6%, transparent);
-  min-height: var(--touch); padding: 4px 6px; color: var(--ink); box-shadow: none;
-}
-.spread-editor .spread-annot:focus-visible {
-  outline: none; border-bottom-style: solid; box-shadow: none;
-  background-color: color-mix(in srgb, var(--accent) 13%, transparent);
-}
-.spread-editor .spread-annot[aria-invalid="true"] { border-bottom-style: solid; box-shadow: inset 0 -1px 0 var(--accent); }
-.spread-editor .spread-annot::placeholder { color: var(--muted); font-style: italic; }
+/* the fields are base.css's .annot (D2's), with a little more room at the sides */
+.spread-editor .annot { padding-inline: 6px; }
 
 .spread-editor .spread-head { padding-bottom: var(--s2); }
 .spread-name { margin: var(--s2) 0 var(--s4); }
@@ -175,7 +160,7 @@
   font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 14px; color: var(--muted);
 }
 .spread-times { display: flex; align-items: baseline; gap: 6px; font-family: var(--serif); color: var(--muted); }
-.spread-times .spread-annot { flex: 1 1 auto; width: 100%; min-width: 0; }
+.spread-times .annot { flex: 1 1 auto; width: 100%; min-width: 0; }
 .spread-advanced .disclosure-body { display: grid; gap: var(--s4); }
 .spread-advanced .spread-multiplier { flex: none; max-width: 12em; }
 
@@ -192,7 +177,7 @@
 }
 .spread-editor .spread-tags .kicker { margin-bottom: var(--s2); }
 .spread-source-field { margin-top: var(--s5); }
-.spread-source-field .spread-annot { width: 100%; font-family: var(--serif); font-style: italic; }
+.spread-source-field .annot { width: 100%; font-family: var(--serif); font-style: italic; }
 
 .spread-save-error {
   display: flex; gap: 6px; align-items: baseline; margin-top: var(--s3);

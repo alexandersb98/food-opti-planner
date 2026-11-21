@@ -254,7 +254,7 @@ test('an open source tag has no Name input and no Delete, and its rule can chang
   await openRow(user, 'TEST Dairy')
   expect(screen.queryByRole('textbox', { name: 'Name' })).toBeNull()
   expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull()
-  expect(screen.getByText("From TEST Source. It can't be renamed or deleted.")).toBeDefined()
+  expect(screen.getByText("From TEST Source. It can’t be renamed or deleted.")).toBeDefined()
   expect(document.activeElement).toBe(ruleField())
 
   await user.selectOptions(ruleField(), 'all ingredients have it')
@@ -289,7 +289,7 @@ test('a refused save of a source tag shows "Could not save."', async () => {
     'GET /api/tags': { body: [vegan, quick, dairy] },
     'PUT /api/tags/3': {
       status: 422,
-      body: { detail: [{ loc: ['body', 'name'], type: 'source_tag', msg: "A source tag can't be renamed" }] },
+      body: { detail: [{ loc: ['body', 'name'], type: 'source_tag', msg: "A source tag can’t be renamed" }] },
     },
   })
   await openRow(user, 'TEST Dairy')
@@ -451,7 +451,7 @@ test('a question to move a tag: Move sends the same body with confirm', async ()
   await pick(user, 'Meat')
   await done(user)
   await waitFor(() => expect(question().textContent).toContain('Meat is equivalent to Beef. Move Meat here?'))
-  expect(within(question()).getByRole('button', { name: "Don't move" })).toBeDefined()
+  expect(within(question()).getByRole('button', { name: "Don’t move" })).toBeDefined()
   await answer(user, 'Move')
   await closed()
   expect(bodies).toEqual([
@@ -461,7 +461,7 @@ test('a question to move a tag: Move sends the same body with confirm', async ()
   expect(chips()).toEqual([])
 })
 
-test("a question to move a tag: Don't move saves without that chip and without confirm", async () => {
+test("a question to move a tag: Don’t move saves without that chip and without confirm", async () => {
   const bodies: unknown[] = []
   const move = { type: 'move_tag', tag_id: 13, from_tag_ids: [14] }
   const { user } = await mountGroups({
@@ -476,7 +476,7 @@ test("a question to move a tag: Don't move saves without that chip and without c
   await pick(user, 'Fisk')
   await done(user)
   await waitFor(() => question())
-  await answer(user, "Don't move")
+  await answer(user, "Don’t move")
   await closed()
   expect(bodies).toEqual([
     { name: 'Fish', derive: 'any', equivalent_tag_ids: [11, 13, 12], confirm: false },
@@ -502,14 +502,14 @@ test('a question to switch the rule: Switch confirms', async () => {
   expect((bodies[1] as { confirm: boolean }).confirm).toBe(true)
 })
 
-test("a question to switch the rule: Don't add drops the chip", async () => {
+test("a question to switch the rule: Don’t add drops the chip", async () => {
   const bodies: unknown[] = []
   const { user } = await mountGroups(questioning(10, [switchFisk], bodies))
   await openRow(user, 'Fish')
   await pick(user, 'Fisk')
   await done(user)
   await waitFor(() => question())
-  await answer(user, "Don't add")
+  await answer(user, "Don’t add")
   await closed()
   expect(bodies.map((body) => (body as { equivalent_tag_ids: number[] }).equivalent_tag_ids)).toEqual([[11, 12]])
   expect(chips()).toEqual([])
@@ -581,7 +581,7 @@ test('three questions are asked in turn; a no to one keeps the others asked', as
   await waitFor(() => expect(question().textContent).toContain('Move Meat here?'))
   await answer(user, 'Move')
   expect(question().textContent).toContain('Switch Fisk och skaldjur to all?')
-  await answer(user, "Don't add")
+  await answer(user, "Don’t add")
   expect(question().textContent).toContain('This changes the rule of all 4 tags in the group: Fish, Seafood, Fisk och skaldjur, Meat.')
   await answer(user, 'Change')
   await closed()

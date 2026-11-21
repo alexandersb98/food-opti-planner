@@ -89,7 +89,7 @@ test('a unit change asks first, saying what is converted, and Convert saves it',
   const page = await openEnergy()
   await typeUnit(page, 'kJ')
   await done(page)
-  const sheet = await question("Convert Energy's numbers?")
+  const sheet = await question("Convert Energy’s numbers?")
   expect(page.previews).toEqual([{ unit: 'kJ', decimals: 0 }])
   expect(page.sent).toEqual([])
   expect(sheet.textContent).toContain('Energy: 12 ingredient values and 2 goals will be converted from kcal to kJ (× 1000).')
@@ -171,7 +171,7 @@ test('a refusal shows under the unit with no question, and asking again uses the
   })
   await typeUnit(page, 'kJ')
   await done(page)
-  const text = "The goal Energy per day's minimum (0.5 kcal) would need 4 decimals as kJ. Raise Energy's decimals first."
+  const text = "The goal Energy per day’s minimum (0.5 kcal) would need 4 decimals as kJ. Raise Energy’s decimals first."
   await waitFor(() => expect(unitError()).toContain(text))
   expect(unitBox().getAttribute('aria-invalid')).toBe('true')
   expect(document.activeElement).toBe(unitBox())
@@ -193,12 +193,12 @@ test.each([
   [
     unitChangeRefusal({ type: 'unit_mismatch', kind: 'source_column', name: 'TEST Protein', source: 'TEST Source', unit: 'g' }),
     'g',
-    "Energy is mapped from TEST Protein (TEST Source), which is in g, so it can't become g. Unmap the column on the data source page first.",
+    "Energy is mapped from TEST Protein (TEST Source), which is in g, so it can’t become g. Unmap the column on the data source page first.",
   ],
   [
     unitChangeRefusal({ type: 'conversion_too_large', kind: 'goal', name: 'Energy per day', field: 'max', number: '1', converted: '9' }),
     'kJ',
-    "The goal Energy per day's maximum (1 kcal) would be 9 kJ, which is too large.",
+    "The goal Energy per day’s maximum (1 kcal) would be 9 kJ, which is too large.",
   ],
   [
     unitChangeRefusal({ type: 'conversion_rounds_to_zero', kind: 'ingredient_value', name: 'Salt', number: '0.4' }),
@@ -226,7 +226,7 @@ test('a preview that fails saves nothing and says so', async () => {
   expect(screen.queryByRole('alertdialog')).toBeNull()
 })
 
-test("a save refused after the question shows the server's sentence under the unit", async () => {
+test("a save refused after the question shows the server’s sentence under the unit", async () => {
   const page = await openEnergy({
     'PUT /api/attributes/1': {
       status: 422,

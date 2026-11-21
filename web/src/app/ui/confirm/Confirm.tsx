@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 
 import { useT } from '../../i18n/i18n'
 import { Sheet } from '../sheet/Sheet'
 import './confirm.css'
+import { buttonClass } from '../button/Button'
 
 export interface ConfirmRequest {
   title: ReactNode
@@ -42,12 +43,12 @@ export function Confirm({ open, onChoose, title, message, confirmLabel, cancelLa
         {message}
       </div>
       <div className="sheet-actions">
-        <button ref={cancelRef} type="button" className="sheet-btn sheet-btn-ghost" onClick={() => onChoose(false)}>
+        <button ref={cancelRef} type="button" className={buttonClass({ variant: 'ghost' })} onClick={() => onChoose(false)}>
           {cancelLabel ?? t('common.cancel')}
         </button>
         <button
           type="button"
-          className={destructive ? 'sheet-btn sheet-btn-danger' : 'sheet-btn sheet-btn-primary'}
+          className={buttonClass({ variant: destructive ? 'accent' : 'primary' })}
           onClick={() => onChoose(true)}
         >
           {confirmLabel}

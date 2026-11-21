@@ -3,6 +3,7 @@ import type { GroupQuestion, Tag } from '../../../api/types'
 import { useT } from '../../i18n/i18n'
 import { Sheet } from '../../ui/sheet/Sheet'
 import { questionText } from './tagText'
+import { buttonClass } from '../../ui/button/Button'
 
 /**
  * The questions a tag save raised (a 409 with `questions`), asked one at a
@@ -62,10 +63,10 @@ export function GroupQuestions({
         <p>{text}</p>
       </div>
       <div className="sheet-actions">
-        <button ref={noRef} type="button" className="sheet-btn sheet-btn-ghost" onClick={() => reply(false)}>
+        <button ref={noRef} type="button" className={buttonClass({ variant: 'ghost' })} onClick={() => reply(false)}>
           {no}
         </button>
-        <button type="button" className="sheet-btn sheet-btn-primary" onClick={() => reply(true)}>
+        <button type="button" className={buttonClass({ variant: 'primary' })} onClick={() => reply(true)}>
           {yes}
         </button>
       </div>

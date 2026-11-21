@@ -5,7 +5,7 @@ import { dayLabel } from '../../../dates'
 import type { Translate } from '../../../translator'
 import { useLocale, useT } from '../../i18n/i18n'
 import * as planSetup from '../../stores/planSetup'
-import { buttonClass } from '../../ui/button/Button'
+import { Button } from '../../ui/button/Button'
 import { BriefSection } from './BriefSection'
 import { DaySheet } from './DaySheet'
 import { ScheduleSheet } from './ScheduleSheet'
@@ -90,16 +90,15 @@ export function ScheduleSection({ plan }: { plan: Plan }) {
   })
 
   const change = (
-    <button
+    <Button
       ref={changeRef}
-      type="button"
-      className={buttonClass({ variant: 'text' })}
+      variant="text"
       aria-label={t('schedule.edit.changeLabel')}
       aria-haspopup="dialog"
       onClick={() => setEditing(true)}
     >
       {t('schedule.edit.change')}
-    </button>
+    </Button>
   )
 
   return (

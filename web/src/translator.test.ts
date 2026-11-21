@@ -93,7 +93,7 @@ test('a plural message without a count reads as one, as vue-i18n does', () => {
   expect(t('apples')).toBe('1 apple')
 })
 
-test('the spaces next to "|" are dropped, a message\'s own spaces kept', () => {
+test('the spaces next to "|" are dropped, a message’s own spaces kept', () => {
   const { t } = translator({ spaced: ' one  |  other ' })
   expect(t('spaced', 1)).toBe(' one')
   expect(t('spaced', 2)).toBe('other ')
@@ -142,6 +142,6 @@ test('the framework-neutral modules take the translator', () => {
 
   const refusal = unitChangeRefusal({ type: 'unit_has_dependents', name: 'Oats', conversions: 2, lines: 3 })
   expect(refusalText(forUnitChange, refusal, { from: 'g', to: 'dl' })).toBe(
-    "Oats has 2 conversions and 3 recipe lines in other units, so its unit can't change from g to dl. Delete or change them first.",
+    "Oats has 2 conversions and 3 recipe lines in other units, so its unit can’t change from g to dl. Delete or change them first.",
   )
 })

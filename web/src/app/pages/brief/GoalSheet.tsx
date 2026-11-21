@@ -13,6 +13,7 @@ import type { GoalToOpen } from './GoalsSection'
 import { useGoalDraft } from './useGoalDraft'
 import { richText } from './words'
 import './goal-sheet.css'
+import { buttonClass } from '../../ui/button/Button'
 
 const SCOPES = ['day', 'daily_average', 'plan_total'] as const
 const STRICTNESS = ['must', 'prefer'] as const
@@ -263,14 +264,14 @@ function GoalForm({
         {goal ? (
           <button
             type="button"
-            className="sheet-btn sheet-btn-ghost"
+            className={buttonClass({ variant: 'ghost' })}
             disabled={draft.saving}
             onClick={() => void remove()}
           >
             {t('goals.editor.remove')}
           </button>
         ) : null}
-        <button type="submit" className="sheet-btn sheet-btn-primary" aria-busy={draft.saving || undefined}>
+        <button type="submit" className={buttonClass({ variant: 'primary' })} aria-busy={draft.saving || undefined}>
           {goal ? t('common.done') : t('goals.section.add')}
         </button>
       </div>

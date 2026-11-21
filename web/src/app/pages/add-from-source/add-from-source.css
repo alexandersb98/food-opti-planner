@@ -83,4 +83,4 @@
 .afs-alert::before { content: "\2020"; font-family: var(--serif); font-weight: 400; }
 .afs-form > .sheet-actions { margin-top: 0; }
 /* Add while its answer is awaited (a second press sends nothing) */
-.afs-form .sheet-btn[aria-busy="true"] { opacity: .7; cursor: progress; }
+.afs-form .btn[aria-busy="true"] { opacity: .7; cursor: progress; }

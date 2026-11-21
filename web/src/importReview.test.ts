@@ -48,7 +48,7 @@ test('pendingKey ignores case and spaces', () => {
   expect(pendingKey(1, 'dl')).not.toBe(pendingKey(2, 'dl'))
 })
 
-test('ingredientWithPending adds only that ingredient\'s conversions', () => {
+test('ingredientWithPending adds only that ingredient’s conversions', () => {
   const pending: PendingConversion[] = [
     { ingredientId: 1, unit: 'dl', factor: '40', source: 'ai' },
     { ingredientId: 9, unit: 'msk', factor: '1', source: 'user' },

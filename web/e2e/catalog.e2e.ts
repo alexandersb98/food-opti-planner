@@ -127,7 +127,7 @@ test('log in, build a catalogue and a recipe, compose a week, map a source and i
   for (const group of ['Mass', 'Volume', 'Energy']) await expect(unitList.getByText(group, { exact: true })).toBeVisible()
   await expect(unitList.getByRole('option', { name: 'st (piece)' })).toHaveCount(0)
   await unitList.getByRole('option', { name: 'kcal (kilocalorie)' }).click()
-  await expect(page.getByText("The amount per the ingredient's basis, e.g. g or kcal.")).toBeVisible()
+  await expect(page.getByText("The amount per the ingredient’s basis, e.g. g or kcal.")).toBeVisible()
   await attributeForm.getByRole('textbox', { name: 'Decimals' }).fill('0')
   await attributeForm.getByRole('button', { name: 'Done' }).click()
   await expect(page.getByRole('button', { name: /^Energy/ })).toHaveText(/Energy\s*kcal/)
@@ -141,7 +141,7 @@ test('log in, build a catalogue and a recipe, compose a week, map a source and i
   const tagRows = page.getByRole('list', { name: 'Tags' }).getByRole('listitem')
   await expect(tagRows).toHaveText([/^vegan.*added by hand/, /^TEST Grains.*TEST Source/, /^TEST Dairy.*TEST Source/])
   await page.getByRole('button', { name: /^TEST Dairy/ }).click()
-  await expect(page.getByText("From TEST Source. It can't be renamed or deleted.")).toBeVisible()
+  await expect(page.getByText("From TEST Source. It can’t be renamed or deleted.")).toBeVisible()
   await expect(page.getByRole('button', { name: 'Delete' })).toHaveCount(0)
   await expect(page.getByRole('textbox', { name: 'Name' })).toHaveCount(0)
   await page.getByRole('button', { name: 'Done' }).click()
@@ -246,8 +246,8 @@ test('log in, build a catalogue and a recipe, compose a week, map a source and i
   await page.getByRole('textbox', { name: 'Name of section 2' }).fill('Topping')
   await page.getByRole('button', { name: 'Add a line to “Topping”' }).click()
   await page.getByRole('dialog', { name: 'Add to “Topping”' }).getByRole('button', { name: /^Oats\b/ }).click()
-  await expect(amounts.nth(1)).toBeFocused()
-  await amounts.nth(1).fill('0.01')
+  // typed at once, while the picker still slides away: the amount has the focus already
+  await page.keyboard.type('0.01')
   await expect(amounts.nth(1)).toHaveValue('0.01')
   await expect(perPortion).toHaveText(['Energy136 kcal'])
   await page.getByRole('button', { name: 'Save' }).click()
@@ -374,7 +374,7 @@ test('log in, build a catalogue and a recipe, compose a week, map a source and i
   for (const address of ['http://127.0.0.1:8000/', 'http://169.254.169.254/latest/meta-data/']) {
     await link.fill(address)
     await importButton.click()
-    await expect(page.getByRole('alert')).toHaveText("Couldn't read this page. Paste the recipe text instead.")
+    await expect(page.getByRole('alert')).toHaveText("Couldn’t read this page. Paste the recipe text instead.")
     await expect(link).toHaveValue(address)
   }
   await link.fill('ftp://example.com/x')
@@ -393,7 +393,7 @@ test('log in, build a catalogue and a recipe, compose a week, map a source and i
   await expect(pasted).toHaveValue('[fake:none]')
   await pasted.fill('[fake:broken]')
   await importButton.click()
-  await expect(page.getByRole('alert')).toHaveText("The AI service didn't answer. Try again.")
+  await expect(page.getByRole('alert')).toHaveText("The AI service didn’t answer. Try again.")
   const porridgeText = 'Porridge for two: 100 g oats, 3 dl milk, 2 tbsp honey. Boil.'
   await pasted.fill(porridgeText)
   // A slow answer: while it waits the button says so, inside its own box (at

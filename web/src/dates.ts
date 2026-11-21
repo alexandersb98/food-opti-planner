@@ -3,6 +3,9 @@
 // them; they are worked out in UTC, so the browser's time zone can't move
 // a day.
 
+import type { Plan } from './api/types'
+import type { Translate } from './translator'
+
 const weekday = new Intl.DateTimeFormat('en', { weekday: 'short', timeZone: 'UTC' })
 const month = new Intl.DateTimeFormat('en', { month: 'short', timeZone: 'UTC' })
 
@@ -37,4 +40,34 @@ export function dateRange(start: string, days: number): string {
 export function localDate(now: Date = new Date()): string {
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+}
+
+/** The ISO week number of a date (weeks start on Monday; week 1 holds the
+ * year's first Thursday). */
+export function isoWeek(date: Date): number {
+  const day = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  day.setUTCDate(day.getUTCDate() + 4 - (day.getUTCDay() || 7))
+  const yearStart = Date.UTC(day.getUTCFullYear(), 0, 1)
+  return Math.ceil(((day.getTime() - yearStart) / 86_400_000 + 1) / 7)
+}
+
+/** "Week 39, 21–27 September": the plan's ISO week and its dates. */
+export function issueLine(t: Translate, plan: Pick<Plan, 'start_date' | 'days'>, locale: string): string {
+  const [year, month, day] = plan.start_date.split('-').map(Number)
+  const first = new Date(Date.UTC(year!, month! - 1, day!))
+  const last = new Date(Date.UTC(year!, month! - 1, day! + plan.days - 1))
+  const monthName = (date: Date, style: 'long' | 'short') =>
+    new Intl.DateTimeFormat(locale, { month: style, timeZone: 'UTC' }).format(date)
+  const range =
+    plan.days <= 1
+      ? t('brief.range.oneDay', { day: first.getUTCDate(), month: monthName(first, 'long') })
+      : first.getUTCMonth() === last.getUTCMonth()
+        ? t('brief.range.sameMonth', { from: first.getUTCDate(), to: last.getUTCDate(), month: monthName(first, 'long') })
+        : t('brief.range.across', {
+            from: first.getUTCDate(),
+            fromMonth: monthName(first, 'short'),
+            to: last.getUTCDate(),
+            toMonth: monthName(last, 'short'),
+          })
+  return t('brief.issue', { week: isoWeek(new Date(year!, month! - 1, day!)), range })
 }
