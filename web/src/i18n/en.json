@@ -26,6 +26,13 @@
     "swipeHint": "Swipe left or right on any page to turn to the next one.",
     "logout": "Log out",
     "logoutFailed": "Could not log out. Try again.",
+    "turn": {
+      "skip": "Skip to the page",
+      "label": "Turn the page",
+      "previous": "Previous page",
+      "next": "Next page",
+      "folio": "Page {n}"
+    },
     "pages": {
       "brief": {
         "title": "This week’s brief",
