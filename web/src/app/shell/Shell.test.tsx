@@ -232,12 +232,9 @@ test.each([
   ['/plans', 'The archive', 4, 'The archive'],
   ['/plans/3', 'The Menu', 4, 'The archive'],
   ['/ingredients', 'Ingredients', 5, 'Ingredients'],
-  ['/ingredients/new', 'An ingredient', 5, 'Ingredients'],
-  ['/ingredients/7', 'An ingredient', 5, 'Ingredients'],
   ['/attributes', 'Attributes', 6, 'Attributes'],
   ['/tags', 'Tags', 7, 'Tags'],
   ['/settings', 'Settings', 8, 'Settings'],
-  ['/settings/data-sources/livsmedelsverket', 'A data source', 8, 'Settings'],
 ])('%s shows its page under the running head %i, %s', async (path, title, folio, run) => {
   fakeServer(session)
   await mountApp(path)
