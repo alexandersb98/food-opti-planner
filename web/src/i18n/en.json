@@ -574,6 +574,29 @@
     "missedGoals": "Missed goals",
     "allGoalsMet": "All goals met"
   },
+  "menu": {
+    "issue": "Week {week}, {range}",
+    "for": "for {range}",
+    "days": "{n} day | {n} days",
+    "dishes": "no dishes | {n} dish | {n} dishes",
+    "count": "{days}, {dishes}",
+    "saved": "Filed in the archive",
+    "unsaved": "New, not saved yet",
+    "status": "Status: {status}",
+    "today": "today",
+    "todayJump": "Today",
+    "mealIngredients": "{meal}, ingredients",
+    "portions": "{portion} portion | {portion} portions",
+    "ingredientsFor": "Ingredients for {portion} portion | Ingredients for {portion} portions",
+    "mealTotals": "This meal’s totals",
+    "dayTotals": "Day totals",
+    "goalMissed": "(goal missed)",
+    "keyOne": "Margins: {first} for each dish.",
+    "keyTwo": "Margins: {first} and {second} for each dish.",
+    "keyMissed": "a day goal missed.",
+    "blank": "Nothing is on the menu yet. Compose the week from the brief.",
+    "compose": "Compose the week"
+  },
   "misses": {
     "days": {
       "below": "{goal} · below on {n} day | {goal} · below on {n} days",
