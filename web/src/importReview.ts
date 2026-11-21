@@ -1,6 +1,5 @@
-import type { InjectionKey } from 'vue'
 import type { Conversion, Ingredient } from './api/types'
-import type { DraftLine } from './composables/useRecipeDraft'
+import type { DraftLine } from './recipeDraft'
 import { fraction, same } from './fractions'
 import { lineFactor, type Ratio } from './lineUnits'
 import { typedNumber } from './numbers'
@@ -128,5 +127,3 @@ export type ImportReview = {
   change(section: number, line: number): void
   factorInput(section: number, line: number, text: string): void
 }
-
-export const importReviewKey: InjectionKey<ImportReview> = Symbol('importReview')

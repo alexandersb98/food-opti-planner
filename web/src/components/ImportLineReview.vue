@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import type { Ingredient } from '../api/types'
-import type { DraftLine } from '../composables/useRecipeDraft'
+import type { DraftLine } from '../recipeDraft'
 import { acceptable, type FactorRow, type LineState } from '../importReview'
 
 // One imported line under review (C2), wrapped around the line's ordinary

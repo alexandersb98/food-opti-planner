@@ -1,7 +1,7 @@
 import type { Attribute, ClashMember, Goal, Plan, PlanFields } from './api/types'
-import { draftErrors, draftFields, draftFromGoal, serverErrors, type GoalDraft, type GoalErrors } from './composables/useGoalDraft'
+import { draftErrors, draftFields, draftFromGoal, serverErrors, type GoalDraft, type GoalErrors } from './goalDraft'
 import type { Translate } from './goals'
-import { goalFields, planFields } from './plan'
+import { goalFields, planFields } from './planFields'
 
 // The No plan possible card (A5): the clash the server answered, as rows for
 // the plan as it is now, and the card's changes to the clashing goals. Each

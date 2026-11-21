@@ -2,7 +2,7 @@ import { expect, test } from 'vitest'
 import type { ClashMember } from './api/types'
 import { changed, clashDrafts, clashErrors, clashFields, clashingGoalIds, clashRows, clashServerErrors, rowsKey } from './clash'
 import { makeI18n } from './i18n'
-import { goalFields, planFields } from './plan'
+import { goalFields, planFields } from './planFields'
 import { attribute, goal, plan } from './test-data'
 
 const { t } = makeI18n().global

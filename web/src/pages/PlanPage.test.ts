@@ -1,7 +1,7 @@
 import { flushPromises } from '@vue/test-utils'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import type { PlanFields } from '../api/types'
-import { goalFields } from '../plan'
+import { goalFields } from '../planFields'
 import { resetSolve } from '../solve'
 import { button, click, dialog, fakeServer, mountApp, texts, type FakeReply, type FakeServer } from '../test-app'
 import { attribute, goal, plan, planResult, planSummary, resultMeal, tag } from '../test-data'

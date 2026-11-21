@@ -2,7 +2,8 @@
 import { reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Plan } from '../api/types'
-import { planFields, useSavePlan } from '../plan'
+import { useSavePlan } from '../plan'
+import { planFields } from '../planFields'
 
 // Max solving time on the Plan page (A1): whole seconds, saved with the
 // rest of the setup as it is, since the server takes the setup whole.

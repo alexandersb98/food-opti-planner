@@ -10,7 +10,8 @@ import ConfirmDelete from '../components/ConfirmDelete.vue'
 import LoadState from '../components/LoadState.vue'
 import UnitChangeDialog from '../components/UnitChangeDialog.vue'
 import { useLoad } from '../composables/useLoad'
-import { refusalText, useUnitChange } from '../composables/useUnitChange'
+import { useUnitChange } from '../composables/useUnitChange'
+import { refusalText } from '../unitChange'
 
 const { t } = useI18n()
 const unitChange = useUnitChange()
