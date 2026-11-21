@@ -716,6 +716,19 @@
     "run": "Import",
     "reading": "Reading the recipe…",
     "needsKey": "Needs an AI key.",
+    "cover": {
+      "kicker": "For the recipe index",
+      "title": "Import a",
+      "titleEm": "recipe",
+      "standfirst": "Give a link to a recipe page, or paste the recipe itself. The AI reads it and drafts the recipe for you to check; nothing is kept until you save it."
+    },
+    "from": "Import from",
+    "fromLink": "A link",
+    "fromText": "Pasted text",
+    "linkPlaceholder": "https://…",
+    "textHint": "The ingredients and the method, as written. Leave out the stories around them.",
+    "noKey": "Importing needs an AI key, and the server has none. You can still write the recipe in by hand.",
+    "writeByHand": "Write a new recipe",
     "error": {
       "text_required": "Paste the recipe text first.",
       "too_long": "That is too much text. Paste only the recipe.",
