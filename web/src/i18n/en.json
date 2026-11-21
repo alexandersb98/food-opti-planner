@@ -82,6 +82,9 @@
     "save": "Save",
     "back": "Back"
   },
+  "sheet": {
+    "close": "Close"
+  },
   "count": {
     "ingredients": "no ingredients | 1 ingredient | {n} ingredients",
     "goals": "no goals | 1 goal | {n} goals",
