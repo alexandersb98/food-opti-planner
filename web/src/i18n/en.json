@@ -202,6 +202,12 @@
   },
   "attributes": {
     "intro": "What you track for every ingredient, and can set goals on.",
+    "tracked": "Nothing tracked yet | 1 tracked | {n} tracked",
+    "editing": "Editing {name}",
+    "newEntry": "New attribute",
+    "saving": "Saving…",
+    "precisionHint": "How precisely the planner counts it: {example}.",
+    "precisionHintPlain": "How precisely the planner counts it.",
     "empty": "No attributes yet.",
     "loadFailed": "Could not load the attributes.",
     "decimalCount": "0 decimals | 1 decimal | {n} decimals",
