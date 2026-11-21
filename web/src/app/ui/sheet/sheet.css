@@ -47,6 +47,9 @@
   /* reached by focus on opening, never by Tab: no ring */
   outline: none;
 }
+/* base.css loads after this file, so its :focus-visible ring needs a
+   more specific rule to stay off the title. */
+.sheet-title:focus-visible { outline: none; }
 .sheet-close {
   width: var(--touch); height: var(--touch); display: grid; place-items: center; flex: none;
   margin-right: -10px; padding: 0;
