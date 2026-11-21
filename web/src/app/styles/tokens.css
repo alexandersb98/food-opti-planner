@@ -1,0 +1,110 @@
+/* Design tokens: D2's paper and evening editions, taken verbatim from
+   prototypes/d2-editorial-refined/styles.css. Only this file and base.css
+   define tokens and element styles; pages and primitives use the tokens.
+   Rhythm: every line height, margin and padding is a multiple of 4px. */
+
+:root {
+  /* palette: paper edition */
+  --paper: #f4efe4;
+  --paper-2: #ebe4d5;
+  --paper-3: #e1d8c5;
+  --ink: #1d1a16;              /* 15.4:1 on paper */
+  --ink-2: #39332b;
+  --muted: #62594c;            /* 6.1:1 on paper */
+  --rule: #d2c7b2;
+  --rule-strong: #1d1a16;
+  --accent: #a4371a;           /* vermilion, used like a red pencil; 5.9:1 on paper */
+  --accent-ink: #fff8ef;
+  --accent-soft: #f2ddd0;
+  --good: #3b6636;
+  --review: #f8e4a0;
+  --review-ink: #4f3a00;
+  --desk: #d9d0be;             /* the table the page lies on (wide screens) */
+  --desk-2: #cbbfa8;
+  --shadow: 0 30px 60px -20px rgba(40, 28, 10, .35), 0 2px 6px rgba(40, 28, 10, .12);
+  --scrim: rgba(29, 22, 12, .42);
+  --press: color-mix(in srgb, var(--ink) 7%, transparent);
+  /* faint paper tooth, laid over --paper */
+  --tooth: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--ink) 4%, transparent) 1px, transparent 0);
+  --tooth-size: 5px 5px;
+
+  /* colour plates (drawn, no photos) */
+  --pl-cloth-s: 30%;  --pl-cloth-l: 86%;
+  --pl-band-s: 38%;   --pl-band-l: 74%;
+  --pl-food-s: 56%;   --pl-food-l: 50%;
+  --pl-food2-l: 38%;
+  --pl-leaf: hsl(104 34% 36%);
+  --pl-china: #fbf8f2;
+  --pl-china-2: #e9e1d1;
+  --pl-iron: #2e2a25;
+  --pl-iron-2: #3d3832;
+  --pl-shadow: rgba(50, 34, 12, .16);
+
+  /* type: Fraunces for display and reading, Instrument Sans for controls
+     (served with the app, see fonts.css) */
+  --serif: "Fraunces Variable", "Fraunces", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --sans: "Instrument Sans Variable", "Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* scale ~1.25 on 17px; line heights on a 4px grid */
+  --fs-xs: 12.5px;   --lh-xs: 16px;
+  --fs-sm: 14px;     --lh-sm: 20px;
+  --fs-body: 16.5px; --lh-body: 24px;
+  --fs-text: 18px;   --lh-text: 28px;   /* serif reading text */
+  --fs-lead: 20px;   --lh-lead: 28px;
+  --fs-h3: 24px;     --lh-h3: 28px;
+  --fs-h2: 32px;     --lh-h2: 36px;
+  --fs-h1: 44px;     --lh-h1: 44px;
+  --fs-hero: 58px;   --lh-hero: 56px;
+
+  /* space: 4px grid */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px; --s8: 72px;
+  --gutter: 20px;
+  --touch: 44px;
+  --mast: 52px;
+  --page-max: 720px;           /* the desktop page column (spec: about 720px) */
+
+  --ease: cubic-bezier(.2, .7, .2, 1);
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  color-scheme: light;
+}
+
+/* evening edition: the same values twice (device dark unless the paper
+   edition is picked, or the evening edition picked) */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #16130f; --paper-2: #1f1b16; --paper-3: #2a251e;
+    --ink: #efe6d4; --ink-2: #d6ccb8; --muted: #a99e8a; --rule: #3d362c; --rule-strong: #cfc5b1;
+    --accent: #ef8d66; --accent-ink: #1a110b; --accent-soft: #3b2319;
+    --good: #9cc38f; --review: #45380f; --review-ink: #f6dc8a;
+    --desk: #0c0a08; --desk-2: #1b1712;
+    --shadow: 0 30px 70px -20px rgba(0, 0, 0, .8), 0 0 0 1px rgba(255, 240, 210, .05);
+    --scrim: rgba(0, 0, 0, .6);
+    --press: color-mix(in srgb, var(--ink) 9%, transparent);
+    --pl-cloth-s: 16%; --pl-cloth-l: 19%; --pl-band-s: 20%; --pl-band-l: 26%;
+    --pl-food-s: 44%; --pl-food-l: 47%; --pl-food2-l: 34%;
+    --pl-leaf: hsl(104 24% 40%);
+    --pl-china: #514a3f; --pl-china-2: #433d34; --pl-iron: #0f0d0b; --pl-iron-2: #1d1a16;
+    --pl-shadow: rgba(0, 0, 0, .4);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #16130f; --paper-2: #1f1b16; --paper-3: #2a251e;
+  --ink: #efe6d4; --ink-2: #d6ccb8; --muted: #a99e8a; --rule: #3d362c; --rule-strong: #cfc5b1;
+  --accent: #ef8d66; --accent-ink: #1a110b; --accent-soft: #3b2319;
+  --good: #9cc38f; --review: #45380f; --review-ink: #f6dc8a;
+  --desk: #0c0a08; --desk-2: #1b1712;
+  --shadow: 0 30px 70px -20px rgba(0, 0, 0, .8), 0 0 0 1px rgba(255, 240, 210, .05);
+  --scrim: rgba(0, 0, 0, .6);
+  --press: color-mix(in srgb, var(--ink) 9%, transparent);
+  --pl-cloth-s: 16%; --pl-cloth-l: 19%; --pl-band-s: 20%; --pl-band-l: 26%;
+  --pl-food-s: 44%; --pl-food-l: 47%; --pl-food2-l: 34%;
+  --pl-leaf: hsl(104 24% 40%);
+  --pl-china: #514a3f; --pl-china-2: #433d34; --pl-iron: #0f0d0b; --pl-iron-2: #1d1a16;
+  --pl-shadow: rgba(0, 0, 0, .4);
+  color-scheme: dark;
+}
+
+/* narrow phones */
+@media (max-width: 380px) {
+  :root { --gutter: 16px; --fs-hero: 52px; --lh-hero: 52px; }
+}

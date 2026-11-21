@@ -1,0 +1,9 @@
+/* The two typefaces, served with the app from npm packages (no font
+   service): Fraunces with all its axes (opsz, wght, SOFT, WONK) in roman and
+   italic, and Instrument Sans (wdth, wght) in roman and italic. Every
+   @font-face uses font-display: swap and is split by unicode range, so only
+   the files a page's text needs are fetched. */
+@import '@fontsource-variable/fraunces/full.css';
+@import '@fontsource-variable/fraunces/full-italic.css';
+@import '@fontsource-variable/instrument-sans/standard.css';
+@import '@fontsource-variable/instrument-sans/standard-italic.css';

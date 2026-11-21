@@ -1,0 +1,190 @@
+/* Base element styles and the shared typographic pieces, after D2
+   (prototypes/d2-editorial-refined/styles.css). Nothing page-specific.
+   Element styles sit in :where() so any component class overrides them
+   without a specificity fight. Figures: old-style in running serif text,
+   lining + tabular in tables and margins. */
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; hanging-punctuation: first allow-end last; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  /* the desk the page lies on; the shell (or .paper) lays the page over it */
+  background: radial-gradient(1200px 600px at 20% -10%, var(--desk-2), transparent 60%), var(--desk);
+  background-color: var(--desk);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  font-kerning: normal;
+  font-optical-sizing: auto;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ---------- elements ---------- */
+:where(button, input, select, textarea) { font: inherit; color: inherit; letter-spacing: inherit; }
+:where(button) { cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+:where(button:disabled) { cursor: default; }
+:where(p) { margin: 0; }
+:where(h1, h2, h3, h4) {
+  margin: 0;
+  font-family: var(--serif); font-weight: 380; letter-spacing: -.02em;
+  font-variant-numeric: oldstyle-nums proportional-nums;
+  text-wrap: balance;
+}
+:where(h1) { font-size: var(--fs-h1); line-height: var(--lh-h1); letter-spacing: -.025em; font-variation-settings: "opsz" 144, "SOFT" 30; }
+:where(h2) { font-size: var(--fs-h2); line-height: var(--lh-h2); font-variation-settings: "opsz" 96; }
+:where(h3) { font-size: var(--fs-h3); line-height: var(--lh-h3); letter-spacing: -.01em; font-variation-settings: "opsz" 48; }
+:where(h4) { font-size: var(--fs-lead); line-height: var(--lh-lead); letter-spacing: 0; font-variation-settings: "opsz" 24; }
+:where(p, li, dd, figcaption, blockquote) { text-wrap: pretty; }
+:where(b, strong) { font-weight: 600; }
+:where(em, i, cite) { font-style: italic; }
+
+:where(a) {
+  color: inherit;
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: .2em;
+  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+}
+@media (hover: hover) {
+  :where(a:hover) { text-decoration-color: var(--accent); }
+}
+
+/* text inputs: a ruled line to write on, red when in use (D2's .input) */
+:where(input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"]), textarea, select) {
+  min-height: var(--touch); width: 100%;
+  padding: 8px 2px; border: 0; border-bottom: 1px solid var(--ink); border-radius: 0;
+  background-color: transparent; font-size: 17px;
+}
+:where(textarea) { line-height: var(--lh-body); resize: vertical; }
+/* native selects keep explicit colours (Windows dark mode) */
+:where(select) { background-color: var(--paper); color: var(--ink); }
+:where(input, textarea)::placeholder { color: var(--muted); opacity: .8; }
+:where(input[type="checkbox"], input[type="radio"]) { accent-color: var(--accent); width: 20px; height: 20px; }
+
+:where(fieldset) { border: 0; padding: 0; margin: 0; min-width: 0; }
+:where(legend) { padding: 0; }
+
+/* tables: lining tabular figures, small-capital heads, hairline rows */
+:where(table) {
+  border-collapse: collapse; width: 100%;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+:where(th, td) { padding: var(--s2) var(--s3) var(--s2) 0; text-align: left; vertical-align: baseline; border-bottom: 1px solid var(--rule); }
+:where(th:last-child, td:last-child) { padding-right: 0; }
+:where(thead th) {
+  font-weight: 500; font-size: var(--fs-sm); line-height: var(--lh-sm); color: var(--muted);
+  font-variant-caps: all-small-caps; letter-spacing: .08em;
+  border-bottom-color: var(--rule-strong);
+}
+:where(caption) { text-align: left; }
+
+/* rules: a hairline; .double is the heavy book rule that opens a part */
+:where(hr) { border: 0; border-top: 1px solid var(--rule); margin: var(--s5) 0; height: 0; }
+:where(hr.strong) { border-top-color: var(--rule-strong); }
+:where(hr.double) { border-top: 3px double var(--rule-strong); }
+
+:where(img, svg, video) { max-width: 100%; }
+:where(img, video) { height: auto; }
+
+/* focus: a red-pencil ring with a paper halo so it reads on ink buttons too */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--paper) 80%, transparent);
+  border-radius: 1px;
+}
+/* text fields draw a red line under the writing instead of the ring
+   (after the ring: same specificity, so the later rule wins) */
+:where(input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"]), textarea, select):focus-visible {
+  outline: none;
+  border-bottom-color: var(--accent);
+  box-shadow: inset 0 -2px 0 var(--accent);
+  border-radius: 0;
+}
+/* anchors and headings reached by scrolling stay clear of the sticky masthead */
+:where([id]) { scroll-margin-top: calc(var(--mast) + var(--s2)); }
+
+::selection { background: var(--accent-soft); color: var(--ink); }
+
+/* ---------- utilities ---------- */
+.visually-hidden {
+  position: absolute !important; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
+/* a sheet of paper with its faint tooth */
+.paper {
+  background-color: var(--paper);
+  background-image: var(--tooth);
+  background-size: var(--tooth-size);
+}
+
+/* ---------- shared typographic pieces ---------- */
+/* Kickers are italic serif lines, like a book's section line, not tracked capitals. */
+.kicker {
+  font-family: var(--serif); font-style: italic; font-weight: 400;
+  font-size: 15px; line-height: var(--lh-sm);
+  font-variation-settings: "opsz" 14;
+  font-variant-numeric: oldstyle-nums proportional-nums;
+  color: var(--muted);
+}
+/* Small capitals: running heads, table heads, menu labels. */
+.sc {
+  font-variant-caps: all-small-caps;
+  font-feature-settings: "c2sc", "smcp";
+  letter-spacing: .08em;
+  font-variant-numeric: lining-nums;
+}
+.label {
+  font-family: var(--sans); font-size: var(--fs-sm); line-height: var(--lh-sm);
+  font-weight: 500; color: var(--muted);
+}
+.display {
+  font-family: var(--serif);
+  font-variation-settings: "opsz" 144, "SOFT" 30;
+  font-weight: 380;
+  letter-spacing: -.025em;
+}
+.ital { font-style: italic; }
+.muted { color: var(--muted); }
+.num { font-variant-numeric: tabular-nums lining-nums; }
+.os { font-variant-numeric: oldstyle-nums proportional-nums; }
+.serif-text {
+  font-family: var(--serif); font-size: var(--fs-text); line-height: var(--lh-text);
+  font-weight: 360; font-variation-settings: "opsz" 18;
+  font-variant-numeric: oldstyle-nums proportional-nums;
+}
+.lead-text {
+  font-family: var(--serif); font-size: var(--fs-lead); line-height: var(--lh-lead);
+  font-weight: 340; color: var(--ink-2);
+  font-variation-settings: "opsz" 24;
+  font-variant-numeric: oldstyle-nums proportional-nums;
+}
+
+/* drop cap: initial-letter where supported, a float elsewhere */
+.dropcap::first-letter {
+  float: left;
+  font-family: var(--serif); font-weight: 400; font-style: normal;
+  font-variation-settings: "opsz" 144, "SOFT" 60;
+  font-size: 3.2em; line-height: .8;
+  margin: .1em .08em 0 -.02em;
+  color: var(--accent);
+}
+@supports (initial-letter: 3) or (-webkit-initial-letter: 3) {
+  .dropcap::first-letter {
+    float: none; font-size: inherit; line-height: inherit; margin: 0 .1em 0 0;
+    -webkit-initial-letter: 3; initial-letter: 3;
+  }
+}
+
+/* ---------- motion ---------- */
+/* Reduced motion turns every transition and animation off, app-wide. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important; transition-delay: 0s !important; scroll-behavior: auto !important;
+  }
+}

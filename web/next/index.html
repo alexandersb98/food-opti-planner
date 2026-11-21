@@ -2,9 +2,25 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f4efe4" media="(prefers-color-scheme: light)" data-media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#16130f" media="(prefers-color-scheme: dark)" data-media="(prefers-color-scheme: dark)" />
     <title>Meal planner</title>
+    <!-- The stored edition, applied before first paint. Same key and values
+         as src/app/stores/edition.ts, which takes over once the app runs. -->
+    <script>
+      try {
+        var e = localStorage.getItem('planner.edition.v1')
+        var t = e === 'paper' ? 'light' : e === 'evening' ? 'dark' : null
+        if (t) {
+          document.documentElement.setAttribute('data-theme', t)
+          document.querySelectorAll('meta[name="theme-color"]').forEach(function (m) {
+            m.media = m.getAttribute('data-media').indexOf(t) >= 0 ? 'all' : 'not all'
+          })
+        }
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

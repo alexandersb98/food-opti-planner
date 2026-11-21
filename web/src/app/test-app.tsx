@@ -11,6 +11,7 @@ import { importDraftStore } from './stores/importDraft'
 import { preferencesStore } from './stores/preferences'
 import { unitChangeQuestion } from './stores/unitChangeQuestion'
 import { unitsStore } from './stores/units'
+import { editionStore } from './stores/edition'
 
 // The React app test harness: the app at a URL with a fake server. Tests
 // drive it by roles and labels through the returned user-event instance.
@@ -25,6 +26,7 @@ const resetStores: Array<() => void> = [
   preferencesStore.reset,
   unitChangeQuestion.reset,
   importDraftStore.reset,
+  editionStore.reset,
 ]
 
 /** Keys the app asked for that have no message; a test that leaves any
