@@ -12,6 +12,81 @@
     "tags": "Tags",
     "settings": "Settings"
   },
+  "shell": {
+    "wordmark": "The Weekly Table",
+    "wordmarkArticle": "The",
+    "wordmarkName": "Weekly Table",
+    "wordmarkLabel": "The Weekly Table, go to this week’s brief",
+    "documentTitle": "{page}, The Weekly Table",
+    "contents": "Contents",
+    "closeContents": "Close contents",
+    "issue": "Week {week}, {weekday} {day} {month}",
+    "here": "here",
+    "pageNumber": "page {n}",
+    "swipeHint": "Swipe left or right on any page to turn to the next one.",
+    "logout": "Log out",
+    "logoutFailed": "Could not log out. Try again.",
+    "pages": {
+      "brief": {
+        "title": "This week’s brief",
+        "description": "Schedule, goals, recipe filters and time",
+        "run": "This week’s brief"
+      },
+      "menu": {
+        "title": "The Menu",
+        "description": "The composed week, day by day",
+        "run": "The Menu"
+      },
+      "recipes": {
+        "title": "The recipe index",
+        "description": "Every dish, A to Z",
+        "run": "Recipes"
+      },
+      "archive": {
+        "title": "The archive",
+        "description": "Saved plans",
+        "run": "The archive"
+      },
+      "ingredients": {
+        "title": "Ingredients",
+        "description": "The larder, alphabetically",
+        "run": "Ingredients"
+      },
+      "attributes": {
+        "title": "Attributes",
+        "description": "Nutrients and other measures",
+        "run": "Attributes"
+      },
+      "tags": {
+        "title": "Tags",
+        "description": "Labels for recipes and ingredients",
+        "run": "Tags"
+      },
+      "settings": {
+        "title": "Settings",
+        "description": "Edition, units and data sources",
+        "run": "Settings"
+      }
+    },
+    "count": {
+      "recipes": "no recipes | 1 recipe | {n} recipes",
+      "ingredients": "no ingredients | 1 ingredient | {n} ingredients",
+      "attributes": "no attributes | 1 attribute | {n} attributes",
+      "tags": "no tags | 1 tag | {n} tags"
+    },
+    "stub": {
+      "note": "This page is still being set.",
+      "recipe": "A recipe",
+      "import": "Import a recipe",
+      "ingredient": "An ingredient",
+      "dataSource": "A data source"
+    },
+    "notFound": {
+      "title": "No such page",
+      "text": "Nothing is printed at this address.",
+      "home": "Go to this week’s brief"
+    }
+  },
   "settings": {
     "loadFailed": "Could not load the settings.",
     "preferredUnits": {
