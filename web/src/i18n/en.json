@@ -790,7 +790,19 @@
       "only": "Only",
       "never": "Never"
     },
-    "noTags": "No tags yet. Add them on the Tags page."
+    "noTags": "No tags yet. Add them on the Tags page.",
+    "change": "Change",
+    "changeLabel": "Change the recipe filters",
+    "noRules": "No filters: every recipe may be used.",
+    "usable": "{usable} of {total} recipe can be used. | {usable} of {total} recipes can be used.",
+    "seeThem": "See them",
+    "preview": "{count} recipe can be used. | {count} recipes can be used.",
+    "previewCount": "{usable} of {total}",
+    "previewNone": "{none} fits these filters. Loosen one, or there will be no plan.",
+    "none": "No recipe",
+    "noTagsYet": "No tags yet. Add them on the {tags}, then come back to filter by them.",
+    "tagsPage": "Tags page",
+    "saving": "Saving…"
   },
   "results": {
     "loadFailed": "Could not load the plan.",

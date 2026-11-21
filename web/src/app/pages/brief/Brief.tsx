@@ -126,7 +126,7 @@ export function Brief() {
           {page.data.today ? <TodayMeals today={page.data.today} /> : null}
           <ScheduleSection plan={plan} />
           <GoalsSection plan={plan} attributes={page.data.attributes} />
-          <FiltersSection />
+          <FiltersSection plan={plan} tags={page.data.tags} count={recipes} />
           <TimeSection seconds={plan.solve_time_limit} />
         </>
       ) : (
