@@ -498,7 +498,15 @@
     "more": "Fixing these may show another clash.",
     "notMinimal": "Stopped early: some of these may not take part.",
     "tryAgain": "Try again",
-    "inClash": "In the clash"
+    "inClash": "In the clash",
+    "note": {
+      "kicker": "Editor’s note",
+      "lede": "These rules can’t all be met at once. Loosen one and the week can be composed.",
+      "rules": "The rules that clash",
+      "changeSchedule": "Change the schedule",
+      "signature": "The planner",
+      "saving": "Saving…"
+    }
   },
   "plan": {
     "loadFailed": "Could not load the plan.",

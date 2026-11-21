@@ -1,0 +1,66 @@
+/* The Editor's note (no plan possible), after D2's .editors-note, .note-card,
+   .clash-list and .clash-item. Prefix enote-. */
+
+.enote { margin-top: var(--s2); }
+.enote-card { border-left: 4px solid var(--accent); padding: var(--s1) 0 var(--s1) var(--s4); }
+.enote-card .enote-kicker { color: var(--accent); }
+.enote-title {
+  font-family: var(--serif); font-size: var(--fs-h1); line-height: var(--lh-h1); font-weight: 300; font-style: italic;
+  margin: var(--s2) 0 var(--s4); letter-spacing: -.025em;
+  font-variation-settings: "opsz" 144, "SOFT" 100;
+}
+.enote-lede {
+  font-family: var(--serif); font-size: var(--fs-text); line-height: var(--lh-text); font-weight: 360;
+  max-width: 34em; text-wrap: pretty;
+  /* room for the three-line drop cap when the lede runs to two lines */
+  min-height: calc(3 * var(--lh-text));
+}
+
+/* the rules, numbered i., ii., iii. in the margin */
+.enote-list { list-style: none; padding: 0; margin: var(--s5) 0 var(--s4); counter-reset: enote; }
+.enote-item {
+  display: grid; grid-template-columns: 28px minmax(0, 1fr); column-gap: var(--s2);
+  padding: var(--s4) 0; border-top: 1px solid var(--rule);
+  counter-increment: enote;
+}
+.enote-item:last-child { border-bottom: 1px solid var(--rule); }
+.enote-item::before {
+  content: counter(enote, lower-roman) ".";
+  grid-row: 1 / span 3;
+  font-family: var(--serif); font-style: italic; font-size: 19px; line-height: 28px; color: var(--accent);
+}
+.enote-item > * { grid-column: 2; }
+.enote-where { font-size: 13.5px; line-height: 20px; color: var(--muted); }
+.enote-rule {
+  display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--s2);
+  font-family: var(--serif); font-size: 19px; line-height: 28px; font-variant-numeric: oldstyle-nums;
+  overflow-wrap: anywhere;
+}
+.enote-strictness {
+  font-family: var(--serif); font-style: italic; font-size: 16px; color: var(--accent);
+}
+.enote-item.is-prefer .enote-strictness { color: var(--good); }
+.enote-detail { font-family: var(--serif); font-style: italic; font-size: 16px; line-height: 24px; color: var(--ink-2); }
+
+/* the bounds to loosen, side by side, each with its unit after the line */
+.enote-bounds {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: var(--s3) var(--s4);
+  margin: var(--s3) 0 var(--s3);
+}
+.enote-bounds:empty { display: none; }
+.enote-bound.is-wide { grid-column: 1 / -1; }
+.enote-input { display: flex; align-items: baseline; gap: var(--s2); }
+.enote-input > input { flex: 1; min-width: 0; font-variant-numeric: lining-nums tabular-nums; }
+.enote-unit { font-size: var(--fs-sm); color: var(--muted); }
+
+.enote-action { justify-self: start; margin-top: var(--s1); }
+
+.enote-failed {
+  display: flex; gap: 6px; align-items: baseline;
+  font-family: var(--sans); font-size: var(--fs-sm); line-height: var(--lh-sm); font-weight: 500; color: var(--accent);
+  margin-bottom: var(--s3);
+}
+.enote-failed::before { content: "\2020"; font-family: var(--serif); font-weight: 400; }
+
+.enote-signature { font-family: var(--serif); font-style: italic; text-align: right; color: var(--muted); margin: var(--s4) 0 var(--s5); }
+.enote-actions { display: grid; justify-items: center; gap: var(--s2); }
