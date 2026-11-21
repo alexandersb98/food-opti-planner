@@ -18,4 +18,5 @@ export const specimenSections: SpecimenSection[] = [
   { id: 'figures', title: 'Figures', load: () => import('./sections/Figures') },
   { id: 'elements', title: 'Elements and rules', load: () => import('./sections/Elements') },
   { id: 'unit-field', title: 'Unit field', load: () => import('../ui/unit-field/Specimen') },
+  { id: 'sheets', title: 'Sheets and Confirm', load: () => import('../ui/sheet/Specimen') },
 ]
