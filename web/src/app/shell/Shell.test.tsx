@@ -265,7 +265,10 @@ test('a toast is announced in the polite status region, then goes', async () => 
   await screen.findByRole('heading', { level: 1 })
   vi.useFakeTimers()
   act(() => toast('Goal changed.'))
-  const region = screen.getByRole('status')
+  // The brief behind it may still show its own "Loading…" status, so find
+  // the toast's region through its text rather than as the only status.
+  const region = screen.getByText('Goal changed.').closest('[role="status"]') as HTMLElement
+  expect(region).not.toBeNull()
   expect(region.getAttribute('aria-live')).toBe('polite')
   expect(region.textContent).toBe('Goal changed.')
   expect(region.hasAttribute('data-shown')).toBe(true)
