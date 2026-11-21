@@ -8,6 +8,8 @@ import { Select, type SelectGroup, type SelectOption } from '../../ui/select/Sel
 
 /** The Attribute choice's value for Not mapped (attribute ids are numbers). */
 export const NOT_MAPPED = 'none'
+/** The Attribute choice's value for Create attribute… */
+export const CREATE = 'create'
 
 const SEARCH_ICON = (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
@@ -54,8 +56,8 @@ export function SourceColumns({
   for (const column of columns) if (column.attribute_id !== null) holders.set(column.attribute_id, column)
 
   /** Not mapped, then the attributes that convert with the column's unit
-   * (one another column feeds is disabled and names it). The attribute the
-   * column has now is always listed. */
+   * (one another column feeds is disabled and names it), then Create
+   * attribute… The attribute the column has now is always listed. */
   function optionsFor(column: SourceColumn): (SelectOption | SelectGroup)[] {
     const offered = attributes
       .filter((a) => a.id === column.attribute_id || convertible(column.unit, a.unit))
@@ -68,7 +70,7 @@ export function SourceColumns({
     const options: (SelectOption | SelectGroup)[] = [{ value: NOT_MAPPED, label: t('dataSource.notMapped') }]
     if (offered.length && column.unit) options.push({ group: t('dataSource.convertsWith', { unit: column.unit }), options: offered })
     else options.push(...offered)
-    // Ticket 41: `options.push({ value: CREATE, label: t('dataSource.createAttribute') })` goes here.
+    options.push({ value: CREATE, label: t('dataSource.createAttribute') })
     return options
   }
 
