@@ -10,9 +10,16 @@ Spec: "Implementation Decisions › Modules" ("Shared stores", "Saving the setup
 
 Blocked by: 02
 
-Status: ready-for-agent
+Status: done
 
-- [ ] Ported solve tests pass against the neutral store (start, cancel by id, a cancel crossing the answer doesn't reach the next solve, busy, failures, clash kept until dismissed, reset)
-- [ ] Plan-setup tests: three quick changes are saved in order, each from the latest state; a failed save reverts only its own change and reports it; field errors come back to the caller
-- [ ] No file of the stores imports `vue` or React
-- [ ] `npm run lint`, `npm run typecheck`, `npm test` pass in `web/`
+- [x] Ported solve tests pass against the neutral store (start, cancel by id, a cancel crossing the answer doesn't reach the next solve, busy, failures, clash kept until dismissed, reset)
+- [x] Plan-setup tests: three quick changes are saved in order, each from the latest state; a failed save reverts only its own change and reports it; field errors come back to the caller
+- [x] No file of the stores imports `vue` or React
+- [x] `npm run lint`, `npm run typecheck`, `npm test` pass in `web/`
+
+## Comments
+
+- Stores live in `web/src/app/stores/solve.ts` and `web/src/app/stores/planSetup.ts`; neither imports Vue or React. Use them as modules (`import * as solve from '../stores/solve'`) and read them with `useSyncExternalStore(solve.subscribe, solve.getSnapshot)`; the snapshot is a new object only on change. No React hook wrapper was added (consumers call `useSyncExternalStore` directly).
+- **Solve store**: `start(seconds)` resolves to `{ plan, failure: null }` or `{ plan: null, failure }`, or `null` when a solve was already running or the store was reset meanwhile. It never navigates: ticket 20 opens The Menu on a plan when still on the brief. `cancel()`, `dismiss()`, `reset()` as in Vue. Vue's two navigation tests became outcome assertions; added tests for subscribe/snapshot stability, a failed Cancel crossing into the next solve, and a reset ignoring the answer.
+- **Plan-setup store**: `load()` (GET /api/plan; an answer crossing a save is ignored), `change(update, { optimistic = true })` where `update: (plan: Plan) => Plan` runs on the latest saved setup (the previous save's server answer) when its turn comes; the body is `planFields(update(saved))`. Resolves to `{ plan, errors: null }` or `{ plan: null, errors }` (field errors via `fieldErrors`, `{}` for other failures). Shown state = saved setup plus pending optimistic changes, so a failed save drops only its own change. `optimistic: false` is for sheets that stay open with errors (the change shows once saved). `settled()` waits for all queued saves (for "Try again", which saves then solves). Write changes as "set" functions (set this cell skipped), not toggles, since they are re-applied to newer state.
+- For the README: both stores added to `resetStores` in `web/src/app/test-app.tsx` (the array became one entry per line).
