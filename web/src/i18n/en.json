@@ -168,6 +168,14 @@
   "sheet": {
     "close": "Close"
   },
+  "tagPicker": {
+    "none": "None yet.",
+    "add": "Add a tag",
+    "more": "{n} more",
+    "find": "Find a tag",
+    "others": "Other tags",
+    "noMatch": "No tag matches “{query}”."
+  },
   "ui": {
     "loading": "Loading…",
     "loadFailed": "Could not load this page."

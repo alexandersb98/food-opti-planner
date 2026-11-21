@@ -1,0 +1,16 @@
+/* Tag picker: the chosen chips, then "Add a tag" with a find box and the
+   other tags, so a long catalogue never lengthens the page by itself. */
+
+.tag-picker { display: grid; gap: var(--s3); }
+.tag-picker-none { margin: 0; font-family: var(--serif); font-style: italic; font-size: 15px; line-height: 20px; color: var(--muted); }
+.tag-picker-count { margin-left: auto; font-weight: 400; color: var(--muted); font-variant-numeric: lining-nums; }
+.tag-picker-find {
+  display: block; width: 100%; min-height: var(--touch); margin-bottom: var(--s3);
+  padding: 8px 2px; border: 0; border-bottom: 1px solid var(--ink); border-radius: 0;
+  background: transparent; color: var(--ink); font-family: var(--serif); font-size: 17px;
+}
+.tag-picker-find:focus-visible { outline: none; box-shadow: inset 0 -2px 0 var(--accent); border-bottom-color: var(--accent); }
+.tag-picker-find::-webkit-search-cancel-button { cursor: pointer; }
+/* a lighter row than the chosen chips: these are offers */
+.tag-picker-others { gap: 6px var(--s2); }
+.tag-picker-others .chip { min-height: 40px; padding: 4px 14px; font-size: 14.5px; color: var(--ink-2); }

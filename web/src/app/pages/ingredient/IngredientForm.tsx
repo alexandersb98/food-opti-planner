@@ -12,7 +12,7 @@ import { useT } from '../../i18n/i18n'
 import { useRunningHead } from '../../shell/runningHead'
 import { preferencesStore, preferredUnit } from '../../stores/preferences'
 import { Button, buttonClass } from '../../ui/button/Button'
-import { Chip, Chips } from '../../ui/chips/Chips'
+import { TagPicker } from '../../ui/tagPicker/TagPicker'
 import { useConfirm } from '../../ui/confirm/Confirm'
 import { Field } from '../../ui/field/Field'
 import { LoadState } from '../../ui/loadState/LoadState'
@@ -429,13 +429,7 @@ function IngredientEditor({
         {tags.length === 0 ? (
           <p className="ingredient-note">{t('ingredients.noTags')}</p>
         ) : (
-          <Chips labelledBy={`${ids}-tags`}>
-            {tags.map((tag) => (
-              <Chip key={tag.id} pressed={draft.tagIds.has(tag.id)} onClick={() => toggleTag(tag.id)}>
-                {tag.name}
-              </Chip>
-            ))}
-          </Chips>
+          <TagPicker labelledBy={`${ids}-tags`} tags={tags} chosen={draft.tagIds} onToggle={toggleTag} />
         )}
       </section>
 

@@ -160,7 +160,11 @@ test('log in, build a catalogue and a recipe, compose a week, map a source and i
   await expect(page.getByRole('option', { name: 'kcal (kilocalorie)' })).toHaveCount(0)
   await page.keyboard.press('Escape')
   await page.getByRole('textbox', { name: 'Energy' }).fill('389')
-  await page.getByRole('button', { name: 'vegan' }).click()
+  // Tags not yet chosen wait under "Add a tag", narrowed by a find box.
+  await page.getByText('Add a tag').click()
+  await page.getByRole('searchbox', { name: 'Find a tag' }).fill('veg')
+  await page.getByRole('group', { name: 'Other tags' }).getByRole('button', { name: 'vegan' }).click()
+  await expect(page.getByRole('group', { name: 'Tags' }).getByRole('button', { name: 'vegan' })).toHaveAttribute('aria-pressed', 'true')
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(title(page)).toHaveText('Ingredients')
   await expect(page.getByRole('link', { name: /^Oats/ })).toHaveText(/Oats.*per 100 g.*Energy 389 kcal/)
