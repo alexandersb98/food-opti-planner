@@ -1,0 +1,109 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+
+/** A page's data call: an openapi-fetch answer, or `loadAll({...})` for
+ * several calls at once. No `data` (or a throw) means it failed. The signal
+ * is aborted when the answer is no longer wanted; passing it on is optional. */
+export type LoadCall<T> = (signal: AbortSignal) => Promise<{ data?: T }>
+
+export interface Load<T> {
+  /** The loaded data; undefined until the first answer for the current key. */
+  data: T | undefined
+  /** A call for the current key is under way (first load, new key or reload). */
+  loading: boolean
+  /** The latest call failed (no data, an error answer, or no connection). */
+  failed: boolean
+  /** Asks again, keeping the data shown meanwhile ("Try again"). */
+  reload: () => void
+  /** Changes the loaded data in place, e.g. after a save answered with the
+   * stored value. Ignored until there is data. */
+  setData: (update: T | ((data: T) => T)) => void
+}
+
+const NOT_YET = Symbol('not loaded')
+
+interface State<T> {
+  /** The key the data (or failure) belongs to. */
+  key: unknown
+  data: T | undefined
+  failed: boolean
+  /** A reload of the same key is under way. */
+  reloading: boolean
+}
+
+/**
+ * Loads a page's data when it opens, and again whenever `key` changes (e.g.
+ * the recipe id of `/recipes/:id`). Several calls run in parallel through
+ * `loadAll`:
+ *
+ * ```ts
+ * const page = useLoad(() => loadAll({ tags: api.GET('/api/tags'), groups: api.GET('/api/tag-groups') }))
+ * if (!page.data) return <LoadState of={page} message={t('tags.loadFailed')} />
+ * ```
+ *
+ * Only the answer to the latest call counts: an answer that arrives after
+ * the page left, after the key changed or after a newer reload is ignored
+ * (so React's strict-mode double effects never show stale data). The call
+ * is read when it runs, so an inline arrow is fine.
+ */
+export function useLoad<T>(call: LoadCall<T>, key: string | number = ''): Load<T> {
+  const [state, setState] = useState<State<T>>({ key: NOT_YET, data: undefined, failed: false, reloading: false })
+  const latestCall = useRef(call)
+  // The running call; a newer one (or leaving) aborts it and ignores its answer.
+  const running = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    latestCall.current = call
+  })
+
+  const start = useCallback((forKey: string | number) => {
+    running.current?.abort()
+    const controller = new AbortController()
+    running.current = controller
+    const settle = (data: T | undefined) => {
+      if (controller.signal.aborted) return
+      running.current = null
+      setState((previous) => ({
+        key: forKey,
+        data: data ?? (previous.key === forKey ? previous.data : undefined),
+        failed: data === undefined,
+        reloading: false,
+      }))
+    }
+    Promise.resolve()
+      .then(() => latestCall.current(controller.signal))
+      .then(
+        (answer) => settle(answer.data),
+        () => settle(undefined),
+      )
+    return controller
+  }, [])
+
+  useEffect(() => {
+    const controller = start(key)
+    return () => controller.abort()
+  }, [key, start])
+
+  const reload = useCallback(() => {
+    setState((previous) => ({ ...previous, failed: false, reloading: true }))
+    start(key)
+  }, [key, start])
+
+  const setData = useCallback((update: T | ((data: T) => T)) => {
+    setState((previous) => {
+      if (previous.data === undefined) return previous
+      const data = typeof update === 'function' ? (update as (data: T) => T)(previous.data) : update
+      return { ...previous, data }
+    })
+  }, [])
+
+  // Data and failures belong to the key they were loaded for; a new key
+  // starts out loading, with nothing shown from the old one.
+  const current = state.key === key
+  return {
+    data: current ? state.data : undefined,
+    loading: !current || state.reloading,
+    failed: current && state.failed,
+    reload,
+    setData,
+  }
+}

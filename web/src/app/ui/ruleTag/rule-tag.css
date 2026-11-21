@@ -1,0 +1,19 @@
+/* Rule tag, after D2's .rule-tag. */
+
+.rule-tag {
+  display: inline-flex; align-items: baseline; flex-wrap: wrap; column-gap: 10px;
+  max-width: 100%; min-height: var(--touch); padding: 9px 14px 9px 12px;
+  border: 1px solid var(--ink); border-radius: 0; background: none; color: var(--ink); text-align: left;
+  font-family: var(--serif); font-size: 19px; line-height: 24px; overflow-wrap: anywhere;
+}
+.rule-tag-button:active { opacity: .8; }
+@media (hover: hover) {
+  .rule-tag-button:hover { box-shadow: inset 0 0 0 1px var(--ink); }
+}
+.rule-tag-mode { font-family: var(--sans); font-size: 14px; font-weight: 600; }
+.rule-tag-never .rule-tag-mode { color: var(--accent); }
+.rule-tag-never .rule-tag-name {
+  text-decoration: line-through; text-decoration-color: var(--accent); text-decoration-thickness: 2px;
+}
+.rule-tag-only { background: var(--ink); color: var(--paper); }
+.rule-tag-note { font-family: var(--serif); font-style: italic; font-size: 15px; opacity: .82; }

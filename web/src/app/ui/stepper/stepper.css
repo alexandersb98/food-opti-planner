@@ -1,0 +1,21 @@
+/* Stepper, after D2's .stepper. */
+
+.stepper { display: inline-flex; align-items: stretch; flex: none; border: 1px solid var(--ink); }
+.stepper-button {
+  display: grid; place-items: center;
+  width: var(--touch); height: var(--touch); padding: 0;
+  border: 0; border-radius: 0; background: none; color: var(--ink);
+  font-family: var(--sans); font-size: 22px; line-height: 1;
+  transition: background-color .15s;
+}
+.stepper-button:active:not(:disabled) { background: var(--press); }
+.stepper-button:disabled { opacity: .3; }
+@media (hover: hover) {
+  .stepper-button:hover:not(:disabled) { background: var(--press); }
+}
+.stepper-value {
+  display: grid; place-items: center; min-width: 52px; padding: 0 6px;
+  border-left: 1px solid var(--rule); border-right: 1px solid var(--rule);
+  font-family: var(--serif); font-size: 20px; line-height: 24px; white-space: nowrap;
+  font-variant-numeric: lining-nums tabular-nums;
+}

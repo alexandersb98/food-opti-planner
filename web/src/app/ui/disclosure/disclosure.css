@@ -1,0 +1,28 @@
+/* Disclosure: a hairline, then the summary as a quiet ink button with a
+   drawn caret that turns down when open. */
+
+.disclosure { border-top: 1px solid var(--rule); }
+.disclosure-summary {
+  display: flex; align-items: center; gap: var(--s2);
+  min-height: var(--touch); padding: 0 2px;
+  list-style: none; cursor: pointer;
+  font-family: var(--sans); font-size: 15px; line-height: 20px; font-weight: 600; color: var(--ink);
+  -webkit-tap-highlight-color: transparent;
+}
+.disclosure-summary::-webkit-details-marker { display: none; }
+.disclosure-summary::marker { content: ""; }
+.disclosure-summary:active { background: var(--press); }
+.disclosure-mark {
+  flex: none; width: 7px; height: 7px; margin: 0 4px 0 1px;
+  border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform .2s var(--ease);
+}
+.disclosure[open] > .disclosure-summary .disclosure-mark { transform: translateY(-2px) rotate(45deg); }
+@media (hover: hover) {
+  .disclosure-summary:hover { color: var(--accent); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .disclosure-mark { transition: none; }
+}
+.disclosure-body { padding: var(--s2) 0 var(--s4); }
