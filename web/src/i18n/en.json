@@ -651,6 +651,32 @@
     "importanceOf": "Importance {n} of {max}",
     "importanceSplit": "Importance {below} of {max} below the range, {above} of {max} above",
     "attributeRange": "{attribute} · {range}",
+    "sentence": {
+      "text": "{lead} {amount} {attribute}, {scope}",
+      "noBound": "No limit yet on {attribute}, {scope}",
+      "lead": {
+        "between": "Between",
+        "exactly": "Exactly",
+        "atLeast": "At least",
+        "atMost": "At most"
+      },
+      "amount": {
+        "between": "{min} and {max} {unit}",
+        "one": "{value} {unit}"
+      },
+      "scope": {
+        "day": "each day",
+        "daily_average": "as a daily average",
+        "plan_total": "over the whole plan"
+      }
+    },
+    "section": {
+      "add": "Add goal",
+      "edit": "Edit",
+      "inClash": "In the clash:",
+      "empty": "No goals yet. Add one, or the planner only fills the schedule.",
+      "intro": "{must} goals are kept or there is no plan. {prefer} goals are weighed against each other by importance."
+    },
     "editor": {
       "addTitle": "Add goal",
       "editTitle": "Edit goal",

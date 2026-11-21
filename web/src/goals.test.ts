@@ -1,11 +1,52 @@
 import { describe, expect, test } from 'vitest'
 import type { Goal } from './api/types'
 import { makeI18n } from './i18n'
-import { boundError, goalNames, guardRailImportance, IMPORTANCE, needsZeroReference, rangeText, scopeText } from './goals'
+import {
+  boundError,
+  figureText,
+  goalNames,
+  goalSentence,
+  guardRailImportance,
+  IMPORTANCE,
+  needsZeroReference,
+  rangeText,
+  scopeText,
+} from './goals'
 import { attribute } from './test-data'
 
 const { t } = makeI18n().global
 type AppliesTo = Goal['applies_to']
+
+test.each([
+  ['1800', '1 800'],
+  ['120', '120'],
+  ['1500.5', '1 500.5'],
+  ['12000', '12 000'],
+  ['1234567', '1 234 567'],
+  ['-2500', '-2 500'],
+  ['0.25', '0.25'],
+  ['1,5', '1,5'],
+])('the figure %s is set as %s', (value, text) => {
+  expect(figureText(value)).toBe(text)
+})
+
+test.each([
+  ['1500', '2000', 'daily_average', 'Between 1 500 and 2 000 kcal energy, as a daily average'],
+  ['120', null, 'day', 'At least 120 kcal energy, each day'],
+  [null, '2200', 'plan_total', 'At most 2 200 kcal energy, over the whole plan'],
+  ['30', '30.0', 'day', 'Exactly 30 kcal energy, each day'],
+  [null, null, 'day', 'No limit yet on energy, each day'],
+  ['', ' ', 'plan_total', 'No limit yet on energy, over the whole plan'],
+] as const)('bounds %s to %s, %s, read "%s"', (min, max, applies_to, text) => {
+  const sentence = goalSentence({ min, max, applies_to }, { name: 'Energy', unit: 'kcal' }, t)
+  expect(t(sentence.key, sentence.named)).toBe(text)
+})
+
+test('a goal sentence without a unit has no stray space, and gives its parts', () => {
+  const sentence = goalSentence({ min: '3', max: '5', applies_to: 'day' }, { name: 'Fruit', unit: '' }, t)
+  expect(sentence.named).toEqual({ lead: 'Between', amount: '3 and 5', attribute: 'fruit', scope: 'each day' })
+  expect(t(sentence.key, sentence.named)).toBe('Between 3 and 5 fruit, each day')
+})
 
 test.each([
   ['1800', '2200', 'kcal', '1800–2200 kcal'],
