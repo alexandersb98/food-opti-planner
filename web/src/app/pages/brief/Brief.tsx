@@ -34,7 +34,7 @@ async function loadSetup(): Promise<{ data?: true }> {
 const isSolving = () => solve.getSnapshot().running
 
 /** "Week 39, 21–27 September": the plan's ISO week and its dates. */
-function issueLine(t: ReturnType<typeof useT>, plan: Plan, locale: string): string {
+export function issueLine(t: ReturnType<typeof useT>, plan: Plan, locale: string): string {
   const [year, month, day] = plan.start_date.split('-').map(Number)
   const first = new Date(Date.UTC(year!, month! - 1, day!))
   const last = new Date(Date.UTC(year!, month! - 1, day! + plan.days - 1))

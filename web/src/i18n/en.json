@@ -613,6 +613,36 @@
       "button": "Compose the week",
       "sub": "Make plan",
       "note": "Every meal is skipped: there is nothing to fill. | Picks a recipe and a portion size for the one meal. | Picks a recipe and a portion size for each of the {n} meals."
+    },
+    "composing": {
+      "title": "{composing} the week",
+      "titleWord": "Composing",
+      "of": "of {max} second | of {max} seconds",
+      "ruler": "Time used",
+      "valueText": "{seconds} of {max} second | {seconds} of {max} seconds",
+      "galley": "The days being set",
+      "nothingToSet": "Nothing to set",
+      "lines": {
+        "1": "Reading the brief…",
+        "2": "Weighing the goals against each other…",
+        "3": "Trying the recipes against the filters…",
+        "4": "Choosing portion sizes…",
+        "5": "Balancing the week as a whole…"
+      },
+      "stoppingLine": "Putting the pencils down.",
+      "cancel": "Cancel",
+      "stopping": "Stopping…"
+    },
+    "failure": {
+      "title": "The week could not be composed.",
+      "no_plan_in_time": "No plan was found within {n} second. Allow more time and compose again. | No plan was found within {n} seconds. Allow more time and compose again.",
+      "no_recipes": "There are no recipes to plan with yet. Add some to the recipe index first.",
+      "no_usable_recipes": "No recipe passes the recipe filters. Loosen them and compose again.",
+      "too_large": "This week is too large to solve. Try fewer days or meals in the schedule.",
+      "stopped": "It was stopped before any plan was found. Compose again when you are ready.",
+      "busy": "A plan is already being made, in another tab or window. Try again when it is done.",
+      "error": "Something went wrong while making the plan. Try again.",
+      "dismiss": "Dismiss"
     }
   },
   "archive": {
