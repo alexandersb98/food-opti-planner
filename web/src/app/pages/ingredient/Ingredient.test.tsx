@@ -37,6 +37,8 @@ async function mountPage(path: string, server: FakeServer = {}) {
     'GET /api/tags': { body: [vegan, nuts] },
     'GET /api/ingredients/7': { body: oats },
     'GET /api/ingredients': { body: [] },
+    // another spelling of the same unit: no question (its tests are in UnitChange.test.tsx)
+    'POST /api/ingredients/7/unit-change': { body: { kind: 'same', factor: null, counts: {}, rounded: 0, refusal: null } },
     ...server,
   })
   const app = await mountApp(path)

@@ -4,7 +4,7 @@ import { attribute } from '../../../test-data'
 import { fakeServer, mountApp, unitRoutes, type FakeServer } from '../../test-app'
 
 // The Attributes page through the app seam. A port of the Vue AttributesPage
-// tests other than the unit-change question (ticket 37).
+// tests other than the unit-change question (ticket 37, in UnitChange.test.tsx).
 
 const energy = attribute({ id: 1, name: 'Energy', unit: 'kcal' })
 const protein = attribute({ id: 2, name: 'Protein', unit: 'g', decimals: 1, ingredient_count: 12, goal_count: 1 })
@@ -18,6 +18,8 @@ async function mountPage(server: FakeServer = {}) {
     'GET /api/session': 204,
     ...unitRoutes(),
     'GET /api/attributes': { body: [energy, protein] },
+    // another spelling of the same unit: no question (its tests are in UnitChange.test.tsx)
+    'POST /api/attributes/1/unit-change': { body: { kind: 'same', factor: null, counts: {}, rounded: 0, refusal: null } },
     ...server,
   })
   const app = await mountApp('/attributes')

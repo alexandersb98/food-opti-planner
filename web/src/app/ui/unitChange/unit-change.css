@@ -1,0 +1,9 @@
+/* The unit-change question (ticket 37): D2's sheet with its preview sentence
+   and, when digits would be lost, a note in red pencil under it. */
+/* the sheet's actions keep their own space above */
+.unit-change-body { margin: 0; overflow-wrap: break-word; }
+.unit-change-rounded {
+  margin: var(--s3) 0 0; padding-left: calc(var(--s4) + 3px);
+  font-family: var(--serif); font-style: italic; font-size: var(--fs-body); line-height: var(--lh-body);
+  font-variant-numeric: oldstyle-nums proportional-nums; color: var(--accent);
+}

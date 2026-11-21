@@ -10,7 +10,7 @@ import { Button } from '../../ui/button/Button'
 import { useConfirm } from '../../ui/confirm/Confirm'
 import { LoadState } from '../../ui/loadState/LoadState'
 import { AttributeForm, type Draft, type DraftErrors } from './AttributeForm'
-import { useUnitChangeGoesStraightOn } from './unitChangeCheck'
+import { useAttributeUnitChange } from './unitChangeCheck'
 import './attributes.css'
 
 /** The entry open for editing: an attribute's id, or 'new'. */
@@ -48,8 +48,7 @@ export function Attributes() {
   const t = useT()
   const page = useLoad((signal) => api.GET('/api/attributes', { signal }))
   const [confirm, confirmSheet] = useConfirm()
-  // Ticket 37 replaces this line with the unit-change question (its check and its sheet).
-  const [checkUnitChange, unitChangeSheet] = useUnitChangeGoesStraightOn()
+  const [checkUnitChange, unitChangeSheet] = useAttributeUnitChange()
 
   const [openId, setOpenId] = useState<OpenId | null>(null)
   const [draft, setDraft] = useState<Draft>(NEW_DRAFT)
