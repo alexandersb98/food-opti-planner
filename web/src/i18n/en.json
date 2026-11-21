@@ -337,6 +337,22 @@
   },
   "recipes": {
     "intro": "Dishes made of ingredients.",
+    "index": {
+      "kicker": "No dishes yet | One dish, A to Z | {n} dishes, A to Z",
+      "title": "The recipe {em}",
+      "titleEm": "index",
+      "standfirst": "Everything the planner may cook from, filed by name.",
+      "search": "Search recipes",
+      "searchPlaceholder": "Search by name…",
+      "tags": "Narrow by tag",
+      "shown": "No recipes shown | 1 recipe shown | {n} recipes shown",
+      "emptyHint": "Write one out, or import one from a link.",
+      "clearSearch": "Clear the search",
+      "clearTags": "Clear the chosen tags",
+      "newHint": "A blank page to fill in",
+      "importHint": "From a link or pasted text",
+      "checkingKey": "Checking for an AI key…"
+    },
     "empty": "No recipes yet.",
     "noMatch": "No recipes match.",
     "loadFailed": "Could not load the recipes.",
