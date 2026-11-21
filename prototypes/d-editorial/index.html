@@ -1,0 +1,75 @@
+<!doctype html>
+<!--
+  Prototype D: "Editorial / cookbook" (throwaway).
+  Why it exists: docs/superpowers/specs/2026-11-19-ui-prototype-directions.md, direction D.
+  The week is set up on an editorial "brief" page, the result reads as a restaurant
+  menu card, and recipes are cookbook spreads that can be annotated in place.
+  Navigation: the masthead "Contents" button, next-page links and left/right swipes.
+  Plain HTML/CSS/JS, no build step; opens from disk. Data: ../shared/data.js (made up).
+  Nothing is saved. A "Prototype controls" box on The Menu switches between
+  "plan found", "time ran out" and "no plan possible".
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f4efe4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#15120e" media="(prefers-color-scheme: dark)">
+  <title>The Weekly Table</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..800;1,9..144,300..800&family=Inter:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#page">Skip to the page</a>
+  <div class="phone">
+    <header class="masthead" id="masthead">
+      <button class="wordmark" type="button" data-go="plan" aria-label="The Weekly Table, go to this week's brief">
+        <span class="wordmark-the">The</span> Weekly Table
+      </button>
+      <span class="masthead-section" id="mastheadSection" aria-hidden="true"></span>
+      <button class="contents-btn" type="button" id="contentsBtn" aria-haspopup="dialog" aria-controls="contents">
+        <span class="contents-icon" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span>Contents</span>
+      </button>
+    </header>
+
+    <main id="page" class="page" tabindex="-1"></main>
+
+    <nav class="contents" id="contents" role="dialog" aria-modal="true" aria-labelledby="contentsTitle" hidden>
+      <div class="contents-inner">
+        <div class="contents-top">
+          <p class="kicker" id="contentsIssue"></p>
+          <button class="icon-btn" type="button" id="contentsClose" aria-label="Close contents">
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" stroke-width="1.6" fill="none"/></svg>
+          </button>
+        </div>
+        <h2 class="contents-title" id="contentsTitle">Contents</h2>
+        <ol class="contents-list" id="contentsList"></ol>
+        <p class="contents-foot">Swipe left or right on any page to turn to the next one.</p>
+      </div>
+    </nav>
+
+    <div class="sheet-backdrop" id="sheetBackdrop" hidden></div>
+    <section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden>
+      <div class="sheet-grip" aria-hidden="true"></div>
+      <header class="sheet-head">
+        <h2 id="sheetTitle" class="sheet-title"></h2>
+        <button class="icon-btn" type="button" id="sheetClose" aria-label="Close">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" stroke-width="1.6" fill="none"/></svg>
+        </button>
+      </header>
+      <div class="sheet-body" id="sheetBody"></div>
+    </section>
+
+    <div class="solving" id="solving" role="dialog" aria-modal="true" aria-labelledby="solvingTitle" hidden></div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </div>
+
+  <script src="../shared/data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

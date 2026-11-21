@@ -1,0 +1,49 @@
+<!doctype html>
+<!--
+  Prototype A: "The week is the app"  (throwaway, see docs/superpowers/specs/2026-11-19-ui-prototype-directions.md)
+
+  Home is the week itself: goal rings and a bento summary on top, a scroll-snapping strip of
+  days below, and one big Make plan button docked at the bottom. Results fill the week in place.
+  There is no menu: the catalogue (recipes, ingredients, tags and filters, saved plans, settings)
+  opens from the search pill at the top, or by pulling the page down.
+
+  Plain HTML/CSS/JS, no build step, works from file://. Data: ../shared/data.js (made up).
+  Nothing is saved. A "Demo" box at the bottom of the page picks the solver outcome,
+  including the "No plan possible" clash.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f4f1ec" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0e0d12" media="(prefers-color-scheme: dark)">
+  <title>Week board · prototype A</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="phone" id="phone">
+    <div class="pull-hint" id="pullHint" aria-hidden="true">Release to search</div>
+
+    <header class="top" id="top"></header>
+
+    <main id="main">
+      <section class="bento" id="bento" aria-label="Week summary"></section>
+      <div id="notice"></div>
+      <section class="week" id="week" aria-label="The week"></section>
+      <section class="filters" id="filters" aria-label="Recipe filters"></section>
+      <section class="demo" id="demo" aria-label="Prototype demo controls"></section>
+    </main>
+
+    <div class="dock" id="dock"></div>
+  </div>
+
+  <div id="sheets"></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="../shared/data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
