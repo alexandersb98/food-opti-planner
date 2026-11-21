@@ -260,7 +260,11 @@
       "switch": "Switch",
       "dontAdd": "Don't add",
       "change": "Change",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "remove": "Remove {name}",
+      "search": "Search tags",
+      "noChoices": "No other tag matches.",
+      "questionOf": "Question {n} of {count}"
     }
   },
   "ingredients": {
