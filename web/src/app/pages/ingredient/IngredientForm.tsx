@@ -11,6 +11,7 @@ import { useUnits } from '../../hooks/useUnits'
 import { useT } from '../../i18n/i18n'
 import { useRunningHead } from '../../shell/runningHead'
 import { preferencesStore, preferredUnit } from '../../stores/preferences'
+import { attributesList, tagsList } from '../../stores/sharedLists'
 import { Button, buttonClass } from '../../ui/button/Button'
 import { TagPicker } from '../../ui/tagPicker/TagPicker'
 import { useConfirm } from '../../ui/confirm/Confirm'
@@ -88,8 +89,8 @@ const MASS_ONLY: readonly UnitGroup[] = ['mass']
 async function loadIngredient(id: number | null, signal: AbortSignal) {
   const [loaded] = await Promise.all([
     loadAll({
-      attributes: api.GET('/api/attributes', { signal }),
-      tags: api.GET('/api/tags', { signal }),
+      attributes: attributesList.loadCall(),
+      tags: tagsList.loadCall(),
       ingredient:
         id === null
           ? Promise.resolve({ data: null })

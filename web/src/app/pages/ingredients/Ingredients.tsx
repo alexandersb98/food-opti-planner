@@ -1,6 +1,5 @@
 import { useId, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { api } from '../../../api/client'
 import type { Attribute, Ingredient } from '../../../api/types'
 import { valueText } from '../../../format'
 import { byId, searchByName } from '../../../lists'
@@ -8,6 +7,7 @@ import { loadAll } from '../../../load'
 import type { Translate } from '../../../translator'
 import { useLoad } from '../../hooks/useLoad'
 import { useT } from '../../i18n/i18n'
+import { attributesList, ingredientsList } from '../../stores/sharedLists'
 import { Button, buttonClass } from '../../ui/button/Button'
 import { Chip } from '../../ui/chips/Chips'
 import { LoadState } from '../../ui/loadState/LoadState'
@@ -22,8 +22,8 @@ const hasUpdates = (ingredient: Ingredient) => ingredient.updated_values.length 
 export function Ingredients() {
   const t = useT()
   // the attributes give each value its name and unit
-  const page = useLoad((signal) =>
-    loadAll({ ingredients: api.GET('/api/ingredients', { signal }), attributes: api.GET('/api/attributes', { signal }) }),
+  const page = useLoad(() =>
+    loadAll({ ingredients: ingredientsList.loadCall(), attributes: attributesList.loadCall() }),
   )
   const count = page.data?.ingredients.length
 

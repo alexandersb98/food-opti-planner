@@ -9,6 +9,7 @@ import * as solve from './stores/solve'
 import { importDraftStore } from './stores/importDraft'
 import { preferencesStore } from './stores/preferences'
 import { unitChangeQuestion } from './stores/unitChangeQuestion'
+import { resetSharedLists } from './stores/sharedLists'
 import { unitsStore } from './stores/units'
 import { editionStore } from './stores/edition'
 import { toastStore } from './shell/toast'
@@ -24,6 +25,7 @@ const resetStores: Array<() => void> = [
   planSetup.reset,
   unitsStore.reset,
   preferencesStore.reset,
+  resetSharedLists,
   unitChangeQuestion.reset,
   importDraftStore.reset,
   editionStore.reset,

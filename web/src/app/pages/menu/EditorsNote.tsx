@@ -1,6 +1,5 @@
 import { useState, useSyncExternalStore } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { api } from '../../../api/client'
 import type { Attribute, Goal, Plan } from '../../../api/types'
 import {
   clashDrafts,
@@ -22,6 +21,7 @@ import { useLoad } from '../../hooks/useLoad'
 import { useT } from '../../i18n/i18n'
 import * as planSetup from '../../stores/planSetup'
 import * as solve from '../../stores/solve'
+import { attributesList } from '../../stores/sharedLists'
 import { Button, buttonClass } from '../../ui/button/Button'
 import { Field } from '../../ui/field/Field'
 import { LoadState } from '../../ui/loadState/LoadState'
@@ -73,7 +73,7 @@ const solveMinimal = () => solve.getSnapshot().clashMinimal
  */
 export function EditorsNote() {
   const t = useT()
-  const page = useLoad(() => loadAll({ plan: loadSetup(), attributes: api.GET('/api/attributes') }))
+  const page = useLoad(() => loadAll({ plan: loadSetup(), attributes: attributesList.loadCall() }))
   const setup = useSyncExternalStore(planSetup.subscribe, planSetup.getSnapshot).plan
   const clash = useSyncExternalStore(solve.subscribe, solveClash)
   const minimal = useSyncExternalStore(solve.subscribe, solveMinimal)

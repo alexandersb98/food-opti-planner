@@ -7,6 +7,7 @@ import { byId, searchByName } from '../../../lists'
 import { loadAll } from '../../../load'
 import { useLoad } from '../../hooks/useLoad'
 import { useT } from '../../i18n/i18n'
+import { attributesList, tagsList } from '../../stores/sharedLists'
 import { Button } from '../../ui/button/Button'
 import { Chip, Chips } from '../../ui/chips/Chips'
 import { LoadState } from '../../ui/loadState/LoadState'
@@ -23,8 +24,8 @@ export function RecipeIndex() {
   const page = useLoad((signal) =>
     loadAll({
       recipes: api.GET('/api/recipes', { signal }),
-      attributes: api.GET('/api/attributes', { signal }),
-      tags: api.GET('/api/tags', { signal }),
+      attributes: attributesList.loadCall(),
+      tags: tagsList.loadCall(),
     }),
   )
   const aiConfigured = useAiConfigured()

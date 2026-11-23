@@ -138,3 +138,40 @@ test('setData changes the loaded data in place', async () => {
 
   expect(result.current.data).toEqual({ name: 'Porridge' })
 })
+
+/** A cached answer: `data` at once, and a refresh the test hands out. */
+function cached<T>(data: T) {
+  let refresh: (update: ((shown: T) => T) | undefined) => void = () => {}
+  const refreshed = new Promise<((shown: T) => T) | undefined>((resolve) => (refresh = resolve))
+  return { answer: Promise.resolve({ data, refreshed }), refresh }
+}
+
+test('a cached answer shows at once, then its refresh replaces it', async () => {
+  const tags = cached(['Fish'])
+  const { result } = renderHook(() => useLoad(() => tags.answer))
+  await waitFor(() => expect(result.current.data).toEqual(['Fish']))
+  tags.refresh(() => ['Fish', 'Quick'])
+  await waitFor(() => expect(result.current.data).toEqual(['Fish', 'Quick']))
+  expect(result.current).toMatchObject({ loading: false, failed: false })
+})
+
+test('through loadAll a refresh changes its own part only, keeping a change made since', async () => {
+  const tags = cached(['Fish'])
+  const { result } = renderHook(() => useLoad(() => loadAll({ tags: tags.answer, recipe: Promise.resolve({ data: 'Soup' }) })))
+  await waitFor(() => expect(result.current.data).toEqual({ tags: ['Fish'], recipe: 'Soup' }))
+  act(() => result.current.setData((data) => ({ ...data, recipe: 'Stew' })))
+  tags.refresh(() => ['Quick'])
+  await waitFor(() => expect(result.current.data).toEqual({ tags: ['Quick'], recipe: 'Stew' }))
+})
+
+test('a refresh that comes after a reload is ignored', async () => {
+  const first = cached(['old'])
+  const call = vi.fn().mockReturnValueOnce(first.answer).mockResolvedValue({ data: ['reloaded'] })
+  const { result } = renderHook(() => useLoad(call))
+  await waitFor(() => expect(result.current.data).toEqual(['old']))
+  act(() => result.current.reload())
+  await waitFor(() => expect(result.current.data).toEqual(['reloaded']))
+  first.refresh(() => ['late'])
+  await flush()
+  expect(result.current.data).toEqual(['reloaded'])
+})

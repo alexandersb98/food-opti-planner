@@ -9,6 +9,7 @@ import { useUnits } from '../../hooks/useUnits'
 import { useT } from '../../i18n/i18n'
 import { useRunningHead } from '../../shell/runningHead'
 import { toast } from '../../shell/toast'
+import { attributesList, ingredientsList, tagsList } from '../../stores/sharedLists'
 import { Button, buttonClass } from '../../ui/button/Button'
 import { LoadState } from '../../ui/loadState/LoadState'
 import { Plate } from '../../ui/plate/Plate'
@@ -38,12 +39,13 @@ export function RecipeSpread() {
 
 const EDIT_ID = 'spread-edit'
 
-/** The catalogue a recipe names: attributes, tags and ingredients. */
-function catalogue(signal: AbortSignal) {
+/** The catalogue a recipe names: attributes, tags and ingredients, from
+ * the shared lists (downloaded once, then refreshed in the background). */
+function catalogue() {
   return {
-    attributes: api.GET('/api/attributes', { signal }),
-    tags: api.GET('/api/tags', { signal }),
-    ingredients: api.GET('/api/ingredients', { signal }),
+    attributes: attributesList.loadCall(),
+    tags: tagsList.loadCall(),
+    ingredients: ingredientsList.loadCall(),
   }
 }
 
@@ -83,7 +85,7 @@ function StoredRecipe({ id }: { id: number }) {
   const page = useLoad((signal) =>
     loadAll({
       recipe: api.GET('/api/recipes/{recipe_id}', { params: { path: { recipe_id: id } }, signal }),
-      ...catalogue(signal),
+      ...catalogue(),
     }),
   )
   // The unit catalogue says which line units convert; until it is known the
@@ -197,7 +199,7 @@ function NewRecipe() {
   const navigate = useNavigate()
   // Taken on mounting, before the catalogue loads, so a retry keeps it.
   const imported = useImportedDraft()
-  const page = useLoad((signal) => loadAll(catalogue(signal)))
+  const page = useLoad(() => loadAll(catalogue()))
   const [saving, setSaving] = useState(false)
   useRunningHead(t('recipes.new'))
 

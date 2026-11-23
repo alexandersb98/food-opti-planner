@@ -6,6 +6,7 @@ import { DECIMALS, parseDecimals } from '../../../attributeFields'
 import type { Translate } from '../../../translator'
 import { useLoad } from '../../hooks/useLoad'
 import { useT } from '../../i18n/i18n'
+import { attributesList } from '../../stores/sharedLists'
 import { Button } from '../../ui/button/Button'
 import { useConfirm } from '../../ui/confirm/Confirm'
 import { LoadState } from '../../ui/loadState/LoadState'
@@ -46,7 +47,7 @@ function deleteWarning(t: Translate, attribute: Attribute): string {
  */
 export function Attributes() {
   const t = useT()
-  const page = useLoad((signal) => api.GET('/api/attributes', { signal }))
+  const page = useLoad(() => attributesList.loadCall())
   const [confirm, confirmSheet] = useConfirm()
   const [checkUnitChange, unitChangeSheet] = useAttributeUnitChange()
 

@@ -8,6 +8,7 @@ import { useRecipeCount } from '../../hooks/useRecipeCount'
 import { useLocale, useT } from '../../i18n/i18n'
 import * as planSetup from '../../stores/planSetup'
 import * as solve from '../../stores/solve'
+import { attributesList, tagsList } from '../../stores/sharedLists'
 import { LoadState } from '../../ui/loadState/LoadState'
 import { briefSections, headingId } from './BriefSection'
 import { Compose } from './Compose'
@@ -50,13 +51,13 @@ function jumpTo(event: MouseEvent<HTMLAnchorElement>, sectionId: string) {
 export function Brief() {
   const t = useT()
   const { locale } = useLocale()
-  const page = useLoad(() =>
+  const page = useLoad((signal) =>
     loadAll({
       plan: loadSetup(),
-      attributes: api.GET('/api/attributes'),
-      tags: api.GET('/api/tags'),
-      results: api.GET('/api/plan-results'),
-      today: api.GET('/api/plan-results/today', { params: { query: { date: localDate() } } }),
+      attributes: attributesList.loadCall(),
+      tags: tagsList.loadCall(),
+      results: api.GET('/api/plan-results', { signal }),
+      today: api.GET('/api/plan-results/today', { params: { query: { date: localDate() } }, signal }),
     }),
   )
   const setup = useSyncExternalStore(planSetup.subscribe, planSetup.getSnapshot)

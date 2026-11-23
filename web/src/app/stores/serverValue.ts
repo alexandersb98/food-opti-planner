@@ -14,6 +14,12 @@ export interface ServerValue<S extends LoadState> extends Readable<S> {
   /** Fetch the value once; later calls return at once, calls during a load
    * share it. A failed load is tried again by the next call. Never rejects. */
   load: () => Promise<void>
+  /** Fetch the value again even if it is loaded, keeping what is shown
+   * meanwhile; a fetch already under way is shared. True if the answer was
+   * taken: false if it failed, or an invalidate or reset came first. */
+  refresh: () => Promise<boolean>
+  /** Whether the value is loaded and not invalidated since. */
+  isLoaded: () => boolean
   /** Replace some fields with a newer answer from the server (after a save);
    * the value then counts as loaded. */
   set: (fields: Partial<S>) => void
@@ -36,30 +42,34 @@ export function createServerValue<S extends LoadState>(
 ): ServerValue<S> {
   const state = createState<S>(empty)
   let loaded = false
-  let pending: Promise<void> | null = null
+  let pending: Promise<boolean> | null = null
   // Counts resets and invalidations, so a load in flight at one can't fill
   // the state.
   let generation = 0
   // Counts resets only, for `untilReset`.
   let resets = 0
 
-  async function fetchValue() {
+  /** One fetch; true if its answer filled the state. */
+  async function fetchValue(): Promise<boolean> {
     const mine = generation
     state.update({ loading: true, failed: false } as Partial<S>)
     try {
       const fields = await fetch()
-      if (mine !== generation) return
+      if (mine !== generation) return false
       if (fields) {
         loaded = true
         state.update({ ...fields, loading: false })
-      } else state.update({ failed: true, loading: false } as Partial<S>)
+        return true
+      }
+      state.update({ failed: true, loading: false } as Partial<S>)
     } catch {
       if (mine === generation) state.update({ failed: true, loading: false } as Partial<S>)
     }
+    return false
   }
 
-  function load(): Promise<void> {
-    if (loaded) return Promise.resolve()
+  /** The fetch under way, or a new one. */
+  function shared(): Promise<boolean> {
     if (!pending) {
       const mine = fetchValue().finally(() => {
         if (pending === mine) pending = null
@@ -67,6 +77,11 @@ export function createServerValue<S extends LoadState>(
       pending = mine
     }
     return pending
+  }
+
+  function load(): Promise<void> {
+    if (loaded) return Promise.resolve()
+    return shared().then(() => {})
   }
 
   /** Let the next load fetch afresh, ignoring any load in flight. */
@@ -80,6 +95,8 @@ export function createServerValue<S extends LoadState>(
     subscribe: state.subscribe,
     getSnapshot: state.getSnapshot,
     load,
+    refresh: shared,
+    isLoaded: () => loaded,
     set(fields) {
       loaded = true
       state.update(fields)
