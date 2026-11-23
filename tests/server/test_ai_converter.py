@@ -14,7 +14,7 @@ from server.ai.prompts import (
     convert_user,
     factor_user,
 )
-from server.ai.schema import DRAFT_SCHEMA
+from server.ai.schema import DRAFT_SCHEMA, FACTOR_SCHEMA
 
 CATALOG = [
     CatalogEntry("Vetemjöl", "g", ("dl",)),
@@ -50,9 +50,11 @@ class FakeChat:
     def __init__(self, *replies):
         self.replies = list(replies)
         self.calls = []
+        self.schemas = []
 
-    def complete(self, system, user, *, max_tokens):
+    def complete(self, system, user, *, max_tokens, schema=None):
         self.calls.append((system, user, max_tokens))
+        self.schemas.append(schema)
         reply = self.replies.pop(0)
         if isinstance(reply, Exception):
             raise reply
@@ -64,7 +66,8 @@ def test_converter_sends_system_catalog_and_text():
     draft = ProviderRecipeConverter(chat).convert("2 ägg\nvispa", CATALOG)
     system, user, max_tokens = chat.calls[0]
     assert system == CONVERT_SYSTEM
-    assert max_tokens == 4096
+    assert max_tokens == 16000
+    assert chat.schemas == [DRAFT_SCHEMA]
     assert "Vetemjöl | g | conversions: dl" in user
     assert "Vitlök | st | conversions: klyfta, huvud" in user
     assert "Ägg | st" in user
@@ -153,7 +156,8 @@ def test_factor_suggester():
     crème = CatalogEntry("Crème fraîche", "g", ("dl",))
     assert suggester.suggest(crème, "dl", "crème fraîche") == Decimal(100)
     system, user, max_tokens = chat.calls[0]
-    assert system == FACTOR_SYSTEM and max_tokens == 200
+    assert system == FACTOR_SYSTEM and max_tokens == 2000
+    assert chat.schemas == [FACTOR_SCHEMA]
     assert user == factor_user(crème, "dl", "crème fraîche")
     for part in ("Crème fraîche", "g", "dl", "crème fraîche"):
         assert part in user

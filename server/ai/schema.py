@@ -56,6 +56,31 @@ FACTOR_SCHEMA: dict[str, Any] = {
     "required": ["factor"],
 }
 
+_UNENFORCEABLE = {"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum"}
+
+
+def strict_schema(schema: dict[str, Any]) -> dict[str, Any]:
+    """The schema in the form a provider's schema enforcement accepts
+    (Anthropic structured outputs): every object closed with
+    `additionalProperties: false`, a list of types written as `anyOf`, and the
+    numeric bounds left out. The parsers below still check the bounds."""
+    out: dict[str, Any] = {}
+    for key, value in schema.items():
+        if key in _UNENFORCEABLE:
+            continue
+        if key == "properties":
+            out[key] = {name: strict_schema(sub) for name, sub in value.items()}
+        elif key == "items":
+            out[key] = strict_schema(value)
+        else:
+            out[key] = value
+    if isinstance(out.get("type"), list):
+        out["anyOf"] = [{"type": t} for t in out.pop("type")]
+    if out.get("type") == "object":
+        out["additionalProperties"] = False
+    return out
+
+
 _FENCE = re.compile(r"^```[a-zA-Z]*\s*\n?(.*?)\n?```$", re.DOTALL)
 
 

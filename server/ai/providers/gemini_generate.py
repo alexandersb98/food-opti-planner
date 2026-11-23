@@ -4,6 +4,7 @@ Request and reply shapes follow the provider's public documentation as
 remembered at planning time; not verified against the live service.
 """
 
+from collections.abc import Mapping
 from typing import Any
 from urllib.parse import quote
 
@@ -19,7 +20,10 @@ class GeminiChat:
         self.api_key = api_key
         self.transport = transport or HttpxTransport()
 
-    def complete(self, system: str, user: str, *, max_tokens: int) -> Completion:
+    def complete(
+        self, system: str, user: str, *, max_tokens: int, schema: Mapping[str, Any] | None = None
+    ) -> Completion:
+        # `schema` is not enforced here yet: JSON mode plus the schema in the prompt.
         reply: Any = self.transport.post_json(
             URL.format(model=quote(self.model, safe="")),
             {"x-goog-api-key": self.api_key, "content-type": "application/json"},

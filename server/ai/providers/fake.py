@@ -22,6 +22,9 @@ Factor: always {"factor": 50}, except a food containing "bad" (not JSON) or
 import hashlib
 import json
 
+from collections.abc import Mapping
+from typing import Any
+
 from server.ai.chat import Completion
 from server.ai.errors import AIServiceError
 from server.ai.prompts import CONVERT_SYSTEM, FACTOR_SYSTEM
@@ -41,7 +44,10 @@ class FakeChat:
         self.model = model
         self.seen: set[str] = set()
 
-    def complete(self, system: str, user: str, *, max_tokens: int) -> Completion:
+    def complete(
+        self, system: str, user: str, *, max_tokens: int, schema: Mapping[str, Any] | None = None
+    ) -> Completion:
+        # `schema` is ignored: the canned answers already fit it.
         if system == CONVERT_SYSTEM:
             answer = self._convert(user)
         elif system == FACTOR_SYSTEM:

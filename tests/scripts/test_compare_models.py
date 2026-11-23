@@ -192,7 +192,7 @@ class ScriptedChat:
         self.fail = set(fail)
         self.blank = set(blank)
 
-    def complete(self, system, user, *, max_tokens):
+    def complete(self, system, user, *, max_tokens, schema=None):
         if system == FACTOR_SYSTEM:
             for fc in self.data.factors:
                 if f"Ingredient: {fc.ingredient.name}, counted in {fc.ingredient.unit}. " \

@@ -65,7 +65,7 @@ class Inner:
         self.calls = 0
         self.fail = fail
 
-    def complete(self, system, user, *, max_tokens):
+    def complete(self, system, user, *, max_tokens, schema=None):
         self.calls += 1
         if self.fail:
             raise RuntimeError("boom")
