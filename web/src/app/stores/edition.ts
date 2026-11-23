@@ -10,6 +10,8 @@
  * the two in step. The screenshot script (web/scripts/screenshot.ts) writes
  * the same key. */
 
+import { createState } from './state'
+
 export type Edition = 'device' | 'paper' | 'evening'
 
 export const EDITIONS: readonly Edition[] = ['device', 'paper', 'evening']
@@ -55,47 +57,45 @@ function apply(edition: Edition) {
   }
 }
 
-let edition: Edition = readStored()
-const listeners = new Set<() => void>()
-
-function notify() {
-  for (const listener of listeners) listener()
-}
+const edition = createState<Edition>(readStored())
+// How many subscribers there are: the `storage` listener is attached only
+// while there is one.
+let watchers = 0
 
 /** Another tab changed the edition. */
 function onStorage(event: StorageEvent) {
   if (event.key !== EDITION_STORAGE_KEY && event.key !== null) return
   const next = readStored()
-  if (next === edition) return
-  edition = next
-  apply(edition)
-  notify()
+  if (next === edition.getSnapshot()) return
+  apply(next)
+  edition.set(next)
 }
 
 export const editionStore = {
-  getSnapshot: (): Edition => edition,
+  getSnapshot: edition.getSnapshot,
 
   subscribe(listener: () => void): () => void {
-    if (listeners.size === 0) window.addEventListener('storage', onStorage)
-    listeners.add(listener)
+    if (watchers++ === 0) window.addEventListener('storage', onStorage)
+    const stop = edition.subscribe(listener)
+    let stopped = false
     return () => {
-      listeners.delete(listener)
-      if (listeners.size === 0) window.removeEventListener('storage', onStorage)
+      if (stopped) return
+      stopped = true
+      stop()
+      if (--watchers === 0) window.removeEventListener('storage', onStorage)
     }
   },
 
   set(next: Edition) {
     writeStored(next)
     apply(next)
-    if (next === edition) return
-    edition = next
-    notify()
+    edition.set(next)
   },
 
   /** Back to what is stored (tests: before every mount). */
   reset() {
-    edition = readStored()
-    apply(edition)
-    notify()
+    const stored = readStored()
+    apply(stored)
+    edition.set(stored)
   },
 }

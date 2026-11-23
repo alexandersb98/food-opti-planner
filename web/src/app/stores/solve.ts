@@ -1,5 +1,6 @@
 import { api } from '../../api/client'
 import type { ClashMember, PlanResult, SolveFailure } from '../../api/types'
+import { createState } from './state'
 
 // The running solve (Compose the week), framework-neutral: a plain module
 // with state, `subscribe` and `getSnapshot`, read in React through
@@ -43,13 +44,8 @@ const initial: SolveState = {
   clashMinimal: true,
 }
 
-let state = initial
-const listeners = new Set<() => void>()
-
-function set(change: Partial<SolveState>) {
-  state = { ...state, ...change }
-  for (const listener of listeners) listener()
-}
+const state = createState(initial)
+const set = state.update
 
 // Counts solves, so one forgotten by `reset` can't change the state.
 let solves = 0
@@ -59,21 +55,16 @@ let solves = 0
 // reach the next solve.
 let runningId = ''
 
-export function subscribe(listener: () => void): () => void {
-  listeners.add(listener)
-  return () => listeners.delete(listener)
-}
+export const subscribe = state.subscribe
 
 /** The current state; a new object only when something changed. */
-export function getSnapshot(): SolveState {
-  return state
-}
+export const getSnapshot = state.getSnapshot
 
 /** Make a plan, unless one is being made. Gives how it ended, or null when
  * a solve was already running or the store was reset meanwhile. No plan: the
  * reason, and the clash with it, is kept until dismissed. */
 export async function start(seconds: number): Promise<SolveOutcome | null> {
-  if (state.running) return null
+  if (getSnapshot().running) return null
   const solve = ++solves
   runningId = crypto.randomUUID()
   set({ running: true, cancelling: false, startedAt: Date.now(), seconds, failure: null, clash: null })
@@ -101,7 +92,8 @@ export async function start(seconds: number): Promise<SolveOutcome | null> {
  * found so far, or the 'stopped' reason, even when the server gets the
  * Cancel first. Cancel can be tried again if the request fails. */
 export async function cancel(): Promise<void> {
-  if (!state.running || state.cancelling) return
+  const { running, cancelling } = getSnapshot()
+  if (!running || cancelling) return
   const solve = solves
   set({ cancelling: true })
   let sent = false
@@ -121,5 +113,5 @@ export function dismiss(): void {
 /** Forget any solve (for tests, and a new session): its answer is ignored. */
 export function reset(): void {
   solves++
-  set(initial)
+  state.set(initial)
 }
