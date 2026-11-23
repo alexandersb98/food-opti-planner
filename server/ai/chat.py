@@ -18,11 +18,15 @@ class Completion:
 
 
 class ChatProvider(Protocol):
-    def complete(self, system: str, user: str, *, max_tokens: int) -> Completion:
+    def complete(
+        self, system: str, user: str, *, max_tokens: int, schema: Mapping[str, Any] | None = None
+    ) -> Completion:
         """One request: system and user text in, answer text and usage out.
 
-        Raises AIServiceError (HTTP or network trouble) and BadAnswerError
-        (a reply with no text)."""
+        `schema` is the JSON schema the answer must follow; an adapter whose
+        provider can enforce it does, the others rely on the prompt. Raises
+        AIServiceError (HTTP or network trouble) and BadAnswerError (a reply
+        with no text, or one cut off)."""
         ...
 
 
@@ -35,8 +39,10 @@ class MeteredChat:
         self.output_tokens = 0
         self.calls = 0
 
-    def complete(self, system: str, user: str, *, max_tokens: int) -> Completion:
-        completion = self.inner.complete(system, user, max_tokens=max_tokens)
+    def complete(
+        self, system: str, user: str, *, max_tokens: int, schema: Mapping[str, Any] | None = None
+    ) -> Completion:
+        completion = self.inner.complete(system, user, max_tokens=max_tokens, schema=schema)
         self.calls += 1
         self.input_tokens += completion.input_tokens
         self.output_tokens += completion.output_tokens
@@ -57,7 +63,8 @@ class Transport(Protocol):
 class HttpxTransport:
     """The real Transport, over httpx."""
 
-    def __init__(self, timeout: float = 60.0, client: httpx.Client | None = None):
+    # A long recipe page can take the model well over a minute to convert.
+    def __init__(self, timeout: float = 90.0, client: httpx.Client | None = None):
         self.timeout = timeout
         self.client = client or httpx.Client(timeout=timeout)
 

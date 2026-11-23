@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import date
 
 import pytest
@@ -169,6 +170,24 @@ def test_a_service_error_is_502_after_one_call_and_leaks_nothing(adapter):
     response = client.post(URL, json={"text": "x"})
     assert response.status_code == 502 and transport.calls == 1
     assert "boom" not in response.text and KEY not in response.text
+
+
+def test_a_failure_is_logged_with_its_reason_but_not_the_key(adapter, caplog):
+    client, _ = adapter(AIServiceError(401, f"invalid x-api-key {KEY}"))
+    with caplog.at_level(logging.INFO, logger="uvicorn.error"):
+        assert client.post(URL, json={"text": "x"}).status_code == 502
+    (warning,) = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+    assert "recipe import failed: AIServiceError: 401: invalid x-api-key" in warning
+    assert KEY not in warning and "[key removed]" in warning
+
+
+def test_a_cut_off_answer_is_logged_as_such(adapter, caplog):
+    cut = {**anthropic_reply(draft_json([model_line()])), "stop_reason": "max_tokens"}
+    client, transport = adapter(cut, cut)
+    with caplog.at_level(logging.INFO, logger="uvicorn.error"):
+        assert client.post(URL, json={"text": "x"}).status_code == 502
+    assert transport.calls == 2
+    assert any("cut off at max_tokens" in r.getMessage() for r in caplog.records)
 
 
 def test_no_lines_is_no_recipe(adapter):

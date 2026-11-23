@@ -28,7 +28,9 @@ from .errors import FieldError, FieldErrors
 from .conversions import UNIT_IS_OWN_UNIT, UNIT_NOT_FOR_INGREDIENT
 
 router = APIRouter(prefix="/recipe-imports", tags=["recipe imports"])
-log = logging.getLogger(__name__)
+# Uvicorn's logger, as it is the only one the server's runner configures: a
+# module logger's lines would never show in the container's log.
+log = logging.getLogger("uvicorn.error")
 
 MAX_REQUEST_CHARS = 200_000
 MAX_URL_CHARS = 2000  # R2's rule for a recipe's source link
@@ -126,6 +128,17 @@ class FactorAnswer(BaseModel):
     factor: Number
 
 
+def _log_failure(what: str, exc: Exception, chat) -> None:
+    """A failed AI call is a warning with its reason: the HTTP status and the
+    provider's message (the key already removed by KeyScrubbingTransport), or
+    which part of the answer was wrong (with at most one value from it).
+    No recipe found and the daily limit are ordinary outcomes, logged as info."""
+    if isinstance(exc, (AIServiceError, BadAnswerError)):
+        log.warning("%s failed: %s: %s (%s)", what, type(exc).__name__, exc, _calls(chat))
+    else:
+        log.info("%s failed: %s (%s)", what, type(exc).__name__, _calls(chat))
+
+
 def _calls(chat) -> str:
     return f"{chat.calls} calls, {chat.input_tokens} tokens in, {chat.output_tokens} tokens out"
 
@@ -200,7 +213,7 @@ def import_recipe(body: RecipeImportRequest, request: Request, db: DbSession) ->
             db, text, ai.converter(chat), ai.suggester(chat), source_url=source_url
         )
     except (NoRecipeFound, DailyLimitReached, BadAnswerError, AIServiceError) as exc:
-        log.info("recipe import failed: %s (%s)", type(exc).__name__, _calls(chat))
+        _log_failure("recipe import", exc, chat)
         raise _map(exc, link) from None
     log.info("recipe import: %s", _calls(chat))
     return _answer(draft)
@@ -230,6 +243,6 @@ def suggest_factor(body: FactorRequest, request: Request, db: DbSession) -> Fact
     try:
         factor: Decimal = recipe_import.suggest_one(db, ingredient.id, body.unit, body.food, ai.suggester(chat))
     except (DailyLimitReached, BadAnswerError, AIServiceError) as exc:
-        log.info("factor suggestion failed: %s (%s)", type(exc).__name__, _calls(chat))
+        _log_failure("factor suggestion", exc, chat)
         raise _map(exc) from None
     return FactorAnswer(factor=factor)

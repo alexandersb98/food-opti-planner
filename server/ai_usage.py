@@ -4,7 +4,9 @@ One table, `ai_calls(day, calls)`. `reserve` adds a call atomically on its own
 short transaction, independent of any request's session, so a refused or failed
 import does not give the call back."""
 
+from collections.abc import Mapping
 from datetime import UTC, date, datetime
+from typing import Any
 
 from sqlalchemy import Engine, insert, select, update
 from sqlalchemy.exc import IntegrityError
@@ -61,6 +63,8 @@ class LimitedChat:
         self.engine = engine
         self.limit = limit
 
-    def complete(self, system: str, user: str, *, max_tokens: int) -> Completion:
+    def complete(
+        self, system: str, user: str, *, max_tokens: int, schema: Mapping[str, Any] | None = None
+    ) -> Completion:
         reserve(self.engine, self.limit)
-        return self.inner.complete(system, user, max_tokens=max_tokens)
+        return self.inner.complete(system, user, max_tokens=max_tokens, schema=schema)

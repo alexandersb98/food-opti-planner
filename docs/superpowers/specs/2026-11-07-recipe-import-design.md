@@ -388,8 +388,15 @@ win; that is what the run decides.
 **Not covered:** Jev (TypeSafe AI), for factor suggestions, has no
 adapter until its API is known; the `ChatProvider` seam in
 `server/ai/chat.py`, or a `FactorSuggester` of its own, is where it goes.
-Native schema enforcement per provider is a possible later improvement
-if a candidate often gives bad answers.
+Native schema enforcement: the Anthropic adapter has it (structured
+outputs, `output_config.format`, with the schema from `strict_schema`,
+which leaves out the numeric bounds the parsers still check). It also asks
+for effort `low`, since the model's thinking counts against `max_tokens`;
+the limits are 16 000 tokens for a conversion and 2 000 for a factor, and a
+cut-off answer (`stop_reason: max_tokens`) is a bad answer. The other
+adapters take the schema and ignore it (plain JSON mode); enforcing it
+there is a possible later improvement. A failed AI call is logged as a
+warning with its reason (status and provider message, key removed).
 
 **Reused by R4:** `server/ai/` as it is. R4 did: the settings, the `fake`
 provider, the one retry on a bad answer, the daily limit, and the mapping of
