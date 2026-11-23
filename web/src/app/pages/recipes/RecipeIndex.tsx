@@ -1,9 +1,9 @@
-import { Fragment, useRef, useState } from 'react'
+import { Fragment, useDeferredValue, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { api } from '../../../api/client'
 import type { Attribute, Recipe, Tag } from '../../../api/types'
 import { valueText } from '../../../format'
-import { byId, searchByName } from '../../../lists'
+import { byId, filterByName, sortByName } from '../../../lists'
 import { loadAll } from '../../../load'
 import { useAiConfigured } from '../../hooks/useAiConfigured'
 import { useLoad } from '../../hooks/useLoad'
@@ -66,9 +66,22 @@ export function RecipeIndex() {
   )
 }
 
-/** A recipe's tags, from its ingredients or added by hand. */
-function tagIds(recipe: Recipe) {
-  return new Set([...recipe.derived_tag_ids, ...recipe.extra_tag_ids])
+/** What the index needs from the recipes and tags, worked out once when
+ * they change, not on every keystroke in the search: the recipes A to Z,
+ * each recipe's tags (from its ingredients or added by hand) as ids and as
+ * a line of names in tag order, and the quick chips, every tag some recipe
+ * has, in tag order. */
+function indexOf(recipes: readonly Recipe[], tags: readonly Tag[]) {
+  const used = new Set<number>()
+  const tagsOf = new Map<number, { ids: ReadonlySet<number>; names: string }>()
+  for (const recipe of recipes) {
+    const ids = new Set([...recipe.derived_tag_ids, ...recipe.extra_tag_ids])
+    for (const id of ids) used.add(id)
+    const names = tags.flatMap((tag) => (ids.has(tag.id) ? [tag.name] : [])).join(', ')
+    tagsOf.set(recipe.id, { ids, names })
+  }
+  const chipTags = tags.filter((tag) => used.has(tag.id))
+  return { sorted: sortByName(recipes), tagsOf, chipTags }
 }
 
 function Index({ recipes, attributes, tags }: { recipes: Recipe[]; attributes: Attribute[]; tags: Tag[] }) {
@@ -76,6 +89,19 @@ function Index({ recipes, attributes, tags }: { recipes: Recipe[]; attributes: A
   const [query, setQuery] = useState('')
   const [chosen, setChosen] = useState<ReadonlySet<number>>(() => new Set())
   const search = useRef<HTMLInputElement>(null)
+  const { sorted, tagsOf, chipTags } = useMemo(() => indexOf(recipes, tags), [recipes, tags])
+  const attributeById = useMemo(() => byId(attributes), [attributes])
+  // The list follows the box a moment behind, so typing stays quick in a
+  // long index.
+  const deferredQuery = useDeferredValue(query)
+  // the recipes matching the search and having every chosen tag
+  const shown = useMemo(() => {
+    const wanted = [...chosen]
+    return filterByName(sorted, deferredQuery).filter((recipe) => {
+      const has = tagsOf.get(recipe.id)!.ids
+      return wanted.every((id) => has.has(id))
+    })
+  }, [sorted, tagsOf, deferredQuery, chosen])
 
   if (recipes.length === 0) {
     return (
@@ -86,17 +112,7 @@ function Index({ recipes, attributes, tags }: { recipes: Recipe[]; attributes: A
     )
   }
 
-  const attributeById = byId(attributes)
-  const tagsOf = new Map(recipes.map((recipe) => [recipe.id, tagIds(recipe)]))
-  // the quick chips: every tag some recipe has, in tag order
-  const used = new Set([...tagsOf.values()].flatMap((ids) => [...ids]))
-  const chipTags = tags.filter((tag) => used.has(tag.id))
-  // the recipes matching the search and having every chosen tag
-  const shown = searchByName(recipes, query).filter((recipe) => {
-    const has = tagsOf.get(recipe.id)!
-    return [...chosen].every((id) => has.has(id))
-  })
-  const narrowed = query.trim() !== '' || chosen.size > 0
+  const narrowed = deferredQuery.trim() !== '' || chosen.size > 0
 
   function toggle(id: number) {
     setChosen((was) => {
@@ -189,8 +205,7 @@ function Index({ recipes, attributes, tags }: { recipes: Recipe[]; attributes: A
             </h2>
             <ul className="recipes-list">
               {rows.map((recipe) => {
-                const has = tagsOf.get(recipe.id)!
-                const names = tags.filter((tag) => has.has(tag.id)).map((tag) => tag.name)
+                const names = tagsOf.get(recipe.id)!.names
                 const line = totals(recipe)
                 return (
                   <li key={recipe.id}>
@@ -198,7 +213,7 @@ function Index({ recipes, attributes, tags }: { recipes: Recipe[]; attributes: A
                       <Plate id={recipe.id} variant="swatch" className="recipes-swatch" />
                       <span className="recipes-entry-text">
                         <span className="recipes-name">{recipe.name}</span>
-                        {names.length ? <span className="recipes-tags">{names.join(', ')}</span> : null}
+                        {names ? <span className="recipes-tags">{names}</span> : null}
                         {line ? <span className="recipes-totals">{line}</span> : null}
                       </span>
                     </Link>

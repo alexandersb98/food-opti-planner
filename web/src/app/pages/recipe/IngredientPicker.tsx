@@ -1,7 +1,7 @@
 import { useDeferredValue, useId, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import type { Ingredient } from '../../../api/types'
-import { searchByName } from '../../../lists'
+import { filterByName, sortByName } from '../../../lists'
 import { useT } from '../../i18n/i18n'
 import { Sheet } from '../../ui/sheet/Sheet'
 import './ingredient-picker.css'
@@ -78,7 +78,8 @@ function PickerBody({
   const id = useId()
   const [search, setSearch] = useState(initialSearch)
   const deferred = useDeferredValue(search)
-  const shown = useMemo(() => searchByName(ingredients, deferred), [ingredients, deferred])
+  const sorted = useMemo(() => sortByName(ingredients), [ingredients])
+  const shown = useMemo(() => filterByName(sorted, deferred), [sorted, deferred])
 
   return (
     <>

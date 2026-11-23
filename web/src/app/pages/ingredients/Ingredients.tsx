@@ -1,8 +1,8 @@
-import { useId, useRef } from 'react'
+import { useDeferredValue, useId, useMemo, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import type { Attribute, Ingredient } from '../../../api/types'
 import { valueText } from '../../../format'
-import { byId, searchByName } from '../../../lists'
+import { byId, filterByName, sortByName } from '../../../lists'
 import { loadAll } from '../../../load'
 import type { Translate } from '../../../translator'
 import { useLoad } from '../../hooks/useLoad'
@@ -67,6 +67,12 @@ function Larder({ ingredients, attributes }: { ingredients: Ingredient[]; attrib
   const setSearch = (text: string) => setParam('q', text)
   const searchBox = useRef<HTMLInputElement>(null)
   const searchId = useId()
+  // Sorted once when the larder changes; each keystroke only filters, and
+  // the list follows the box a moment behind so typing stays quick.
+  const sorted = useMemo(() => sortByName(ingredients), [ingredients])
+  const named = useMemo(() => byId(attributes), [attributes])
+  const deferredSearch = useDeferredValue(search)
+  const found = useMemo(() => filterByName(sorted, deferredSearch), [sorted, deferredSearch])
 
   if (ingredients.length === 0) {
     return (
@@ -83,10 +89,8 @@ function Larder({ ingredients, attributes }: { ingredients: Ingredient[]; attrib
   const updatedCount = ingredients.filter(hasUpdates).length
   // the filter is ignored while its toggle is hidden (nothing has updates)
   const filtering = onlyUpdated && updatedCount > 0
-  const found = searchByName(ingredients, search)
   const shown = filtering ? found.filter(hasUpdates) : found
-  const named = byId(attributes)
-  const narrowed = search.trim() !== '' || filtering
+  const narrowed = deferredSearch.trim() !== '' || filtering
 
   const clear = () => {
     setSearch('')

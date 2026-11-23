@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import { api } from '../../../api/client'
 import { conversionRefusal, fieldErrors } from '../../../api/errors'
 import type { Attribute, Ingredient, IngredientFields, Recipe, Tag } from '../../../api/types'
-import { searchByName } from '../../../lists'
+import { sortByName } from '../../../lists'
 import { loadAll } from '../../../load'
 import { typedNumber } from '../../../numbers'
 import { useLoad } from '../../hooks/useLoad'
@@ -538,7 +538,7 @@ function IngredientUse({
       if (!data) throw new Error('no recipes')
       const uses = (recipe: Recipe) =>
         recipe.sections.some((section) => section.items.some((item) => item.ingredient_id === ingredient.id))
-      setRecipes(searchByName(data.filter(uses), ''))
+      setRecipes(sortByName(data.filter(uses)))
     } catch {
       setFailed(true)
     } finally {
