@@ -1,9 +1,8 @@
 import { useState, type RefObject } from 'react'
 import { Link } from 'react-router'
 import type { Tag, TagFilter } from '../../../api/types'
-import { useRecipeCount } from '../../hooks/useRecipeCount'
+import { useRecipeCount, type RecipeCountReader } from '../../hooks/useRecipeCount'
 import { useT } from '../../i18n/i18n'
-import type { RecipeCountState } from '../../stores/recipeCount'
 import * as planSetup from '../../stores/planSetup'
 import { Segmented } from '../../ui/segmented/Segmented'
 import { Sheet } from '../../ui/sheet/Sheet'
@@ -35,8 +34,9 @@ export function FiltersSheet({
   /** The saved filters. */
   filters: TagFilter[]
   tags: Tag[]
-  /** The count for the saved filters, shown until a mode changes. */
-  count: RecipeCountState
+  /** The count for the saved filters, shown until a mode changes; asked
+   * again for the new filters when Done saves them. */
+  count: RecipeCountReader
   finalFocus?: RefObject<HTMLElement | null>
 }) {
   const t = useT()
@@ -70,7 +70,7 @@ function FiltersForm({
 }: {
   filters: TagFilter[]
   tags: Tag[]
-  count: RecipeCountState
+  count: RecipeCountReader
   onDone: () => void
 }) {
   const t = useT()
@@ -110,8 +110,10 @@ function FiltersForm({
     setError(null)
     const saved = await planSetup.change((plan) => ({ ...plan, tag_filters: next }), { optimistic: false })
     setSaving(false)
-    if (saved.plan) onDone()
-    else setError(saved.errors.tag_filters ?? t('common.saveFailed'))
+    if (saved.plan) {
+      void count.ask(saved.plan.tag_filters)
+      onDone()
+    } else setError(saved.errors.tag_filters ?? t('common.saveFailed'))
   }
 
   // The count for the saved filters until a mode changes and is answered.

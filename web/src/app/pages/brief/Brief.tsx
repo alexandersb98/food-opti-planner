@@ -1,4 +1,4 @@
-import { useEffect, useSyncExternalStore, type MouseEvent } from 'react'
+import { useSyncExternalStore, type MouseEvent } from 'react'
 import { api } from '../../../api/client'
 import type { TagFilter } from '../../../api/types'
 import { issueLine, localDate } from '../../../dates'
@@ -24,11 +24,14 @@ import { richText } from './words'
 import './brief.css'
 
 /** Loads the setup into the plan-setup store, answering as a load call:
- * no data when it failed. */
-async function loadSetup(): Promise<{ data?: true }> {
+ * no data when it failed. Once loaded, asks the usable count for its
+ * filters (not waited for: the count shows when it comes). */
+async function loadSetup(askCount: (filters: TagFilter[]) => Promise<void>): Promise<{ data?: true }> {
   await planSetup.load()
   const { plan, failed } = planSetup.getSnapshot()
-  return plan && !failed ? { data: true } : {}
+  if (!plan || failed) return {}
+  void askCount(plan.tag_filters)
+  return { data: true }
 }
 
 const isSolving = () => solve.getSnapshot().running
@@ -51,9 +54,12 @@ function jumpTo(event: MouseEvent<HTMLAnchorElement>, sectionId: string) {
 export function Brief() {
   const t = useT()
   const { locale } = useLocale()
+  // How many recipes the filters leave, as the server counts it: asked when
+  // the setup loads, and by the filters sheet when Done saves new filters.
+  const recipes = useRecipeCount()
   const page = useLoad((signal) =>
     loadAll({
-      plan: loadSetup(),
+      plan: loadSetup(recipes.ask),
       attributes: attributesList.loadCall(),
       tags: tagsList.loadCall(),
       results: api.GET('/api/plan-results', { signal }),
@@ -64,14 +70,6 @@ export function Brief() {
   const solving = useSyncExternalStore(solve.subscribe, isSolving)
   const compose = useCompose()
   const plan = page.data ? setup.plan : null
-
-  // How many recipes the filters leave, as the server counts it.
-  const recipes = useRecipeCount()
-  const { ask } = recipes
-  const filters = plan ? JSON.stringify(plan.tag_filters) : null
-  useEffect(() => {
-    if (filters !== null) void ask(JSON.parse(filters) as TagFilter[])
-  }, [filters, ask])
 
   return (
     <article className="brief">

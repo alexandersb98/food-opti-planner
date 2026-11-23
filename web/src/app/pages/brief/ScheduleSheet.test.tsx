@@ -92,13 +92,15 @@ test('the date range follows the start date chosen', async () => {
 })
 
 test('the days stepper goes from 1 to 31, and the range with it', async () => {
-  const { user } = await mountBrief({ 'GET /api/plan': { body: { ...stored, days: 30 } } })
+  const { user, unmount } = await mountBrief({ 'GET /api/plan': { body: { ...stored, days: 30 } } })
   const sheet = await openSheet(user)
   await user.click(sheet.button('More days'))
   expect(sheet.days()).toBe('31')
   expect(sheet.button('More days').disabled).toBe(true)
   expect(sheet.preview()).toBe('Week 39, 21 Sep – 21 Oct: 31 days, three meals a day.')
 
+  // A second brief, on its own: the first one would show the same store.
+  unmount()
   const { user: other } = await mountBrief({ 'GET /api/plan': { body: { ...stored, days: 2 } } })
   const small = await openSheet(other)
   await other.click(small.button('Fewer days'))
