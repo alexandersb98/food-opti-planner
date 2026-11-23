@@ -1,8 +1,22 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
-import { expect, test } from 'vitest'
+import { beforeAll, expect, test } from 'vitest'
 import { fakeServer, mountApp, type FakeServer } from '../test-app'
 
 const session: FakeServer = { 'GET /api/session': 204 }
+
+// The pages turned to here are lazy routes. The first import of each is a
+// cold transform of its whole module graph, which on a busy machine (the
+// full run) can take seconds: longer than a test's own 5 s. They are
+// imported once here, with time of their own, so each test only waits for
+// the router to take a bundle that is already in.
+beforeAll(async () => {
+  await Promise.all([
+    import('../pages/menu/Menu'),
+    import('../pages/archive/Archive'),
+    import('../pages/recipe/RecipeSpread'),
+    import('../pages/settings/Settings'),
+  ])
+}, 30_000)
 
 /** Where the router is (its path). */
 function where(router: Awaited<ReturnType<typeof mountApp>>['router']) {
@@ -27,8 +41,8 @@ test('a left swipe on the brief turns to The Menu, and a right swipe turns back'
   fakeServer(session)
   const { router } = await mountApp('/')
   swipe(await heading('This week’s brief'), -120)
-  // The Menu is a lazy route: the turn lands once its bundle is in
-  await waitFor(() => expect(where(router)).toBe('/plans/new'), { timeout: 5000 })
+  // The Menu is a lazy route: the turn lands once the router has its bundle
+  await waitFor(() => expect(where(router)).toBe('/plans/new'))
 
   swipe(await heading('The Menu'), 120)
   expect(where(router)).toBe('/')
@@ -39,7 +53,7 @@ test('a detail page turns from the page it belongs to', async () => {
   fakeServer(session)
   const { router } = await mountApp('/recipes/3')
   swipe(await screen.findByRole('main'), -120)
-  await waitFor(() => expect(where(router)).toBe('/plans'), { timeout: 5000 })
+  await waitFor(() => expect(where(router)).toBe('/plans'))
 })
 
 test('a short, slow or mostly upright stroke is not a swipe', async () => {
