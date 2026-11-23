@@ -21,11 +21,20 @@ export interface Load<T> {
   setData: (update: T | ((data: T) => T)) => void
 }
 
+export interface LoadOptions {
+  /** Keys of one group keep the data shown while a new key loads, and when
+   * it fails: a new search text keeps the foods of the old one until it
+   * answers. Without a group, or in another one, a new key starts empty. */
+  group?: string | number
+}
+
 const NOT_YET = Symbol('not loaded')
 
 interface State<T> {
   /** The key the data (or failure) belongs to. */
   key: unknown
+  /** That key's group, if any. */
+  group: unknown
   data: T | undefined
   failed: boolean
   /** A reload of the same key is under way. */
@@ -49,26 +58,30 @@ interface State<T> {
  * the server replaces it when it comes (see `stores/serverList`). The call
  * is read when it runs, so an inline arrow is fine.
  */
-export function useLoad<T>(call: LoadCall<T>, key: string | number = ''): Load<T> {
-  const [state, setState] = useState<State<T>>({ key: NOT_YET, data: undefined, failed: false, reloading: false })
+export function useLoad<T>(call: LoadCall<T>, key: string | number = '', { group }: LoadOptions = {}): Load<T> {
+  const [state, setState] = useState<State<T>>({ key: NOT_YET, group: NOT_YET, data: undefined, failed: false, reloading: false })
   const latestCall = useRef(call)
+  const latestGroup = useRef(group)
   // The latest call, settled or not; a newer one (or leaving) aborts it and
   // ignores its answer and its cache refresh.
   const running = useRef<AbortController | null>(null)
 
   useEffect(() => {
     latestCall.current = call
+    latestGroup.current = group
   })
 
   const start = useCallback((forKey: string | number) => {
     running.current?.abort()
     const controller = new AbortController()
     running.current = controller
+    const forGroup = latestGroup.current
     const settle = (data: T | undefined) => {
       if (controller.signal.aborted) return
       setState((previous) => ({
         key: forKey,
-        data: data ?? (previous.key === forKey ? previous.data : undefined),
+        group: forGroup,
+        data: data ?? (previous.key === forKey || kept(previous.group, forGroup) ? previous.data : undefined),
         failed: data === undefined,
         reloading: false,
       }))
@@ -112,13 +125,19 @@ export function useLoad<T>(call: LoadCall<T>, key: string | number = ''): Load<T
   }, [])
 
   // Data and failures belong to the key they were loaded for; a new key
-  // starts out loading, with nothing shown from the old one.
+  // starts out loading, with nothing shown from the old one unless both
+  // are of one group.
   const current = state.key === key
   return {
-    data: current ? state.data : undefined,
+    data: current || kept(state.group, group) ? state.data : undefined,
     loading: !current || state.reloading,
     failed: current && state.failed,
     reload,
     setData,
   }
+}
+
+/** Whether data loaded in one group stays shown for a key of another. */
+function kept(shown: unknown, wanted: string | number | undefined) {
+  return wanted !== undefined && shown === wanted
 }

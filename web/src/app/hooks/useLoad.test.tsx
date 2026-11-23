@@ -175,3 +175,37 @@ test('a refresh that comes after a reload is ignored', async () => {
   await flush()
   expect(result.current.data).toEqual(['reloaded'])
 })
+
+test('within a group the data shown stays while a new key loads, and when it fails', async () => {
+  const { call, pending } = deferredCalls<string>()
+  const { result, rerender } = renderHook(({ id, group }) => useLoad(call, id, { group }), {
+    initialProps: { id: 'oats', group: 'usda' },
+  })
+  await waitFor(() => expect(pending).toHaveLength(1))
+  act(() => pending[0]!.resolve({ data: 'oats foods' }))
+  await waitFor(() => expect(result.current.data).toBe('oats foods'))
+
+  rerender({ id: 'rice', group: 'usda' })
+  expect(result.current).toMatchObject({ loading: true, data: 'oats foods' })
+  await waitFor(() => expect(pending).toHaveLength(2))
+  act(() => pending[1]!.resolve({}))
+  await waitFor(() => expect(result.current.failed).toBe(true))
+  expect(result.current.data).toBe('oats foods')
+})
+
+test('a new key of another group starts empty, even when it fails', async () => {
+  const { call, pending } = deferredCalls<string>()
+  const { result, rerender } = renderHook(({ id, group }) => useLoad(call, id, { group }), {
+    initialProps: { id: 'usda:oats', group: 'usda' },
+  })
+  await waitFor(() => expect(pending).toHaveLength(1))
+  act(() => pending[0]!.resolve({ data: 'oats foods' }))
+  await waitFor(() => expect(result.current.data).toBe('oats foods'))
+
+  rerender({ id: 'other:oats', group: 'other' })
+  expect(result.current.data).toBeUndefined()
+  await waitFor(() => expect(pending).toHaveLength(2))
+  act(() => pending[1]!.resolve({}))
+  await waitFor(() => expect(result.current.failed).toBe(true))
+  expect(result.current.data).toBeUndefined()
+})

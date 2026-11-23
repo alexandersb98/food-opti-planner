@@ -3,10 +3,11 @@ import { Link } from 'react-router'
 import { api } from '../../api/client'
 import type { components } from '../../api/schema'
 import { isoWeek } from '../../dates'
+import { useLoad } from '../hooks/useLoad'
 import { useLocale, useT } from '../i18n/i18n'
 import { registry, type PageId } from './registry'
 
-export type Counts = components['schemas']['Counts']
+type Counts = components['schemas']['Counts']
 
 /** The Contents pages that show how many of something there are. */
 const counted: Partial<Record<PageId, keyof Counts>> = {
@@ -22,16 +23,14 @@ export type ContentsClose = 'dismiss' | 'navigate'
 
 /** The table of contents: a full-screen modal dialog listing the pages in
  * order with their descriptions and folios, the current one marked, the
- * catalogue counts (fetched by the shell on every opening, never waited
- * for) and Log out at the end. Closes with its close button or Escape. */
+ * catalogue counts (asked for on every opening, never waited for) and Log
+ * out at the end. Closes with its close button or Escape. */
 export function Contents({
   current,
-  counts,
   onClose,
   onLoggedOut,
 }: {
   current: PageId | undefined
-  counts: Counts | null
   onClose: (how: ContentsClose) => void
   onLoggedOut: () => void
 }) {
@@ -43,6 +42,9 @@ export function Contents({
   const [closing, setClosing] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const [logoutFailed, setLogoutFailed] = useState(false)
+  // fresh each time, so they show what other pages changed; without them
+  // (still asked for, or failed) the entries have no count
+  const counts = useLoad((signal) => api.GET('/api/counts', { signal })).data
 
   // Opened: focus the close button, and hold the page still behind.
   useEffect(() => {

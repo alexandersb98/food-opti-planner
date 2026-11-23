@@ -1,10 +1,11 @@
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { Fragment, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { api } from '../../../api/client'
 import type { Attribute, Recipe, Tag } from '../../../api/types'
 import { valueText } from '../../../format'
 import { byId, searchByName } from '../../../lists'
 import { loadAll } from '../../../load'
+import { useAiConfigured } from '../../hooks/useAiConfigured'
 import { useLoad } from '../../hooks/useLoad'
 import { useT } from '../../i18n/i18n'
 import { attributesList, tagsList } from '../../stores/sharedLists'
@@ -28,6 +29,7 @@ export function RecipeIndex() {
       tags: tagsList.loadCall(),
     }),
   )
+  // its own call, so the index never waits for it
   const aiConfigured = useAiConfigured()
 
   const [before, after] = t('recipes.index.title', { em: '\u0000' }).split('\u0000')
@@ -62,23 +64,6 @@ export function RecipeIndex() {
       />
     </article>
   )
-}
-
-/** Whether import can run: null while the server is asked. Its own call, so
- * the index never waits for it; a failed or missing answer counts as no. */
-function useAiConfigured() {
-  const [configured, setConfigured] = useState<boolean | null>(null)
-  useEffect(() => {
-    let current = true
-    api.GET('/api/health').then(
-      ({ data }) => current && setConfigured(data?.ai_configured === true),
-      () => current && setConfigured(false),
-    )
-    return () => {
-      current = false
-    }
-  }, [])
-  return configured
 }
 
 /** A recipe's tags, from its ingredients or added by hand. */

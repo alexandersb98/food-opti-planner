@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useId, useRef, useState, type FormEvent, type ReactNode, type RefObject } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode, type RefObject } from 'react'
 import { useNavigate } from 'react-router'
 import { api } from '../../../api/client'
 import { fieldErrors } from '../../../api/errors'
@@ -89,73 +89,38 @@ function Sources() {
   )
 }
 
-interface Answer {
-  /** The source the foods are from. */
-  key: string
-  /** The search the answer is for (source, text and attempt). */
-  search: string
-  foods: FoodSummary[]
-  total: number
-  failed: boolean
-}
-
-const NO_ANSWER: Answer = { key: '', search: '', foods: [], total: 0, failed: false }
-
-/** The foods matching the search, a page at a time. Only the answer to the
- * latest request counts: a newer search (or leaving) aborts and ignores
- * the one before. The foods shown stay until a new search answers, except
- * that another source starts with none. */
+/** The foods matching the search, a page at a time, loaded by `useLoad`:
+ * a newer search (or leaving) aborts and ignores the one before, Show more
+ * included. The foods shown stay until a new search answers, except that
+ * another source starts with none. */
 function useFoodSearch(sourceKey: string, query: string) {
-  // Try again asks for the same search once more.
-  const [attempt, setAttempt] = useState(0)
-  const search = JSON.stringify([sourceKey, query, attempt])
-  const [answer, setAnswer] = useState<Answer>(NO_ANSWER)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const running = useRef<AbortController | null>(null)
-
-  function fetchFoods(offset: number) {
-    running.current?.abort()
-    const controller = new AbortController()
-    running.current = controller
-    const settle = (page: { foods: FoodSummary[]; total: number } | undefined) => {
-      if (controller.signal.aborted) return
-      running.current = null
-      setLoadingMore(false)
-      setAnswer((was) =>
-        page
-          ? { key: sourceKey, search, foods: offset === 0 ? page.foods : [...was.foods, ...page.foods], total: page.total, failed: false }
-          : { ...(was.key === sourceKey ? was : NO_ANSWER), key: sourceKey, search, failed: true },
-      )
-    }
-    api
-      .GET('/api/data-sources/{key}/foods', {
-        params: { path: { key: sourceKey }, query: { search: query, offset } },
-        signal: controller.signal,
+  // the foods Show more appends the next page to; none for a new search
+  const shownBefore = useRef<FoodSummary[]>([])
+  const load = useLoad(
+    async (signal) => {
+      const before = shownBefore.current
+      shownBefore.current = []
+      const { data } = await api.GET('/api/data-sources/{key}/foods', {
+        params: { path: { key: sourceKey }, query: { search: query, offset: before.length } },
+        signal,
       })
-      .then(
-        ({ data }) => settle(data),
-        () => settle(undefined),
-      )
-  }
-
-  const firstPage = useEffectEvent(() => fetchFoods(0))
-  useEffect(() => {
-    firstPage()
-    return () => running.current?.abort()
-  }, [search])
-
-  const sameSource = answer.key === sourceKey
-  const current = answer.search === search
-  return {
-    foods: sameSource ? answer.foods : [],
-    total: sameSource ? answer.total : 0,
-    searching: !current || loadingMore,
-    failed: current && answer.failed && !loadingMore,
-    more: () => {
-      setLoadingMore(true)
-      fetchFoods(answer.foods.length)
+      return { data: data && { foods: [...before, ...data.foods], total: data.total } }
     },
-    retry: () => setAttempt((was) => was + 1),
+    JSON.stringify([sourceKey, query]),
+    { group: sourceKey },
+  )
+  const foods = load.data?.foods ?? []
+  return {
+    foods,
+    total: load.data?.total ?? 0,
+    searching: load.loading,
+    failed: load.failed,
+    // the next page, kept apart from a Try again, which starts over
+    more: () => {
+      shownBefore.current = foods
+      load.reload()
+    },
+    retry: load.reload,
   }
 }
 
