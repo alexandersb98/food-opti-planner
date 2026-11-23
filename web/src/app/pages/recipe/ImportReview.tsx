@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
-import { useBlocker } from 'react-router'
 import { api } from '../../../api/client'
 import type { Ingredient } from '../../../api/types'
 import {
@@ -16,10 +15,11 @@ import { isOwn, type Ratio } from '../../../lineUnits'
 import { linesOf, type DraftLine, type RecipeDraft } from '../../../recipeDraft'
 import { useT } from '../../i18n/i18n'
 import { buttonClass } from '../../ui/button/Button'
-import { useConfirm } from '../../ui/confirm/Confirm'
 import { Sheet } from '../../ui/sheet/Sheet'
 import { IngredientForm } from '../ingredient/IngredientForm'
 import { IngredientPicker } from './IngredientPicker'
+import { ReviewBanner } from './ReviewBanner'
+import { ReviewPanel, reviewIds as ids } from './ReviewPanel'
 import * as review from './reviewEdits'
 import type { LineErrorsCleared } from './useRecipeDraft'
 import './import-review.css'
@@ -29,7 +29,8 @@ import './import-review.css'
 // many lines need the owner, and each imported line showing its source text
 // and what it needs (pick an ingredient, give a factor, pick another unit, or
 // skip). The pure rules are `src/importReview.ts`; the draft's changes are
-// `reviewEdits.ts`, run through useRecipeDraft's `edit`.
+// `reviewEdits.ts`, run through useRecipeDraft's `edit`. Each line's panel is
+// ReviewPanel, the banner ReviewBanner; leaving unsaved is LeaveGuard's.
 
 /** What the review adds to one line in the line editor. */
 export interface LineReview {
@@ -42,15 +43,6 @@ export interface LineReview {
 
 /** The states in which a line needs the owner. */
 const NEEDS: readonly LineState[] = ['unmatched', 'needs_factor', 'bad_unit']
-
-/** The ids the review moves the focus to. */
-const ids = {
-  amount: (key: number) => `line-${key}-amount`,
-  pick: (key: number) => `review-${key}-pick`,
-  factor: (key: number) => `review-${key}-factor`,
-  change: (key: number) => `review-${key}-change`,
-  unskip: (key: number) => `review-${key}-unskip`,
-}
 
 /** What the owner typed in a factor box, and whether the AI is asked. */
 type Typed = Partial<Record<string, { text: string; loading: boolean }>>
@@ -297,7 +289,7 @@ export function useImportReview({
   const creatingLine = find(creating.line)
   const food = (creatingLine?.food ?? '').trim()
 
-  const banner = <Banner site={imported.site} cut={imported.cut} needs={needs} refused={refused} onNext={showNext} />
+  const banner = <ReviewBanner site={imported.site} cut={imported.cut} needs={needs} refused={refused} onNext={showNext} />
   const sheets = (
     <>
       <IngredientPicker
@@ -342,272 +334,4 @@ export function useImportReview({
   )
 
   return { needs, banner, line, sheets, refuse }
-}
-
-/** The banner above the head: where the recipe came from, how many lines
- * need the owner (with a way to the next), that the end was left out, and
- * that Save waits for every line. */
-function Banner({
-  site,
-  cut,
-  needs,
-  refused,
-  onNext,
-}: {
-  site: string
-  cut: boolean
-  needs: number
-  refused: number
-  onNext: () => void
-}) {
-  const t = useT()
-  const text = site
-    ? needs > 0
-      ? t('recipes.bannerSite', { site, n: needs }, needs)
-      : t('recipes.bannerSiteReady', { site })
-    : needs > 0
-      ? t('recipes.banner', { n: needs }, needs)
-      : t('recipes.bannerReady')
-  return (
-    <div className={needs > 0 ? 'review-banner' : 'review-banner review-banner-ready'}>
-      <p className="review-banner-kicker">{t('recipe.review.kicker')}</p>
-      <p className="review-banner-text" aria-live="polite">
-        {text}
-      </p>
-      {cut ? <p className="review-banner-cut">{t('recipes.bannerCut')}</p> : null}
-      {needs > 0 ? (
-        <>
-          {refused > 0 ? (
-            <p key={refused} className="review-banner-block" role="alert">
-              {t('recipes.saveBlocked')}
-            </p>
-          ) : (
-            <p className="review-banner-block">{t('recipes.saveBlocked')}</p>
-          )}
-          <button type="button" className={buttonClass({ variant: 'pencil' }, 'review-next')} onClick={onNext}>
-            {t('recipe.review.next')}
-          </button>
-        </>
-      ) : null}
-    </div>
-  )
-}
-
-/** What one line needs, under it: Pick ingredient and Skip; the factor
- * ("1 dl = [50] g ✨ Accept", or "1 dl = 50 g ✨ Change" once accepted); a
- * unit that can't be used; or, for a skipped line, Add anyway or Add back. */
-function ReviewPanel({
-  line,
-  state,
-  factor,
-  own,
-  name,
-  named,
-  onPick,
-  onSkip,
-  onAccept,
-  onChange,
-  onType,
-}: {
-  line: DraftLine
-  state: LineState
-  factor: FactorRow | null
-  own: string
-  name: string
-  named: (action: string) => string
-  onPick: () => void
-  onSkip: (skipped: boolean) => void
-  onAccept: (text: string) => void
-  onChange: () => void
-  onType: (text: string) => void
-}) {
-  const t = useT()
-  const { key } = line
-  const skipButton = (
-    <button
-      type="button"
-      className={buttonClass({ small: true }, 'review-btn review-btn-quiet')}
-      aria-label={named(t('recipes.skip'))}
-      onClick={() => onSkip(true)}
-    >
-      {t('recipes.skip')}
-    </button>
-  )
-  const ai = (
-    <span className="review-ai" role="img" aria-label={t('recipes.aiTooltip')} title={t('recipes.aiTooltip')}>
-      ✨
-    </span>
-  )
-
-  if (state === 'skipped') {
-    const label = line.notAnIngredient ? t('recipes.addAnyway') : t('recipes.addBack')
-    return (
-      <div className="review-panel review-panel-skipped">
-        <span className="review-skipped-note">
-          {line.notAnIngredient ? t('recipe.review.notAnIngredient') : t('recipes.skipped')}
-        </span>
-        <button
-          type="button"
-          id={ids.unskip(key)}
-          className={buttonClass({ variant: 'pencil' }, 'review-btn-text')}
-          aria-label={named(label)}
-          onClick={() => onSkip(false)}
-        >
-          {label}
-        </button>
-      </div>
-    )
-  }
-
-  if (state === 'unmatched') {
-    return (
-      <div className="review-panel">
-        <p className="review-why">
-          <strong>{t('recipe.review.needs')}</strong>{' '}
-          {t('recipe.review.unmatched', { food: line.food || line.originalText })}
-        </p>
-        <div className="review-actions">
-          <button
-            type="button"
-            id={ids.pick(key)}
-            className={buttonClass({ small: true }, 'review-btn')}
-            aria-label={named(t('recipes.pickIngredient'))}
-            onClick={onPick}
-          >
-            {t('recipes.pickIngredient')}
-          </button>
-          {skipButton}
-        </div>
-      </div>
-    )
-  }
-
-  if (factor?.accepted) {
-    return (
-      <div className="review-panel review-panel-settled">
-        <p className="review-fix">
-          <span>{t('recipes.factorRow', { unit: line.unit.trim() })}</span>{' '}
-          <span className="review-factor-value">{`${factor.text} ${own}`}</span>
-          {factor.ai ? <> {ai}</> : null}
-          <button
-            type="button"
-            id={ids.change(key)}
-            className={buttonClass({ variant: 'pencil' }, 'review-btn-text')}
-            aria-label={named(t('recipes.change'))}
-            onClick={onChange}
-          >
-            {t('recipes.change')}
-          </button>
-        </p>
-      </div>
-    )
-  }
-
-  if (state === 'bad_unit') {
-    return (
-      <div className="review-panel">
-        <p className="review-why">
-          <strong>{t('recipe.review.needs')}</strong> {t('recipes.badUnit', { unit: line.unit.trim() })}
-        </p>
-        <div className="review-actions">{skipButton}</div>
-      </div>
-    )
-  }
-
-  if (state === 'needs_factor' && factor) {
-    const invalid = factor.text !== '' && acceptable(factor.text) === null
-    const errorId = `${ids.factor(key)}-error`
-    return (
-      <div className="review-panel">
-        <p className="review-why">
-          <strong>{t('recipe.review.needs')}</strong>{' '}
-          {t('recipe.review.noFactor', { unit: line.unit.trim(), name: name.toLowerCase() })}
-        </p>
-        <div className="review-fix">
-          <span aria-hidden="true">{t('recipes.factorRow', { unit: line.unit.trim() })}</span>
-          <input
-            id={ids.factor(key)}
-            className="annot review-factor"
-            inputMode="decimal"
-            autoComplete="off"
-            aria-label={t('recipes.factorLabel', { own, unit: line.unit.trim() })}
-            aria-invalid={invalid ? true : undefined}
-            aria-describedby={invalid ? errorId : undefined}
-            readOnly={factor.loading}
-            placeholder={factor.loading ? t('recipes.suggesting') : undefined}
-            value={factor.text}
-            onChange={(event) => onType(event.target.value)}
-            onKeyDown={(event) => {
-              // Enter accepts the number; it never submits the recipe.
-              if (event.key !== 'Enter') return
-              event.preventDefault()
-              if (!factor.loading && acceptable(factor.text) !== null) onAccept(factor.text)
-            }}
-          />
-          <span translate="no">{own}</span>
-          {factor.ai && factor.text ? ai : null}
-          <button
-            type="button"
-            className={buttonClass({ small: true }, 'review-btn')}
-            aria-label={named(t('recipes.accept'))}
-            disabled={factor.loading || acceptable(factor.text) === null}
-            onClick={() => onAccept(factor.text)}
-          >
-            {t('recipes.accept')}
-          </button>
-        </div>
-        {invalid ? (
-          <p id={errorId} className="field-error review-error">
-            {t('recipes.factorInvalid')}
-          </p>
-        ) : null}
-        <div className="review-actions">{skipButton}</div>
-      </div>
-    )
-  }
-
-  return null
-}
-
-/**
- * Leaving an imported recipe before it is saved asks "Discard this
- * recipe?" (Keep editing / Discard), and a reload or a closed tab warns.
- * `done` is set once the recipe is saved (or discarded), so its own
- * navigation goes straight on.
- */
-export function LeaveGuard({ done }: { done: RefObject<boolean> }) {
-  const t = useT()
-  const [confirm, confirmSheet] = useConfirm()
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) => !done.current && currentLocation.pathname !== nextLocation.pathname,
-  )
-  const asking = useRef(false)
-
-  useEffect(() => {
-    if (blocker.state !== 'blocked' || asking.current) return
-    asking.current = true
-    void confirm({
-      title: t('recipes.leaveTitle'),
-      message: <p>{t('recipes.leaveBody')}</p>,
-      confirmLabel: t('recipes.discard'),
-      cancelLabel: t('recipes.keepEditing'),
-      destructive: true,
-    }).then((discard) => {
-      asking.current = false
-      if (discard) {
-        done.current = true
-        blocker.proceed()
-      } else blocker.reset()
-    })
-  }, [blocker, confirm, done, t])
-
-  useEffect(() => {
-    function warn(event: BeforeUnloadEvent) {
-      if (!done.current) event.preventDefault()
-    }
-    window.addEventListener('beforeunload', warn)
-    return () => window.removeEventListener('beforeunload', warn)
-  }, [done])
-
-  return confirmSheet
 }

@@ -1,19 +1,19 @@
 import { memo, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { Conversion, Ingredient } from '../../../api/types'
-import { ingredientWithPending, type PendingConversion } from '../../../importReview'
-import { isOwn, lineFactor, pickerOptions } from '../../../lineUnits'
+import type { PendingConversion } from '../../../importReview'
 import { newKey, plainLine, type DraftLine, type DraftSection, type RecipeDraft, type RecipeErrors } from '../../../recipeDraft'
 import { useUnits } from '../../hooks/useUnits'
 import { useT } from '../../i18n/i18n'
 import { toast } from '../../shell/toast'
 import { buttonClass } from '../../ui/button/Button'
-import { Select, type SelectGroup, type SelectOption } from '../../ui/select/Select'
 import { Sheet } from '../../ui/sheet/Sheet'
 import { ConversionSheet } from '../ingredient/ConversionSheet'
 import type { LineReview } from './ImportReview'
 import { IngredientPicker } from './IngredientPicker'
 import * as lines from './lineEdits'
+import { focusTarget, lineIds as ids } from './lineFocus'
+import { LineRow } from './LineRow'
 import type { LineErrorsCleared } from './useRecipeDraft'
 import './line-editor.css'
 
@@ -29,47 +29,6 @@ export interface LineEditorProps {
   onIngredientChanged: (ingredient: Ingredient) => void
   /** An imported recipe under review (ticket 35): what each line needs. */
   review?: (line: DraftLine, name: string) => LineReview
-}
-
-/** The ids the editor moves the focus to. */
-const ids = {
-  amount: (key: number) => `line-${key}-amount`,
-  unit: (key: number) => `line-${key}-unit`,
-  more: (key: number) => `line-${key}-more`,
-  add: (key: number) => `section-${key}-add`,
-  name: (key: number) => `section-${key}-name`,
-}
-
-/** Picks "New unit…" in a line's unit list; no unit is spelled so. */
-const NEW_UNIT = '\u0000new'
-
-/** Where the focus goes next, by element id, and a ref that looks it up
- * when read: for a sheet's final focus on an element drawn after the sheet
- * opened. */
-function focusTarget() {
-  let next = ''
-  return {
-    /** Ask for the focus on the element with `id` once it is drawn. */
-    set(id: string) {
-      next = id
-    },
-    /** The element asked for, if it is drawn; asks no more once it is. */
-    take(): HTMLElement | null {
-      const target = next ? document.getElementById(next) : null
-      if (target) next = ''
-      return target
-    },
-    /** For a sheet's final focus: read once, as it closes; the element is
-     * brought into view once the sheet has gone. */
-    ref: {
-      get current() {
-        const target = next ? document.getElementById(next) : null
-        next = ''
-        if (target) requestAnimationFrame(() => target.scrollIntoView?.({ block: 'center' }))
-        return target
-      },
-    },
-  }
 }
 
 /**
@@ -99,6 +58,8 @@ export const LineEditor = memo(function LineEditor({
   // a new section's heading); the sheets' final focus reads it too.
   const [focus] = useState(focusTarget)
   useEffect(() => {
+    // Most renders ask for no focus; the page is looked at only when one is.
+    if (!focus.wanted()) return
     // A closing sheet gives the focus itself (the page is inert under it).
     if (document.querySelector('dialog[open]')) return
     const target = focus.take()
@@ -310,226 +271,5 @@ function SectionName({
         </p>
       ) : null}
     </div>
-  )
-}
-
-type Units = ReturnType<typeof useUnits>
-
-function LineRow({
-  line,
-  name,
-  ingredient,
-  pending,
-  errors,
-  canMove,
-  units,
-  review,
-  onAmount,
-  onUnit,
-  onNewUnit,
-  onMenu,
-  onRemove,
-}: {
-  line: DraftLine
-  name: string
-  ingredient: Ingredient | undefined
-  pending: readonly PendingConversion[]
-  errors: RecipeErrors
-  canMove: boolean
-  units: Units
-  /** The import review's part of the line, for an imported recipe. */
-  review?: LineReview
-  onAmount: (amount: string) => void
-  onUnit: (unit: string) => void
-  /** "New unit…": `stale` when the line's unit doesn't convert (the sheet
-   * starts with it). */
-  onNewUnit: (ingredient: Ingredient, stale: boolean) => void
-  onMenu: () => void
-  onRemove: () => void
-}) {
-  const t = useT()
-  const { key } = line
-  const amountError = errors.amounts[key]
-  const ingredientError = errors.lineIngredients[key]
-  // The unit as the line holds it, and whether it converts: without the
-  // catalogue the page can't tell, so it says nothing (the server decides).
-  const withPending = ingredient && ingredientWithPending(ingredient, pending)
-  const known = units.units.length > 0
-  // Under review, the review says what a line's unit needs.
-  const stale = !review && !!withPending && known && lineFactor(units.ratio, withPending, line.unit) === null
-  const skipped = review?.state === 'skipped'
-  const needsYou = review?.state === 'unmatched' || review?.state === 'needs_factor' || review?.state === 'bad_unit'
-  const unitError = errors.unitErrors[key] ? t('recipes.unitNotConvertible', { unit: line.unit.trim(), name }) : ''
-  const amountErrorId = `${ids.amount(key)}-error`
-  const unitNoteId = `${ids.unit(key)}-note`
-
-  const classes = [
-    'lines-line',
-    stale || unitError ? 'lines-line-flagged' : '',
-    ingredient ? '' : 'lines-line-missing',
-    review ? 'review-line' : '',
-    needsYou ? 'review-needs' : '',
-    skipped ? 'review-skipped' : '',
-  ]
-  return (
-    <li className={classes.filter(Boolean).join(' ')}>
-      {review?.source}
-      <input
-        id={ids.amount(key)}
-        className="annot lines-amount"
-        inputMode="decimal"
-        autoComplete="off"
-        aria-label={t('recipes.amountOf', { name })}
-        aria-invalid={amountError ? true : undefined}
-        aria-describedby={amountError ? amountErrorId : undefined}
-        disabled={skipped}
-        value={line.amount}
-        onChange={(event) => onAmount(event.target.value)}
-      />
-      {withPending ? (
-        <LineUnit
-          id={ids.unit(key)}
-          line={line}
-          ingredient={withPending}
-          name={name}
-          stale={stale}
-          units={units}
-          invalid={!!unitError}
-          disabled={skipped}
-          describedBy={stale || unitError ? unitNoteId : undefined}
-          onUnit={onUnit}
-          onNewUnit={() => onNewUnit(ingredient!, stale)}
-        />
-      ) : (
-        <span className="lines-unit-text" translate="no">
-          {line.unit}
-        </span>
-      )}
-      <span className="lines-name">{name}</span>
-      <span className="lines-tools">
-        {canMove ? (
-          <button type="button" id={ids.more(key)} className={buttonClass({ variant: 'icon' }, 'lines-icon')} aria-label={t('recipes.lineMenu', { name })} onClick={onMenu}>
-            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-              <circle cx="5" cy="12" r="1.6" fill="currentColor" />
-              <circle cx="12" cy="12" r="1.6" fill="currentColor" />
-              <circle cx="19" cy="12" r="1.6" fill="currentColor" />
-            </svg>
-          </button>
-        ) : null}
-        <button type="button" className={buttonClass({ variant: 'icon' }, 'lines-icon')} aria-label={t('recipes.remove', { name })} onClick={onRemove}>
-          <span aria-hidden="true">×</span>
-        </button>
-      </span>
-      {amountError ? (
-        <p id={amountErrorId} className="field-error lines-note" role="alert">
-          {amountError}
-        </p>
-      ) : null}
-      {unitError ? (
-        <p id={unitNoteId} className="field-error lines-note" role="alert">
-          {unitError}
-        </p>
-      ) : stale ? (
-        <p id={unitNoteId} className="lines-note lines-flag">
-          {t('recipe.unconvertible', { unit: line.unit.trim(), own: ingredient!.unit })}
-        </p>
-      ) : null}
-      {ingredientError ? (
-        <p className="field-error lines-note" role="alert">
-          {ingredientError}
-        </p>
-      ) : null}
-      {!ingredient && line.ingredientId !== null ? <p className="lines-note lines-flag">{t('recipe.missing')}</p> : null}
-      {review?.panel}
-    </li>
-  )
-}
-
-/** A line's unit: a native list in groups (the ingredient's own unit, the
- * other units that convert, its conversions with their numbers, ✨ for the
- * AI's) and "New unit…". The box shows just the unit. */
-function LineUnit({
-  id,
-  line,
-  ingredient,
-  name,
-  stale,
-  units,
-  invalid,
-  disabled,
-  describedBy,
-  onUnit,
-  onNewUnit,
-}: {
-  id: string
-  line: DraftLine
-  ingredient: Ingredient
-  name: string
-  stale: boolean
-  units: Units
-  invalid: boolean
-  disabled?: boolean
-  describedBy?: string
-  onUnit: (unit: string) => void
-  onNewUnit: () => void
-}) {
-  const t = useT()
-  const { ratio, offered, label, findUnit } = units
-  const options = useMemo(() => {
-    const found = pickerOptions(ratio, [...offered('mass'), ...offered('volume'), ...offered(null)], ingredient)
-    const own: SelectOption[] = [{ value: '', label: found.own }]
-    const groups: (SelectOption | SelectGroup)[] = [{ group: t('recipes.unitGroups.own'), options: own }]
-    if (found.steps.length > 0) {
-      groups.push({
-        group: t('recipes.unitGroups.steps'),
-        options: found.steps.map((unit) => ({ value: unit.symbol, label: label(unit) })),
-      })
-    }
-    if (found.conversions.length > 0) {
-      groups.push({
-        group: t('recipes.unitGroups.conversions'),
-        options: found.conversions.map((conversion) => ({
-          value: conversion.unit,
-          label: t(conversion.source === 'ai' ? 'recipe.unitConversionAi' : 'recipe.unitConversion', {
-            unit: conversion.unit,
-            factor: conversion.factor,
-            own: ingredient.unit,
-          }),
-        })),
-      })
-    }
-    return groups
-  }, [ratio, offered, label, ingredient, t])
-
-  // The value as the list spells it: the own unit is '', another unit its
-  // conversion or catalogue symbol; a unit it doesn't offer is added, marked.
-  const typed = line.unit.trim()
-  const listed = (wanted: string) =>
-    options.some((entry) => ('group' in entry ? entry.options.some((o) => o.value === wanted) : entry.value === wanted))
-  const symbol = findUnit(typed)?.symbol ?? typed
-  const value = isOwn(ratio, ingredient, typed) ? '' : listed(typed) ? typed : listed(symbol) ? symbol : typed
-  const all: (SelectOption | SelectGroup)[] = listed(value)
-    ? options
-    : [{ value, label: stale ? t('recipe.unitStale', { unit: typed }) : typed }, ...options]
-  const shown = value === '' ? ingredient.unit : symbol
-
-  return (
-    <span className={stale || invalid ? 'lines-unit lines-unit-stale' : 'lines-unit'}>
-      <span className="lines-unit-shown" aria-hidden="true" translate="no">
-        {shown}
-      </span>
-      <Select
-        id={id}
-        annotation
-        className="lines-unit-select"
-        aria-label={t('recipes.unitOf', { name })}
-        aria-invalid={invalid || stale ? true : undefined}
-        aria-describedby={describedBy}
-        disabled={disabled}
-        value={value}
-        options={[...all, { value: NEW_UNIT, label: t('recipes.newUnit') }]}
-        onValueChange={(next) => (next === NEW_UNIT ? onNewUnit() : onUnit(next))}
-      />
-    </span>
   )
 }
