@@ -122,6 +122,13 @@ class Ingredient(IngredientFields):
     updated_values: list[UpdatedValue]
 
 
+class RecipeUse(BaseModel):
+    """A recipe that uses an ingredient: enough to name it and link to it."""
+
+    id: int
+    name: str
+
+
 def _recipe_counts(db: DbSession) -> dict[int, int]:
     """Recipes, not lines: an ingredient on two lines of a recipe counts once."""
     rows = db.execute(
@@ -244,6 +251,25 @@ def list_ingredients(db: DbSession) -> list[Ingredient]:
 @router.get("/{ingredient_id}", responses=NOT_FOUND)
 def get_ingredient(ingredient_id: int, db: DbSession) -> Ingredient:
     return _one(db, get_or_404(db, models.Ingredient, ingredient_id, "ingredient"))
+
+
+@router.get("/{ingredient_id}/recipes", responses=NOT_FOUND)
+def list_recipe_uses(ingredient_id: int, db: DbSession) -> list[RecipeUse]:
+    """The recipes with a line of the ingredient, each once however many lines
+    it has, in the order they were added. Only their ids and names: the page
+    asks the recipe for the rest when it opens it."""
+    get_or_404(db, models.Ingredient, ingredient_id, "ingredient")
+    rows = db.execute(
+        select(models.Recipe.id, models.Recipe.name)
+        .where(
+            select(models.RecipeItem.id)
+            .join(models.RecipeSection, models.RecipeSection.id == models.RecipeItem.section_id)
+            .where(models.RecipeSection.recipe_id == models.Recipe.id, models.RecipeItem.ingredient_id == ingredient_id)
+            .exists()
+        )
+        .order_by(models.Recipe.id)
+    )
+    return [RecipeUse(id=row.id, name=row.name) for row in rows]
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, responses={**NAME_IN_USE, **UNPROCESSABLE})

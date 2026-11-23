@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } fr
 import { Link } from 'react-router'
 import { api } from '../../../api/client'
 import { conversionRefusal, fieldErrors } from '../../../api/errors'
-import type { Attribute, Ingredient, IngredientFields, Recipe, Tag } from '../../../api/types'
+import type { Attribute, Ingredient, IngredientFields, RecipeUse, Tag } from '../../../api/types'
 import { sortByName } from '../../../lists'
 import { loadAll } from '../../../load'
 import { typedNumber } from '../../../numbers'
@@ -525,7 +525,7 @@ function IngredientUse({
 }) {
   const t = useT()
   const ids = useId()
-  const [recipes, setRecipes] = useState<Recipe[] | null>(null)
+  const [recipes, setRecipes] = useState<RecipeUse[] | null>(null)
   const [asking, setAsking] = useState(false)
   const [failed, setFailed] = useState(false)
   const inUse = ingredient.recipe_count > 0
@@ -534,11 +534,12 @@ function IngredientUse({
     setFailed(false)
     setAsking(true)
     try {
-      const { data } = await api.GET('/api/recipes')
+      // Only the ids and names of the recipes that use it, not every recipe.
+      const { data } = await api.GET('/api/ingredients/{ingredient_id}/recipes', {
+        params: { path: { ingredient_id: ingredient.id } },
+      })
       if (!data) throw new Error('no recipes')
-      const uses = (recipe: Recipe) =>
-        recipe.sections.some((section) => section.items.some((item) => item.ingredient_id === ingredient.id))
-      setRecipes(sortByName(data.filter(uses)))
+      setRecipes(sortByName(data))
     } catch {
       setFailed(true)
     } finally {
