@@ -27,9 +27,57 @@
         }
       } catch (e) {}
     </script>
+    <!-- The launch splash's look, inline so it paints with the HTML and
+         needs nothing else from the server. Colours are the paper and
+         evening tokens (src/app/styles/tokens.css); keep them in step. -->
+    <style>
+      html { background: #f4efe4; }
+      .splash {
+        --sp-paper: #f4efe4; --sp-ink: #1d1a16; --sp-muted: #62594c; --sp-rule: #1d1a16; --sp-accent: #a4371a;
+        position: fixed; inset: 0; z-index: 1000;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+        padding: env(safe-area-inset-top) 20px env(safe-area-inset-bottom);
+        background: radial-gradient(circle at 1px 1px, rgba(29, 26, 22, .04) 1px, transparent 0) 0 0 / 5px 5px, var(--sp-paper);
+        color: var(--sp-ink);
+        font-family: "Fraunces Variable", "Fraunces", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+        transition: opacity .25s cubic-bezier(.16, 1, .3, 1);
+      }
+      @media (prefers-color-scheme: dark) {
+        html:not([data-theme="light"]) { background: #16130f; }
+        html:not([data-theme="light"]) .splash {
+          --sp-paper: #16130f; --sp-ink: #efe6d4; --sp-muted: #a99e8a; --sp-rule: #cfc5b1; --sp-accent: #ef8d66;
+        }
+      }
+      html[data-theme="dark"] { background: #16130f; }
+      html[data-theme="dark"] .splash {
+        --sp-paper: #16130f; --sp-ink: #efe6d4; --sp-muted: #a99e8a; --sp-rule: #cfc5b1; --sp-accent: #ef8d66;
+      }
+      .splash-out { opacity: 0; pointer-events: none; }
+      .splash-mark {
+        margin: 0; padding: 12px 4px; border-block: 3px double var(--sp-rule);
+        font-size: 34px; line-height: 40px; font-weight: 620; letter-spacing: -.015em;
+      }
+      .splash-mark em { font-weight: 380; }
+      .splash-note { margin: 0; font-size: 17px; line-height: 24px; font-style: italic; color: var(--sp-muted); }
+      .splash-note span { color: var(--sp-accent); animation: splash-dot 1.2s ease-in-out infinite; opacity: .2; }
+      .splash-note span:nth-child(2) { animation-delay: .2s; }
+      .splash-note span:nth-child(3) { animation-delay: .4s; }
+      @keyframes splash-dot { 40% { opacity: 1; } }
+      @media (prefers-reduced-motion: reduce) {
+        .splash { transition: none; }
+        .splash-note span { animation: none; opacity: 1; }
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+    <!-- Shown from the first paint until the app's first page is ready
+         (src/app/splash.ts takes it away). Outside #root, so React leaves
+         it alone. -->
+    <div id="splash" class="splash" role="status">
+      <p class="splash-mark" translate="no"><em>The</em> Weekly Table</p>
+      <p class="splash-note">Setting the table<span>.</span><span>.</span><span>.</span></p>
+    </div>
     <script type="module" src="/src/app/main.tsx"></script>
   </body>
 </html>
