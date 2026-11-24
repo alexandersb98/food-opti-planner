@@ -2566,6 +2566,25 @@
         "title": "RecipeItem",
         "type": "object"
       },
+      "RecipeUse": {
+        "description": "A recipe that uses an ingredient: enough to name it and link to it.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "RecipeUse",
+        "type": "object"
+      },
       "ResultAttribute": {
         "properties": {
           "decimals": {
@@ -4566,6 +4585,56 @@
         "summary": "Edit Conversion",
         "tags": [
           "conversions"
+        ]
+      }
+    },
+    "/api/ingredients/{ingredient_id}/recipes": {
+      "get": {
+        "description": "The recipes with a line of the ingredient, each once however many lines\nit has, in the order they were added. Only their ids and names: the page\nasks the recipe for the rest when it opens it.",
+        "operationId": "list_recipe_uses_api_ingredients__ingredient_id__recipes_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ingredient_id",
+            "required": true,
+            "schema": {
+              "title": "Ingredient Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RecipeUse"
+                  },
+                  "title": "Response List Recipe Uses Api Ingredients  Ingredient Id  Recipes Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such ingredient"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Recipe Uses",
+        "tags": [
+          "ingredients"
         ]
       }
     },

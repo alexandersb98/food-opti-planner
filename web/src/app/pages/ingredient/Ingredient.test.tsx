@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, test, vi } from 'vitest'
-import { attribute, conversion, ingredient, ingredientSource, lines, recipe, tag } from '../../../test-data'
+import { attribute, conversion, ingredient, ingredientSource, tag } from '../../../test-data'
 import { fakeServer, mountApp, unitRoutes, type FakeServer } from '../../test-app'
 
 // The ingredient page (stories 155–157, 161, 162), ported from the Vue
@@ -377,43 +377,26 @@ test('an ingredient recipes use cannot be deleted', async () => {
   )
 })
 
-test('Show lists the recipes that use the ingredient, which open their spread', async () => {
-  const uses = (id: number, name: string, ingredientId: number) => recipe({ id, name, sections: lines([ingredientId, '1']) })
+test('Show lists the recipes the server says use the ingredient, by name, which open their spread', async () => {
   const page = await openForm('/ingredients/7', {
     'GET /api/ingredients/7': { body: { ...oats, recipe_count: 2 } },
-    'GET /api/recipes': { body: [uses(1, 'Porridge', 7), uses(2, 'Omelette', 8), uses(3, 'Muesli', 7)] },
+    'GET /api/ingredients/7/recipes': { body: [{ id: 1, name: 'Porridge' }, { id: 3, name: 'Muesli' }] },
   })
   await page.user.click(screen.getByRole('button', { name: 'Show' }))
   const list = await screen.findByRole('list', { name: 'Recipes that use Oats' })
   expect(within(list).getAllByRole('link').map((link) => link.textContent)).toEqual(['Muesli', 'Porridge'])
   expect(screen.queryByRole('button', { name: 'Show' })).toBeNull()
+  // only the uses are asked for, not the whole collection
+  expect(page.calls).not.toContain('GET /api/recipes')
   await page.user.click(within(list).getByRole('link', { name: 'Muesli' }))
   // the recipe spread is a lazy route: the router stays put until its bundle is in
   await waitFor(() => expect(where(page.router)).toBe('/recipes/3'), { timeout: 5000 })
 })
 
-test('Show lists a recipe that has the ingredient only in a second section', async () => {
-  const layered = recipe({
-    id: 4,
-    name: 'Layered',
-    sections: [
-      { name: 'Base', items: [{ ingredient_id: 8, amount: '1', unit: '', original_text: '' }] },
-      { name: 'Top', items: [{ ingredient_id: 7, amount: '2', unit: '', original_text: '' }] },
-    ],
-  })
-  const page = await openForm('/ingredients/7', {
-    'GET /api/ingredients/7': { body: { ...oats, recipe_count: 1 } },
-    'GET /api/recipes': { body: [layered] },
-  })
-  await page.user.click(screen.getByRole('button', { name: 'Show' }))
-  const list = await screen.findByRole('list', { name: 'Recipes that use Oats' })
-  expect(within(list).getAllByRole('link').map((link) => link.textContent)).toEqual(['Layered'])
-})
-
 test('recipes that fail to load say so and Show stays', async () => {
   const page = await openForm('/ingredients/7', {
     'GET /api/ingredients/7': { body: { ...oats, recipe_count: 1 } },
-    'GET /api/recipes': 500,
+    'GET /api/ingredients/7/recipes': 500,
   })
   await page.user.click(screen.getByRole('button', { name: 'Show' }))
   expect((await screen.findByText('Could not load the recipes.')).getAttribute('role')).toBe('alert')

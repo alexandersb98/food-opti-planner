@@ -290,6 +290,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ingredients/{ingredient_id}/recipes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Recipe Uses
+         * @description The recipes with a line of the ingredient, each once however many lines
+         *     it has, in the order they were added. Only their ids and names: the page
+         *     asks the recipe for the rest when it opens it.
+         */
+        get: operations["list_recipe_uses_api_ingredients__ingredient_id__recipes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ingredients/{ingredient_id}/source-values": {
         parameters: {
             query?: never;
@@ -1655,6 +1677,16 @@ export interface components {
              */
             unit: string;
         };
+        /**
+         * RecipeUse
+         * @description A recipe that uses an ingredient: enough to name it and link to it.
+         */
+        RecipeUse: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+        };
         /** ResultAttribute */
         ResultAttribute: {
             /** Decimals */
@@ -2835,6 +2867,44 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["FieldErrors"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_recipe_uses_api_ingredients__ingredient_id__recipes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ingredient_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecipeUse"][];
+                };
+            };
+            /** @description No such ingredient */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

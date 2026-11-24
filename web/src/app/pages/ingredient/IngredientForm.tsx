@@ -1,16 +1,14 @@
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { api } from '../../../api/client'
-import { conversionRefusal, fieldErrors } from '../../../api/errors'
-import type { Attribute, Ingredient, IngredientFields, Recipe, Tag } from '../../../api/types'
-import { searchByName } from '../../../lists'
+import type { Attribute, Ingredient, Tag } from '../../../api/types'
 import { loadAll } from '../../../load'
-import { typedNumber } from '../../../numbers'
 import { useLoad } from '../../hooks/useLoad'
 import { useUnits } from '../../hooks/useUnits'
 import { useT } from '../../i18n/i18n'
 import { useRunningHead } from '../../shell/runningHead'
-import { preferencesStore, preferredUnit } from '../../stores/preferences'
+import { preferencesStore } from '../../stores/preferences'
+import { attributesList, tagsList } from '../../stores/sharedLists'
 import { Button, buttonClass } from '../../ui/button/Button'
 import { TagPicker } from '../../ui/tagPicker/TagPicker'
 import { useConfirm } from '../../ui/confirm/Confirm'
@@ -19,9 +17,12 @@ import { LoadState } from '../../ui/loadState/LoadState'
 import { UnitField, type UnitGroup } from '../../ui/unit-field/UnitField'
 import { Conversions } from './Conversions'
 import './ingredient.css'
+import { checkDraft, NO_ERRORS, serverErrors, startDraft, type Errors } from './ingredientDraft'
 import { IngredientSource } from './IngredientSource'
+import { IngredientUse } from './IngredientUse'
 import { UpdatedValues } from './UpdatedValues'
-import { useIngredientUnitChange } from './unitChangeCheck'
+import { useIngredientUnitChange, type IngredientUnitChangeAnswer } from './unitChangeCheck'
+import { ValueRow } from './ValueRow'
 
 // The form of a new ingredient (id null) or an existing one: name, the unit
 // it is measured in, the value basis, a value per attribute and its tags.
@@ -32,6 +33,9 @@ import { useIngredientUnitChange } from './unitChangeCheck'
 // Places left for later tickets, one line each: the source link and the
 // updated-values banner (ticket 31), the conversions (ticket 30) and the
 // unit-change question (ticket 37). Search for "Ticket 3".
+//
+// The draft and its checks are `ingredientDraft.ts`; the values' rows are
+// ValueRow, the use and Delete at the foot IngredientUse.
 
 export interface IngredientFormProps {
   /** The ingredient to edit, or null for a new one. */
@@ -52,33 +56,6 @@ interface Loaded {
   ingredient: Ingredient | null
 }
 
-/** The fields as typed; values by attribute id, empty or missing when not typed. */
-interface Draft {
-  name: string
-  unit: string
-  basis: string
-  values: Partial<Record<number, string>>
-  tagIds: ReadonlySet<number>
-}
-
-interface Errors {
-  name?: string
-  unit?: string
-  basis?: string
-  values: Partial<Record<number, string>>
-  /** A failed save, for the whole form. */
-  save?: string
-}
-
-/** What the unit-change question (ticket 37) answers: go on with the save,
- * or stop with a refusal under the unit or a failed preview. */
-interface UnitChangeAnswer {
-  go: boolean
-  unitError?: string
-  saveError?: string
-}
-
-const NO_ERRORS: Errors = { values: {} }
 const ALL_KINDS: readonly UnitGroup[] = ['mass', 'volume', 'piece']
 const MASS_ONLY: readonly UnitGroup[] = ['mass']
 
@@ -88,8 +65,8 @@ const MASS_ONLY: readonly UnitGroup[] = ['mass']
 async function loadIngredient(id: number | null, signal: AbortSignal) {
   const [loaded] = await Promise.all([
     loadAll({
-      attributes: api.GET('/api/attributes', { signal }),
-      tags: api.GET('/api/tags', { signal }),
+      attributes: attributesList.loadCall(),
+      tags: tagsList.loadCall(),
       ingredient:
         id === null
           ? Promise.resolve({ data: null })
@@ -109,21 +86,6 @@ export function IngredientForm(props: IngredientFormProps) {
   return <IngredientEditor key={id ?? 'new'} loaded={page.data} {...props} />
 }
 
-function startDraft(loaded: Loaded, initialName: string | undefined): Draft {
-  const { ingredient } = loaded
-  if (ingredient) {
-    return {
-      name: ingredient.name,
-      unit: ingredient.unit,
-      basis: ingredient.basis,
-      values: Object.fromEntries(ingredient.values.map(({ attribute_id, value }) => [attribute_id, value])),
-      tagIds: new Set(ingredient.tag_ids),
-    }
-  }
-  const unit = preferredUnit(preferencesStore.getSnapshot().preferences, 'mass') ?? 'g'
-  return { name: initialName ?? '', unit, basis: '100', values: {}, tagIds: new Set() } // a mass unit: per 100
-}
-
 function IngredientEditor({
   loaded,
   initialName,
@@ -141,7 +103,7 @@ function IngredientEditor({
 
   // The ingredient as the server last sent it (null until a new one is saved).
   const [stored, setStored] = useState(loaded.ingredient)
-  const [draft, setDraft] = useState(() => startDraft(loaded, initialName))
+  const [draft, setDraft] = useState(() => startDraft(loaded.ingredient, initialName))
   const [errors, setErrors] = useState<Errors>(NO_ERRORS)
   const [saving, setSaving] = useState(false)
   const [deleteFailed, setDeleteFailed] = useState(false)
@@ -184,50 +146,11 @@ function IngredientEditor({
   }
 
   /** The fields to send, or null after marking what is wrong. */
-  function checked(): IngredientFields | null {
-    const fields: IngredientFields = {
-      name: draft.name.trim(),
-      unit: draft.unit.trim(),
-      basis: typedNumber(draft.basis) ?? '',
-      values: [],
-      tag_ids: tags.filter((tag) => draft.tagIds.has(tag.id)).map((tag) => tag.id),
-    }
-    const found: Errors = { values: {} }
-    if (!fields.name) found.name = t('common.nameRequired')
-    if (!fields.unit) found.unit = t('ingredients.unitRequired')
-    if (!fields.basis || !(Number(fields.basis) > 0)) found.basis = t('ingredients.basisInvalid')
-    for (const attribute of attributes) {
-      const typed = draft.values[attribute.id]?.trim() ?? ''
-      if (typed === '') continue // empty means 0
-      const value = typedNumber(typed)
-      if (value === null) found.values[attribute.id] = t('ingredients.numberInvalid')
-      else fields.values.push({ attribute_id: attribute.id, value })
-    }
-    const wrong = found.name || found.unit || found.basis || Object.keys(found.values).length > 0
+  function checked() {
+    const { fields, errors: found } = checkDraft(t, draft, attributes, tags)
     setErrors(found)
-    if (wrong) setChecks((n) => n + 1)
-    return wrong ? null : fields
-  }
-
-  /** A name in use, a unit not for an ingredient (or not mass for a linked
-   * one), a refused unit change, or a number with too many digits, each on
-   * its field; anything else just failed. */
-  function showServerErrors(error: unknown, fields: IngredientFields) {
-    const byField = fieldErrors(error)
-    const refusal = conversionRefusal(error)
-    const found: Errors = { values: {} }
-    if (byField.name === 'name_in_use') found.name = t('ingredients.nameInUse')
-    if (byField.unit === 'unit_not_for_ingredient') found.unit = t('ingredients.unitNotForIngredient')
-    if (byField.unit === 'unit_not_for_source') found.unit = t('ingredients.unitNotForSource')
-    if (refusal) found.unit = refusal
-    if (byField.basis) found.basis = t('ingredients.numberTooLong')
-    fields.values.forEach(({ attribute_id }, i) => {
-      if (byField[`values.${i}.value`]) found.values[attribute_id] = t('ingredients.numberTooLong')
-    })
-    const shown = found.name || found.unit || found.basis || Object.keys(found.values).length > 0
-    if (!shown) found.save = t('common.saveFailed')
-    setErrors(found)
-    if (shown) setChecks((n) => n + 1)
+    if (!fields) setChecks((n) => n + 1)
+    return fields
   }
 
   async function save(event: FormEvent) {
@@ -237,7 +160,7 @@ function IngredientEditor({
     if (!fields) return
     if (stored && fields.unit !== stored.unit) {
       // The unit-change question (ticket 37): the preview, a refusal under the unit, or the sheet.
-      const answer: UnitChangeAnswer = await checkUnitChange(stored, fields)
+      const answer: IngredientUnitChangeAnswer = await checkUnitChange(stored, fields)
       if (!answer.go) {
         setErrors({ values: {}, unit: answer.unitError, save: answer.saveError })
         if (answer.unitError) setChecks((n) => n + 1)
@@ -254,7 +177,9 @@ function IngredientEditor({
         onSaved(saved)
         return
       }
-      showServerErrors(error, fields)
+      const found = serverErrors(t, error, fields)
+      setErrors(found.errors)
+      if (found.marked) setChecks((n) => n + 1)
     } catch {
       setErrors({ values: {}, save: t('common.saveFailed') })
     } finally {
@@ -465,130 +390,6 @@ function SectionHead({ number, id, children }: { number: string; id: string; chi
       <h2 className="ingredient-section-title" id={id}>
         {children}
       </h2>
-    </div>
-  )
-}
-
-/** One attribute's value: its name, the number and the attribute's unit. */
-function ValueRow({
-  attribute,
-  value,
-  error,
-  onChange,
-}: {
-  attribute: Attribute
-  value: string
-  error: string | undefined
-  onChange: (attributeId: number, text: string) => void
-}) {
-  const id = useId()
-  const errorId = `${id}-error`
-  return (
-    <div className="ingredient-value">
-      <label htmlFor={id} className="ingredient-value-name">
-        {attribute.name}
-      </label>
-      <input
-        id={id}
-        name={`value-${attribute.id}`}
-        className="ingredient-number"
-        inputMode="decimal"
-        autoComplete="off"
-        aria-invalid={error ? true : undefined}
-        aria-describedby={error ? errorId : undefined}
-        value={value}
-        onChange={(event) => onChange(attribute.id, event.target.value)}
-      />
-      <span className="ingredient-unit" translate="no">
-        {attribute.unit}
-      </span>
-      {error ? (
-        <p id={errorId} className="field-error ingredient-value-error" role="alert">
-          {error}
-        </p>
-      ) : null}
-    </div>
-  )
-}
-
-/** "Used in 2 recipes · Show", the recipes when asked for, and Delete,
- * refused while recipes use the ingredient. */
-function IngredientUse({
-  ingredient,
-  onDelete,
-  deleteFailed,
-}: {
-  ingredient: Ingredient
-  onDelete: () => void
-  deleteFailed: boolean
-}) {
-  const t = useT()
-  const ids = useId()
-  const [recipes, setRecipes] = useState<Recipe[] | null>(null)
-  const [asking, setAsking] = useState(false)
-  const [failed, setFailed] = useState(false)
-  const inUse = ingredient.recipe_count > 0
-
-  async function show() {
-    setFailed(false)
-    setAsking(true)
-    try {
-      const { data } = await api.GET('/api/recipes')
-      if (!data) throw new Error('no recipes')
-      const uses = (recipe: Recipe) =>
-        recipe.sections.some((section) => section.items.some((item) => item.ingredient_id === ingredient.id))
-      setRecipes(searchByName(data.filter(uses), ''))
-    } catch {
-      setFailed(true)
-    } finally {
-      setAsking(false)
-    }
-  }
-
-  return (
-    <div className="ingredient-use">
-      <p className="ingredient-used">
-        <span id={`${ids}-used`}>{t('ingredients.usedIn', { recipes: t('count.recipes', ingredient.recipe_count) })}</span>
-        {inUse && recipes === null ? (
-          <>
-            <span className="ingredient-dot" aria-hidden="true">
-              ·
-            </span>
-            <Button variant="text" onClick={show} disabled={asking}>
-              {t('ingredients.show')}
-            </Button>
-          </>
-        ) : null}
-      </p>
-      {failed ? (
-        <p className="field-error" role="alert">
-          {t('ingredients.usedInLoadFailed')}
-        </p>
-      ) : null}
-      {recipes ? (
-        <ul className="ingredient-recipes" aria-label={t('ingredients.page.usedInList', { name: ingredient.name })}>
-          {recipes.map((recipe) => (
-            <li key={recipe.id}>
-              <Link to={`/recipes/${recipe.id}`}>{recipe.name}</Link>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      <div className="ingredient-delete">
-        <Button small disabled={inUse} aria-describedby={inUse ? `${ids}-in-use` : undefined} onClick={onDelete}>
-          {t('common.delete')}
-        </Button>
-        {inUse ? (
-          <p id={`${ids}-in-use`} className="ingredient-note">
-            {t('ingredients.inUse')}
-          </p>
-        ) : null}
-        {deleteFailed ? (
-          <p className="field-error" role="alert">
-            {t('common.deleteFailed')}
-          </p>
-        ) : null}
-      </div>
     </div>
   )
 }

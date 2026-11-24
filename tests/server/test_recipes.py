@@ -281,6 +281,47 @@ def test_an_ingredient_counts_the_recipes_that_use_it(client, oats, milk):
     assert client.get(f"/api/ingredients/{oats}").json()["recipe_count"] == 2
 
 
+def test_an_ingredient_answers_the_recipes_that_use_it_by_id_and_name(client, oats, milk):
+    porridge = create(client, (oats, "60"), (milk, "200"))
+    create(client, (milk, "200"), name="Cocoa")
+    muesli = create(client, (oats, "80"), name="Muesli")
+    response = client.get(f"/api/ingredients/{oats}/recipes")
+    assert response.status_code == 200
+    # In the order added, not by name: the page sorts as it shows them.
+    assert response.json() == [{"id": porridge["id"], "name": "Porridge"}, {"id": muesli["id"], "name": "Muesli"}]
+
+
+def test_a_recipe_using_an_ingredient_on_several_lines_or_a_later_section_is_answered_once(client, oats, milk):
+    sections = [
+        {"name": "Base", "items": [line(milk, "100"), line(oats, "40")]},
+        {"name": "Topping", "items": [line(oats, "20")]},
+    ]
+    layered = create(client, sections=sections, name="Layered")
+    only_later = create(
+        client,
+        sections=[{"name": "Base", "items": [line(milk, "1")]}, {"name": "Top", "items": [line(oats, "2")]}],
+        name="Top only",
+    )
+    uses = client.get(f"/api/ingredients/{oats}/recipes").json()
+    assert uses == [{"id": layered["id"], "name": "Layered"}, {"id": only_later["id"], "name": "Top only"}]
+    assert len(uses) == client.get(f"/api/ingredients/{oats}").json()["recipe_count"]
+
+
+def test_an_unused_ingredient_answers_no_recipes_and_an_unknown_one_404(client, oats, milk):
+    create(client, (milk, "200"))
+    assert client.get(f"/api/ingredients/{oats}/recipes").json() == []
+    assert client.get("/api/ingredients/12345/recipes").status_code == 404
+
+
+def test_a_recipe_stops_being_answered_once_it_no_longer_uses_the_ingredient(client, oats, milk):
+    porridge = create(client, (oats, "60"))
+    client.put(f"/api/recipes/{porridge['id']}", json=fields((milk, "200"))).raise_for_status()
+    assert client.get(f"/api/ingredients/{oats}/recipes").json() == []
+    assert client.get(f"/api/ingredients/{milk}/recipes").json() == [{"id": porridge["id"], "name": "Porridge"}]
+    client.delete(f"/api/recipes/{porridge['id']}").raise_for_status()
+    assert client.get(f"/api/ingredients/{milk}/recipes").json() == []
+
+
 def test_an_ingredient_in_use_cannot_be_deleted(client, oats):
     porridge = create(client, (oats, "60"))
     response = client.delete(f"/api/ingredients/{oats}")

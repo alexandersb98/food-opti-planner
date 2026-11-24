@@ -7,6 +7,7 @@ import { loadAll } from '../../../load'
 import { useLoad } from '../../hooks/useLoad'
 import { useT } from '../../i18n/i18n'
 import { useRunningHead } from '../../shell/runningHead'
+import { attributesList } from '../../stores/sharedLists'
 import { buttonClass } from '../../ui/button/Button'
 import { LoadState } from '../../ui/loadState/LoadState'
 import { CreateAttribute } from './CreateAttribute'
@@ -29,7 +30,7 @@ export function DataSource() {
     (signal) =>
       loadAll({
         source: api.GET('/api/data-sources/{key}', { params: { path: { key } }, signal }),
-        attributes: api.GET('/api/attributes', { signal }),
+        attributes: attributesList.loadCall(),
       }),
     key,
   )

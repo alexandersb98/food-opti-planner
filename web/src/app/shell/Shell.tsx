@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { Outlet, useLocation, useNavigate } from 'react-router'
-import { api, setUnauthorizedHandler } from '../../api/client'
+import { setUnauthorizedHandler } from '../../api/client'
 import { useT } from '../i18n/i18n'
-import { Contents, type ContentsClose, type Counts } from './Contents'
+import { Contents, type ContentsClose } from './Contents'
 import { Masthead } from './Masthead'
 import { PageFoot, SkipLink } from './PageTurn'
 import { usePageTurns } from './turning'
@@ -23,8 +23,6 @@ export function Shell() {
   const page = pageFor(location.pathname)
   const [runningHead] = useState(createRunningHeadOverride)
   const [contentsOpen, setContentsOpen] = useState(false)
-  const [counts, setCounts] = useState<Counts | null>(null)
-  const countsAsked = useRef(0)
   const contentsButton = useRef<HTMLButtonElement>(null)
   const main = useRef<HTMLElement>(null)
   usePageTurns(main, page)
@@ -39,18 +37,6 @@ export function Shell() {
     setUnauthorizedHandler(() => void navigate(loginPath(here.current)))
     return () => setUnauthorizedHandler(() => {})
   }, [navigate])
-
-  function openContents() {
-    setContentsOpen(true)
-    // fresh each time, so it shows what other pages changed; never waited for
-    const asked = ++countsAsked.current
-    api.GET('/api/counts').then(
-      ({ data }) => {
-        if (data && asked === countsAsked.current) setCounts(data)
-      },
-      () => {}, // no counts; the Contents work without them
-    )
-  }
 
   function closeContents(how: ContentsClose) {
     // closed at once, so the page is no longer inert and can take focus
@@ -77,7 +63,7 @@ export function Shell() {
             <Masthead
               page={page}
               contentsOpen={contentsOpen}
-              onContents={openContents}
+              onContents={() => setContentsOpen(true)}
               contentsButton={contentsButton}
             />
             <main ref={main} id="page" className="shell-page" tabIndex={-1}>
@@ -86,7 +72,7 @@ export function Shell() {
             </main>
           </div>
           {contentsOpen ? (
-            <Contents current={page?.id} counts={counts} onClose={closeContents} onLoggedOut={loggedOut} />
+            <Contents current={page?.id} onClose={closeContents} onLoggedOut={loggedOut} />
           ) : null}
           <Toast />
         </div>

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import type { Plan, Tag } from '../../../api/types'
 import { useT } from '../../i18n/i18n'
-import type { RecipeCountState } from '../../stores/recipeCount'
+import type { RecipeCountReader } from '../../hooks/useRecipeCount'
 import { Button, buttonClass } from '../../ui/button/Button'
 import { RuleTag } from '../../ui/ruleTag/RuleTag'
 import { BriefSection } from './BriefSection'
@@ -19,11 +19,12 @@ const ruleId = (tagId: number) => `brief-filter-${tagId}`
 /**
  * Section 3 of the brief, the recipe filters: each filter as a rule tag
  * ("Never: pork", "Only: weeknight"), how many recipes they leave as the
- * server counts it (the brief asks, for its standfirst too), and "See them".
+ * server counts it (the brief's count, for its standfirst too; the sheet
+ * asks it again when Done saves new filters), and "See them".
  * "Change" or a rule tag opens the filters sheet; so does `?sheet=filters`,
  * which is then removed from the address.
  */
-export function FiltersSection({ plan, tags, count }: { plan: Plan; tags: Tag[]; count: RecipeCountState }) {
+export function FiltersSection({ plan, tags, count }: { plan: Plan; tags: Tag[]; count: RecipeCountReader }) {
   const t = useT()
   const [params, setParams] = useSearchParams()
   const [open, setOpen] = useState(false)

@@ -196,6 +196,29 @@ test('Show more appends the next 20 and goes when all are shown', async () => {
   expect(within(app.sheet).getByRole('status').textContent).toBe('21 foods')
 })
 
+test('a Show more still out when a new search answers is dropped', async () => {
+  const twenty = Array.from({ length: 20 }, (_, i) => foodSummary({ id: 100 + i, name: `Food ${i}` }))
+  let release: (reply: FakeReply) => void = () => {}
+  const slow = new Promise<FakeReply>((resolve) => (release = resolve))
+  let calls: string[] = []
+  const app = await openSheet({
+    [foodsPath]: () => {
+      const search = queryOf(calls.at(-1))
+      if (search.endsWith('offset=20')) return slow
+      return search.startsWith('search=b&') ? page([milk]) : { body: { foods: twenty, total: 21, offset: 0, limit: 20 } }
+    },
+  })
+  calls = app.calls
+  await waitFor(() => expect(rows(app.sheet)).toHaveLength(20))
+  await app.user.click(within(app.sheet).getByRole('button', { name: 'Show more' }))
+  await app.user.type(searchBox(app.sheet)!, 'b')
+  await pause()
+  await listed(app.sheet, ['TEST Milk | TEST Dairy'])
+  await act(async () => release({ body: { foods: [oats], total: 21, offset: 20, limit: 20 } }))
+  await pause()
+  expect(rows(app.sheet)).toEqual(['TEST Milk | TEST Dairy'])
+})
+
 test('with no match the list says so', async () => {
   const { sheet } = await openSheet({ [foodsPath]: page([]) })
   expect(await within(sheet).findByText('No foods match.')).toBeDefined()

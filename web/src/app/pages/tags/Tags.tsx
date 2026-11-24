@@ -4,6 +4,7 @@ import { fieldErrors } from '../../../api/errors'
 import type { GroupQuestion, Tag, TagFields } from '../../../api/types'
 import { useLoad } from '../../hooks/useLoad'
 import { useT } from '../../i18n/i18n'
+import { tagsList } from '../../stores/sharedLists'
 import { buttonClass } from '../../ui/button/Button'
 import { useConfirm } from '../../ui/confirm/Confirm'
 import { LoadState } from '../../ui/loadState/LoadState'
@@ -58,7 +59,7 @@ function withNew(tags: Tag[], created: Tag) {
  */
 export function Tags() {
   const t = useT()
-  const page = useLoad((signal) => api.GET('/api/tags', { signal }))
+  const page = useLoad(() => tagsList.loadCall())
   const tags = page.data
   const byId = useMemo(() => new Map((tags ?? []).map((tag) => [tag.id, tag])), [tags])
 

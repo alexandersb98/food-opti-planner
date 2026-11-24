@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { api } from '../../../api/client'
 import { errorType } from '../../../api/errors'
-import { useLoad } from '../../hooks/useLoad'
+import { useAiConfigured } from '../../hooks/useAiConfigured'
 import { useT } from '../../i18n/i18n'
 import { importDraftStore } from '../../stores/importDraft'
 import { Button, buttonClass } from '../../ui/button/Button'
@@ -52,10 +52,7 @@ export function Import() {
   const busy = useRef(false)
   const headingId = useId()
 
-  // Whether the server has an AI key: unknown until health answers (so the
-  // hint does not flash), and an unreadable answer counts as no.
-  const health = useLoad((signal) => api.GET('/api/health', { signal }))
-  const configured = health.data ? health.data.ai_configured === true : health.failed ? false : null
+  const configured = useAiConfigured()
 
   // no stale draft from an earlier import waits for the next new recipe
   useEffect(() => {

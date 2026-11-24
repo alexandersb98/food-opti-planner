@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { byId, searchByName } from './lists'
+import { byId, filterByName, sortByName } from './lists'
 
 test('byId finds rows by their id', () => {
   const rows = [
@@ -10,11 +10,20 @@ test('byId finds rows by their id', () => {
   expect(byId(rows).get(1)).toBeUndefined()
 })
 
-test('searchByName keeps names containing the text, ignoring case, sorted by name', () => {
-  const rows = [{ name: 'Oats' }, { name: 'egg' }, { name: 'Goat cheese' }, { name: 'Milk' }]
-  expect(searchByName(rows, '').map((row) => row.name)).toEqual(['egg', 'Goat cheese', 'Milk', 'Oats'])
-  expect(searchByName(rows, ' OAT ').map((row) => row.name)).toEqual(['Goat cheese', 'Oats'])
+test('sortByName sorts by name as localeCompare does, into a new list', () => {
+  const rows = [{ name: 'Oats' }, { name: 'egg' }, { name: 'Goat cheese' }, { name: 'Milk' }, { name: 'éclair' }]
+  const names = rows.map((row) => row.name)
+  expect(sortByName(rows).map((row) => row.name)).toEqual([...names].sort((a, b) => a.localeCompare(b)))
+  expect(sortByName(rows).map((row) => row.name)).toEqual(['éclair', 'egg', 'Goat cheese', 'Milk', 'Oats'])
   expect(rows[0]!.name).toBe('Oats') // the given list is not reordered
-  // A `clearable` box gives null, not '', when it is cleared.
-  expect(searchByName(rows, null).map((row) => row.name)).toEqual(['egg', 'Goat cheese', 'Milk', 'Oats'])
+})
+
+test('filterByName keeps names containing the text, ignoring case, in the given order', () => {
+  const rows = [{ name: 'egg' }, { name: 'Goat cheese' }, { name: 'Milk' }, { name: 'Oats' }]
+  expect(filterByName(rows, ' OAT ').map((row) => row.name)).toEqual(['Goat cheese', 'Oats'])
+  expect(filterByName(rows, 'xyz')).toEqual([])
+  // A blank search keeps every row; a `clearable` box gives null, not ''.
+  expect(filterByName(rows, '')).toBe(rows)
+  expect(filterByName(rows, '  ')).toBe(rows)
+  expect(filterByName(rows, null)).toBe(rows)
 })

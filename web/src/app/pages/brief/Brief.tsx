@@ -1,4 +1,4 @@
-import { useEffect, useSyncExternalStore, type MouseEvent } from 'react'
+import { useSyncExternalStore, type MouseEvent } from 'react'
 import { api } from '../../../api/client'
 import type { TagFilter } from '../../../api/types'
 import { issueLine, localDate } from '../../../dates'
@@ -8,6 +8,7 @@ import { useRecipeCount } from '../../hooks/useRecipeCount'
 import { useLocale, useT } from '../../i18n/i18n'
 import * as planSetup from '../../stores/planSetup'
 import * as solve from '../../stores/solve'
+import { attributesList, tagsList } from '../../stores/sharedLists'
 import { LoadState } from '../../ui/loadState/LoadState'
 import { briefSections, headingId } from './BriefSection'
 import { Compose } from './Compose'
@@ -23,11 +24,14 @@ import { richText } from './words'
 import './brief.css'
 
 /** Loads the setup into the plan-setup store, answering as a load call:
- * no data when it failed. */
-async function loadSetup(): Promise<{ data?: true }> {
+ * no data when it failed. Once loaded, asks the usable count for its
+ * filters (not waited for: the count shows when it comes). */
+async function loadSetup(askCount: (filters: TagFilter[]) => Promise<void>): Promise<{ data?: true }> {
   await planSetup.load()
   const { plan, failed } = planSetup.getSnapshot()
-  return plan && !failed ? { data: true } : {}
+  if (!plan || failed) return {}
+  void askCount(plan.tag_filters)
+  return { data: true }
 }
 
 const isSolving = () => solve.getSnapshot().running
@@ -50,27 +54,22 @@ function jumpTo(event: MouseEvent<HTMLAnchorElement>, sectionId: string) {
 export function Brief() {
   const t = useT()
   const { locale } = useLocale()
-  const page = useLoad(() =>
+  // How many recipes the filters leave, as the server counts it: asked when
+  // the setup loads, and by the filters sheet when Done saves new filters.
+  const recipes = useRecipeCount()
+  const page = useLoad((signal) =>
     loadAll({
-      plan: loadSetup(),
-      attributes: api.GET('/api/attributes'),
-      tags: api.GET('/api/tags'),
-      results: api.GET('/api/plan-results'),
-      today: api.GET('/api/plan-results/today', { params: { query: { date: localDate() } } }),
+      plan: loadSetup(recipes.ask),
+      attributes: attributesList.loadCall(),
+      tags: tagsList.loadCall(),
+      results: api.GET('/api/plan-results', { signal }),
+      today: api.GET('/api/plan-results/today', { params: { query: { date: localDate() } }, signal }),
     }),
   )
   const setup = useSyncExternalStore(planSetup.subscribe, planSetup.getSnapshot)
   const solving = useSyncExternalStore(solve.subscribe, isSolving)
   const compose = useCompose()
   const plan = page.data ? setup.plan : null
-
-  // How many recipes the filters leave, as the server counts it.
-  const recipes = useRecipeCount()
-  const { ask } = recipes
-  const filters = plan ? JSON.stringify(plan.tag_filters) : null
-  useEffect(() => {
-    if (filters !== null) void ask(JSON.parse(filters) as TagFilter[])
-  }, [filters, ask])
 
   return (
     <article className="brief">

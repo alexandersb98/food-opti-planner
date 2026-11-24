@@ -1,7 +1,7 @@
 import { api } from '../../api/client'
 import type { CatalogueUnit } from '../../api/types'
 import { fraction, ONE, over, type Fraction } from '../../fractions'
-import { createState } from './state'
+import { createServerValue } from './serverValue'
 
 // The unit catalogue the server sent (GET /api/units), loaded once and shared
 // by every unit field. The server holds the rules (prefixes, factors); the
@@ -18,49 +18,16 @@ export interface UnitsState {
 
 const EMPTY: UnitsState = { units: [], loading: false, failed: false }
 
-const state = createState<UnitsState>(EMPTY)
-let loaded = false
-let pending: Promise<void> | null = null
-// Counts resets, so a load that was in flight at one can't fill the state.
-let generation = 0
-
-async function fetchUnits() {
-  const mine = generation
-  state.update({ loading: true, failed: false })
-  try {
-    const { data } = await api.GET('/api/units')
-    if (mine !== generation) return
-    if (data) {
-      loaded = true
-      state.update({ units: data.units, loading: false })
-    } else state.update({ failed: true, loading: false })
-  } catch {
-    if (mine === generation) state.update({ failed: true, loading: false })
-  }
-}
-
-/** Fetch the catalogue once; later calls return at once, calls during a
- * load share it. A failed load is tried again by the next call. Never
- * rejects. */
-function load(): Promise<void> {
-  if (loaded) return Promise.resolve()
-  pending ??= fetchUnits().finally(() => (pending = null))
-  return pending
-}
-
-/** Forget the catalogue, for tests: a load in flight no longer counts. */
-function reset() {
-  generation++
-  loaded = false
-  pending = null
-  state.set(EMPTY)
-}
+const server = createServerValue(EMPTY, async () => {
+  const { data } = await api.GET('/api/units')
+  return data && { units: data.units }
+})
 
 export const unitsStore = {
-  subscribe: state.subscribe,
-  getSnapshot: state.getSnapshot,
-  load,
-  reset,
+  subscribe: server.subscribe,
+  getSnapshot: server.getSnapshot,
+  load: server.load,
+  reset: server.reset,
 }
 
 /** As the server reads a unit: NFKC, trimmed, inner runs of spaces

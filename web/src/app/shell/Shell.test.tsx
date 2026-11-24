@@ -118,7 +118,8 @@ test('a Contents link turns to that page and closes the Contents', async () => {
   const contents = await openContents(user)
   await user.click(within(contents).getByRole('link', { name: /^The archive/ }))
 
-  expect(where(router)).toBe('/plans')
+  // a lazy route: the location changes once its chunk has loaded
+  await waitFor(() => expect(where(router)).toBe('/plans'))
   expect(screen.queryByRole('dialog')).toBeNull()
   expect(await screen.findByRole('heading', { level: 1, name: 'The archive' })).toBeDefined()
   expect(document.activeElement).toBe(screen.getByRole('main'))
